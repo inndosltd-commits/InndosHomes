@@ -9,6 +9,9 @@ import Search from "@/pages/Search";
 import Dashboard from "@/pages/Dashboard";
 import PropertyDetails from "@/pages/PropertyDetails";
 import Login from "@/pages/Login";
+import Contact from "@/pages/Contact";
+import Legal from "@/pages/Legal";
+import Pricing from "@/pages/Pricing";
 
 function Router() {
   return (
@@ -17,6 +20,11 @@ function Router() {
       <Route path="/search" component={Search}/>
       <Route path="/dashboard" component={Dashboard}/>
       <Route path="/login" component={Login}/>
+      <Route path="/contact" component={Contact}/>
+      <Route path="/pricing" component={Pricing}/>
+      <Route path="/terms" component={Legal}/>
+      <Route path="/privacy" component={Legal}/>
+      <Route path="/help" component={Contact}/> {/* Redirect Help to Contact for now */}
       <Route path="/property/:id" component={PropertyDetails}/>
       <Route component={NotFound} />
     </Switch>

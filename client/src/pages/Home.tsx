@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/home/Hero";
 import { PropertyCard } from "@/components/property/PropertyCard";
 import { PROPERTIES } from "@/lib/mockData";
@@ -97,40 +98,7 @@ export default function Home() {
         </div>
       </section>
       
-      <footer className="bg-primary text-white py-12">
-        <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-             <h3 className="font-heading font-bold text-2xl mb-4">INNDOS</h3>
-             <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4">Platform</h4>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li><a href="#" className="hover:text-white">For Rent</a></li>
-              <li><a href="#" className="hover:text-white">For Sale</a></li>
-              <li><a href="#" className="hover:text-white">List Property</a></li>
-              <li><a href="#" className="hover:text-white">Pricing</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4">Support</h4>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li><a href="#" className="hover:text-white">Help Center</a></li>
-              <li><a href="#" className="hover:text-white">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white">Contact Us</a></li>
-            </ul>
-          </div>
-           <div>
-            <h4 className="font-bold mb-4">Contact</h4>
-            <p className="text-sm text-gray-300 mb-2">support@inndos.com</p>
-            <p className="text-sm text-gray-300">+1 (555) 123-4567</p>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-gray-400">
-          © 2025 INNDOS. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

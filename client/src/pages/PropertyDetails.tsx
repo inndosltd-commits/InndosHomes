@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -15,7 +16,7 @@ export default function PropertyDetails() {
   const property = PROPERTIES.find(p => p.id === id) || PROPERTIES[0];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
       
       {/* Image Gallery Grid */}
@@ -36,7 +37,7 @@ export default function PropertyDetails() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="flex-1 container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           
           {/* Main Content */}
@@ -163,6 +164,7 @@ export default function PropertyDetails() {
 
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
