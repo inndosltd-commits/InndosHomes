@@ -1,0 +1,136 @@
+import { Navbar } from "@/components/layout/Navbar";
+import { Hero } from "@/components/home/Hero";
+import { PropertyCard } from "@/components/property/PropertyCard";
+import { PROPERTIES } from "@/lib/mockData";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, ShieldCheck, Users, Building2, Key } from "lucide-react";
+import { Link } from "wouter";
+
+export default function Home() {
+  const rentalProperties = PROPERTIES.filter(p => p.type === "rent");
+  const saleProperties = PROPERTIES.filter(p => p.type === "sale");
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <Hero />
+
+      {/* Features Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors">
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <h3 className="font-heading font-bold text-lg mb-2">Verified Listings</h3>
+              <p className="text-muted-foreground text-sm">Every property is vetted for authenticity.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
+              <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
+                <Users className="h-6 w-6" />
+              </div>
+              <h3 className="font-heading font-bold text-lg mb-2">Direct Connection</h3>
+              <p className="text-muted-foreground text-sm">Connect directly with owners and buyers.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors">
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <h3 className="font-heading font-bold text-lg mb-2">Property Management</h3>
+              <p className="text-muted-foreground text-sm">Tools for landlords to manage listings.</p>
+            </div>
+            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
+              <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
+                <Key className="h-6 w-6" />
+              </div>
+              <h3 className="font-heading font-bold text-lg mb-2">Secure Booking</h3>
+              <p className="text-muted-foreground text-sm">Safe and secure rental process.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Rentals */}
+      <section className="py-16 container mx-auto px-4">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Latest Rentals</h2>
+            <p className="text-muted-foreground">Discover top-rated rental properties available now.</p>
+          </div>
+          <Link href="/search?type=rent">
+            <Button variant="ghost" className="text-primary">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {rentalProperties.map((property) => (
+            <PropertyCard key={property.id} property={property} />
+          ))}
+          {/* Duplicate for visual fullness */}
+          {rentalProperties.map((property) => (
+            <PropertyCard key={`${property.id}-dup`} property={{...property, id: `${property.id}-dup`}} />
+          ))}
+        </div>
+      </section>
+
+      {/* Featured Sales */}
+      <section className="py-16 bg-white border-t">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-end mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Properties For Sale</h2>
+              <p className="text-muted-foreground">Find your dream home from verified sellers.</p>
+            </div>
+            <Link href="/search?type=sale">
+              <Button variant="ghost" className="text-secondary">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {saleProperties.map((property) => (
+              <PropertyCard key={property.id} property={property} />
+            ))}
+             {/* Duplicate for visual fullness */}
+             {saleProperties.map((property) => (
+              <PropertyCard key={`${property.id}-dup`} property={{...property, id: `${property.id}-dup`}} />
+            ))}
+          </div>
+        </div>
+      </section>
+      
+      <footer className="bg-primary text-white py-12">
+        <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+             <h3 className="font-heading font-bold text-2xl mb-4">INNDOS</h3>
+             <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
+          </div>
+          <div>
+            <h4 className="font-bold mb-4">Platform</h4>
+            <ul className="space-y-2 text-sm text-gray-300">
+              <li><a href="#" className="hover:text-white">For Rent</a></li>
+              <li><a href="#" className="hover:text-white">For Sale</a></li>
+              <li><a href="#" className="hover:text-white">List Property</a></li>
+              <li><a href="#" className="hover:text-white">Pricing</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold mb-4">Support</h4>
+            <ul className="space-y-2 text-sm text-gray-300">
+              <li><a href="#" className="hover:text-white">Help Center</a></li>
+              <li><a href="#" className="hover:text-white">Terms of Service</a></li>
+              <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-white">Contact Us</a></li>
+            </ul>
+          </div>
+           <div>
+            <h4 className="font-bold mb-4">Contact</h4>
+            <p className="text-sm text-gray-300 mb-2">support@inndos.com</p>
+            <p className="text-sm text-gray-300">+1 (555) 123-4567</p>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-gray-400">
+          © 2025 INNDOS. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+}
