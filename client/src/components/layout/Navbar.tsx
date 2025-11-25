@@ -13,13 +13,10 @@ export function Navbar() {
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
             <img 
-              src="/images/inndos_modern_flat_minimalist_logo.png" 
+              src="/logo.jpg" 
               alt="INNDOS" 
-              className="h-12 w-12 object-contain transition-transform group-hover:scale-105" 
+              className="h-8 w-auto object-contain" 
             />
-            <span className="font-heading text-2xl font-bold text-primary tracking-tight">
-              INNDOS
-            </span>
           </div>
         </Link>
 
