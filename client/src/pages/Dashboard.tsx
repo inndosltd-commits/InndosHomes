@@ -1,25 +1,26 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home, MessageSquare, Calendar, BarChart3, Settings, Heart, Clock, Plus, ShieldCheck, Users, FileText, AlertTriangle, DollarSign } from "lucide-react";
 import { PROPERTIES } from "@/lib/mockData";
 import { useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
-  const [location] = useLocation();
-  // Get role from URL query param or default to 'owner'
-  const urlParams = new URLSearchParams(window.location.search);
-  const initialRole = urlParams.get('role') || 'owner';
-  const [activeTab, setActiveTab] = useState(initialRole);
+  const [, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (initialRole) {
-      setActiveTab(initialRole);
+    if (!isLoading && !user) {
+      setLocation("/login");
     }
-  }, [initialRole]);
+  }, [user, isLoading, setLocation]);
+
+  if (isLoading || !user) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -30,23 +31,17 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back, {activeTab === 'admin' ? 'SuperAdmin' : activeTab === 'owner' ? 'John Landlord' : 'Sarah Tenant'}
+              Welcome back, {user.name}
             </p>
           </div>
-          {activeTab === 'owner' && (
+          {user.role === 'owner' && (
             <Button className="bg-primary"><Plus className="mr-2 h-4 w-4" /> Add New Listing</Button>
           )}
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-[600px] mb-8">
-            <TabsTrigger value="owner">Owner Portal</TabsTrigger>
-            <TabsTrigger value="tenant">Tenant Portal</TabsTrigger>
-            <TabsTrigger value="admin">SuperAdmin</TabsTrigger>
-          </TabsList>
-
-          {/* OWNER DASHBOARD */}
-          <TabsContent value="owner" className="space-y-6">
+        {/* OWNER DASHBOARD */}
+        {user.role === 'owner' && (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -135,10 +130,12 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* TENANT DASHBOARD */}
-          <TabsContent value="tenant" className="space-y-6">
+        {/* TENANT DASHBOARD */}
+        {user.role === 'tenant' && (
+          <div className="space-y-6">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -189,10 +186,12 @@ export default function Dashboard() {
                   </div>
                 ))}
              </div>
-          </TabsContent>
+          </div>
+        )}
 
-          {/* ADMIN DASHBOARD */}
-          <TabsContent value="admin" className="space-y-6">
+        {/* ADMIN DASHBOARD */}
+        {user.role === 'admin' && (
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -292,9 +291,8 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   );

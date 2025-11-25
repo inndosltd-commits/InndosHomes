@@ -4,22 +4,28 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, UserCircle, ShieldCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const { login, user } = useAuth();
 
-  const handleLogin = (role: string) => {
+  // If already logged in, redirect to dashboard
+  if (user) {
+    setLocation("/dashboard");
+    return null;
+  }
+
+  const handleLogin = (role: "tenant" | "owner" | "admin") => {
     setIsLoading(true);
     // Simulate network delay
     setTimeout(() => {
+      login(role);
       setIsLoading(false);
-      // In a real app, we'd set auth state here
-      setLocation(`/dashboard?role=${role}`);
-    }, 1000);
+    }, 800);
   };
 
   return (

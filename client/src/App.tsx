@@ -12,6 +12,7 @@ import Login from "@/pages/Login";
 import Contact from "@/pages/Contact";
 import Legal from "@/pages/Legal";
 import Pricing from "@/pages/Pricing";
+import { AuthProvider } from "./lib/auth";
 
 function Router() {
   return (
@@ -24,7 +25,7 @@ function Router() {
       <Route path="/pricing" component={Pricing}/>
       <Route path="/terms" component={Legal}/>
       <Route path="/privacy" component={Legal}/>
-      <Route path="/help" component={Contact}/> {/* Redirect Help to Contact for now */}
+      <Route path="/help" component={Contact}/>
       <Route path="/property/:id" component={PropertyDetails}/>
       <Route component={NotFound} />
     </Switch>
@@ -34,10 +35,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
