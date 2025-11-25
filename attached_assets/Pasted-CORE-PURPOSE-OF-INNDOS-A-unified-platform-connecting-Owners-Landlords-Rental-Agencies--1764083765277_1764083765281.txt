@@ -1,0 +1,269 @@
+CORE PURPOSE OF INNDOS
+
+A unified platform connecting:
+
+🏢 Owners, Landlords, Rental Agencies & Property Sellers
+
+with
+
+🧑‍💼 Tenants & Property Buyers
+
+INNDOS enables listing management, availability calendars, advanced search, secure messaging, booking visits, property sales inquiries, and full admin moderation.
+
+🔥 1. OWNER / LANDLORD / AGENCY / PROPERTY SELLER PORTAL
+Role Name: Owner / Agency / Property Seller
+A. Listing Management
+
+Add rental properties
+
+Add properties for sale
+
+Upload photos, videos & documents
+
+Add unit details (bedrooms, bathrooms, amenities, pricing)
+
+Manage availability (renting)
+
+Manage property status (available, occupied, sold, under-offer)
+
+B. Availability Calendar (Rentals)
+
+Select available dates
+
+Block booked dates
+
+Auto synchronization with tenant inquiries
+
+Visual calendar view
+
+C. Inquiry & Messaging System
+
+Receive inquiries from tenants/buyers
+
+Real-time chat system
+
+Document exchange
+
+Schedule viewing/tours
+
+Accept/decline inquiry requests
+
+D. Seller Tools (For Properties Being Sold)
+
+Track buyer interest
+
+Manage offers
+
+Manage negotiation messages
+
+Upload sale documents
+
+E. Owner Dashboard
+
+Total listings
+
+Active rental listings
+
+Properties for sale
+
+Analytics: views, inquiries, conversion
+
+Calendar overview
+
+Notifications
+
+🧑‍💼 2. TENANT / BUYER PORTAL
+Role Name: Tenant or Buyer
+A. Advanced Search
+
+(For Rent + For Sale)
+
+Filters:
+
+Location
+
+Price range
+
+Bedrooms
+
+Bathrooms
+
+Property type
+
+Furnished / unfurnished
+
+Amenities
+
+Parking
+
+Pets allowed
+
+Nearby schools
+
+Verified properties
+
+B. Favorites & Saved Searches
+
+Save properties to “Favorites”
+
+Save search filters
+
+Get notifications when new matching properties appear
+
+C. Secure Contact
+
+Secure messaging with owners/sellers
+
+Request viewing (physical or virtual)
+
+Ask for more details
+
+Inquire about negotiations (sale properties)
+
+D. Tenant/Buyer Dashboard
+
+Favorites
+
+Contact history
+
+Scheduled appointments
+
+Search suggestions
+
+Notifications
+
+🛡️ 3. SUPERADMIN DASHBOARD (INNDOS ADMIN)
+Role Name: INNDOS SuperAdmin
+A. Moderation
+
+Approve or reject new listings
+
+Validate properties (Verified badge)
+
+Remove fraudulent listings
+
+Suspend users
+
+Review reported listings or users
+
+B. Analytics & Reports
+
+Total users
+
+Total rental listings vs sale listings
+
+Most searched locations
+
+Monthly active tenants/buyers
+
+Most active owners/agencies
+
+Conversion performance
+
+Platform financial stats (subscriptions)
+
+C. User Management
+
+Add/remove/suspend/verify users
+
+Reset passwords
+
+Role assignment
+
+KYC verification tools
+
+D. Platform Settings
+
+Subscription plan management
+
+Payment methods
+
+Notification templates
+
+Featured properties controls
+
+Slider & homepage content management
+
+🛠️ TECH STACK FOR INNDOS
+
+Frontend: React + TailwindCSS
+Backend: Node.js (Express.js)
+Database: MongoDB
+Auth: JWT + Role Permissions
+Mobile App: React Native (Expo) or Flutter
+Real-Time Messaging: Socket.io
+Maps: Google Maps API Integration
+
+🗂️ FOLDER STRUCTURE
+/client
+/server
+/mobile
+/docs
+/branding
+/pitchdeck
+/marketing
+
+🎨 BRANDING & LOGO PACKAGE FOR INNDOS
+Brand Personality
+
+Modern
+
+Professional
+
+Trustworthy
+
+Real Estate + Technology
+
+Logo Requirements
+
+Symbol: House + Building + “INN” element or digital tech arc
+
+Style: Flat, bold, minimal
+
+Colors:
+
+Deep Indigo (#312E81)
+
+Teal Green (#0D9488)
+
+Soft Gray (#E5E7EB)
+
+White (#FFFFFF)
+
+Deliverables
+
+Logo (PNG + SVG)
+
+Favicon
+
+UI color palette
+
+Typography (Poppins + Inter)
+
+UI component style guide
+
+📝 LANDING PAGE COPY (INNDOS)
+Hero Section
+
+Find your next home or buyer with ease.
+INNDOS connects property owners, agents, tenants, and buyers on one smart platform.
+
+Buttons:
+
+Explore Listings
+
+Create Account
+
+Sections
+
+Properties For Rent
+
+Properties For Sale
+
+Trusted by Owners & Agencies
+
+Secure Messaging
+
+Verified Listings
+
+Download Mobile App
