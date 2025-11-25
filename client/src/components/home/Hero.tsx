@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Search, MapPin } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
-import heroBg from "@assets/generated_images/modern_happy_family_moving_into_new_home.png";
 
 export function Hero() {
   const [activeTab, setActiveTab] = useState<"rent" | "buy">("rent");
@@ -19,7 +18,7 @@ export function Hero() {
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src={heroBg}
+          src="/images/modern_happy_family_moving_into_new_home.png"
           alt="Modern home"
           className="h-full w-full object-cover"
         />

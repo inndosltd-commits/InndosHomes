@@ -1,25 +1,48 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home, MessageSquare, Calendar, BarChart3, Settings, Heart, Clock, Plus } from "lucide-react";
+import { Home, MessageSquare, Calendar, BarChart3, Settings, Heart, Clock, Plus, ShieldCheck, Users, FileText, AlertTriangle, DollarSign } from "lucide-react";
 import { PROPERTIES } from "@/lib/mockData";
+import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
+  const [location] = useLocation();
+  // Get role from URL query param or default to 'owner'
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialRole = urlParams.get('role') || 'owner';
+  const [activeTab, setActiveTab] = useState(initialRole);
+
+  useEffect(() => {
+    if (initialRole) {
+      setActiveTab(initialRole);
+    }
+  }, [initialRole]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
-          <Button className="bg-primary"><Plus className="mr-2 h-4 w-4" /> Add New Listing</Button>
+          <div>
+            <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back, {activeTab === 'admin' ? 'SuperAdmin' : activeTab === 'owner' ? 'John Landlord' : 'Sarah Tenant'}
+            </p>
+          </div>
+          {activeTab === 'owner' && (
+            <Button className="bg-primary"><Plus className="mr-2 h-4 w-4" /> Add New Listing</Button>
+          )}
         </div>
 
-        <Tabs defaultValue="owner" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-8">
-            <TabsTrigger value="owner">Owner View</TabsTrigger>
-            <TabsTrigger value="tenant">Tenant View</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 max-w-[600px] mb-8">
+            <TabsTrigger value="owner">Owner Portal</TabsTrigger>
+            <TabsTrigger value="tenant">Tenant Portal</TabsTrigger>
+            <TabsTrigger value="admin">SuperAdmin</TabsTrigger>
           </TabsList>
 
           {/* OWNER DASHBOARD */}
@@ -167,6 +190,110 @@ export default function Dashboard() {
                 ))}
              </div>
           </TabsContent>
+
+          {/* ADMIN DASHBOARD */}
+          <TabsContent value="admin" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                  <FileText className="h-4 w-4 text-yellow-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">45</div>
+                  <p className="text-xs text-muted-foreground">Properties awaiting verification</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">2,340</div>
+                  <p className="text-xs text-muted-foreground">+120 this week</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Reported Listings</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">3</div>
+                  <p className="text-xs text-muted-foreground">Action required</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Platform Revenue</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">$45,200</div>
+                  <p className="text-xs text-muted-foreground">Subscription fees</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                   <CardTitle>Moderation Queue</CardTitle>
+                   <CardDescription>Validate new property listings</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <div className="space-y-4">
+                     {[1,2,3].map(i => (
+                       <div key={i} className="flex items-center justify-between p-3 border rounded bg-white">
+                         <div className="flex items-center gap-3">
+                           <div className="h-10 w-10 bg-gray-200 rounded overflow-hidden">
+                              <img src={`/images/modern_apartment_exterior.png`} className="h-full w-full object-cover" />
+                           </div>
+                           <div>
+                             <p className="font-medium text-sm">Sunny Vale Apt #{i}</p>
+                             <p className="text-xs text-muted-foreground">Submitted by Agent Smith</p>
+                           </div>
+                         </div>
+                         <div className="flex gap-2">
+                           <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">Reject</Button>
+                           <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">Approve</Button>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                   <CardTitle>Recent User Signups</CardTitle>
+                   <CardDescription>Verify user identities (KYC)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <div className="space-y-4">
+                     {["Alice Cooper", "Bob Vance", "Charlie Day"].map((name, i) => (
+                       <div key={i} className="flex items-center justify-between p-3 border-b last:border-0">
+                         <div className="flex items-center gap-3">
+                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                             {name.charAt(0)}
+                           </div>
+                           <div>
+                             <p className="font-medium text-sm">{name}</p>
+                             <p className="text-xs text-muted-foreground">{i % 2 === 0 ? "Tenant" : "Landlord"}</p>
+                           </div>
+                         </div>
+                         <Badge variant={i === 0 ? "default" : "outline"}>
+                           {i === 0 ? "Verified" : "Pending"}
+                         </Badge>
+                       </div>
+                     ))}
+                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>
