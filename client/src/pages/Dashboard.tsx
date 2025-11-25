@@ -481,6 +481,60 @@ export default function Dashboard() {
               </div>
             </TabsContent>
           )}
+
+          {/* SETTINGS TAB (Shared) */}
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Settings</CardTitle>
+                <CardDescription>Manage your profile and preferences</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" defaultValue={user.name} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input id="email" defaultValue={user.email} readOnly className="bg-gray-50" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea id="bio" placeholder="Tell us a bit about yourself" />
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h3 className="text-lg font-medium mb-4">Notifications</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-notif" className="flex flex-col gap-1">
+                        <span>Email Notifications</span>
+                        <span className="font-normal text-xs text-muted-foreground">Receive updates about your listings and messages</span>
+                      </Label>
+                      <Input type="checkbox" id="email-notif" className="h-4 w-4" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-notif" className="flex flex-col gap-1">
+                        <span>Push Notifications</span>
+                        <span className="font-normal text-xs text-muted-foreground">Receive real-time alerts in browser</span>
+                      </Label>
+                      <Input type="checkbox" id="push-notif" className="h-4 w-4" defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <Button onClick={() => toast({ title: "Settings Saved", description: "Your profile has been updated." })}>
+                    Save Changes
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

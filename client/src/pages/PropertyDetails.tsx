@@ -5,15 +5,53 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, Phone, Mail, MessageSquare } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, Phone, Mail, MessageSquare, PhoneCall, MessageCircle, Copy } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
-import { PROPERTIES } from "@/lib/mockData";
+import { PROPERTIES, OWNERS } from "@/lib/mockData";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/property/:id");
+  const { toast } = useToast();
+  const [isLiked, setIsLiked] = useState(false);
+  
   // Handle the duplicate IDs from the list for demo purposes by stripping suffix
   const id = params?.id?.replace('-dup', ''); 
   const property = PROPERTIES.find(p => p.id === id) || PROPERTIES[0];
+  
+  // Find owner details
+  const owner = OWNERS.find(o => o.id === property.ownerId) || OWNERS[0];
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "Link Copied",
+      description: "Property link copied to clipboard.",
+    });
+  };
+
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    toast({
+      title: isLiked ? "Removed from Favorites" : "Added to Favorites",
+      description: isLiked ? "Property removed from your saved list." : "Property saved to your favorites.",
+    });
+  };
+
+  const handleRequestTour = () => {
+    toast({
+      title: "Tour Requested",
+      description: `Request sent to ${owner.name}. They will contact you shortly.`,
+    });
+  };
+
+  const handleSendMessage = () => {
+    toast({
+      title: "Message Sent",
+      description: "Your message has been delivered to the owner.",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -86,8 +124,18 @@ export default function PropertyDetails() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon"><Share2 className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="icon"><Heart className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="icon" onClick={handleShare} title="Share Property">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant={isLiked ? "default" : "outline"} 
+                    size="icon" 
+                    onClick={handleLike}
+                    className={isLiked ? "bg-red-500 hover:bg-red-600 border-red-500" : ""}
+                    title={isLiked ? "Remove from Favorites" : "Add to Favorites"}
+                  >
+                    <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+                  </Button>
                 </div>
              </div>
 
@@ -113,8 +161,12 @@ export default function PropertyDetails() {
 
                <section>
                  <h2 className="text-xl font-bold mb-4">Location</h2>
-                 <div className="bg-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-500">
-                   <MapPin className="h-8 w-8 mr-2" /> Map Integration Placeholder
+                 <div className="bg-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-500 relative overflow-hidden">
+                   <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm" />
+                   <div className="relative z-10 bg-white/80 p-4 rounded-lg flex items-center">
+                     <MapPin className="h-8 w-8 mr-2 text-primary" /> 
+                     <span className="font-medium">{property.address}</span>
+                   </div>
                  </div>
                </section>
              </div>
@@ -126,37 +178,48 @@ export default function PropertyDetails() {
               <CardContent className="p-6">
                  <div className="flex items-center gap-4 mb-6">
                    <Avatar className="h-12 w-12">
-                     <AvatarImage src="https://github.com/shadcn.png" />
-                     <AvatarFallback>AG</AvatarFallback>
+                     <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${owner.name}`} />
+                     <AvatarFallback>{owner.name.charAt(0)}</AvatarFallback>
                    </Avatar>
                    <div>
-                     <h3 className="font-bold">Sarah Jenkins</h3>
-                     <p className="text-sm text-muted-foreground">Premier Realty Agency</p>
+                     <h3 className="font-bold">{owner.name}</h3>
+                     <p className="text-sm text-muted-foreground capitalize">{owner.role}</p>
                    </div>
                  </div>
 
                  <div className="space-y-3 mb-6">
-                   <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg">
+                   <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg" onClick={handleRequestTour}>
                      Request Tour
                    </Button>
-                   <Button variant="outline" className="w-full gap-2">
+                   <Button variant="outline" className="w-full gap-2" onClick={handleSendMessage}>
                      <MessageSquare className="h-4 w-4" /> Send Message
                    </Button>
+                   <a 
+                     href="https://wa.me/254713361799" 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     className="flex items-center justify-center w-full h-10 px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md transition-colors font-medium gap-2"
+                   >
+                     <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
+                   </a>
                  </div>
 
                  <div className="space-y-4">
-                   <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <Phone className="h-4 w-4" /> (555) 123-4567
-                   </div>
-                   <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <Mail className="h-4 w-4" /> agent@example.com
-                   </div>
+                   <a href="tel:+254713361799" className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md">
+                      <PhoneCall className="h-4 w-4" /> 
+                      <span>+254 713 361 799</span>
+                   </a>
+                   <a href={`mailto:${owner.email}`} className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md">
+                      <Mail className="h-4 w-4" /> 
+                      <span>{owner.email}</span>
+                   </a>
                  </div>
 
                  <Separator className="my-6" />
                  
                  <div className="text-center">
                    <p className="text-xs text-gray-400">Reference ID: {property.id}</p>
+                   <p className="text-xs text-gray-400 mt-1">Listed: {property.isVerified ? 'Verified Listing' : 'Unverified'}</p>
                  </div>
               </CardContent>
             </Card>
