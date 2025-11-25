@@ -1,18 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { ADMINS, OWNERS, TENANTS, UserProfile } from "./mockData";
 
 type UserRole = "tenant" | "owner" | "admin" | null;
 
-interface User {
-  name: string;
-  email: string;
-  role: UserRole;
-  avatar?: string;
-}
+// Re-export UserProfile as User for compatibility with existing code
+export type User = UserProfile;
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole) => void;
+  login: (role: UserRole, email?: string) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -33,26 +30,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (role: UserRole) => {
-    let mockUser: User;
+  const login = (role: UserRole, email?: string) => {
+    let mockUser: User | undefined;
     
-    switch (role) {
-      case "admin":
-        mockUser = { name: "Super Admin", email: "admin@inndos.com", role: "admin" };
-        break;
-      case "owner":
-        mockUser = { name: "John Landlord", email: "owner@inndos.com", role: "owner" };
-        break;
-      case "tenant":
-        mockUser = { name: "Sarah Tenant", email: "tenant@inndos.com", role: "tenant" };
-        break;
-      default:
-        return;
+    // If email is provided, try to find the specific user
+    if (email) {
+      if (role === "admin") mockUser = ADMINS.find(u => u.email === email);
+      else if (role === "owner") mockUser = OWNERS.find(u => u.email === email);
+      else if (role === "tenant") mockUser = TENANTS.find(u => u.email === email);
+    } 
+    
+    // Fallback to default demo users if no email provided or user not found
+    if (!mockUser) {
+      switch (role) {
+        case "admin":
+          mockUser = ADMINS[0];
+          break;
+        case "owner":
+          mockUser = OWNERS[0];
+          break;
+        case "tenant":
+          mockUser = TENANTS[0];
+          break;
+      }
     }
 
-    setUser(mockUser);
-    localStorage.setItem("inndos_user", JSON.stringify(mockUser));
-    setLocation("/dashboard");
+    if (mockUser) {
+      setUser(mockUser);
+      localStorage.setItem("inndos_user", JSON.stringify(mockUser));
+      setLocation("/dashboard");
+    }
   };
 
   const logout = () => {

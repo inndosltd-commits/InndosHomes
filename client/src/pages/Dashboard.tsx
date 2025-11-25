@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck } from "lucide-react";
-import { PROPERTIES } from "@/lib/mockData";
+import { PROPERTIES, OWNERS, TENANTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +24,20 @@ export default function Dashboard() {
   // Admin State
   const [moderationQueue, setModerationQueue] = useState([1, 2, 3]);
   const [reportedListings, setReportedListings] = useState([101, 102, 103]);
-  const [usersCount, setUsersCount] = useState(2340);
+  // Initialize with real count from mock data + some extra for effect
+  const [usersCount, setUsersCount] = useState(OWNERS.length + TENANTS.length + 2300);
   const [revenue, setRevenue] = useState(45200);
-  const [pendingUsers, setPendingUsers] = useState(["Alice Cooper", "Bob Vance", "Charlie Day"]);
+  const [pendingUsers, setPendingUsers] = useState(
+    [...OWNERS, ...TENANTS].filter(u => u.status === 'pending').map(u => u.name)
+  );
 
   // Owner State
-  const [ownerProperties, setOwnerProperties] = useState(PROPERTIES.slice(0, 3));
+  // Filter properties for the current logged-in owner
+  const [ownerProperties, setOwnerProperties] = useState(
+    user?.role === 'owner' 
+      ? PROPERTIES.filter(p => p.ownerId === user.id)
+      : []
+  );
   const [activeInquiries, setActiveInquiries] = useState(24);
   const [visits, setVisits] = useState(8);
   const [ownerRevenue, setOwnerRevenue] = useState(12450);
