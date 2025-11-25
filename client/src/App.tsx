@@ -12,6 +12,7 @@ import Login from "@/pages/Login";
 import Contact from "@/pages/Contact";
 import Legal from "@/pages/Legal";
 import Pricing from "@/pages/Pricing";
+import AddListing from "@/pages/AddListing";
 import { AuthProvider } from "./lib/auth";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/login" component={Login}/>
       <Route path="/contact" component={Contact}/>
       <Route path="/pricing" component={Pricing}/>
+      <Route path="/add-listing" component={AddListing}/>
       <Route path="/terms" component={Legal}/>
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>
