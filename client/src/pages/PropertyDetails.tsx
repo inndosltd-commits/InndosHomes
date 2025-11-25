@@ -24,9 +24,9 @@ export default function PropertyDetails() {
            <img src={property.image} className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" />
         </div>
         <div className="grid grid-cols-2 grid-rows-2 gap-1 h-full">
-           <div className="bg-gray-200"><img src="/attached_assets/generated_images/cozy_modern_bedroom_interior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
-           <div className="bg-gray-200"><img src="/attached_assets/generated_images/modern_apartment_exterior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
-           <div className="bg-gray-200"><img src="/attached_assets/generated_images/modern_happy_family_moving_into_new_home.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
+           <div className="bg-gray-200"><img src="/images/cozy_modern_bedroom_interior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
+           <div className="bg-gray-200"><img src="/images/modern_apartment_exterior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
+           <div className="bg-gray-200"><img src="/images/modern_happy_family_moving_into_new_home.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/></div>
            <div className="bg-gray-200 relative">
              <img src={property.image} className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/>
              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold cursor-pointer hover:bg-black/50 transition-colors">
