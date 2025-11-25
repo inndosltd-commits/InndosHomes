@@ -5,32 +5,103 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Filter, MapPin, Search as SearchIcon } from "lucide-react";
+import { Filter, MapPin, Search as SearchIcon, LocateFixed } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState, useMemo } from "react";
 
 export default function Search() {
   const [location] = useLocation();
   const queryType = new URLSearchParams(window.location.search).get("type") || "rent";
   
-  const filteredProperties = PROPERTIES.filter(p => 
-    queryType === "all" ? true : p.type === queryType
-  );
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [priceRange, setPriceRange] = useState([0, 100000000]); // Wide range default
+  const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [isGeofencingActive, setIsGeofencingActive] = useState(false);
+
+  const handleGeofenceClick = () => {
+    if (isGeofencingActive) {
+      setSearchQuery("");
+      setIsGeofencingActive(false);
+    } else {
+      // Simulate getting user location and setting it to "Nairobi"
+      setSearchQuery("Nairobi");
+      setIsGeofencingActive(true);
+    }
+  };
+
+  const toggleAmenity = (amenity: string) => {
+    setSelectedAmenities(prev => 
+      prev.includes(amenity) 
+        ? prev.filter(a => a !== amenity) 
+        : [...prev, amenity]
+    );
+  };
+
+  const filteredProperties = useMemo(() => {
+    return PROPERTIES.filter(p => {
+      // 1. Filter by Type (Rent/Sale)
+      if (queryType !== "all" && p.type !== queryType) return false;
+
+      // 2. Filter by Search Query (Location/Title)
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          p.title.toLowerCase().includes(query) || 
+          p.address.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // 3. Filter by Bedrooms
+      if (selectedBedrooms !== null) {
+        if (selectedBedrooms === 5) { // 5+ case
+          if (p.specs.beds < 5) return false;
+        } else {
+          if (p.specs.beds !== selectedBedrooms) return false;
+        }
+      }
+
+      // 4. Filter by Amenities
+      if (selectedAmenities.length > 0) {
+        const hasAllAmenities = selectedAmenities.every(amenity => 
+          p.tags.some(tag => tag.toLowerCase().includes(amenity.toLowerCase()))
+        );
+        if (!hasAllAmenities) return false;
+      }
+
+      return true;
+    });
+  }, [queryType, searchQuery, selectedBedrooms, selectedAmenities]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
       {/* Search Header */}
-      <div className="bg-white border-b sticky top-16 z-40">
+      <div className="bg-white border-b sticky top-20 z-30 shadow-sm">
         <div className="container mx-auto px-4 py-4">
            <div className="flex flex-col md:flex-row gap-4 items-center">
              <div className="relative flex-1 w-full">
                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-               <Input placeholder="Search by location, property name..." className="pl-10" />
+               <Input 
+                  placeholder="Search by location, city, or property name..." 
+                  className="pl-10" 
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value === "") setIsGeofencingActive(false);
+                  }}
+               />
              </div>
              <div className="flex gap-2 w-full md:w-auto">
-               <Button variant="outline" className="flex-1 md:flex-none gap-2">
-                 <Filter className="h-4 w-4" /> Filters
+               <Button 
+                  variant={isGeofencingActive ? "default" : "outline"}
+                  className="gap-2 transition-all"
+                  onClick={handleGeofenceClick}
+               >
+                 <LocateFixed className="h-4 w-4" /> 
+                 {isGeofencingActive ? "Near Me (Active)" : "Use My Location"}
                </Button>
                <Button className="flex-1 md:flex-none bg-primary">Search</Button>
              </div>
@@ -39,23 +110,48 @@ export default function Search() {
       </div>
 
       <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
-        {/* Sidebar Filters - Hidden on mobile for now */}
-        <div className="hidden md:block w-64 shrink-0 space-y-6">
+        {/* Sidebar Filters */}
+        <div className="hidden md:block w-64 shrink-0 space-y-8">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold">Filters</h3>
+              <button 
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedBedrooms(null);
+                  setSelectedAmenities([]);
+                  setIsGeofencingActive(false);
+                }}
+                className="text-xs text-primary hover:underline"
+              >
+                Reset All
+              </button>
+            </div>
+          </div>
+
           <div>
             <h3 className="font-bold mb-3">Price Range</h3>
-            <Slider defaultValue={[33]} max={100} step={1} className="mb-2" />
+            <Slider defaultValue={[100]} max={100} step={1} className="mb-2" disabled />
             <div className="flex justify-between text-sm text-gray-500">
-              <span>$0</span>
-              <span>$5k+</span>
+              <span>Min</span>
+              <span>Max</span>
             </div>
           </div>
 
           <div>
             <h3 className="font-bold mb-3">Bedrooms</h3>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, "5+"].map(n => (
-                <button key={n} className="h-8 w-8 rounded border hover:border-primary hover:text-primary flex items-center justify-center text-sm transition-colors">
-                  {n}
+            <div className="flex gap-2 flex-wrap">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button 
+                  key={n} 
+                  onClick={() => setSelectedBedrooms(selectedBedrooms === n ? null : n)}
+                  className={`h-8 w-8 rounded border flex items-center justify-center text-sm transition-colors ${
+                    selectedBedrooms === n 
+                      ? "bg-primary text-white border-primary" 
+                      : "hover:border-primary hover:text-primary bg-white"
+                  }`}
+                >
+                  {n}{n === 5 ? "+" : ""}
                 </button>
               ))}
             </div>
@@ -64,10 +160,14 @@ export default function Search() {
           <div>
              <h3 className="font-bold mb-3">Amenities</h3>
              <div className="space-y-2">
-               {["Parking", "Pool", "Gym", "Pet Friendly", "Wifi", "Balcony"].map(a => (
+               {["Parking", "Pool", "Gym", "Pet Friendly", "Wifi", "Balcony", "Garden", "Security"].map(a => (
                  <div key={a} className="flex items-center space-x-2">
-                   <Checkbox id={a} />
-                   <label htmlFor={a} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                   <Checkbox 
+                      id={a} 
+                      checked={selectedAmenities.includes(a)}
+                      onCheckedChange={() => toggleAmenity(a)}
+                   />
+                   <label htmlFor={a} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
                      {a}
                    </label>
                  </div>
@@ -78,11 +178,17 @@ export default function Search() {
 
         {/* Results Grid */}
         <div className="flex-1">
-          <div className="mb-4 flex justify-between items-center">
-             <h1 className="font-bold text-xl">
-               {filteredProperties.length} Properties {queryType === 'rent' ? 'for Rent' : 'for Sale'}
-             </h1>
-             <select className="text-sm border rounded px-2 py-1">
+          <div className="mb-6 flex justify-between items-center">
+             <div>
+               <h1 className="font-bold text-xl">
+                 {filteredProperties.length} Properties found
+               </h1>
+               <p className="text-sm text-muted-foreground">
+                 Showing properties for <strong>{queryType === 'rent' ? 'Rent' : 'Sale'}</strong>
+                 {searchQuery && <span> matching "<strong>{searchQuery}</strong>"</span>}
+               </p>
+             </div>
+             <select className="text-sm border rounded px-2 py-1 bg-white">
                <option>Sort by: Featured</option>
                <option>Price: Low to High</option>
                <option>Price: High to Low</option>
@@ -90,15 +196,32 @@ export default function Search() {
              </select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.map(p => (
-              <PropertyCard key={p.id} property={p} />
-            ))}
-             {/* Filling space */}
-            {filteredProperties.map(p => (
-              <PropertyCard key={`${p.id}-dup`} property={{...p, id: `${p.id}-dup`}} />
-            ))}
-          </div>
+          {filteredProperties.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProperties.map(p => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-lg border border-dashed">
+              <div className="mx-auto h-12 w-12 text-gray-300 mb-4">
+                <SearchIcon className="h-full w-full" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
+              <p className="text-muted-foreground">Try adjusting your filters or search query.</p>
+              <Button 
+                variant="link" 
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedBedrooms(null);
+                  setSelectedAmenities([]);
+                }}
+                className="mt-2"
+              >
+                Clear all filters
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

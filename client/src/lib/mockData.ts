@@ -61,4 +61,48 @@ export const PROPERTIES: Property[] = [
     isVerified: false,
     tags: ["Student Friendly", "Wifi", "Close to Transit"],
   },
+  {
+    id: "5",
+    title: "Spacious Apartment in Kilimani",
+    type: "rent",
+    price: 85000, // KES roughly
+    address: "Kilimani, Nairobi, Kenya",
+    specs: { beds: 3, baths: 2, sqft: 1500 },
+    image: "/images/modern_apartment_exterior.png",
+    isVerified: true,
+    tags: ["Gym", "Pool", "Backup Generator"],
+  },
+  {
+    id: "6",
+    title: "Executive House in Runda",
+    type: "sale",
+    price: 65000000, // KES
+    address: "Runda, Nairobi, Kenya",
+    specs: { beds: 5, baths: 5, sqft: 4500 },
+    image: "/images/modern_happy_family_moving_into_new_home.png",
+    isVerified: true,
+    tags: ["Garden", "Security", "DSQ"],
+  },
+  {
+    id: "7",
+    title: "Beachfront Villa",
+    type: "rent",
+    price: 150000, // KES
+    address: "Nyali, Mombasa, Kenya",
+    specs: { beds: 4, baths: 4, sqft: 3000 },
+    image: "/images/modern_apartment_exterior.png",
+    isVerified: true,
+    tags: ["Beach Access", "Pool", "Air Conditioning"],
+  },
+  {
+    id: "8",
+    title: "Affordable Starter Home",
+    type: "sale",
+    price: 4500000, // KES
+    address: "Kitengela, Kajiado, Kenya",
+    specs: { beds: 2, baths: 1, sqft: 900 },
+    image: "/images/cozy_modern_bedroom_interior.png",
+    isVerified: false,
+    tags: ["Gated Community", "Parking"],
+  },
 ];
