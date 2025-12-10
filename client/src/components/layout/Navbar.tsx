@@ -13,7 +13,7 @@ export function Navbar() {
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
             <img 
-              src="/logo.jpg" 
+              src="/logo.png" 
               alt="INNDOS" 
               className="h-8 w-auto object-contain" 
             />
