@@ -1,9 +1,11 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Property } from "@/lib/mockData";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { MapPin } from "lucide-react";
 
 // Fix for default marker icon missing in React Leaflet
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -18,8 +20,37 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Custom icon for user location
+const userIcon = L.divIcon({
+  className: "bg-transparent",
+  html: `<div class="relative flex items-center justify-center w-8 h-8">
+    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+    <span class="relative inline-flex rounded-full h-4 w-4 bg-blue-600 border-2 border-white"></span>
+  </div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
+
 interface PropertyMapProps {
   properties: Property[];
+}
+
+function UserLocationMarker() {
+  const [position, setPosition] = useState<L.LatLngExpression | null>(null);
+  const map = useMap();
+
+  useEffect(() => {
+    map.locate().on("locationfound", function (e) {
+      setPosition(e.latlng);
+      map.flyTo(e.latlng, 13);
+    });
+  }, [map]);
+
+  return position === null ? null : (
+    <Marker position={position} icon={userIcon}>
+      <Popup>You are here</Popup>
+    </Marker>
+  );
 }
 
 export default function PropertyMap({ properties }: PropertyMapProps) {
@@ -27,7 +58,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
   const center: [number, number] = [-1.2921, 36.8219];
 
   return (
-    <div className="h-[500px] w-full rounded-xl overflow-hidden shadow-xl border border-gray-200 z-0">
+    <div className="h-full w-full rounded-none overflow-hidden z-0">
       <MapContainer 
         center={center} 
         zoom={12} 
@@ -38,6 +69,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <UserLocationMarker />
         {properties.map((property) => (
           property.location && (
             <Marker 

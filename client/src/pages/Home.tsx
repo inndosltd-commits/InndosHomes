@@ -4,9 +4,11 @@ import { Hero } from "@/components/home/Hero";
 import { PropertyCard } from "@/components/property/PropertyCard";
 import { PROPERTIES } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed, Search, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Home() {
   const rentalProperties = PROPERTIES.filter(p => p.type === "rent");
@@ -18,18 +20,66 @@ export default function Home() {
       <Navbar />
       
       {/* Map Section replacing Hero */}
-      <section className="relative h-[600px] w-full bg-gray-100">
+      <section className="relative h-[650px] w-full bg-gray-100">
         <div className="absolute inset-0 z-0">
           <PropertyMap properties={PROPERTIES} />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none z-10 flex items-end">
-          <div className="container mx-auto px-4 pb-12 text-white">
-            <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4 text-shadow-sm">
-              Find Your Place in Kenya
-            </h1>
-            <p className="text-xl md:text-2xl font-light text-shadow-sm max-w-2xl">
-              Explore rentals, homes for sale, and unique B&B stays on our interactive map.
-            </p>
+        
+        {/* Overlay with Search */}
+        <div className="absolute inset-0 bg-black/10 pointer-events-none z-10 flex flex-col justify-start pt-24 items-center">
+          <div className="container mx-auto px-4 pointer-events-auto">
+             <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 transform transition-all hover:scale-[1.01]">
+               <h1 className="text-3xl font-bold font-heading mb-6 text-center text-gray-900">
+                 Find Your Place in Kenya
+               </h1>
+               
+               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  <div className="md:col-span-4">
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Location (e.g. Westlands)" className="pl-9 h-12 text-lg" />
+                    </div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <Select defaultValue="rent">
+                      <SelectTrigger className="h-12 text-lg">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rent">For Rent</SelectItem>
+                        <SelectItem value="sale">For Sale</SelectItem>
+                        <SelectItem value="bnb">B&B Stays</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-3">
+                     <Select>
+                      <SelectTrigger className="h-12 text-lg">
+                        <SelectValue placeholder="Price Range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any Price</SelectItem>
+                        <SelectItem value="low">Under 50k</SelectItem>
+                        <SelectItem value="mid">50k - 150k</SelectItem>
+                        <SelectItem value="high">150k+</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Button size="lg" className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary/90">
+                      <Search className="h-5 w-5 mr-2" /> Search
+                    </Button>
+                  </div>
+               </div>
+               
+               <div className="mt-4 flex gap-4 justify-center text-sm text-muted-foreground">
+                 <span>Popular:</span>
+                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Kilimani</span>
+                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Westlands</span>
+                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Karen</span>
+                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Mombasa</span>
+               </div>
+             </div>
           </div>
         </div>
       </section>
