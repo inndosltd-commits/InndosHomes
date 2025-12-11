@@ -21,34 +21,31 @@ export default function Home() {
       
       <div className="bg-white pt-4 pb-0">
           <div className="container mx-auto px-4">
-              {/* Logo */}
-              <div className="mb-6 text-center md:text-left">
-                 <h1 className="text-3xl font-bold tracking-tight text-black font-heading">inndos</h1>
-              </div>
-              
-              {/* Filter Pills */}
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide justify-center md:justify-start">
-                 <Link href="/search?type=bnb">
-                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">B&B</Button>
-                 </Link>
-                 <Link href="/search?type=rent">
-                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">Rent</Button>
-                 </Link>
-                 <Link href="/search?type=sale">
-                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">Own</Button>
-                 </Link>
-                 <Link href="/add-listing">
-                   <Button className="rounded-full px-6 bg-gray-200 text-black hover:bg-gray-300 border-none shadow-sm font-medium whitespace-nowrap">List property</Button>
-                 </Link>
-              </div>
-              
-              {/* Search Bar */}
-              <div className="relative max-w-2xl mx-auto md:mx-0 mb-6">
-                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
-                 <Input 
-                   placeholder="Search locations" 
-                   className="h-12 pl-11 rounded-xl border-gray-200 bg-white shadow-sm text-base" 
-                 />
+              <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+                 {/* Filter Pills */}
+                 <div className="flex gap-2 overflow-x-auto pb-0 scrollbar-hide justify-center md:justify-start flex-shrink-0">
+                    <Link href="/search?type=bnb">
+                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">B&B</Button>
+                    </Link>
+                    <Link href="/search?type=rent">
+                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Rent</Button>
+                    </Link>
+                    <Link href="/search?type=sale">
+                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Own</Button>
+                    </Link>
+                    <Link href="/add-listing">
+                      <Button className="rounded-full px-6 bg-gray-200 text-black hover:bg-gray-300 border-none shadow-sm font-medium whitespace-nowrap h-12">List property</Button>
+                    </Link>
+                 </div>
+                 
+                 {/* Search Bar */}
+                 <div className="relative flex-grow w-full md:w-auto">
+                    <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
+                    <Input 
+                      placeholder="Search locations" 
+                      className="h-12 pl-11 rounded-full border-gray-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm text-base w-full transition-all" 
+                    />
+                 </div>
               </div>
           </div>
       </div>
