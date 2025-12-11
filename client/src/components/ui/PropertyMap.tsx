@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Property } from "@/lib/mockData";
@@ -20,10 +20,10 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-  // Custom black house icon for properties
+// Custom black house icon for properties
 const houseIcon = L.divIcon({
   className: "bg-transparent",
-  html: `<div class="flex items-center justify-center w-8 h-8 bg-transparent">
+  html: `<div class="flex items-center justify-center w-8 h-8 bg-transparent transition-transform hover:scale-125">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
   </div>`,
   iconSize: [32, 32],
@@ -101,6 +101,8 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         zoomControl={false}
         className="h-full w-full z-0"
       >
+        <ZoomControl position="bottomright" />
+        
         {/* Minimalist Grayscale Map */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -113,6 +115,11 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
               key={property.id} 
               position={[property.location.lat, property.location.lng]}
               icon={houseIcon}
+              eventHandlers={{
+                mouseover: (e) => {
+                  e.target.openPopup();
+                },
+              }}
             >
               <Popup>
                 <div className="min-w-[200px]">
