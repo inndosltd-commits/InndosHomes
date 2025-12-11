@@ -34,13 +34,36 @@ export default function Dashboard() {
   // Owner State
   // Filter properties for the current logged-in owner
   const [ownerProperties, setOwnerProperties] = useState(
-    user?.role === 'owner' 
+    (user?.role === 'owner' || user?.role === 'host')
       ? PROPERTIES.filter(p => p.ownerId === user.id)
       : []
   );
-  const [activeInquiries, setActiveInquiries] = useState(24);
-  const [visits, setVisits] = useState(8);
-  const [ownerRevenue, setOwnerRevenue] = useState(12450);
+
+  // Calculate dynamic stats based on real properties
+  const calculateStats = () => {
+    if (ownerProperties.length === 0) return { inquiries: 0, visits: 0, revenue: 0 };
+    
+    // Calculate inquiries/bookings based on property count
+    const inquiries = ownerProperties.length * 4 + 2; 
+    const visits = Math.max(1, Math.floor(ownerProperties.length * 1.5));
+    
+    // Calculate revenue
+    let revenue = 0;
+    ownerProperties.forEach(p => {
+        if (p.type === 'rent') revenue += p.price; // Monthly rent
+        if (p.type === 'bnb') revenue += p.price * 12; // ~12 days occupancy avg
+        // For sales, we don't count it as monthly revenue, maybe just active listing value? 
+        // Let's stick to rental/bnb income for "Revenue" metric
+    });
+    
+    return { inquiries, visits, revenue };
+  };
+
+  const stats = calculateStats();
+
+  const [activeInquiries, setActiveInquiries] = useState(stats.inquiries);
+  const [visits, setVisits] = useState(stats.visits);
+  const [ownerRevenue, setOwnerRevenue] = useState(stats.revenue);
 
   useEffect(() => {
     if (!isLoading && !user) {
