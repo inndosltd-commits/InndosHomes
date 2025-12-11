@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 // Fix for default marker icon missing in React Leaflet
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -54,7 +55,7 @@ function UserLocationMarker() {
   useEffect(() => {
     map.locate().on("locationfound", function (e) {
       setPosition(e.latlng);
-      map.flyTo(e.latlng, 14);
+      map.flyTo(e.latlng, 12); // Reduced zoom to 12 for "moderate area"
     });
     
     // Fallback for demo if location denied/not found immediately
@@ -96,7 +97,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
     <div className="h-full w-full rounded-none overflow-hidden z-0 bg-[#f5f5f5]">
       <MapContainer 
         center={center} 
-        zoom={13} 
+        zoom={12} // Reduced zoom to 12
         scrollWheelZoom={false} 
         zoomControl={false}
         className="h-full w-full z-0"
@@ -128,7 +129,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
                   <p className="text-xs text-gray-500 mb-2">{property.address}</p>
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-primary">
-                      ${property.price.toLocaleString()}
+                      {formatCurrency(property.price)}
                       {property.type !== 'sale' && '/mo'}
                     </span>
                     <Link href={`/property/${property.id}`}>

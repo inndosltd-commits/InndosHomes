@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { BedDouble, Bath, Square, Heart, MapPin } from "lucide-react";
 import type { Property } from "@/lib/mockData";
 import { Link } from "wouter";
+import { formatCurrency } from "@/lib/utils";
 
 interface PropertyCardProps {
   property: Property;
@@ -39,8 +40,8 @@ export function PropertyCard({ property }: PropertyCardProps) {
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <p className="text-white font-bold text-xl">
               {property.type === "rent" 
-                ? `$${property.price.toLocaleString()}/mo` 
-                : `$${property.price.toLocaleString()}`}
+                ? `${formatCurrency(property.price)}/mo` 
+                : formatCurrency(property.price)}
             </p>
           </div>
         </div>

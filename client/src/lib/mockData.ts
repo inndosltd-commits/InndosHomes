@@ -69,42 +69,42 @@ export const TENANTS: UserProfile[] = [
 
 const BNB_LISTINGS: Property[] = [
   {
-    id: "b1", ownerId: "h1", title: "Cozy Garden Cottage", type: "bnb", price: 50, address: "Karen, Nairobi",
+    id: "b1", ownerId: "h1", title: "Cozy Garden Cottage", type: "bnb", price: 6500, address: "Karen, Nairobi",
     specs: { beds: 1, baths: 1, sqft: 400, guests: 2 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["WiFi", "Breakfast", "Garden"],
     location: { lat: -1.319, lng: 36.706 }
   },
   {
-    id: "b2", ownerId: "h1", title: "Urban Rooftop Studio", type: "bnb", price: 75, address: "Kilimani, Nairobi",
+    id: "b2", ownerId: "h1", title: "Urban Rooftop Studio", type: "bnb", price: 9500, address: "Kilimani, Nairobi",
     specs: { beds: 1, baths: 1, sqft: 350, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["View", "Gym Access", "WiFi"],
     location: { lat: -1.292, lng: 36.786 }
   },
   {
-    id: "b3", ownerId: "h2", title: "Safari Lodge Room", type: "bnb", price: 150, address: "Nairobi National Park",
+    id: "b3", ownerId: "h2", title: "Safari Lodge Room", type: "bnb", price: 19500, address: "Nairobi National Park",
     specs: { beds: 2, baths: 2, sqft: 600, guests: 4 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Wildlife", "Pool", "Full Board"],
     location: { lat: -1.361, lng: 36.845 }
   },
   {
-    id: "b4", ownerId: "h2", title: "Quiet Home Office Space", type: "bnb", price: 30, address: "Lavington, Nairobi",
+    id: "b4", ownerId: "h2", title: "Quiet Home Office Space", type: "bnb", price: 4000, address: "Lavington, Nairobi",
     specs: { beds: 0, baths: 1, sqft: 200, guests: 5 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Desk", "High Speed WiFi", "Coffee"],
     location: { lat: -1.275, lng: 36.766 }
   },
   {
-    id: "b5", ownerId: "h1", title: "Meeting Room for 10", type: "bnb", price: 100, address: "Westlands, Nairobi",
+    id: "b5", ownerId: "h1", title: "Meeting Room for 10", type: "bnb", price: 13000, address: "Westlands, Nairobi",
     specs: { beds: 0, baths: 2, sqft: 500, guests: 10 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Projector", "Whiteboard", "AC"],
     location: { lat: -1.268, lng: 36.804 }
   },
   {
-    id: "b6", ownerId: "h2", title: "Luxury Guest Wing", type: "bnb", price: 90, address: "Runda, Nairobi",
+    id: "b6", ownerId: "h2", title: "Luxury Guest Wing", type: "bnb", price: 12000, address: "Runda, Nairobi",
     specs: { beds: 2, baths: 1, sqft: 800, guests: 3 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Private Entrance", "Security", "Garden"],
     location: { lat: -1.218, lng: 36.812 }
   },
   {
-    id: "b7", ownerId: "h1", title: "Backpacker's Bunk", type: "bnb", price: 15, address: "Nairobi CBD",
+    id: "b7", ownerId: "h1", title: "Backpacker's Bunk", type: "bnb", price: 2000, address: "Nairobi CBD",
     specs: { beds: 1, baths: 4, sqft: 100, guests: 1 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: false, tags: ["Shared Kitchen", "Social", "Central"],
     location: { lat: -1.286, lng: 36.817 }
   },
   {
-    id: "b8", ownerId: "h2", title: "Airport Transit Stay", type: "bnb", price: 40, address: "Syokimau, Nairobi",
+    id: "b8", ownerId: "h2", title: "Airport Transit Stay", type: "bnb", price: 5500, address: "Syokimau, Nairobi",
     specs: { beds: 1, baths: 1, sqft: 300, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Near Airport", "Transfer", "24/7 Check-in"],
     location: { lat: -1.357, lng: 36.932 }
   },
