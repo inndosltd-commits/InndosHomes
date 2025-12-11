@@ -9,6 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Upload, Image as ImageIcon, Check } from "lucide-react";
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const AMENITIES = [
+  "WiFi", "Parking", "Swimming Pool", "Gym", "24/7 Security", 
+  "Backup Generator", "Borehole Water", "Elevator", "Balcony", 
+  "Garden", "Pet Friendly", "Furnished", "CCTV", "Electric Fence",
+  "DSQ", "Laundry Area", "Solar Water Heating"
+];
 
 export default function AddListing() {
   const { toast } = useToast();
@@ -85,7 +93,7 @@ export default function AddListing() {
                 <CardHeader>
                   <CardTitle>Features & Amenities</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="beds">Bedrooms</Label>
@@ -101,6 +109,23 @@ export default function AddListing() {
                     </div>
                   </div>
                   
+                  <div className="space-y-2">
+                    <Label className="mb-2 block">Amenities</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {AMENITIES.map((item) => (
+                        <div key={item} className="flex items-center space-x-2">
+                          <Checkbox id={`amenity-${item}`} />
+                          <label
+                            htmlFor={`amenity-${item}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {item}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea 

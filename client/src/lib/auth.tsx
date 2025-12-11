@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ADMINS, OWNERS, TENANTS, UserProfile } from "./mockData";
+import { ADMINS, OWNERS, TENANTS, HOSTS, GUESTS, UserProfile } from "./mockData";
 
-type UserRole = "tenant" | "owner" | "admin" | null;
+type UserRole = "tenant" | "owner" | "admin" | "host" | "guest" | null;
 
 // Re-export UserProfile as User for compatibility with existing code
 export type User = UserProfile;
@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (role === "admin") mockUser = ADMINS.find(u => u.email === email);
       else if (role === "owner") mockUser = OWNERS.find(u => u.email === email);
       else if (role === "tenant") mockUser = TENANTS.find(u => u.email === email);
+      else if (role === "host") mockUser = HOSTS.find(u => u.email === email);
+      else if (role === "guest") mockUser = GUESTS.find(u => u.email === email);
     } 
     
     // Fallback to default demo users if no email provided or user not found
@@ -51,6 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           break;
         case "tenant":
           mockUser = TENANTS[0];
+          break;
+        case "host":
+          mockUser = HOSTS[0];
+          break;
+        case "guest":
+          mockUser = GUESTS[0];
           break;
       }
     }

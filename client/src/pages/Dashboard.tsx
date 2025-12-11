@@ -114,6 +114,11 @@ export default function Dashboard() {
                 <Button className="bg-primary shadow-lg hover:shadow-xl transition-all"><Plus className="mr-2 h-4 w-4" /> Add New Listing</Button>
               </Link>
             )}
+            {user.role === 'host' && (
+              <Link href="/add-bnb">
+                <Button className="bg-primary shadow-lg hover:shadow-xl transition-all"><Plus className="mr-2 h-4 w-4" /> List a Space</Button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -121,7 +126,7 @@ export default function Dashboard() {
           <TabsList className="mb-8 w-full justify-start bg-white p-1 border rounded-lg h-auto overflow-x-auto">
             <TabsTrigger value="overview" className="px-6 py-2">Overview</TabsTrigger>
             <TabsTrigger value="messages" className="px-6 py-2">Messages</TabsTrigger>
-            {user.role === 'owner' && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
+            {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
             {user.role === 'admin' && <TabsTrigger value="users" className="px-6 py-2">User Management</TabsTrigger>}
             <TabsTrigger value="settings" className="px-6 py-2">Settings</TabsTrigger>
           </TabsList>
@@ -139,8 +144,8 @@ export default function Dashboard() {
              </Card>
           </TabsContent>
 
-          {/* OWNER DASHBOARD */}
-          {user.role === 'owner' && (
+          {/* OWNER & HOST DASHBOARD */}
+          {(user.role === 'owner' || user.role === 'host') && (
             <>
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -159,7 +164,7 @@ export default function Dashboard() {
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-purple-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Inquiries</p>
+                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'host' ? 'Bookings' : 'Inquiries'}</p>
                         <MessageSquare className="h-4 w-4 text-purple-500" />
                       </div>
                       <div className="text-2xl font-bold">{activeInquiries}</div>
@@ -171,7 +176,7 @@ export default function Dashboard() {
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-orange-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Visits</p>
+                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'host' ? 'Check-ins' : 'Visits'}</p>
                         <Calendar className="h-4 w-4 text-orange-500" />
                       </div>
                       <div className="text-2xl font-bold">{visits}</div>
@@ -205,7 +210,7 @@ export default function Dashboard() {
                                JD
                              </div>
                              <div className="flex-1">
-                               <p className="text-sm font-medium">John Doe viewed "Downtown Apt"</p>
+                               <p className="text-sm font-medium">John Doe {user.role === 'host' ? 'booked' : 'viewed'} "Downtown Apt"</p>
                                <p className="text-xs text-muted-foreground">2 hours ago</p>
                              </div>
                            </div>
@@ -268,7 +273,7 @@ export default function Dashboard() {
                           <Home className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                           <h3 className="text-lg font-medium text-gray-900">No properties listed</h3>
                           <p className="mb-4">Get started by adding your first property.</p>
-                          <Link href="/add-listing">
+                          <Link href={user.role === 'host' ? "/add-bnb" : "/add-listing"}>
                             <Button>Add Listing</Button>
                           </Link>
                         </div>
@@ -280,8 +285,8 @@ export default function Dashboard() {
             </>
           )}
 
-          {/* TENANT DASHBOARD */}
-          {user.role === 'tenant' && (
+          {/* TENANT & GUEST DASHBOARD */}
+          {(user.role === 'tenant' || user.role === 'guest') && (
             <TabsContent value="overview" className="space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-white border-l-4 border-l-red-500 shadow-sm">
@@ -306,7 +311,7 @@ export default function Dashboard() {
                 <Card className="bg-white border-l-4 border-l-purple-500 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
-                       <p className="text-sm font-medium text-muted-foreground">Scheduled Visits</p>
+                       <p className="text-sm font-medium text-muted-foreground">{user.role === 'guest' ? 'Upcoming Trips' : 'Scheduled Visits'}</p>
                        <Clock className="h-4 w-4 text-purple-500" />
                     </div>
                     <div className="text-2xl font-bold">2</div>
