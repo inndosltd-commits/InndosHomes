@@ -14,6 +14,7 @@ import Legal from "@/pages/Legal";
 import Pricing from "@/pages/Pricing";
 import AddListing from "@/pages/AddListing";
 import AddBNB from "@/pages/AddBNB";
+import BNB from "@/pages/BNB";
 import { AuthProvider } from "./lib/auth";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/pricing" component={Pricing}/>
       <Route path="/add-listing" component={AddListing}/>
       <Route path="/add-bnb" component={AddBNB}/>
+      <Route path="/bnb" component={BNB}/>
       <Route path="/terms" component={Legal}/>
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>

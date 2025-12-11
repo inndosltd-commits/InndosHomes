@@ -86,9 +86,14 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bnbProperties.slice(0, 4).map((property) => (
+            {bnbProperties.slice(0, 12).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
+          </div>
+          <div className="mt-8 text-center">
+             <Link href="/bnb">
+               <Button size="lg" className="font-semibold">Explore All B&B Stays</Button>
+             </Link>
           </div>
         </div>
       </section>

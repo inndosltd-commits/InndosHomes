@@ -19,7 +19,7 @@ export default function Login() {
     return null;
   }
 
-  const handleLogin = (role: "tenant" | "owner" | "admin") => {
+  const handleLogin = (role: "tenant" | "owner" | "admin" | "host" | "guest") => {
     setIsLoading(true);
     // Simulate network delay
     setTimeout(() => {
@@ -39,10 +39,12 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="tenant" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-8">
-                <TabsTrigger value="tenant">Tenant</TabsTrigger>
-                <TabsTrigger value="owner">Owner</TabsTrigger>
-                <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5 mb-8">
+                <TabsTrigger value="tenant" className="text-xs px-1">Tenant</TabsTrigger>
+                <TabsTrigger value="owner" className="text-xs px-1">Owner</TabsTrigger>
+                <TabsTrigger value="host" className="text-xs px-1">Host</TabsTrigger>
+                <TabsTrigger value="guest" className="text-xs px-1">Guest</TabsTrigger>
+                <TabsTrigger value="admin" className="text-xs px-1">Admin</TabsTrigger>
               </TabsList>
 
               <TabsContent value="tenant">
@@ -79,6 +81,44 @@ export default function Login() {
                   </Button>
                   <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
                     <span className="font-semibold">Demo Creds:</span> owner@inndos.com / owner123
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="host">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-host">Email</Label>
+                    <Input id="email-host" placeholder="host@inndos.com" defaultValue="host@inndos.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password-host">Password</Label>
+                    <Input id="password-host" type="password" defaultValue="host123" />
+                  </div>
+                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => handleLogin('host')} disabled={isLoading}>
+                    {isLoading ? "Signing in..." : "Sign in as Host"}
+                  </Button>
+                  <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
+                    <span className="font-semibold">Demo Creds:</span> host@inndos.com / host123
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="guest">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-guest">Email</Label>
+                    <Input id="email-guest" placeholder="guest@inndos.com" defaultValue="guest@inndos.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password-guest">Password</Label>
+                    <Input id="password-guest" type="password" defaultValue="guest123" />
+                  </div>
+                  <Button className="w-full bg-secondary hover:bg-secondary/90" onClick={() => handleLogin('guest')} disabled={isLoading}>
+                    {isLoading ? "Signing in..." : "Sign in as Guest"}
+                  </Button>
+                  <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
+                    <span className="font-semibold">Demo Creds:</span> guest@inndos.com / guest123
                   </div>
                 </div>
               </TabsContent>

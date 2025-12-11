@@ -31,7 +31,7 @@ export function Navbar() {
               Buy
             </span>
           </Link>
-          <Link href="/search?type=bnb">
+          <Link href="/bnb">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
               B&B
             </span>
