@@ -19,22 +19,15 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      {/* Map Section replacing Hero */}
-      <section className="relative h-[85vh] w-full bg-gray-100">
-        <div className="absolute inset-0 z-0">
-          <PropertyMap properties={PROPERTIES} />
-        </div>
-        
-        {/* Mobile/Desktop Overlay imitating the screenshot */}
-        <div className="absolute top-0 left-0 right-0 z-10 p-4 md:p-8 flex justify-center">
-           <div className="w-full max-w-md bg-white/90 backdrop-blur-md shadow-lg rounded-3xl p-6 transition-all">
+      <div className="bg-white pt-4 pb-0">
+          <div className="container mx-auto px-4">
               {/* Logo */}
-              <div className="mb-6">
+              <div className="mb-6 text-center md:text-left">
                  <h1 className="text-3xl font-bold tracking-tight text-black font-heading">inndos</h1>
               </div>
               
               {/* Filter Pills */}
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide justify-center md:justify-start">
                  <Link href="/search?type=bnb">
                    <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">B&B</Button>
                  </Link>
@@ -50,14 +43,20 @@ export default function Home() {
               </div>
               
               {/* Search Bar */}
-              <div className="relative">
+              <div className="relative max-w-2xl mx-auto md:mx-0 mb-6">
                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
                  <Input 
                    placeholder="Search locations" 
                    className="h-12 pl-11 rounded-xl border-gray-200 bg-white shadow-sm text-base" 
                  />
               </div>
-           </div>
+          </div>
+      </div>
+
+      {/* Map Section replacing Hero */}
+      <section className="relative h-[70vh] w-full bg-gray-100 border-t">
+        <div className="absolute inset-0 z-0">
+          <PropertyMap properties={PROPERTIES} />
         </div>
       </section>
 
