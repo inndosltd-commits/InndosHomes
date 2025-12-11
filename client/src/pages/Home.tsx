@@ -20,67 +20,44 @@ export default function Home() {
       <Navbar />
       
       {/* Map Section replacing Hero */}
-      <section className="relative h-[650px] w-full bg-gray-100">
+      <section className="relative h-[85vh] w-full bg-gray-100">
         <div className="absolute inset-0 z-0">
           <PropertyMap properties={PROPERTIES} />
         </div>
         
-        {/* Overlay with Search */}
-        <div className="absolute inset-0 bg-black/10 pointer-events-none z-10 flex flex-col justify-start pt-24 items-center">
-          <div className="container mx-auto px-4 pointer-events-auto">
-             <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl p-6 transform transition-all hover:scale-[1.01]">
-               <h1 className="text-3xl font-bold font-heading mb-6 text-center text-gray-900">
-                 Find Your Place in Kenya
-               </h1>
-               
-               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  <div className="md:col-span-4">
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Location (e.g. Westlands)" className="pl-9 h-12 text-lg" />
-                    </div>
-                  </div>
-                  <div className="md:col-span-3">
-                    <Select defaultValue="rent">
-                      <SelectTrigger className="h-12 text-lg">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="rent">For Rent</SelectItem>
-                        <SelectItem value="sale">For Sale</SelectItem>
-                        <SelectItem value="bnb">B&B Stays</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-3">
-                     <Select>
-                      <SelectTrigger className="h-12 text-lg">
-                        <SelectValue placeholder="Price Range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any Price</SelectItem>
-                        <SelectItem value="low">Under 50k</SelectItem>
-                        <SelectItem value="mid">50k - 150k</SelectItem>
-                        <SelectItem value="high">150k+</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button size="lg" className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary/90">
-                      <Search className="h-5 w-5 mr-2" /> Search
-                    </Button>
-                  </div>
-               </div>
-               
-               <div className="mt-4 flex gap-4 justify-center text-sm text-muted-foreground">
-                 <span>Popular:</span>
-                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Kilimani</span>
-                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Westlands</span>
-                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Karen</span>
-                 <span className="cursor-pointer hover:text-primary underline decoration-dotted">Mombasa</span>
-               </div>
-             </div>
-          </div>
+        {/* Mobile/Desktop Overlay imitating the screenshot */}
+        <div className="absolute top-0 left-0 right-0 z-10 p-4 md:p-8 flex justify-center">
+           <div className="w-full max-w-md bg-white/90 backdrop-blur-md shadow-lg rounded-3xl p-6 transition-all">
+              {/* Logo */}
+              <div className="mb-6">
+                 <h1 className="text-3xl font-bold tracking-tight text-black font-heading">inndos</h1>
+              </div>
+              
+              {/* Filter Pills */}
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                 <Link href="/search?type=bnb">
+                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">B&B</Button>
+                 </Link>
+                 <Link href="/search?type=rent">
+                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">Rent</Button>
+                 </Link>
+                 <Link href="/search?type=sale">
+                   <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium">Own</Button>
+                 </Link>
+                 <Link href="/add-listing">
+                   <Button className="rounded-full px-6 bg-gray-200 text-black hover:bg-gray-300 border-none shadow-sm font-medium whitespace-nowrap">List property</Button>
+                 </Link>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative">
+                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
+                 <Input 
+                   placeholder="Search locations" 
+                   className="h-12 pl-11 rounded-xl border-gray-200 bg-white shadow-sm text-base" 
+                 />
+              </div>
+           </div>
         </div>
       </section>
 

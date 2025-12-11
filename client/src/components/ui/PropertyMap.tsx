@@ -20,15 +20,27 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom icon for user location
-const userIcon = L.divIcon({
+  // Custom black house icon for properties
+const houseIcon = L.divIcon({
   className: "bg-transparent",
-  html: `<div class="relative flex items-center justify-center w-8 h-8">
-    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-    <span class="relative inline-flex rounded-full h-4 w-4 bg-blue-600 border-2 border-white"></span>
+  html: `<div class="flex items-center justify-center w-8 h-8 bg-transparent">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
   </div>`,
   iconSize: [32, 32],
   iconAnchor: [16, 16],
+});
+
+// Custom "My Location" marker (Black circle with white dot)
+const myLocationIcon = L.divIcon({
+  className: "bg-transparent",
+  html: `<div class="relative flex items-center justify-center w-16 h-16">
+    <div class="absolute w-12 h-12 bg-black rounded-full shadow-2xl flex items-center justify-center z-20">
+      <div class="w-3 h-3 bg-white rounded-full"></div>
+    </div>
+    <div class="absolute w-full h-full bg-black/10 rounded-full animate-pulse z-10"></div>
+  </div>`,
+  iconSize: [64, 64],
+  iconAnchor: [32, 32],
 });
 
 interface PropertyMapProps {
@@ -42,14 +54,37 @@ function UserLocationMarker() {
   useEffect(() => {
     map.locate().on("locationfound", function (e) {
       setPosition(e.latlng);
-      map.flyTo(e.latlng, 13);
+      map.flyTo(e.latlng, 14);
     });
+    
+    // Fallback for demo if location denied/not found immediately
+    setTimeout(() => {
+       if (!position) {
+          const demoPos: L.LatLngExpression = [-1.2921, 36.8219];
+          setPosition(demoPos);
+       }
+    }, 3000);
   }, [map]);
 
   return position === null ? null : (
-    <Marker position={position} icon={userIcon}>
-      <Popup>You are here</Popup>
-    </Marker>
+    <>
+      <Marker position={position} icon={myLocationIcon}>
+         {/* No popup needed, visual is enough based on screenshot */}
+      </Marker>
+      {/* Floating label next to marker */}
+      <Marker 
+        position={position} 
+        icon={L.divIcon({
+          className: 'bg-transparent',
+          html: `<div class="ml-10 -mt-8 whitespace-nowrap">
+                  <div class="font-bold text-lg text-black">My Location</div>
+                  <div class="text-xs text-gray-500 font-medium">Listed properties near me</div>
+                 </div>`,
+          iconSize: [200, 50],
+          iconAnchor: [-20, 25]
+        })}
+      />
+    </>
   );
 }
 
@@ -58,16 +93,18 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
   const center: [number, number] = [-1.2921, 36.8219];
 
   return (
-    <div className="h-full w-full rounded-none overflow-hidden z-0">
+    <div className="h-full w-full rounded-none overflow-hidden z-0 bg-[#f5f5f5]">
       <MapContainer 
         center={center} 
-        zoom={12} 
+        zoom={13} 
         scrollWheelZoom={false} 
+        zoomControl={false}
         className="h-full w-full z-0"
       >
+        {/* Minimalist Grayscale Map */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         <UserLocationMarker />
         {properties.map((property) => (
@@ -75,6 +112,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
             <Marker 
               key={property.id} 
               position={[property.location.lat, property.location.lng]}
+              icon={houseIcon}
             >
               <Popup>
                 <div className="min-w-[200px]">
