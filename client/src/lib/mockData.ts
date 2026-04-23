@@ -14,14 +14,14 @@ export interface Property {
   id: string;
   ownerId: string; // Link to owner/host
   title: string;
-  type: "rent" | "sale" | "bnb";
+  type: "rent" | "sale" | "bnb" | "hotel";
   price: number;
   address: string;
   specs: {
     beds: number;
     baths: number;
     sqft: number;
-    guests?: number; // specific for bnb
+    guests?: number; // specific for bnb/hotel
   };
   image: string;
   isVerified?: boolean;
@@ -216,4 +216,27 @@ const SALE_PROPERTIES: Property[] = [
   },
 ];
 
-export const PROPERTIES: Property[] = [...RENT_PROPERTIES, ...SALE_PROPERTIES, ...BNB_LISTINGS];
+const HOTEL_LISTINGS: Property[] = [
+  {
+    id: "h1", ownerId: "h1", title: "Luxury City Hotel", type: "hotel", price: 15000, address: "Westlands, Nairobi",
+    specs: { beds: 1, baths: 1, sqft: 350, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Room Service", "Pool", "Gym"],
+    location: { lat: -1.265, lng: 36.802 }
+  },
+  {
+    id: "h2", ownerId: "h2", title: "Boutique Business Hotel", type: "hotel", price: 12000, address: "Upper Hill, Nairobi",
+    specs: { beds: 1, baths: 1, sqft: 300, guests: 2 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Conference", "Restaurant", "WiFi"],
+    location: { lat: -1.298, lng: 36.815 }
+  },
+  {
+    id: "h3", ownerId: "h1", title: "Airport Transit Hotel", type: "hotel", price: 8000, address: "Mombasa Road, Nairobi",
+    specs: { beds: 1, baths: 1, sqft: 250, guests: 2 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Shuttle", "24/7 Dining", "Express Check-in"],
+    location: { lat: -1.332, lng: 36.865 }
+  },
+  {
+    id: "h4", ownerId: "h2", title: "Resort & Spa", type: "hotel", price: 25000, address: "Diani, Mombasa",
+    specs: { beds: 2, baths: 1, sqft: 450, guests: 3 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Beachfront", "Spa", "All-Inclusive"],
+    location: { lat: -4.279, lng: 39.593 }
+  }
+];
+
+export const PROPERTIES: Property[] = [...RENT_PROPERTIES, ...SALE_PROPERTIES, ...BNB_LISTINGS, ...HOTEL_LISTINGS];

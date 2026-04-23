@@ -210,7 +210,7 @@ export default function Search() {
                  {filteredProperties.length} Properties found
                </h1>
                <p className="text-sm text-muted-foreground">
-                 Showing properties for <strong>{queryType === 'rent' ? 'Rent' : 'Sale'}</strong>
+                 Showing properties for <strong>{queryType === 'rent' ? 'Rent' : queryType === 'sale' ? 'Sale' : queryType === 'hotel' ? 'Hotels' : 'B&B'}</strong>
                  {searchQuery && <span> matching "<strong>{searchQuery}</strong>"</span>}
                </p>
              </div>

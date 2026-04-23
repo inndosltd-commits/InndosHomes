@@ -42,6 +42,9 @@ export default function Home() {
               <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
                  {/* Filter Pills */}
                  <div className="flex gap-2 overflow-x-auto pb-0 scrollbar-hide justify-center md:justify-start flex-shrink-0">
+                    <Link href="/search?type=hotel">
+                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Hotel</Button>
+                    </Link>
                     <Link href="/search?type=bnb">
                       <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">B&B</Button>
                     </Link>
@@ -111,29 +114,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* B&B Section */}
+      {/* B&B & Hotels Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-8">
             <div>
               <div className="flex items-center gap-2 mb-2">
                  <Bed className="h-6 w-6 text-primary" />
-                 <h2 className="text-3xl font-bold text-gray-900">B&B & Short Stays</h2>
+                 <h2 className="text-3xl font-bold text-gray-900">B&B & Hotels</h2>
               </div>
               <p className="text-muted-foreground">Unique accommodations, offices, and meeting spaces.</p>
             </div>
-            <Link href="/search?type=bnb">
-              <Button variant="ghost" className="text-primary">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
-            </Link>
+            <div className="flex gap-4">
+              <Link href="/search?type=bnb">
+                <Button variant="ghost" className="text-primary">View B&Bs <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              </Link>
+              <Link href="/search?type=hotel">
+                <Button variant="ghost" className="text-primary">View Hotels <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bnbProperties.slice(0, 12).map((property) => (
+            {[...bnbProperties, ...filteredProperties.filter(p => p.type === 'hotel')].slice(0, 12).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </div>
-          <div className="mt-8 text-center">
-             <Link href="/bnb">
-               <Button size="lg" className="font-semibold">Explore All B&B Stays</Button>
+          <div className="mt-8 text-center flex justify-center gap-4">
+             <Link href="/search?type=bnb">
+               <Button size="lg" className="font-semibold">Explore B&B Stays</Button>
+             </Link>
+             <Link href="/search?type=hotel">
+               <Button size="lg" variant="outline" className="font-semibold border-primary text-primary hover:bg-primary/5">Explore Hotels</Button>
              </Link>
           </div>
         </div>

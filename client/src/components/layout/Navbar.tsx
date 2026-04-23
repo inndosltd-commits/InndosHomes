@@ -36,6 +36,11 @@ export function Navbar() {
               B&B
             </span>
           </Link>
+          <Link href="/search?type=hotel">
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              Hotels
+            </span>
+          </Link>
           {user && (
             <Link href="/dashboard">
               <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
