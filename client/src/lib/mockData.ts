@@ -48,20 +48,20 @@ export const OWNERS: UserProfile[] = [
   { id: "o1", name: "John Landlord", email: "owner@inndos.com", role: "owner", status: "active", joinDate: "2023-05-15" }, // Demo Owner
   { id: "o2", name: "Alice Smith", email: "alice@properties.com", role: "owner", status: "active", joinDate: "2023-06-20" },
   { id: "o3", name: "Robert Chen", email: "bob@chenrealty.com", role: "owner", status: "active", joinDate: "2023-07-10" },
-  { id: "o4", name: "Maria Garcia", email: "maria@homes.com", role: "owner", status: "pending", joinDate: "2023-08-05" },
+  { id: "o4", name: "Maria Garcia", email: "maria@homes.com", role: "owner", status: "active", joinDate: "2023-08-05" },
   { id: "o5", name: "David Kim", email: "david@investments.com", role: "owner", status: "active", joinDate: "2023-09-12" },
   { id: "o6", name: "Sarah Connor", email: "sarah@skyline.com", role: "owner", status: "active", joinDate: "2023-10-30" },
   { id: "o7", name: "Michael Jordan", email: "mike@courtside.com", role: "owner", status: "active", joinDate: "2023-11-11" },
   { id: "o8", name: "Emily Blunt", email: "emily@futurehomes.com", role: "owner", status: "suspended", joinDate: "2023-12-01" },
   { id: "o9", name: "Chris Evans", email: "chris@marvelous.com", role: "owner", status: "active", joinDate: "2024-01-15" },
-  { id: "o10", name: "Jessica Chastain", email: "jessica@prime.com", role: "owner", status: "pending", joinDate: "2024-02-20" },
+  { id: "o10", name: "Jessica Chastain", email: "jessica@prime.com", role: "owner", status: "active", joinDate: "2024-02-20" },
 ];
 
 export const TENANTS: UserProfile[] = [
   { id: "t1", name: "Sarah Tenant", email: "tenant@inndos.com", role: "tenant", status: "active", joinDate: "2023-06-01" }, // Demo Tenant
   { id: "t2", name: "Tom Holland", email: "tom@spidey.com", role: "tenant", status: "active", joinDate: "2023-07-22" },
   { id: "t3", name: "Zendaya Coleman", email: "zendaya@dunemovie.com", role: "tenant", status: "active", joinDate: "2023-08-14" },
-  { id: "t4", name: "Timothee Chalamet", email: "tim@wonka.com", role: "tenant", status: "pending", joinDate: "2023-09-05" },
+  { id: "t4", name: "Timothee Chalamet", email: "tim@wonka.com", role: "tenant", status: "active", joinDate: "2023-09-05" },
   { id: "t5", name: "Florence Pugh", email: "flo@midsummer.com", role: "tenant", status: "active", joinDate: "2023-10-18" },
 ];
 

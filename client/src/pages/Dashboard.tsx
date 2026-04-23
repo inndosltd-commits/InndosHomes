@@ -222,7 +222,6 @@ export default function Dashboard() {
             <TabsTrigger value="overview" className="px-6 py-2">Overview</TabsTrigger>
             <TabsTrigger value="messages" className="px-6 py-2">Messages</TabsTrigger>
             {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
-            {user.role === 'admin' && <TabsTrigger value="users" className="px-6 py-2">User Management</TabsTrigger>}
             {user.role === 'admin' && <TabsTrigger value="all-properties" className="px-6 py-2">All Properties</TabsTrigger>}
             <TabsTrigger value="settings" className="px-6 py-2">Settings</TabsTrigger>
           </TabsList>
@@ -463,7 +462,7 @@ export default function Dashboard() {
           {/* ADMIN DASHBOARD */}
           {user.role === 'admin' && (
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-white border-l-4 border-l-yellow-500 shadow-sm cursor-pointer hover:bg-yellow-50/10 transition-colors" onClick={() => setActiveTab("overview")}>
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
@@ -474,7 +473,7 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground mt-1">Properties awaiting verification</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-white border-l-4 border-l-blue-500 shadow-sm cursor-pointer hover:bg-blue-50/10 transition-colors" onClick={() => setActiveTab("users")}>
+                <Card className="bg-white border-l-4 border-l-blue-500 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Total Users</p>
@@ -484,16 +483,6 @@ export default function Dashboard() {
                     <p className="text-xs text-green-600 flex items-center mt-1">
                       <ArrowUpRight className="h-3 w-3 mr-1" /> +12 this week
                     </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-white border-l-4 border-l-red-500 shadow-sm cursor-pointer hover:bg-red-50/10 transition-colors" onClick={() => setActiveTab("all-properties")}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm font-medium text-muted-foreground">Reported Listings</p>
-                      <AlertTriangle className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div className="text-3xl font-bold">{reportedListings.length}</div>
-                    <p className="text-xs text-red-600 mt-1">Action required</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-green-500 shadow-sm">
@@ -510,7 +499,7 @@ export default function Dashboard() {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <Card>
                   <CardHeader>
                      <CardTitle className="flex items-center gap-2">
@@ -619,48 +608,6 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                     <CardTitle className="flex items-center gap-2">
-                       <Users className="h-5 w-5 text-primary" />
-                       User Verification (KYC)
-                       <Badge variant="secondary" className="ml-2">{pendingUsers.length}</Badge>
-                     </CardTitle>
-                     <CardDescription>Verify new user identities</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                     <div className="space-y-4">
-                       {pendingUsers.length > 0 ? (
-                         pendingUsers.map((name, i) => (
-                           <div key={i} className="flex items-center justify-between p-4 border-b last:border-0 hover:bg-gray-50 transition-colors">
-                             <div className="flex items-center gap-3">
-                               <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shadow-sm">
-                                 {name.charAt(0)}
-                               </div>
-                               <div>
-                                 <p className="font-medium text-sm">{name}</p>
-                                 <div className="flex gap-2 text-xs text-muted-foreground">
-                                   <Badge variant="outline" className="text-[10px] h-5 px-1">{i % 2 === 0 ? "Tenant" : "Landlord"}</Badge>
-                                   <span>• ID Uploaded</span>
-                                 </div>
-                               </div>
-                             </div>
-                             <div className="flex gap-2">
-                               <Button size="sm" variant="outline">View ID</Button>
-                               <Button size="sm" onClick={() => handleVerifyUser(name)}>
-                                 Verify
-                               </Button>
-                             </div>
-                           </div>
-                         ))
-                       ) : (
-                          <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
-                             <p className="font-medium">No pending verifications.</p>
-                          </div>
-                       )}
-                     </div>
-                  </CardContent>
-                </Card>
               </div>
             </TabsContent>
           )}
