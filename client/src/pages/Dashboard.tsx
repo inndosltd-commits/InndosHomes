@@ -100,7 +100,7 @@ export default function Dashboard() {
   const [visits, setVisits] = useState(stats.visits);
   const [ownerRevenue, setOwnerRevenue] = useState(stats.revenue);
 
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -217,12 +217,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-8 w-full justify-start bg-white p-1 border rounded-lg h-auto overflow-x-auto">
             <TabsTrigger value="overview" className="px-6 py-2">Overview</TabsTrigger>
             <TabsTrigger value="messages" className="px-6 py-2">Messages</TabsTrigger>
             {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
             {user.role === 'admin' && <TabsTrigger value="users" className="px-6 py-2">User Management</TabsTrigger>}
+            {user.role === 'admin' && <TabsTrigger value="all-properties" className="px-6 py-2">All Properties</TabsTrigger>}
             <TabsTrigger value="settings" className="px-6 py-2">Settings</TabsTrigger>
           </TabsList>
 
@@ -463,7 +464,7 @@ export default function Dashboard() {
           {user.role === 'admin' && (
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-white border-l-4 border-l-yellow-500 shadow-sm cursor-pointer hover:bg-yellow-50/10 transition-colors">
+                <Card className="bg-white border-l-4 border-l-yellow-500 shadow-sm cursor-pointer hover:bg-yellow-50/10 transition-colors" onClick={() => setActiveTab("overview")}>
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Pending Reviews</p>
@@ -473,7 +474,7 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground mt-1">Properties awaiting verification</p>
                   </CardContent>
                 </Card>
-                <Card className="bg-white border-l-4 border-l-blue-500 shadow-sm">
+                <Card className="bg-white border-l-4 border-l-blue-500 shadow-sm cursor-pointer hover:bg-blue-50/10 transition-colors" onClick={() => setActiveTab("users")}>
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Total Users</p>
@@ -485,7 +486,7 @@ export default function Dashboard() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="bg-white border-l-4 border-l-red-500 shadow-sm cursor-pointer hover:bg-red-50/10 transition-colors">
+                <Card className="bg-white border-l-4 border-l-red-500 shadow-sm cursor-pointer hover:bg-red-50/10 transition-colors" onClick={() => setActiveTab("all-properties")}>
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Reported Listings</p>
@@ -661,6 +662,123 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+          )}
+
+          {user.role === 'admin' && (
+            <TabsContent value="all-properties" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Platform Properties</CardTitle>
+                  <CardDescription>Manage, edit or terminate existing listings across the platform</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {PROPERTIES.map(p => (
+                      <div key={p.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group bg-white shadow-sm">
+                        <img src={p.image} className="h-20 w-20 object-cover rounded-md" alt={p.title} />
+                        <div className="flex-1 min-w-0 w-full">
+                          <div className="flex justify-between items-start">
+                             <div>
+                                <Link href={`/property/${p.id}`}>
+                                  <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
+                                </Link>
+                                <p className="text-sm text-muted-foreground truncate">{p.address}</p>
+                             </div>
+                             <div className="font-bold text-xl text-primary">${p.price.toLocaleString()}</div>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+                            <div className="flex gap-2">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>
+                              <Badge variant="secondary">{p.type}</Badge>
+                              <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-900">
+                                    <Eye className="h-4 w-4 mr-1" /> View
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Property Details</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                    <div>
+                                       <img src={p.image} className="w-full h-64 object-cover rounded-lg border" alt={p.title} />
+                                    </div>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="font-bold text-xl">{p.title}</h3>
+                                        <p className="text-muted-foreground">{p.address || "Location not specified"}</p>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Badge>{p.type}</Badge>
+                                        <Badge variant="outline" className="text-primary font-bold">
+                                           {p.type === 'rent' || p.type === 'bnb' ? '$' : '$'}{p.price?.toLocaleString() || 0}
+                                        </Badge>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
+                                        {p.specs && (
+                                          <>
+                                            <div>
+                                               <span className="text-muted-foreground block mb-1">Specs</span>
+                                               <span className="font-medium">{p.specs.beds} Beds • {p.specs.baths} Baths</span>
+                                            </div>
+                                            <div>
+                                               <span className="text-muted-foreground block mb-1">Size</span>
+                                               <span className="font-medium">{p.specs.sqft} sqft</span>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                      <div className="border-t pt-4">
+                                         <span className="text-muted-foreground block text-sm mb-2">Description</span>
+                                         <p className="text-sm">A beautiful {p.type} property located in a prime area, offering great amenities and convenience.</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
+                                     <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => {
+                                       toast({ title: "Property Terminated", description: "This listing has been taken offline.", variant: "destructive" })
+                                     }}>
+                                        <AlertTriangle className="h-4 w-4 mr-2" /> Terminate Listing
+                                     </Button>
+                                     <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => {
+                                       toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" })
+                                     }}>
+                                        <Trash2 className="h-4 w-4 mr-2" /> Delete Completely
+                                     </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => {
+                                toast({ title: "Property Terminated", description: "This listing has been taken offline.", variant: "destructive" })
+                              }}>
+                                <AlertTriangle className="h-4 w-4 mr-1" /> Terminate
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="gap-2"
+                                onClick={() => {
+                                  toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" })
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" /> Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           )}
 
