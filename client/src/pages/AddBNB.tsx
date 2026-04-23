@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, ChevronRight, ChevronLeft, Home, MapPin, List, Camera } from "lucide-react";
-import { useState } from "react";
+import { Upload, Image as ImageIcon, Check, ChevronRight, ChevronLeft, Home, MapPin, List, Camera, X } from "lucide-react";
+import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 
@@ -27,12 +27,28 @@ export default function AddBNB() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // For the mockup, we create local object URLs to preview
+    const newImages = Array.from(files).map(file => URL.createObjectURL(file));
+    setImages(prev => [...prev, ...newImages]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = () => {
     setIsSubmitting(true);
@@ -170,21 +186,76 @@ export default function AddBNB() {
                 <CardDescription>Add photos and set your price.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500">
-                        <Upload className="h-6 w-6" />
-                      </div>
-                      <h3 className="font-semibold">Upload at least 5 photos</h3>
-                      <p className="text-sm text-muted-foreground">Show off your space!</p>
+                <div className="flex gap-4 mb-4">
+                  <div 
+                    className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                      <Upload className="h-5 w-5" />
                     </div>
+                    <h3 className="font-semibold text-sm">Upload Photos</h3>
+                    <p className="text-xs text-muted-foreground">Browse files</p>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*" 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+
+                  <div 
+                    className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                    onClick={() => cameraInputRef.current?.click()}
+                  >
+                    <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+                      <Camera className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-semibold text-sm">Take Photo</h3>
+                    <p className="text-xs text-muted-foreground">Use camera</p>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      className="hidden" 
+                      ref={cameraInputRef}
+                      onChange={handleImageUpload}
+                    />
+                  </div>
                 </div>
 
+                {images.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    {images.map((img, i) => (
+                      <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                        <img src={img} alt={`Upload ${i}`} className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 opacity-50">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                        <ImageIcon className="h-6 w-6" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price per night (USD)</Label>
+                  <Label htmlFor="price">Price per night (KES)</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                    <Input id="price" type="number" className="pl-8 text-lg font-bold" placeholder="50" />
+                    <span className="absolute left-3 top-2.5 text-gray-500">Ksh</span>
+                    <Input id="price" type="number" className="pl-12 text-lg font-bold" placeholder="6500" />
                   </div>
                 </div>
               </CardContent>
