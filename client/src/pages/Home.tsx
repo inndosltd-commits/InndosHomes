@@ -41,21 +41,21 @@ export default function Home() {
           <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
                  {/* Filter Pills */}
-                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide justify-start md:justify-start flex-shrink-0 w-full -mx-4 px-4 md:mx-0 md:px-0">
-                    <Link href="/search?type=hotel">
-                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Hotel</Button>
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide justify-start w-full md:flex-wrap md:overflow-visible">
+                    <Link href="/search?type=hotel" className="flex-shrink-0">
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Hotel</Button>
                     </Link>
-                    <Link href="/search?type=bnb">
-                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">B&B</Button>
+                    <Link href="/search?type=bnb" className="flex-shrink-0">
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">B&B</Button>
                     </Link>
-                    <Link href="/search?type=rent">
-                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Rent</Button>
+                    <Link href="/search?type=rent" className="flex-shrink-0">
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Rent</Button>
                     </Link>
-                    <Link href="/search?type=sale">
-                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Own</Button>
+                    <Link href="/search?type=sale" className="flex-shrink-0">
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Own</Button>
                     </Link>
-                    <Link href="/add-listing">
-                      <Button className="rounded-full px-3 md:px-6 bg-gray-100 text-black hover:bg-gray-200 border-none shadow-sm font-medium whitespace-nowrap h-8 md:h-12 text-[10px] md:text-sm">List property</Button>
+                    <Link href="/add-listing" className="flex-shrink-0">
+                      <Button className="rounded-full px-4 md:px-6 bg-gray-900 text-white hover:bg-gray-800 border-none shadow-sm font-medium h-9 md:h-12 text-sm">List property</Button>
                     </Link>
                  </div>
                  
