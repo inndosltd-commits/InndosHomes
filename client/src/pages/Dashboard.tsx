@@ -22,7 +22,14 @@ export default function Dashboard() {
 
   // --- REAL-TIME STATE ---
   // Admin State
-  const [moderationQueue, setModerationQueue] = useState([1, 2, 3]);
+  const [moderationQueue, setModerationQueue] = useState<any[]>(() => {
+    const saved = localStorage.getItem('pendingListings');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 4, title: "Cozy Cottage in Karen", type: "B&B", submittedBy: "Mama Safi", time: "Just now", image: "/images/cozy_modern_bedroom_interior.png" },
+      { id: 5, title: "Modern Apartment in Westlands", type: "Rent", submittedBy: "John Landlord", time: "1h ago", image: "/images/modern_apartment_exterior.png" }
+    ];
+  });
   const [reportedListings, setReportedListings] = useState([101, 102, 103]);
   // Initialize with real count from mock data + some extra for effect
   const [usersCount, setUsersCount] = useState(OWNERS.length + TENANTS.length + 2300);
@@ -77,19 +84,54 @@ export default function Dashboard() {
 
   // Handlers for interactions
   const handleApprove = (id: number) => {
-    setModerationQueue(prev => prev.filter(item => item !== id));
+    // 1. Remove from pending queue
+    const updatedQueue = moderationQueue.filter(item => item.id !== id);
+    setModerationQueue(updatedQueue);
+    localStorage.setItem('pendingListings', JSON.stringify(updatedQueue));
+    
+    // 2. Add to active properties list
+    const approvedProperty = moderationQueue.find(item => item.id === id);
+    if (approvedProperty) {
+      const activePropertiesStr = localStorage.getItem('activeListings');
+      const activeProperties = activePropertiesStr ? JSON.parse(activePropertiesStr) : [];
+      
+      const newActiveProperty = {
+        id: `m_${approvedProperty.id}`, // Generate a string ID for the mock data system
+        ownerId: "o1", // Mock owner
+        title: approvedProperty.title,
+        type: approvedProperty.type.toLowerCase() === 'b&b' ? 'bnb' : 'rent', // Map type
+        price: 50000, // Mock price for newly approved
+        address: "Newly Approved Location",
+        specs: { beds: 2, baths: 1, sqft: 1000 },
+        image: approvedProperty.image,
+        isVerified: true,
+        tags: ["New"],
+        location: { lat: -1.292, lng: 36.821 }
+      };
+      
+      localStorage.setItem('activeListings', JSON.stringify([newActiveProperty, ...activeProperties]));
+      
+      // Update owner's active properties in dashboard view if they are the owner
+      if (user?.role === 'owner' || user?.role === 'host') {
+        setOwnerProperties(prev => [newActiveProperty as any, ...prev]);
+      }
+    }
+    
     toast({
       title: "Listing Approved",
-      description: `Property #${id} is now live.`,
+      description: `Property is now live on the platform.`,
       className: "bg-green-50 border-green-200 text-green-800",
     });
   };
 
   const handleReject = (id: number) => {
-    setModerationQueue(prev => prev.filter(item => item !== id));
+    const updatedQueue = moderationQueue.filter(item => item.id !== id);
+    setModerationQueue(updatedQueue);
+    localStorage.setItem('pendingListings', JSON.stringify(updatedQueue));
+
     toast({
       title: "Listing Rejected",
-      description: `Property #${id} has been removed from queue.`,
+      description: `Property has been removed from queue.`,
       variant: "destructive",
     });
   };
@@ -432,22 +474,23 @@ export default function Dashboard() {
                   <CardContent>
                      <div className="space-y-4">
                        {moderationQueue.length > 0 ? (
-                         moderationQueue.map(i => (
-                           <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
+                         moderationQueue.map(item => (
+                           <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                              <div className="flex items-center gap-4">
                                <div className="h-12 w-12 bg-gray-200 rounded-md overflow-hidden">
-                                  <img src={`/images/modern_apartment_exterior.png`} className="h-full w-full object-cover" />
+                                  <img src={item.image} className="h-full w-full object-cover" />
                                </div>
                                <div>
-                                 <p className="font-bold text-sm">Sunny Vale Apt #{i}</p>
-                                 <p className="text-xs text-muted-foreground">Submitted by Agent Smith • 2h ago</p>
+                                 <p className="font-bold text-sm">{item.title}</p>
+                                 <p className="text-xs text-muted-foreground">Submitted by {item.submittedBy} • {item.time}</p>
+                                 <Badge variant="outline" className="mt-1 text-[10px] h-4">{item.type}</Badge>
                                </div>
                              </div>
                              <div className="flex gap-2">
-                               <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(i)}>
+                               <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(item.id)}>
                                  <X className="h-4 w-4 mr-1" /> Reject
                                </Button>
-                               <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(i)}>
+                               <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
                                  <Check className="h-4 w-4 mr-1" /> Approve
                                </Button>
                              </div>

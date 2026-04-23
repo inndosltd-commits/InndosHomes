@@ -2,18 +2,36 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/home/Hero";
 import { PropertyCard } from "@/components/property/PropertyCard";
-import { PROPERTIES } from "@/lib/mockData";
+import { PROPERTIES, Property } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed, Search, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect } from "react";
 
 export default function Home() {
-  const rentalProperties = PROPERTIES.filter(p => p.type === "rent");
-  const saleProperties = PROPERTIES.filter(p => p.type === "sale");
-  const bnbProperties = PROPERTIES.filter(p => p.type === "bnb");
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>(PROPERTIES);
+
+  useEffect(() => {
+    // Load any dynamically approved listings from localStorage
+    const savedActive = localStorage.getItem('activeListings');
+    if (savedActive) {
+      try {
+        const parsedActive = JSON.parse(savedActive);
+        if (Array.isArray(parsedActive) && parsedActive.length > 0) {
+          setFilteredProperties(prev => [...parsedActive, ...PROPERTIES]);
+        }
+      } catch (e) {
+        console.error("Error loading active listings", e);
+      }
+    }
+  }, []);
+
+  const rentalProperties = filteredProperties.filter(p => p.type === "rent");
+  const saleProperties = filteredProperties.filter(p => p.type === "sale");
+  const bnbProperties = filteredProperties.filter(p => p.type === "bnb");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -53,7 +71,7 @@ export default function Home() {
       {/* Map Section replacing Hero */}
       <section className="relative h-[70vh] w-full bg-gray-100 border-t">
         <div className="absolute inset-0 z-0">
-          <PropertyMap properties={PROPERTIES} />
+          <PropertyMap properties={filteredProperties} />
         </div>
       </section>
 

@@ -41,6 +41,18 @@ export default function AddBNB() {
   const incrementGuests = () => setGuestCapacity(prev => prev + 1);
   const decrementGuests = () => setGuestCapacity(prev => Math.max(1, prev - 1));
 
+  const handleCameraClick = () => {
+    // In a real mobile app/PWA, this would open the native camera.
+    // In a desktop browser or iframe, we fallback to the file picker or show a toast.
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+      toast({
+        title: "Camera Access",
+        description: "On mobile devices, this opens the camera. On desktop, it opens the file browser.",
+      });
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -58,10 +70,28 @@ export default function AddBNB() {
     setIsSubmitting(true);
     // Simulate API call
     setTimeout(() => {
+      const title = (document.getElementById('title') as HTMLInputElement)?.value || "New B&B Space";
+      const newListing = {
+        id: Date.now(),
+        title: title,
+        type: "B&B",
+        submittedBy: "Host", 
+        time: "Just now",
+        image: images[0] || "/images/cozy_modern_bedroom_interior.png"
+      };
+      
+      const saved = localStorage.getItem('pendingListings');
+      let existing = saved ? JSON.parse(saved) : [
+        { id: 4, title: "Cozy Cottage in Karen", type: "B&B", submittedBy: "Mama Safi", time: "Just now", image: "/images/cozy_modern_bedroom_interior.png" },
+        { id: 5, title: "Modern Apartment in Westlands", type: "Rent", submittedBy: "John Landlord", time: "1h ago", image: "/images/modern_apartment_exterior.png" }
+      ];
+      
+      localStorage.setItem('pendingListings', JSON.stringify([newListing, ...existing]));
+
       setIsSubmitting(false);
       toast({
         title: "Space Listed Successfully",
-        description: "Your B&B space is now live and ready for guests!",
+        description: "Your B&B space is now pending review by our moderation team.",
       });
       setLocation("/dashboard");
     }, 1500);
@@ -212,7 +242,7 @@ export default function AddBNB() {
 
                   <div 
                     className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={handleCameraClick}
                   >
                     <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
                       <Camera className="h-5 w-5" />

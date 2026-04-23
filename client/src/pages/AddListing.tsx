@@ -26,6 +26,16 @@ export default function AddListing() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  const handleCameraClick = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+      toast({
+        title: "Camera Access",
+        description: "On mobile devices, this opens the camera. On desktop, it opens the file browser.",
+      });
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -46,6 +56,24 @@ export default function AddListing() {
 
     // Simulate API call
     setTimeout(() => {
+      const title = (document.getElementById('title') as HTMLInputElement)?.value || "New Property";
+      const newListing = {
+        id: Date.now(),
+        title: title,
+        type: "Listing",
+        submittedBy: "Owner", 
+        time: "Just now",
+        image: images[0] || "/images/modern_apartment_exterior.png"
+      };
+      
+      const saved = localStorage.getItem('pendingListings');
+      let existing = saved ? JSON.parse(saved) : [
+        { id: 4, title: "Cozy Cottage in Karen", type: "B&B", submittedBy: "Mama Safi", time: "Just now", image: "/images/cozy_modern_bedroom_interior.png" },
+        { id: 5, title: "Modern Apartment in Westlands", type: "Rent", submittedBy: "John Landlord", time: "1h ago", image: "/images/modern_apartment_exterior.png" }
+      ];
+      
+      localStorage.setItem('pendingListings', JSON.stringify([newListing, ...existing]));
+
       setIsSubmitting(false);
       toast({
         title: "Listing Submitted Successfully",
@@ -185,7 +213,7 @@ export default function AddListing() {
 
                     <div 
                       className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
-                      onClick={() => cameraInputRef.current?.click()}
+                      onClick={handleCameraClick}
                     >
                       <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
                         <Camera className="h-5 w-5" />
