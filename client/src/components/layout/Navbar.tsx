@@ -75,12 +75,19 @@ export function Navbar() {
                   List Property
                 </Button>
               </Link>
-              <Link href="/login">
-                <Button className="hidden md:flex gap-2 bg-primary hover:bg-primary/90">
-                  <UserCircle className="h-4 w-4" />
-                  Sign In
-                </Button>
-              </Link>
+              <div className="hidden md:flex gap-2">
+                <Link href="/login">
+                  <Button variant="outline" className="gap-2">
+                    <UserCircle className="h-4 w-4" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/login?signup=true">
+                  <Button className="gap-2 bg-primary hover:bg-primary/90">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
             </>
           )}
           <Button variant="outline" size="icon" className="md:hidden">

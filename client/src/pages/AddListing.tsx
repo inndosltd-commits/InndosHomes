@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check } from "lucide-react";
-import { useState } from "react";
+import { Upload, Image as ImageIcon, Check, Camera, X } from "lucide-react";
+import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const AMENITIES = [
@@ -22,6 +22,23 @@ export default function AddListing() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // In a real app, this would upload to storage (S3, Cloudinary, etc.)
+    // For the mockup, we create local object URLs to preview
+    const newImages = Array.from(files).map(file => URL.createObjectURL(file));
+    setImages(prev => [...prev, ...newImages]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +62,7 @@ export default function AddListing() {
         <div className="max-w-3xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold font-heading">Add New Listing</h1>
-            <p className="text-muted-foreground">Fill in the details below to publish your property.</p>
+            <p className="text-muted-foreground">Fill in the details below to publish your property. Admin approval is required before the listing goes live.</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -72,6 +89,7 @@ export default function AddListing() {
                         <SelectContent>
                           <SelectItem value="rent">For Rent</SelectItem>
                           <SelectItem value="sale">For Sale</SelectItem>
+                          <SelectItem value="bnb">B&B / Short Stay</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -142,26 +160,73 @@ export default function AddListing() {
               <Card>
                 <CardHeader>
                   <CardTitle>Photos</CardTitle>
-                  <CardDescription>Upload high quality images of your property</CardDescription>
+                  <CardDescription>Upload or take high quality images of your property</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                        <Upload className="h-6 w-6" />
+                  <div className="flex gap-4 mb-4">
+                    <div 
+                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                        <Upload className="h-5 w-5" />
                       </div>
-                      <h3 className="font-semibold">Click to upload photos</h3>
-                      <p className="text-sm text-muted-foreground">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+                      <h3 className="font-semibold text-sm">Upload Photos</h3>
+                      <p className="text-xs text-muted-foreground">Browse files</p>
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*" 
+                        className="hidden" 
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                      />
+                    </div>
+
+                    <div 
+                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                      onClick={() => cameraInputRef.current?.click()}
+                    >
+                      <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+                        <Camera className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-semibold text-sm">Take Photo</h3>
+                      <p className="text-xs text-muted-foreground">Use camera</p>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        className="hidden" 
+                        ref={cameraInputRef}
+                        onChange={handleImageUpload}
+                      />
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-4 gap-4 mt-4">
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                        <ImageIcon className="h-6 w-6" />
-                      </div>
-                    ))}
-                  </div>
+                  {images.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                      {images.map((img, i) => (
+                        <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                          <img src={img} alt={`Upload ${i}`} className="w-full h-full object-cover" />
+                          <button 
+                            type="button"
+                            onClick={() => removeImage(i)}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 opacity-50">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                          <ImageIcon className="h-6 w-6" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -174,7 +239,7 @@ export default function AddListing() {
                     "Submitting..."
                   ) : (
                     <span className="flex items-center gap-2">
-                      <Check className="h-4 w-4" /> Submit Listing
+                      <Check className="h-4 w-4" /> Submit for Approval
                     </span>
                   )}
                 </Button>
