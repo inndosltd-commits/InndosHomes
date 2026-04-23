@@ -5,6 +5,7 @@ import { PROPERTIES } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Calendar, Users, SlidersHorizontal } from "lucide-react";
+import { useState, useMemo } from "react";
 
 const CATEGORIES = [
   "All", "Cabins", "Beachfront", "Mansions", "Tiny Homes", 
@@ -12,7 +13,23 @@ const CATEGORIES = [
 ];
 
 export default function BNB() {
-  const bnbProperties = PROPERTIES.filter(p => p.type === "bnb");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const filteredBnbProperties = useMemo(() => {
+    let properties = PROPERTIES.filter(p => p.type === "bnb" || p.type === "hotel");
+
+    if (selectedCategory === "Trending") {
+      // For mock data, just sort by price descending or randomly pick some to represent "Trending"
+      // Or we can assume highest price = most booked for the mock
+      return [...properties].sort((a, b) => b.price - a.price).slice(0, 4);
+    }
+
+    if (selectedCategory !== "All") {
+      properties = properties.filter(p => p.tags.some(tag => tag.toLowerCase() === selectedCategory.toLowerCase()));
+    }
+
+    return properties;
+  }, [selectedCategory]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -26,8 +43,9 @@ export default function BNB() {
               {CATEGORIES.map(cat => (
                 <Button 
                   key={cat} 
-                  variant={cat === 'All' ? 'default' : 'ghost'} 
+                  variant={cat === selectedCategory ? 'default' : 'ghost'} 
                   size="sm" 
+                  onClick={() => setSelectedCategory(cat)}
                   className="rounded-full whitespace-nowrap"
                 >
                   {cat}
@@ -51,11 +69,11 @@ export default function BNB() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {bnbProperties.map((property) => (
+          {filteredBnbProperties.map((property) => (
             <PropertyCard key={property.id} property={property} />
           ))}
           {/* Duplicate to fill space for demo */}
-          {bnbProperties.map((property) => (
+          {filteredBnbProperties.length < 8 && filteredBnbProperties.map((property) => (
             <PropertyCard key={`${property.id}-dup`} property={{...property, id: `${property.id}-dup`}} />
           ))}
         </div>

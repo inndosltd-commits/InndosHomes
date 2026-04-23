@@ -70,22 +70,22 @@ export const TENANTS: UserProfile[] = [
 const BNB_LISTINGS: Property[] = [
   {
     id: "b1", ownerId: "h1", title: "Cozy Garden Cottage", type: "bnb", price: 6500, address: "Karen, Nairobi",
-    specs: { beds: 1, baths: 1, sqft: 400, guests: 2 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["WiFi", "Breakfast", "Garden"],
+    specs: { beds: 1, baths: 1, sqft: 400, guests: 2 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["WiFi", "Breakfast", "Garden", "Cabins"],
     location: { lat: -1.319, lng: 36.706 }
   },
   {
     id: "b2", ownerId: "h1", title: "Urban Rooftop Studio", type: "bnb", price: 9500, address: "Kilimani, Nairobi",
-    specs: { beds: 1, baths: 1, sqft: 350, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["View", "Gym Access", "WiFi"],
+    specs: { beds: 1, baths: 1, sqft: 350, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["View", "Gym Access", "WiFi", "Tiny Homes"],
     location: { lat: -1.292, lng: 36.786 }
   },
   {
     id: "b3", ownerId: "h2", title: "Safari Lodge Room", type: "bnb", price: 19500, address: "Nairobi National Park",
-    specs: { beds: 2, baths: 2, sqft: 600, guests: 4 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Wildlife", "Pool", "Full Board"],
+    specs: { beds: 2, baths: 2, sqft: 600, guests: 4 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Wildlife", "Pool", "Full Board", "Amazing Pools"],
     location: { lat: -1.361, lng: 36.845 }
   },
   {
     id: "b4", ownerId: "h2", title: "Quiet Home Office Space", type: "bnb", price: 4000, address: "Lavington, Nairobi",
-    specs: { beds: 0, baths: 1, sqft: 200, guests: 5 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Desk", "High Speed WiFi", "Coffee"],
+    specs: { beds: 0, baths: 1, sqft: 200, guests: 5 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Desk", "High Speed WiFi", "Coffee", "Tiny Homes"],
     location: { lat: -1.275, lng: 36.766 }
   },
   {
@@ -95,7 +95,7 @@ const BNB_LISTINGS: Property[] = [
   },
   {
     id: "b6", ownerId: "h2", title: "Luxury Guest Wing", type: "bnb", price: 12000, address: "Runda, Nairobi",
-    specs: { beds: 2, baths: 1, sqft: 800, guests: 3 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Private Entrance", "Security", "Garden"],
+    specs: { beds: 2, baths: 1, sqft: 800, guests: 3 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Private Entrance", "Security", "Garden", "Mansions"],
     location: { lat: -1.218, lng: 36.812 }
   },
   {
@@ -108,6 +108,21 @@ const BNB_LISTINGS: Property[] = [
     specs: { beds: 1, baths: 1, sqft: 300, guests: 2 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Near Airport", "Transfer", "24/7 Check-in"],
     location: { lat: -1.357, lng: 36.932 }
   },
+  {
+    id: "b9", ownerId: "h1", title: "Lakeside Log Cabin", type: "bnb", price: 15500, address: "Naivasha",
+    specs: { beds: 2, baths: 1, sqft: 600, guests: 4 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Cabins", "Lakefront", "Nature"],
+    location: { lat: -0.71, lng: 36.43 }
+  },
+  {
+    id: "b10", ownerId: "h2", title: "Organic Farm Stay", type: "bnb", price: 8000, address: "Limuru",
+    specs: { beds: 3, baths: 2, sqft: 800, guests: 6 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Farms", "Animals", "Breakfast"],
+    location: { lat: -1.1, lng: 36.64 }
+  },
+  {
+    id: "b11", ownerId: "h1", title: "Ocean View Villa", type: "bnb", price: 25000, address: "Watamu",
+    specs: { beds: 4, baths: 3, sqft: 1500, guests: 8 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Beachfront", "Amazing Pools", "Mansions"],
+    location: { lat: -4.35, lng: 39.57 }
+  }
 ];
 
 const RENT_PROPERTIES: Property[] = [
