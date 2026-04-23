@@ -2,15 +2,34 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserCircle, Menu, PlusCircle, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+    
+    if (isMobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <nav ref={menuRef} className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
