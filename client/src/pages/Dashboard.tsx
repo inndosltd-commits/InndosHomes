@@ -47,11 +47,32 @@ export default function Dashboard() {
 
   // Owner State
   // Filter properties for the current logged-in owner
-  const [ownerProperties, setOwnerProperties] = useState(
-    (user?.role === 'owner' || user?.role === 'host')
-      ? PROPERTIES.filter(p => p.ownerId === user.id)
-      : []
-  );
+  const [ownerProperties, setOwnerProperties] = useState(() => {
+    if (user?.role === 'owner' || user?.role === 'host') {
+      // Get approved properties from mock data
+      const baseProperties = PROPERTIES.filter(p => p.ownerId === user.id);
+      
+      // Get newly approved properties from local storage
+      const activeStr = localStorage.getItem('activeListings');
+      const activeProperties = activeStr ? JSON.parse(activeStr).filter((p: any) => p.ownerId === user.id) : [];
+      
+      return [...activeProperties, ...baseProperties];
+    }
+    return [];
+  });
+
+  // Get pending properties for this owner
+  const [pendingProperties, setPendingProperties] = useState(() => {
+    if (user?.role === 'owner' || user?.role === 'host') {
+      const saved = localStorage.getItem('pendingListings');
+      if (saved) {
+        const queue = JSON.parse(saved);
+        // We match by owner ID or name (since our mock queue used 'submittedBy' name initially)
+        return queue.filter((p: any) => p.ownerId === user.id || p.submittedBy === user.name);
+      }
+    }
+    return [];
+  });
 
   // Calculate dynamic stats based on real properties
   const calculateStats = () => {
@@ -340,7 +361,25 @@ export default function Dashboard() {
                           </div>
                         </div>
                       ))}
-                      {ownerProperties.length === 0 && (
+                      {pendingProperties.length > 0 && pendingProperties.map((p: any) => (
+                        <div key={`pending-${p.id}`} className="flex items-center gap-4 p-4 border border-yellow-200 rounded-lg hover:bg-yellow-50 transition-colors group bg-yellow-50/30 shadow-sm">
+                          <img src={p.image} className="h-20 w-20 object-cover rounded-md opacity-70 grayscale-[30%]" alt={p.title} />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
+                            <p className="text-sm text-muted-foreground truncate">Awaiting Approval</p>
+                            <div className="flex gap-2 mt-2">
+                              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">Pending</Badge>
+                              <Badge variant="secondary">{p.type}</Badge>
+                            </div>
+                          </div>
+                          <div className="text-right flex flex-col items-end justify-center">
+                            <div className="text-sm text-muted-foreground italic max-w-[150px]">
+                              In review queue
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {ownerProperties.length === 0 && pendingProperties.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                           <Home className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                           <h3 className="text-lg font-medium text-gray-900">No properties listed</h3>
