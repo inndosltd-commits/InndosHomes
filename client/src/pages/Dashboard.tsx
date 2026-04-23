@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck } from "lucide-react";
+import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye } from "lucide-react";
 import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
@@ -99,6 +99,8 @@ export default function Dashboard() {
   const [activeInquiries, setActiveInquiries] = useState(stats.inquiries);
   const [visits, setVisits] = useState(stats.visits);
   const [ownerRevenue, setOwnerRevenue] = useState(stats.revenue);
+
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -533,6 +535,69 @@ export default function Dashboard() {
                                </div>
                              </div>
                              <div className="flex gap-2">
+                               <Dialog>
+                                 <DialogTrigger asChild>
+                                   <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-900">
+                                     <Eye className="h-4 w-4 mr-1" /> View
+                                   </Button>
+                                 </DialogTrigger>
+                                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                                   <DialogHeader>
+                                     <DialogTitle>Property Details</DialogTitle>
+                                   </DialogHeader>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                     <div>
+                                        <img src={item.image} className="w-full h-64 object-cover rounded-lg border" alt={item.title} />
+                                     </div>
+                                     <div className="space-y-4">
+                                       <div>
+                                         <h3 className="font-bold text-xl">{item.title}</h3>
+                                         <p className="text-muted-foreground">{item.address || "Location not specified"}</p>
+                                       </div>
+                                       <div className="flex gap-2">
+                                         <Badge>{item.type}</Badge>
+                                         <Badge variant="outline" className="text-primary font-bold">
+                                            {item.type === 'rent' || item.type === 'bnb' ? '$' : '$'}{item.price?.toLocaleString() || 0}
+                                         </Badge>
+                                       </div>
+                                       <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
+                                         <div>
+                                            <span className="text-muted-foreground block mb-1">Submitted By</span>
+                                            <span className="font-medium flex items-center gap-2"><div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">{item.submittedBy?.charAt(0) || 'U'}</div> {item.submittedBy}</span>
+                                         </div>
+                                         <div>
+                                            <span className="text-muted-foreground block mb-1">Time</span>
+                                            <span className="font-medium">{item.time}</span>
+                                         </div>
+                                         {item.specs && (
+                                           <>
+                                             <div>
+                                                <span className="text-muted-foreground block mb-1">Specs</span>
+                                                <span className="font-medium">{item.specs.beds} Beds • {item.specs.baths} Baths</span>
+                                             </div>
+                                             <div>
+                                                <span className="text-muted-foreground block mb-1">Size</span>
+                                                <span className="font-medium">{item.specs.sqft} sqft</span>
+                                             </div>
+                                           </>
+                                         )}
+                                       </div>
+                                       <div className="border-t pt-4">
+                                          <span className="text-muted-foreground block text-sm mb-2">Description</span>
+                                          <p className="text-sm">A beautiful {item.type} property located in a prime area, offering great amenities and convenience. Currently pending review by the admin team.</p>
+                                       </div>
+                                     </div>
+                                   </div>
+                                   <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
+                                      <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => handleReject(item.id)}>
+                                         <X className="h-4 w-4 mr-2" /> Reject Listing
+                                      </Button>
+                                      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
+                                         <Check className="h-4 w-4 mr-2" /> Approve & Publish
+                                      </Button>
+                                   </DialogFooter>
+                                 </DialogContent>
+                               </Dialog>
                                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(item.id)}>
                                  <X className="h-4 w-4 mr-1" /> Reject
                                </Button>
