@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck } from "lucide-react";
-import { PROPERTIES, OWNERS, TENANTS } from "@/lib/mockData";
+import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -25,17 +25,24 @@ export default function Dashboard() {
   const [moderationQueue, setModerationQueue] = useState<any[]>(() => {
     const saved = localStorage.getItem('pendingListings');
     if (saved) return JSON.parse(saved);
-    return [
-      { id: 4, title: "Cozy Cottage in Karen", type: "B&B", submittedBy: "Mama Safi", time: "Just now", image: "/images/cozy_modern_bedroom_interior.png" },
-      { id: 5, title: "Modern Apartment in Westlands", type: "Rent", submittedBy: "John Landlord", time: "1h ago", image: "/images/modern_apartment_exterior.png" }
-    ];
+    return []; // Start empty unless there are actual pending listings from local storage
   });
-  const [reportedListings, setReportedListings] = useState([101, 102, 103]);
-  // Initialize with real count from mock data + some extra for effect
-  const [usersCount, setUsersCount] = useState(OWNERS.length + TENANTS.length + 2300);
-  const [revenue, setRevenue] = useState(45200);
+  const [reportedListings, setReportedListings] = useState<number[]>([]);
+  // Initialize with real count from mock data
+  const [usersCount, setUsersCount] = useState(() => {
+    return OWNERS.length + TENANTS.length + ADMINS.length + HOSTS.length + GUESTS.length;
+  });
+  const [revenue, setRevenue] = useState(() => {
+    // Calculate realistic platform revenue from existing mock properties
+    let totalRevenue = 0;
+    PROPERTIES.forEach(p => {
+        if (p.type === 'rent') totalRevenue += p.price * 0.05; // 5% commission on rent
+        if (p.type === 'bnb') totalRevenue += (p.price * 10) * 0.10; // 10% commission on ~10 days booking
+    });
+    return totalRevenue;
+  }); 
   const [pendingUsers, setPendingUsers] = useState(
-    [...OWNERS, ...TENANTS].filter(u => u.status === 'pending').map(u => u.name)
+    [...OWNERS, ...TENANTS, ...HOSTS, ...GUESTS].filter(u => u.status === 'pending').map(u => u.name)
   );
 
   // Owner State
