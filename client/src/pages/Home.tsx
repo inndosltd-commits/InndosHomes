@@ -41,21 +41,21 @@ export default function Home() {
           <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
                  {/* Filter Pills */}
-                 <div className="flex gap-2 overflow-x-auto pb-0 scrollbar-hide justify-center md:justify-start flex-shrink-0">
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide justify-start md:justify-start flex-shrink-0 w-full -mx-4 px-4 md:mx-0 md:px-0">
                     <Link href="/search?type=hotel">
-                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Hotel</Button>
+                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Hotel</Button>
                     </Link>
                     <Link href="/search?type=bnb">
-                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">B&B</Button>
+                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">B&B</Button>
                     </Link>
                     <Link href="/search?type=rent">
-                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Rent</Button>
+                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Rent</Button>
                     </Link>
                     <Link href="/search?type=sale">
-                      <Button variant="outline" className="rounded-full px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-12">Own</Button>
+                      <Button variant="outline" className="rounded-full px-3 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-8 md:h-12 text-[10px] md:text-sm">Own</Button>
                     </Link>
                     <Link href="/add-listing">
-                      <Button className="rounded-full px-6 bg-gray-200 text-black hover:bg-gray-300 border-none shadow-sm font-medium whitespace-nowrap h-12">List property</Button>
+                      <Button className="rounded-full px-3 md:px-6 bg-gray-100 text-black hover:bg-gray-200 border-none shadow-sm font-medium whitespace-nowrap h-8 md:h-12 text-[10px] md:text-sm">List property</Button>
                     </Link>
                  </div>
                  

@@ -2,10 +2,12 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserCircle, Menu, PlusCircle, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useState } from "react";
 
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -95,11 +97,92 @@ export function Navbar() {
               </div>
             </>
           )}
-          <Button variant="outline" size="icon" className="md:hidden">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="md:hidden flex items-center justify-center relative z-[100] cursor-pointer pointer-events-auto"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
             <Menu className="h-5 w-5" />
           </Button>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
+          <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+              Rent
+            </span>
+          </Link>
+          <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+              Buy
+            </span>
+          </Link>
+          <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+              B&B
+            </span>
+          </Link>
+          <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              Hotels
+            </span>
+          </Link>
+          
+          <div className="h-px bg-gray-100 my-2" />
+          
+          {user ? (
+            <>
+              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                  Dashboard
+                </span>
+              </Link>
+              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
+                  <PlusCircle className="h-4 w-4" />
+                  List Property
+                </Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  logout();
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login?role=owner" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
+                  <PlusCircle className="h-4 w-4" />
+                  List Property
+                </Button>
+              </Link>
+              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <UserCircle className="h-4 w-4" />
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/login?signup=true" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
