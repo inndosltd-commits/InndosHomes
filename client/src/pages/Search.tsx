@@ -15,10 +15,11 @@ export default function Search() {
   
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 100000000]); // Wide range default
+  const [priceRange, setPriceRange] = useState([0, 200000000]); // Wide range default
   const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [isGeofencingActive, setIsGeofencingActive] = useState(false);
+  const [sortBy, setSortBy] = useState("featured");
 
   const handleGeofenceClick = () => {
     if (isGeofencingActive) {
@@ -40,7 +41,7 @@ export default function Search() {
   };
 
   const filteredProperties = useMemo(() => {
-    return PROPERTIES.filter(p => {
+    let result = PROPERTIES.filter(p => {
       // 1. Filter by Type (Rent/Sale)
       if (queryType !== "all" && p.type !== queryType) return false;
 
@@ -70,9 +71,28 @@ export default function Search() {
         if (!hasAllAmenities) return false;
       }
 
+      // 5. Filter by Price
+      if (p.price < priceRange[0]) return false;
+      // Only filter by max price if it's not the absolute max value of the slider
+      const maxSliderValue = queryType === 'rent' ? 500000 : 200000000;
+      if (priceRange[1] < maxSliderValue && p.price > priceRange[1]) return false;
+
       return true;
     });
-  }, [queryType, searchQuery, selectedBedrooms, selectedAmenities]);
+
+    // Sort the results
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "newest") {
+      // Assuming higher IDs or mock IDs mean newer for now since we don't have dates in mockData
+      result.sort((a, b) => b.id.localeCompare(a.id));
+    }
+    // "featured" just uses the default order from mockData
+
+    return result;
+  }, [queryType, searchQuery, selectedBedrooms, selectedAmenities, priceRange, sortBy]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -131,10 +151,16 @@ export default function Search() {
 
           <div>
             <h3 className="font-bold mb-3">Price Range</h3>
-            <Slider defaultValue={[100]} max={100} step={1} className="mb-2" disabled />
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Min</span>
-              <span>Max</span>
+            <Slider 
+              value={priceRange} 
+              onValueChange={setPriceRange}
+              max={queryType === 'rent' ? 500000 : 200000000} 
+              step={queryType === 'rent' ? 5000 : 1000000} 
+              className="mb-4" 
+            />
+            <div className="flex justify-between text-sm font-medium mb-4">
+              <span>{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(priceRange[0])}</span>
+              <span>{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(priceRange[1])}{priceRange[1] >= (queryType === 'rent' ? 500000 : 200000000) ? '+' : ''}</span>
             </div>
           </div>
 
@@ -188,11 +214,15 @@ export default function Search() {
                  {searchQuery && <span> matching "<strong>{searchQuery}</strong>"</span>}
                </p>
              </div>
-             <select className="text-sm border rounded px-2 py-1 bg-white">
-               <option>Sort by: Featured</option>
-               <option>Price: Low to High</option>
-               <option>Price: High to Low</option>
-               <option>Newest</option>
+             <select 
+               className="text-sm border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+               value={sortBy}
+               onChange={(e) => setSortBy(e.target.value)}
+             >
+               <option value="featured">Sort by: Featured</option>
+               <option value="price-asc">Price: Low to High</option>
+               <option value="price-desc">Price: High to Low</option>
+               <option value="newest">Newest</option>
              </select>
           </div>
           
