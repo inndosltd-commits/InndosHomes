@@ -28,6 +28,7 @@ export default function AddBNB() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [guestCapacity, setGuestCapacity] = useState(2);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,6 +37,9 @@ export default function AddBNB() {
 
   const nextStep = () => setStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setStep(prev => Math.max(prev - 1, 1));
+
+  const incrementGuests = () => setGuestCapacity(prev => prev + 1);
+  const decrementGuests = () => setGuestCapacity(prev => Math.max(1, prev - 1));
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -103,9 +107,9 @@ export default function AddBNB() {
                 <div className="space-y-2">
                    <Label>Guest Capacity</Label>
                    <div className="flex items-center gap-4">
-                     <Button variant="outline" size="icon">-</Button>
-                     <span className="font-bold text-lg w-8 text-center">2</span>
-                     <Button variant="outline" size="icon">+</Button>
+                     <Button variant="outline" size="icon" onClick={decrementGuests}>-</Button>
+                     <span className="font-bold text-lg w-8 text-center">{guestCapacity}</span>
+                     <Button variant="outline" size="icon" onClick={incrementGuests}>+</Button>
                    </div>
                 </div>
               </CardContent>
