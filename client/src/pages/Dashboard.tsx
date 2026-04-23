@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye } from "lucide-react";
+import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark } from "lucide-react";
 import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
@@ -45,6 +45,11 @@ export default function Dashboard() {
     [...OWNERS, ...TENANTS, ...HOSTS, ...GUESTS].filter(u => u.status === 'pending').map(u => u.name)
   );
 
+  // New states for admin analytics (mocked for visual completeness)
+  const [totalReviews, setTotalReviews] = useState(124);
+  const [avgRating, setAvgRating] = useState(4.8);
+  const [totalSaved, setTotalSaved] = useState(892);
+
   // Owner State
   // Filter properties for the current logged-in owner
   const [ownerProperties, setOwnerProperties] = useState(() => {
@@ -60,6 +65,8 @@ export default function Dashboard() {
     }
     return [];
   });
+
+  const [deactivatedProperties, setDeactivatedProperties] = useState<string[]>([]);
 
   // Get pending properties for this owner
   const [pendingProperties, setPendingProperties] = useState(() => {
@@ -497,6 +504,26 @@ export default function Dashboard() {
                     </p>
                   </CardContent>
                 </Card>
+                <Card className="bg-white border-l-4 border-l-purple-500 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-muted-foreground">Platform Reviews</p>
+                      <Star className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div className="text-3xl font-bold">{totalReviews}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Average rating: {avgRating} <Star className="inline h-3 w-3 text-yellow-400 fill-yellow-400" /></p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white border-l-4 border-l-red-500 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-muted-foreground">Properties Saved</p>
+                      <Bookmark className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div className="text-3xl font-bold">{totalSaved}</div>
+                    <p className="text-xs text-muted-foreground mt-1">By all tenants & guests</p>
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="grid grid-cols-1 gap-6">
@@ -621,9 +648,11 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {PROPERTIES.map(p => (
-                      <div key={p.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group bg-white shadow-sm">
-                        <img src={p.image} className="h-20 w-20 object-cover rounded-md" alt={p.title} />
+                    {PROPERTIES.map(p => {
+                      const isDeactivated = deactivatedProperties.includes(p.id);
+                      return (
+                      <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
+                        <img src={p.image} className={`h-20 w-20 object-cover rounded-md ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
                         <div className="flex-1 min-w-0 w-full">
                           <div className="flex justify-between items-start">
                              <div>
@@ -637,12 +666,18 @@ export default function Dashboard() {
                           
                           <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                             <div className="flex gap-2">
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>
+                              <Badge variant="outline" className={isDeactivated ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-green-700 border-green-200"}>
+                                {isDeactivated ? 'Deactivated' : 'Active'}
+                              </Badge>
                               <Badge variant="secondary">{p.type}</Badge>
                               <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
                             </div>
                             
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
+                              <div className="flex items-center gap-4 mr-4 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /> {Math.floor(Math.random() * 20) + 1}</span>
+                                <span className="flex items-center gap-1"><Bookmark className="h-3 w-3" /> {Math.floor(Math.random() * 50) + 5}</span>
+                              </div>
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-900">
@@ -689,10 +724,22 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                   <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
-                                     <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => {
-                                       toast({ title: "Property Terminated", description: "This listing has been taken offline.", variant: "destructive" })
+                                     <Button variant="outline" className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 border-blue-200" onClick={() => {
+                                       toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
                                      }}>
-                                        <AlertTriangle className="h-4 w-4 mr-2" /> Terminate Listing
+                                        <Edit className="h-4 w-4 mr-2" /> Edit Property
+                                     </Button>
+                                     <Button variant="outline" className={isDeactivated ? "text-green-600 hover:bg-green-50 hover:text-green-700 border-green-200" : "text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200"} onClick={() => {
+                                       if (isDeactivated) {
+                                         setDeactivatedProperties(prev => prev.filter(id => id !== p.id));
+                                         toast({ title: "Property Activated", description: "This listing is now live.", variant: "default" })
+                                       } else {
+                                         setDeactivatedProperties(prev => [...prev, p.id]);
+                                         toast({ title: "Property Deactivated", description: "This listing has been taken offline.", variant: "default" })
+                                       }
+                                     }}>
+                                        {isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />} 
+                                        {isDeactivated ? 'Activate' : 'Deactivate'}
                                      </Button>
                                      <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => {
                                        toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" })
@@ -703,10 +750,23 @@ export default function Dashboard() {
                                 </DialogContent>
                               </Dialog>
                               
-                              <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => {
-                                toast({ title: "Property Terminated", description: "This listing has been taken offline.", variant: "destructive" })
+                              <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => {
+                                toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
                               }}>
-                                <AlertTriangle className="h-4 w-4 mr-1" /> Terminate
+                                <Edit className="h-4 w-4 mr-1" /> Edit
+                              </Button>
+
+                              <Button size="sm" variant="outline" className={isDeactivated ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"} onClick={() => {
+                                if (isDeactivated) {
+                                  setDeactivatedProperties(prev => prev.filter(id => id !== p.id));
+                                  toast({ title: "Property Activated", description: "This listing is now live.", variant: "default" })
+                                } else {
+                                  setDeactivatedProperties(prev => [...prev, p.id]);
+                                  toast({ title: "Property Deactivated", description: "This listing has been taken offline.", variant: "default" })
+                                }
+                              }}>
+                                {isDeactivated ? <Check className="h-4 w-4 mr-1" /> : <AlertTriangle className="h-4 w-4 mr-1" />} 
+                                {isDeactivated ? 'Activate' : 'Deactivate'}
                               </Button>
                               <Button 
                                 size="sm" 
@@ -722,7 +782,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </CardContent>
               </Card>
