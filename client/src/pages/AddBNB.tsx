@@ -33,6 +33,7 @@ export default function AddBNB() {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [guestCapacity, setGuestCapacity] = useState(2);
   const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,7 +132,15 @@ export default function AddBNB() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {BNB_TYPES.map((type) => (
-                    <div key={type} className="border rounded-lg p-4 hover:border-primary cursor-pointer hover:bg-primary/5 transition-all">
+                    <div 
+                      key={type} 
+                      onClick={() => setSelectedType(type)}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedType === type 
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary' 
+                          : 'hover:border-primary/50 hover:bg-gray-50'
+                      }`}
+                    >
                       <h3 className="font-bold mb-1">{type}</h3>
                       <p className="text-xs text-muted-foreground">Guests have the whole place to themselves.</p>
                     </div>
@@ -148,7 +157,7 @@ export default function AddBNB() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end">
-                <Button onClick={nextStep}>Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                <Button onClick={nextStep} disabled={!selectedType}>Next <ChevronRight className="ml-2 h-4 w-4" /></Button>
               </CardFooter>
             </Card>
           )}
