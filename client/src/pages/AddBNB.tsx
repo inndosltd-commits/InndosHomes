@@ -353,15 +353,7 @@ export default function AddBNB() {
               className="absolute inset-0 z-0"
             ></iframe>
             
-            {/* Center pin mockup */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-               <div className="relative transition-transform duration-200">
-                 <MapPin className="h-10 w-10 text-primary -mt-10 drop-shadow-md" fill="currentColor" />
-                 <div className="absolute bottom-0 left-1/2 bg-black/30 rounded-[100%] blur-[2px] -translate-x-1/2 w-2 h-1 opacity-70"></div>
-               </div>
-            </div>
-            
-            {/* Search Input - Must be above map and pin */}
+            {/* Search Input - Must be above map */}
             <div className="absolute top-4 left-4 right-4 z-20">
               <Input 
                 placeholder="Search for area or street..." 
