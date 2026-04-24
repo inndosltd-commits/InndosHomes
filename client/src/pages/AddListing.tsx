@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X } from "lucide-react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin } from "lucide-react";
 import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -23,6 +24,8 @@ export default function AddListing() {
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [isLocationPinned, setIsLocationPinned] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,11 +155,23 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label>Map Location (Pin)</Label>
                     <div className="text-sm text-gray-500 mb-2">Set the exact location of your property on the map. This helps guests find your property easily.</div>
-                    <div className="bg-gray-100 rounded-lg h-[200px] border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer">
+                    <div 
+                      className={`bg-gray-100 rounded-lg h-[200px] border flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer transition-colors ${isLocationPinned ? 'border-green-500' : 'border-gray-200'}`}
+                      onClick={() => setIsMapModalOpen(true)}
+                    >
                       <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" />
                       <div className="relative z-10 flex flex-col items-center bg-white/90 p-4 rounded-lg shadow-sm">
-                        <MapPin className="h-8 w-8 text-primary mb-2" />
-                        <span className="font-medium text-sm">Click to set exact pin location</span>
+                        {isLocationPinned ? (
+                          <>
+                            <Check className="h-8 w-8 text-green-500 mb-2" />
+                            <span className="font-medium text-sm text-green-600">Location Pinned! Click to edit</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="h-8 w-8 text-primary mb-2" />
+                            <span className="font-medium text-sm">Click to set exact pin location</span>
+                          </>
+                        )}
                       </div>
                       <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     </div>
@@ -306,6 +321,49 @@ export default function AddListing() {
           </form>
         </div>
       </div>
+
+      <Dialog open={isMapModalOpen} onOpenChange={setIsMapModalOpen}>
+        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
+          <DialogHeader className="p-4 bg-white border-b">
+            <DialogTitle>Pin Property Location</DialogTitle>
+            <DialogDescription>
+              Drag the map to pinpoint the exact location of your property.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative h-[400px] w-full bg-blue-50">
+            {/* Mock interactive map */}
+            <div className="absolute inset-0 opacity-50 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=-1.2921,36.8219&zoom=13&size=600x400&sensor=false')] bg-cover bg-center"></div>
+            
+            {/* Draggable pin mockup */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+               <div className="relative">
+                 <MapPin className="h-10 w-10 text-primary -mt-10" />
+                 <div className="absolute bottom-0 left-1/2 w-3 h-1 bg-black/20 rounded-[100%] blur-[1px] -translate-x-1/2"></div>
+               </div>
+            </div>
+            
+            <div className="absolute top-4 left-4 right-4 z-10">
+              <Input placeholder="Search for area or street..." className="bg-white shadow-md border-0" />
+            </div>
+          </div>
+          <div className="p-4 bg-white border-t flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsMapModalOpen(false)}>Cancel</Button>
+            <Button 
+              className="bg-primary" 
+              onClick={() => {
+                setIsLocationPinned(true);
+                setIsMapModalOpen(false);
+                toast({
+                  title: "Location Saved",
+                  description: "Your property location has been pinned.",
+                });
+              }}
+            >
+              Confirm Location
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
