@@ -76,11 +76,11 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <div className="hidden md:flex gap-2">
-            <div className="w-[85px]">
+            <div className="w-[95px]">
               <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
-                <SelectTrigger className="h-8 text-xs border-gray-200">
+                <SelectTrigger className="h-9 text-xs border-gray-200 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
                   <SelectValue placeholder="Lang" />
                 </SelectTrigger>
                 <SelectContent>
@@ -91,9 +91,9 @@ export function Navbar() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[85px]">
+            <div className="w-[90px]">
               <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-                <SelectTrigger className="h-8 text-xs border-gray-200">
+                <SelectTrigger className="h-9 text-xs border-gray-200 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
                   <SelectValue placeholder="Currency" />
                 </SelectTrigger>
                 <SelectContent>
@@ -106,21 +106,22 @@ export function Navbar() {
             </div>
           </div>
 
+          <Link href={user ? "/dashboard" : "/login?role=owner"}>
+            <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-4 h-9">
+              <PlusCircle className="h-4 w-4" />
+              List Property
+            </Button>
+          </Link>
+
           {user ? (
             <>
               <span className="hidden md:inline text-sm font-medium text-muted-foreground">
                 Hi, {user.name.split(' ')[0]}
               </span>
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-primary">
-                  <PlusCircle className="h-4 w-4" />
-                  List Property
-                </Button>
-              </Link>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="hidden md:flex gap-2"
+                className="hidden md:flex gap-2 rounded-full h-9"
                 onClick={logout}
               >
                 <LogOut className="h-4 w-4" />
@@ -128,27 +129,19 @@ export function Navbar() {
               </Button>
             </>
           ) : (
-            <>
-              <Link href="/login?role=owner">
-                <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-primary">
-                  <PlusCircle className="h-4 w-4" />
-                  List Property
+            <div className="hidden md:flex gap-2">
+              <Link href="/login">
+                <Button variant="outline" className="gap-2 rounded-full h-9 shadow-sm text-black">
+                  <UserCircle className="h-4 w-4" />
+                  Sign In
                 </Button>
               </Link>
-              <div className="hidden md:flex gap-2">
-                <Link href="/login">
-                  <Button variant="outline" className="gap-2">
-                    <UserCircle className="h-4 w-4" />
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/login?signup=true">
-                  <Button className="gap-2 bg-primary hover:bg-primary/90">
-                    Sign Up
-                  </Button>
-                </Link>
-              </div>
-            </>
+              <Link href="/login?signup=true">
+                <Button className="gap-2 bg-black text-white hover:bg-gray-800 rounded-full h-9 shadow-sm">
+                  Sign Up
+                </Button>
+              </Link>
+            </div>
           )}
           <Button 
             variant="outline" 
