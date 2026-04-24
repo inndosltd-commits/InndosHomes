@@ -92,6 +92,15 @@ export default function Login() {
                     >
                       {isLoading ? (isSignUp ? "Signing up..." : "Signing in...") : (isSignUp ? `Sign up as ${role.charAt(0).toUpperCase() + role.slice(1)}` : `Sign in as ${role.charAt(0).toUpperCase() + role.slice(1)}`)}
                     </Button>
+                    
+                    {isSignUp && (
+                      <div className="flex items-start space-x-2 mt-4 pt-2">
+                        <Checkbox id={`terms-${role}`} className="mt-1" />
+                        <label htmlFor={`terms-${role}`} className="text-sm text-gray-500 leading-tight">
+                          I agree to the <Link href="/terms" className="text-primary hover:underline font-medium">Terms and Conditions</Link> and acknowledge that I have read the privacy policy.
+                        </label>
+                      </div>
+                    )}
                     {!isSignUp && (
                       <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
                         <span className="font-semibold">Demo Creds:</span> {role}@inndos.com / {role}123

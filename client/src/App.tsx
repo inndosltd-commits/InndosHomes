@@ -15,6 +15,7 @@ import Pricing from "@/pages/Pricing";
 import AddListing from "@/pages/AddListing";
 import AddBNB from "@/pages/AddBNB";
 import BNB from "@/pages/BNB";
+import Terms from "@/pages/Terms";
 import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
@@ -32,7 +33,7 @@ function Router() {
       <Route path="/add-listing" component={AddListing}/>
       <Route path="/add-bnb" component={AddBNB}/>
       <Route path="/bnb" component={BNB}/>
-      <Route path="/terms" component={Legal}/>
+      <Route path="/terms" component={Terms}/>
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>
       <Route path="/property/:id" component={PropertyDetails}/>

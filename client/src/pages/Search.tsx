@@ -158,7 +158,8 @@ export default function Search() {
               onValueChange={setPriceRange}
               max={queryType === 'rent' ? 500000 : 200000000} 
               step={queryType === 'rent' ? 5000 : 1000000} 
-              className="mb-4" 
+              className="mb-4 touch-none" 
+              onTouchStart={(e) => e.stopPropagation()} // Fix for Safari touch issues
             />
             <div className="flex justify-between text-sm font-medium mb-4">
               <span>{new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(priceRange[0])}</span>

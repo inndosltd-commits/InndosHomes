@@ -118,6 +118,8 @@ export default function AddListing() {
                           <SelectItem value="rent">For Rent</SelectItem>
                           <SelectItem value="sale">For Sale</SelectItem>
                           <SelectItem value="bnb">B&B / Short Stay</SelectItem>
+                          <SelectItem value="hotel">Hotel</SelectItem>
+                          <SelectItem value="hostel">Hostel (Student Rentals)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -125,6 +127,21 @@ export default function AddListing() {
                       <Label htmlFor="price">Price (KES)</Label>
                       <Input id="price" type="number" placeholder="e.g. 85000" required />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_term">Payment Term (For Hostels/Rentals)</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment term" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Per Month</SelectItem>
+                        <SelectItem value="quarterly">For 3 Months (Quarterly)</SelectItem>
+                        <SelectItem value="yearly">Per Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Select the required payment term so students/tenants know as they book.</p>
                   </div>
 
                   <div className="space-y-2">

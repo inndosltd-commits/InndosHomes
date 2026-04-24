@@ -22,14 +22,22 @@ export function Navbar() {
       }
     }
     
+    function handleScroll() {
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+    
     if (isMobileMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("touchstart", handleClickOutside);
+      window.addEventListener("scroll", handleScroll, { passive: true });
     }
     
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll);
     };
   }, [isMobileMenuOpen]);
 
@@ -163,27 +171,27 @@ export function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
           <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.rent')}
             </span>
           </Link>
           <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.buy')}
             </span>
           </Link>
           <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
             </span>
           </Link>
           <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hotels')}
             </span>
           </Link>
           <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
             </span>
           </Link>
@@ -191,9 +199,9 @@ export function Navbar() {
           <div className="h-px bg-gray-100 my-2" />
           
           <div className="flex items-center justify-between mb-2">
-             <span className="text-sm font-medium text-gray-500">Language</span>
+             <span className="text-base font-medium text-gray-500">Language</span>
              <Select value={language} onValueChange={(v: any) => { setLanguage(v); setIsMobileMenuOpen(false); }}>
-               <SelectTrigger className="h-8 w-[100px] text-xs border-gray-200">
+               <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
                  <SelectValue placeholder="Lang" />
                </SelectTrigger>
                <SelectContent>
@@ -205,9 +213,9 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center justify-between mb-4">
-             <span className="text-sm font-medium text-gray-500">Currency</span>
+             <span className="text-base font-medium text-gray-500">Currency</span>
              <Select value={currency} onValueChange={(v: any) => { setCurrency(v); setIsMobileMenuOpen(false); }}>
-               <SelectTrigger className="h-8 w-[100px] text-xs border-gray-200">
+               <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
                  <SelectValue placeholder="Currency" />
                </SelectTrigger>
                <SelectContent>
@@ -222,44 +230,44 @@ export function Navbar() {
           {user ? (
             <>
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                   {t('nav.dashboard')}
                 </span>
               </Link>
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
-                  <PlusCircle className="h-4 w-4" />
+                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
+                  <PlusCircle className="h-5 w-5" />
                   {t('nav.list_property')}
                 </Button>
               </Link>
               <Button 
                 variant="outline" 
-                className="w-full justify-start gap-2"
+                className="w-full justify-start gap-2 h-12 text-lg mt-2"
                 onClick={() => {
                   logout();
                   setIsMobileMenuOpen(false);
                 }}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
                 {t('nav.signout')}
               </Button>
             </>
           ) : (
             <>
               <Link href="/login?role=owner" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
-                  <PlusCircle className="h-4 w-4" />
+                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
+                  <PlusCircle className="h-5 w-5" />
                   {t('nav.list_property')}
                 </Button>
               </Link>
               <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <UserCircle className="h-4 w-4" />
+                <Button variant="outline" className="w-full justify-start gap-2 h-12 text-lg mt-2">
+                  <UserCircle className="h-5 w-5" />
                   {t('nav.signin')}
                 </Button>
               </Link>
               <Link href="/login?signup=true" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90">
+                <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 h-12 text-lg">
                   {t('nav.signup')}
                 </Button>
               </Link>
