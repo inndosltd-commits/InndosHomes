@@ -54,35 +54,35 @@ export function Navbar() {
           </div>
         </Link>
 
-        <div className="hidden md:flex items-center gap-8">
-          <Link href="/search?type=rent">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.rent')}
-            </span>
-          </Link>
-          <Link href="/search?type=sale">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.buy')}
-            </span>
-          </Link>
+        <div className="hidden lg:flex items-center gap-6 xl:gap-8">
           <Link href="/bnb">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
             </span>
           </Link>
-          <Link href="/search?type=hotel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.hotels')}
+          <Link href="/search?type=rent">
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.rent')}
             </span>
           </Link>
           <Link href="/search?type=hostel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
+            </span>
+          </Link>
+          <Link href="/search?type=hotel">
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.hotels')}
+            </span>
+          </Link>
+          <Link href="/search?type=sale">
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.buy')}
             </span>
           </Link>
           {user && (
             <Link href="/dashboard">
-              <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
                 {t('nav.dashboard')}
               </span>
             </Link>
@@ -90,8 +90,8 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="hidden md:flex gap-2">
-            <div className="w-[95px]">
+          <div className="hidden lg:flex gap-2">
+            <div className="w-[85px] xl:w-[95px]">
               <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
                 <SelectTrigger className="h-9 text-xs border-gray-200 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
                   <SelectValue placeholder="Lang" />
@@ -103,10 +103,10 @@ export function Navbar() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-[90px]">
+            <div className="w-[85px] xl:w-[90px]">
               <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
                 <SelectTrigger className="h-9 text-xs border-gray-200 rounded-full bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                  <SelectValue placeholder="Currency" />
+                  <SelectValue placeholder="Cur" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="KES">KES</SelectItem>
@@ -118,38 +118,38 @@ export function Navbar() {
             </div>
           </div>
 
-          <Link href={user ? "/dashboard" : "/login?role=owner"}>
-            <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-4 h-9">
+          <Link href={user ? "/dashboard" : "/login?role=owner"} className="hidden lg:block">
+            <Button variant="ghost" size="sm" className="gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-3 xl:px-4 h-9">
               <PlusCircle className="h-4 w-4" />
-              {t('nav.list_property')}
+              <span>{t('nav.list_property')}</span>
             </Button>
           </Link>
 
           {user ? (
             <>
-              <span className="hidden md:inline text-sm font-medium text-muted-foreground">
+              <span className="hidden lg:inline text-sm font-medium text-muted-foreground whitespace-nowrap">
                 Hi, {user.name.split(' ')[0]}
               </span>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="hidden md:flex gap-2 rounded-full h-9"
+                className="hidden lg:flex gap-2 rounded-full h-9"
                 onClick={logout}
               >
                 <LogOut className="h-4 w-4" />
-                {t('nav.signout')}
+                <span className="hidden xl:inline">{t('nav.signout')}</span>
               </Button>
             </>
           ) : (
-            <div className="hidden md:flex gap-2">
+            <div className="hidden lg:flex gap-2">
               <Link href="/login">
-                <Button variant="outline" className="gap-2 rounded-full h-9 shadow-sm text-black">
-                  <UserCircle className="h-4 w-4" />
+                <Button variant="outline" className="gap-2 rounded-full h-9 shadow-sm text-black px-3 xl:px-4">
+                  <UserCircle className="h-4 w-4 hidden xl:block" />
                   {t('nav.signin')}
                 </Button>
               </Link>
               <Link href="/login?signup=true">
-                <Button className="gap-2 bg-black text-white hover:bg-gray-800 rounded-full h-9 shadow-sm">
+                <Button className="gap-2 bg-black text-white hover:bg-gray-800 rounded-full h-9 shadow-sm px-3 xl:px-4">
                   {t('nav.signup')}
                 </Button>
               </Link>
@@ -158,7 +158,7 @@ export function Navbar() {
           <Button 
             variant="outline" 
             size="icon" 
-            className="md:hidden flex items-center justify-center relative z-[100] cursor-pointer pointer-events-auto"
+            className="lg:hidden flex items-center justify-center relative z-[100] cursor-pointer pointer-events-auto"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -169,20 +169,20 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
+        <div className="lg:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
+          <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.bnb')}
+            </span>
+          </Link>
           <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.rent')}
             </span>
           </Link>
-          <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.buy')}
-            </span>
-          </Link>
-          <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.bnb')}
+          <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.hostels')}
             </span>
           </Link>
           <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
@@ -190,9 +190,9 @@ export function Navbar() {
               {t('nav.hotels')}
             </span>
           </Link>
-          <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.hostels')}
+          <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.buy')}
             </span>
           </Link>
           
