@@ -11,7 +11,7 @@ export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { currency, setCurrency } = useCurrency();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLElement>(null);
 
@@ -49,28 +49,28 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-8">
           <Link href="/search?type=rent">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Rent
+              {t('nav.rent')}
             </span>
           </Link>
           <Link href="/search?type=sale">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Buy
+              {t('nav.buy')}
             </span>
           </Link>
           <Link href="/bnb">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
-              B&B
+              {t('nav.bnb')}
             </span>
           </Link>
           <Link href="/search?type=hotel">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Hotels
+              {t('nav.hotels')}
             </span>
           </Link>
           {user && (
             <Link href="/dashboard">
               <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
-                Dashboard
+                {t('nav.dashboard')}
               </span>
             </Link>
           )}
@@ -85,9 +85,8 @@ export function Navbar() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="EN">🇺🇸 EN</SelectItem>
-                  <SelectItem value="SW">🇰🇪 SW</SelectItem>
                   <SelectItem value="FR">🇫🇷 FR</SelectItem>
-                  <SelectItem value="ZH">🇨🇳 ZH</SelectItem>
+                  <SelectItem value="DE">🇩🇪 DE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -109,7 +108,7 @@ export function Navbar() {
           <Link href={user ? "/dashboard" : "/login?role=owner"}>
             <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-4 h-9">
               <PlusCircle className="h-4 w-4" />
-              List Property
+              {t('nav.list_property')}
             </Button>
           </Link>
 
@@ -125,7 +124,7 @@ export function Navbar() {
                 onClick={logout}
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t('nav.signout')}
               </Button>
             </>
           ) : (
@@ -133,12 +132,12 @@ export function Navbar() {
               <Link href="/login">
                 <Button variant="outline" className="gap-2 rounded-full h-9 shadow-sm text-black">
                   <UserCircle className="h-4 w-4" />
-                  Sign In
+                  {t('nav.signin')}
                 </Button>
               </Link>
               <Link href="/login?signup=true">
                 <Button className="gap-2 bg-black text-white hover:bg-gray-800 rounded-full h-9 shadow-sm">
-                  Sign Up
+                  {t('nav.signup')}
                 </Button>
               </Link>
             </div>
@@ -160,22 +159,22 @@ export function Navbar() {
         <div className="md:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
           <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Rent
+              {t('nav.rent')}
             </span>
           </Link>
           <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Buy
+              {t('nav.buy')}
             </span>
           </Link>
           <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
-              B&B
+              {t('nav.bnb')}
             </span>
           </Link>
           <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Hotels
+              {t('nav.hotels')}
             </span>
           </Link>
           
@@ -189,9 +188,8 @@ export function Navbar() {
                </SelectTrigger>
                <SelectContent>
                  <SelectItem value="EN">🇺🇸 EN</SelectItem>
-                 <SelectItem value="SW">🇰🇪 SW</SelectItem>
                  <SelectItem value="FR">🇫🇷 FR</SelectItem>
-                 <SelectItem value="ZH">🇨🇳 ZH</SelectItem>
+                 <SelectItem value="DE">🇩🇪 DE</SelectItem>
                </SelectContent>
              </Select>
           </div>
@@ -215,13 +213,13 @@ export function Navbar() {
             <>
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                 <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
-                  Dashboard
+                  {t('nav.dashboard')}
                 </span>
               </Link>
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
                   <PlusCircle className="h-4 w-4" />
-                  List Property
+                  {t('nav.list_property')}
                 </Button>
               </Link>
               <Button 
@@ -233,7 +231,7 @@ export function Navbar() {
                 }}
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t('nav.signout')}
               </Button>
             </>
           ) : (
@@ -241,18 +239,18 @@ export function Navbar() {
               <Link href="/login?role=owner" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent">
                   <PlusCircle className="h-4 w-4" />
-                  List Property
+                  {t('nav.list_property')}
                 </Button>
               </Link>
               <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <UserCircle className="h-4 w-4" />
-                  Sign In
+                  {t('nav.signin')}
                 </Button>
               </Link>
               <Link href="/login?signup=true" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90">
-                  Sign Up
+                  {t('nav.signup')}
                 </Button>
               </Link>
             </>

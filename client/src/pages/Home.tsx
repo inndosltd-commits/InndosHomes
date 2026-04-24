@@ -10,9 +10,11 @@ import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/lib/language";
 
 export default function Home() {
   const [filteredProperties, setFilteredProperties] = useState<Property[]>(PROPERTIES);
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Load any dynamically approved listings from localStorage
@@ -43,19 +45,19 @@ export default function Home() {
                  {/* Filter Pills */}
                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide justify-start w-full md:flex-wrap md:overflow-visible">
                     <Link href="/search?type=hotel" className="flex-shrink-0">
-                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Hotel</Button>
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">{t('nav.hotels')}</Button>
                     </Link>
                     <Link href="/search?type=bnb" className="flex-shrink-0">
-                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">B&B</Button>
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">{t('nav.bnb')}</Button>
                     </Link>
                     <Link href="/search?type=rent" className="flex-shrink-0">
-                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Rent</Button>
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">{t('nav.rent')}</Button>
                     </Link>
                     <Link href="/search?type=sale" className="flex-shrink-0">
-                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">Own</Button>
+                      <Button variant="outline" className="rounded-full px-4 md:px-6 bg-white border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm font-medium h-9 md:h-12 text-sm">{t('nav.buy')}</Button>
                     </Link>
                     <Link href="/add-listing" className="flex-shrink-0">
-                      <Button className="rounded-full px-4 md:px-6 bg-gray-900 text-white hover:bg-gray-800 border-none shadow-sm font-medium h-9 md:h-12 text-sm">List property</Button>
+                      <Button className="rounded-full px-4 md:px-6 bg-gray-900 text-white hover:bg-gray-800 border-none shadow-sm font-medium h-9 md:h-12 text-sm">{t('nav.list_property')}</Button>
                     </Link>
                  </div>
                  
@@ -63,7 +65,7 @@ export default function Home() {
                  <div className="relative flex-grow w-full md:w-auto">
                     <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
                     <Input 
-                      placeholder="Search locations" 
+                      placeholder={t('home.search_placeholder')} 
                       className="h-12 pl-11 rounded-full border-gray-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm text-base w-full transition-all" 
                     />
                  </div>
@@ -86,29 +88,29 @@ export default function Home() {
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
                 <ShieldCheck className="h-6 w-6" />
               </div>
-              <h3 className="font-heading font-bold text-lg mb-2">Verified Listings</h3>
-              <p className="text-muted-foreground text-sm">Every property is vetted for authenticity.</p>
+              <h3 className="font-heading font-bold text-lg mb-2">{t('home.verified_listings')}</h3>
+              <p className="text-muted-foreground text-sm">{t('home.verified_desc')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
               <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
                 <Users className="h-6 w-6" />
               </div>
-              <h3 className="font-heading font-bold text-lg mb-2">Direct Connection</h3>
-              <p className="text-muted-foreground text-sm">Connect directly with owners and buyers.</p>
+              <h3 className="font-heading font-bold text-lg mb-2">{t('home.direct_connection')}</h3>
+              <p className="text-muted-foreground text-sm">{t('home.direct_desc')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors">
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
                 <Building2 className="h-6 w-6" />
               </div>
-              <h3 className="font-heading font-bold text-lg mb-2">Property Management</h3>
-              <p className="text-muted-foreground text-sm">Tools for landlords to manage listings.</p>
+              <h3 className="font-heading font-bold text-lg mb-2">{t('home.property_management')}</h3>
+              <p className="text-muted-foreground text-sm">{t('home.property_desc')}</p>
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
               <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
                 <Key className="h-6 w-6" />
               </div>
-              <h3 className="font-heading font-bold text-lg mb-2">Secure Booking</h3>
-              <p className="text-muted-foreground text-sm">Safe and secure rental process.</p>
+              <h3 className="font-heading font-bold text-lg mb-2">{t('home.secure_booking')}</h3>
+              <p className="text-muted-foreground text-sm">{t('home.secure_desc')}</p>
             </div>
           </div>
         </div>
@@ -121,16 +123,16 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                  <Bed className="h-6 w-6 text-primary" />
-                 <h2 className="text-3xl font-bold text-gray-900">B&B & Hotels</h2>
+                 <h2 className="text-3xl font-bold text-gray-900">{t('home.bnb_hotels')}</h2>
               </div>
-              <p className="text-muted-foreground">Unique accommodations, offices, and meeting spaces.</p>
+              <p className="text-muted-foreground">{t('home.bnb_hotels_desc')}</p>
             </div>
             <div className="flex gap-4">
               <Link href="/search?type=bnb">
-                <Button variant="ghost" className="text-primary">View B&Bs <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                <Button variant="ghost" className="text-primary">{t('home.view_bnbs')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </Link>
               <Link href="/search?type=hotel">
-                <Button variant="ghost" className="text-primary">View Hotels <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                <Button variant="ghost" className="text-primary">{t('home.view_hotels')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </Link>
             </div>
           </div>
@@ -141,10 +143,10 @@ export default function Home() {
           </div>
           <div className="mt-8 text-center flex justify-center gap-4">
              <Link href="/search?type=bnb">
-               <Button size="lg" className="font-semibold">Explore B&B Stays</Button>
+               <Button size="lg" className="font-semibold">{t('home.explore_bnbs')}</Button>
              </Link>
              <Link href="/search?type=hotel">
-               <Button size="lg" variant="outline" className="font-semibold border-primary text-primary hover:bg-primary/5">Explore Hotels</Button>
+               <Button size="lg" variant="outline" className="font-semibold border-primary text-primary hover:bg-primary/5">{t('home.explore_hotels')}</Button>
              </Link>
           </div>
         </div>
@@ -154,11 +156,11 @@ export default function Home() {
       <section className="py-16 container mx-auto px-4">
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Latest Rentals</h2>
-            <p className="text-muted-foreground">Discover top-rated rental properties available now.</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('home.latest_rentals')}</h2>
+            <p className="text-muted-foreground">{t('home.latest_rentals_desc')}</p>
           </div>
           <Link href="/search?type=rent">
-            <Button variant="ghost" className="text-primary">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            <Button variant="ghost" className="text-primary">{t('home.view_all')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -173,11 +175,11 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Properties For Sale</h2>
-              <p className="text-muted-foreground">Find your dream home from verified sellers.</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('home.properties_for_sale')}</h2>
+              <p className="text-muted-foreground">{t('home.properties_for_sale_desc')}</p>
             </div>
             <Link href="/search?type=sale">
-              <Button variant="ghost" className="text-secondary">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button variant="ghost" className="text-secondary">{t('home.view_all')} <ArrowRight className="ml-2 h-4 w-4" /></Button>
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

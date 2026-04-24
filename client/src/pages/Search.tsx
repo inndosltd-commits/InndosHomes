@@ -8,10 +8,12 @@ import { Slider } from "@/components/ui/slider";
 import { Filter, MapPin, Search as SearchIcon, LocateFixed } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
+import { useLanguage } from "@/lib/language";
 
 export default function Search() {
   const [location] = useLocation();
   const queryType = new URLSearchParams(window.location.search).get("type") || "rent";
+  const { t } = useLanguage();
   
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,7 +107,7 @@ export default function Search() {
              <div className="relative flex-1 w-full">
                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                <Input 
-                  placeholder="Search by location, city, or property name..." 
+                  placeholder={t('search.placeholder')} 
                   className="pl-10" 
                   value={searchQuery}
                   onChange={(e) => {
@@ -121,9 +123,9 @@ export default function Search() {
                   onClick={handleGeofenceClick}
                >
                  <LocateFixed className="h-4 w-4" /> 
-                 {isGeofencingActive ? "Near Me (Active)" : "Use My Location"}
+                 {isGeofencingActive ? t('search.near_me') : t('search.use_location')}
                </Button>
-               <Button className="flex-1 md:flex-none bg-primary">Search</Button>
+               <Button className="flex-1 md:flex-none bg-primary">{t('search.search_btn')}</Button>
              </div>
            </div>
         </div>
@@ -134,7 +136,7 @@ export default function Search() {
         <div className="hidden md:block w-64 shrink-0 space-y-8">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold">Filters</h3>
+              <h3 className="font-bold">{t('search.filters')}</h3>
               <button 
                 onClick={() => {
                   setSearchQuery("");
@@ -144,13 +146,13 @@ export default function Search() {
                 }}
                 className="text-xs text-primary hover:underline"
               >
-                Reset All
+                {t('search.reset_all')}
               </button>
             </div>
           </div>
 
           <div>
-            <h3 className="font-bold mb-3">Price Range</h3>
+            <h3 className="font-bold mb-3">{t('search.price_range')}</h3>
             <Slider 
               value={priceRange} 
               onValueChange={setPriceRange}
@@ -165,7 +167,7 @@ export default function Search() {
           </div>
 
           <div>
-            <h3 className="font-bold mb-3">Bedrooms</h3>
+            <h3 className="font-bold mb-3">{t('search.bedrooms')}</h3>
             <div className="flex gap-2 flex-wrap">
               {[1, 2, 3, 4, 5].map(n => (
                 <button 
@@ -184,7 +186,7 @@ export default function Search() {
           </div>
 
           <div>
-             <h3 className="font-bold mb-3">Amenities</h3>
+             <h3 className="font-bold mb-3">{t('search.amenities')}</h3>
              <div className="space-y-2">
                {["Parking", "Pool", "Gym", "Pet Friendly", "Wifi", "Balcony", "Garden", "Security"].map(a => (
                  <div key={a} className="flex items-center space-x-2">
@@ -207,11 +209,11 @@ export default function Search() {
           <div className="mb-6 flex justify-between items-center">
              <div>
                <h1 className="font-bold text-xl">
-                 {filteredProperties.length} Properties found
+                 {filteredProperties.length} {t('search.properties_found')}
                </h1>
                <p className="text-sm text-muted-foreground">
-                 Showing properties for <strong>{queryType === 'rent' ? 'Rent' : queryType === 'sale' ? 'Sale' : queryType === 'hotel' ? 'Hotels' : 'B&B'}</strong>
-                 {searchQuery && <span> matching "<strong>{searchQuery}</strong>"</span>}
+                 {t('search.showing_properties')} <strong>{queryType === 'rent' ? t('nav.rent') : queryType === 'sale' ? t('nav.buy') : queryType === 'hotel' ? t('nav.hotels') : t('nav.bnb')}</strong>
+                 {searchQuery && <span> {t('search.matching')} "<strong>{searchQuery}</strong>"</span>}
                </p>
              </div>
              <select 
@@ -219,10 +221,10 @@ export default function Search() {
                value={sortBy}
                onChange={(e) => setSortBy(e.target.value)}
              >
-               <option value="featured">Sort by: Featured</option>
-               <option value="price-asc">Price: Low to High</option>
-               <option value="price-desc">Price: High to Low</option>
-               <option value="newest">Newest</option>
+               <option value="featured">{t('search.sort_featured')}</option>
+               <option value="price-asc">{t('search.sort_price_asc')}</option>
+               <option value="price-desc">{t('search.sort_price_desc')}</option>
+               <option value="newest">{t('search.sort_newest')}</option>
              </select>
           </div>
           
@@ -237,8 +239,8 @@ export default function Search() {
               <div className="mx-auto h-12 w-12 text-gray-300 mb-4">
                 <SearchIcon className="h-full w-full" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">No properties found</h3>
-              <p className="text-muted-foreground">Try adjusting your filters or search query.</p>
+              <h3 className="text-lg font-medium text-gray-900">{t('search.no_properties')}</h3>
+              <p className="text-muted-foreground">{t('search.try_adjusting')}</p>
               <Button 
                 variant="link" 
                 onClick={() => {
@@ -248,7 +250,7 @@ export default function Search() {
                 }}
                 className="mt-2"
               >
-                Clear all filters
+                {t('search.clear_filters')}
               </Button>
             </div>
           )}

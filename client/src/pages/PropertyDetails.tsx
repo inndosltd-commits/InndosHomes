@@ -11,11 +11,13 @@ import { PROPERTIES, OWNERS } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useCurrency } from "@/lib/currency";
+import { useLanguage } from "@/lib/language";
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/property/:id");
   const { toast } = useToast();
   const { convert } = useCurrency();
+  const { t } = useLanguage();
   const [isLiked, setIsLiked] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
@@ -118,7 +120,7 @@ export default function PropertyDetails() {
            <div className="bg-gray-200 relative">
              <img src={property.image} className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer"/>
              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold cursor-pointer hover:bg-black/50 transition-colors">
-                View All Photos
+                {t('prop.view_all_photos')}
              </div>
            </div>
         </div>
@@ -133,16 +135,16 @@ export default function PropertyDetails() {
                <div>
                  <div className="flex items-center gap-2 mb-2">
                    <Badge className={property.type === 'rent' ? 'bg-primary' : 'bg-secondary'}>
-                     For {property.type === 'rent' ? 'Rent' : property.type === 'sale' ? 'Sale' : property.type === 'hotel' ? 'Hotel' : 'B&B'}
+                     {property.type === 'rent' ? t('prop.for_rent') : property.type === 'sale' ? t('prop.for_sale') : property.type === 'hotel' ? t('prop.hotel') : t('prop.bnb')}
                    </Badge>
                    {property.isVerified && (
                      <Badge variant="outline" className="border-green-600 text-green-600 flex items-center gap-1">
-                       <CheckCircle className="h-3 w-3" /> Verified
+                       <CheckCircle className="h-3 w-3" /> {t('prop.verified')}
                      </Badge>
                    )}
                    <div className="flex items-center text-yellow-500 ml-2 text-sm font-medium">
                      <Star className="h-4 w-4 fill-current mr-1" />
-                     {ratingStats.average} ({ratingStats.total} reviews)
+                     {ratingStats.average} ({ratingStats.total} {t('prop.reviews')})
                    </div>
                  </div>
                  <h1 className="text-3xl font-bold font-heading text-gray-900 mb-2">{property.title}</h1>
@@ -154,7 +156,7 @@ export default function PropertyDetails() {
                <div className="text-right">
                  <div className="text-3xl font-bold text-primary">
                    {convert(property.price)}
-                   {property.type === 'rent' && <span className="text-lg text-gray-500 font-normal">/mo</span>}
+                   {property.type === 'rent' && <span className="text-lg text-gray-500 font-normal">{t('prop.mo')}</span>}
                  </div>
                </div>
              </div>
@@ -163,17 +165,17 @@ export default function PropertyDetails() {
                 <div className="flex items-center gap-8">
                   <div className="text-center">
                     <div className="font-bold text-xl flex items-center justify-center gap-2"><BedDouble className="h-5 w-5 text-gray-400"/> {property.specs.beds}</div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide">Bedrooms</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide">{t('prop.bedrooms')}</div>
                   </div>
                   <div className="w-px h-10 bg-gray-200"></div>
                   <div className="text-center">
                     <div className="font-bold text-xl flex items-center justify-center gap-2"><Bath className="h-5 w-5 text-gray-400"/> {property.specs.baths}</div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide">Bathrooms</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide">{t('prop.bathrooms')}</div>
                   </div>
                   <div className="w-px h-10 bg-gray-200"></div>
                   <div className="text-center">
                     <div className="font-bold text-xl flex items-center justify-center gap-2"><Square className="h-5 w-5 text-gray-400"/> {property.specs.sqft}</div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide">Sq Ft</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide">{t('prop.sqft')}</div>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -194,14 +196,14 @@ export default function PropertyDetails() {
 
              <div className="space-y-8">
                <section>
-                 <h2 className="text-xl font-bold mb-4">Description</h2>
+                 <h2 className="text-xl font-bold mb-4">{t('prop.description')}</h2>
                  <p className="text-gray-600 leading-relaxed">
                    Experience the pinnacle of modern living in this stunning property. Featuring spacious interiors flooded with natural light, high-end finishes, and thoughtful design details throughout. The open-concept layout is perfect for entertaining, while private retreats offer serenity and comfort. Located in a prime neighborhood with easy access to amenities, schools, and transportation.
                  </p>
                </section>
 
                <section>
-                 <h2 className="text-xl font-bold mb-4">Amenities</h2>
+                 <h2 className="text-xl font-bold mb-4">{t('prop.amenities')}</h2>
                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                    {property.tags.concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map(tag => (
                      <div key={tag} className="flex items-center gap-2 text-gray-600">
@@ -214,8 +216,8 @@ export default function PropertyDetails() {
 
                {/* Rating Section */}
                <section className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                 <h2 className="text-xl font-bold mb-2">Rate your stay</h2>
-                 <p className="text-sm text-gray-500 mb-4">How was your experience at this property?</p>
+                 <h2 className="text-xl font-bold mb-2">{t('prop.rate_stay')}</h2>
+                 <p className="text-sm text-gray-500 mb-4">{t('prop.rate_desc')}</p>
                  
                  <div className="flex items-center gap-2">
                    {[1, 2, 3, 4, 5].map((star) => (
@@ -239,13 +241,13 @@ export default function PropertyDetails() {
                  </div>
                  {hasRated && (
                    <p className="text-sm text-green-600 mt-2 font-medium flex items-center gap-1">
-                     <CheckCircle className="h-4 w-4" /> You rated this {userRating} stars
+                     <CheckCircle className="h-4 w-4" /> {t('prop.you_rated')} {userRating} {t('prop.stars')}
                    </p>
                  )}
                </section>
 
                <section>
-                 <h2 className="text-xl font-bold mb-4">Location</h2>
+                 <h2 className="text-xl font-bold mb-4">{t('prop.location')}</h2>
                  <div className="bg-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-500 relative overflow-hidden group">
                    <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm transition-transform duration-500 group-hover:scale-105" />
                    
@@ -258,17 +260,17 @@ export default function PropertyDetails() {
                        
                        {isBooked ? (
                          <Button onClick={() => setShowDirections(true)} className="bg-primary shadow-lg hover:bg-primary/90">
-                           <MapPin className="h-4 w-4 mr-2" /> Get Directions
+                           <MapPin className="h-4 w-4 mr-2" /> {t('prop.get_directions')}
                          </Button>
                        ) : (
-                         <Badge variant="secondary" className="bg-white/80">Book to see exact location & directions</Badge>
+                         <Badge variant="secondary" className="bg-white/80">{t('prop.book_to_see')}</Badge>
                        )}
                      </div>
                    ) : (
                      <div className="relative z-10 bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 text-center">
                        <MapPin className="h-10 w-10 text-primary mx-auto mb-3" />
-                       <h3 className="font-bold mb-2 text-lg">Exact Location Unlocked</h3>
-                       <p className="text-sm text-gray-600 mb-4">You can now view the exact property pin on Google Maps to navigate.</p>
+                       <h3 className="font-bold mb-2 text-lg">{t('prop.exact_unlocked')}</h3>
+                       <p className="text-sm text-gray-600 mb-4">{t('prop.exact_desc')}</p>
                        <a 
                          href={`https://maps.google.com/?q=${property.location?.lat || -1.2921},${property.location?.lng || 36.8219}`}
                          target="_blank"
@@ -276,14 +278,14 @@ export default function PropertyDetails() {
                          className="block w-full"
                        >
                          <Button className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white">
-                           Open in Google Maps
+                           {t('prop.open_maps')}
                          </Button>
                        </a>
                        <button 
                          onClick={() => setShowDirections(false)} 
                          className="text-xs text-gray-500 underline mt-4 hover:text-gray-800"
                        >
-                         Hide directions
+                         {t('prop.hide_directions')}
                        </button>
                      </div>
                    )}
@@ -326,23 +328,23 @@ export default function PropertyDetails() {
                  <div className="space-y-3 relative z-10 mt-[-120px] pt-[130px]">
                    {!isBooked && (
                      <div className="absolute top-0 left-0 w-full text-center pb-4 text-sm font-medium text-gray-800">
-                       Book to reveal host contact details
+                       {t('prop.book_to_reveal')}
                      </div>
                    )}
                    
                    {!isBooked ? (
                      <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
-                       {property.type === 'rent' || property.type === 'sale' ? 'Request Tour' : 'Book Now'}
+                       {property.type === 'rent' || property.type === 'sale' ? t('prop.request_tour') : t('prop.book_now')}
                      </Button>
                    ) : (
                      <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center mb-4 flex items-center justify-center gap-2 font-medium">
                        <CheckCircle className="h-5 w-5" /> 
-                       {property.type === 'rent' || property.type === 'sale' ? 'Tour Requested' : 'Booking Confirmed!'}
+                       {property.type === 'rent' || property.type === 'sale' ? t('prop.tour_requested') : t('prop.booking_confirmed')}
                      </div>
                    )}
                    
                    <Button variant="outline" className="w-full gap-2" onClick={handleSendMessage} disabled={!isBooked}>
-                     <MessageSquare className="h-4 w-4" /> Send Message
+                     <MessageSquare className="h-4 w-4" /> {t('prop.send_message')}
                    </Button>
                    <a 
                      href="https://wa.me/254713361799" 
@@ -351,15 +353,15 @@ export default function PropertyDetails() {
                      className={`flex items-center justify-center w-full h-10 px-4 py-2 text-white rounded-md transition-colors font-medium gap-2 ${isBooked ? 'bg-[#25D366] hover:bg-[#128C7E]' : 'bg-gray-300 cursor-not-allowed'}`}
                      onClick={e => !isBooked && e.preventDefault()}
                    >
-                     <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
+                     <MessageCircle className="h-4 w-4" /> {t('prop.chat_whatsapp')}
                    </a>
                  </div>
 
                  <Separator className="my-6" />
                  
                  <div className="text-center">
-                   <p className="text-xs text-gray-400">Reference ID: {property.id}</p>
-                   <p className="text-xs text-gray-400 mt-1">Listed: {property.isVerified ? 'Verified Listing' : 'Unverified'}</p>
+                   <p className="text-xs text-gray-400">{t('prop.ref_id')} {property.id}</p>
+                   <p className="text-xs text-gray-400 mt-1">{property.isVerified ? t('prop.listed_verified') : t('prop.listed_unverified')}</p>
                  </div>
               </CardContent>
             </Card>
