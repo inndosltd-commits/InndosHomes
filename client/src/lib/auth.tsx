@@ -10,6 +10,7 @@ export type User = UserProfile;
 interface AuthContextType {
   user: User | null;
   login: (role: UserRole, email?: string) => void;
+  signup: (role: UserRole, name: string, email: string) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -70,6 +71,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signup = (role: UserRole, name: string, email: string) => {
+    if (!role) return;
+    const newUser: User = {
+      id: Math.random().toString(36).substring(2, 11),
+      name: name || `New ${role}`,
+      email: email || `new_${role}@example.com`,
+      role: role as any,
+    };
+    setUser(newUser);
+    localStorage.setItem("inndos_user", JSON.stringify(newUser));
+    setLocation("/dashboard");
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem("inndos_user");
@@ -77,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
