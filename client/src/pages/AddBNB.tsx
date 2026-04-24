@@ -363,14 +363,22 @@ export default function AddBNB() {
             ></iframe>
             
             {/* Search Input - Must be above map */}
-            <div className="absolute top-4 left-4 right-4 z-20">
-              <Input 
-                placeholder="Search for area or street..." 
-                className="bg-white shadow-lg border-0" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.stopPropagation()}
-              />
+            <div className="absolute top-4 left-4 right-4 z-30">
+              <div className="relative shadow-lg rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                </div>
+                <Input 
+                  placeholder="Search for area or street..." 
+                  className="bg-white border-0 relative z-50 h-12 pl-10 text-base" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  autoComplete="off"
+                  name="location-search"
+                  spellCheck="false"
+                />
+              </div>
             </div>
           </div>
           <div className="p-4 bg-white border-t flex justify-end gap-2">
