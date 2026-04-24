@@ -32,6 +32,9 @@ export default function AddBNB() {
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [guestCapacity, setGuestCapacity] = useState(2);
+  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -340,20 +343,62 @@ export default function AddBNB() {
               Drag the map to pinpoint the exact location of your property.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative h-[400px] w-full bg-blue-50">
-            {/* Mock interactive map */}
-            <div className="absolute inset-0 opacity-50 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=-1.2921,36.8219&zoom=13&size=600x400&sensor=false')] bg-cover bg-center"></div>
+          <div className="relative h-[400px] w-full bg-[#e5e3df] overflow-hidden">
+            {/* Draggable Map Area */}
+            <div 
+              className={`absolute inset-0 select-none touch-none z-0 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+              onPointerDown={(e) => {
+                setIsDragging(true);
+                e.currentTarget.setPointerCapture(e.pointerId);
+                setDragStart({ x: e.clientX - mapOffset.x, y: e.clientY - mapOffset.y });
+              }}
+              onPointerMove={(e) => {
+                if (isDragging) {
+                  setMapOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+                }
+              }}
+              onPointerUp={(e) => {
+                setIsDragging(false);
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              onPointerCancel={(e) => {
+                setIsDragging(false);
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+            >
+              <div 
+                className="absolute inset-[-1000px] opacity-60 bg-[url('https://i.pinimg.com/736x/8a/4f/2e/8a4f2e9603bce30b0b8e72ef6f9e0eb9.jpg')] bg-repeat"
+                style={{ 
+                  transform: `translate(${mapOffset.x}px, ${mapOffset.y}px)`,
+                  backgroundSize: '400px'
+                }}
+              ></div>
+            </div>
             
             {/* Draggable pin mockup */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-               <div className="relative">
-                 <MapPin className="h-10 w-10 text-primary -mt-10" />
-                 <div className="absolute bottom-0 left-1/2 w-3 h-1 bg-black/20 rounded-[100%] blur-[1px] -translate-x-1/2"></div>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+               <div className={`relative transition-transform duration-200 ${isDragging ? '-translate-y-4' : ''}`}>
+                 <MapPin className="h-10 w-10 text-primary -mt-10 drop-shadow-md" fill="currentColor" />
+                 <div className={`absolute bottom-0 left-1/2 bg-black/30 rounded-[100%] blur-[2px] -translate-x-1/2 transition-all duration-200 ${isDragging ? 'w-4 h-1.5 opacity-40' : 'w-2 h-1 opacity-70'}`}></div>
                </div>
             </div>
             
-            <div className="absolute top-4 left-4 right-4 z-10">
-              <Input placeholder="Search for area or street..." className="bg-white shadow-md border-0" />
+            {/* Search Input - Must be above map and pin, and have pointer events enabled */}
+            <div className="absolute top-4 left-4 right-4 z-20">
+              <Input 
+                placeholder="Search for area or street..." 
+                className="bg-white shadow-lg border-0" 
+                onKeyDown={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  if (e.target.value.length > 3) {
+                    // Simulate searching by moving the map
+                    setMapOffset({ 
+                      x: Math.random() * 200 - 100, 
+                      y: Math.random() * 200 - 100 
+                    });
+                  }
+                }}
+              />
             </div>
           </div>
           <div className="p-4 bg-white border-t flex justify-end gap-2">
