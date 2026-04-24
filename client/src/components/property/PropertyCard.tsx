@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { BedDouble, Bath, Square, Heart, MapPin } from "lucide-react";
 import type { Property } from "@/lib/mockData";
 import { Link } from "wouter";
-import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/currency";
 
 interface PropertyCardProps {
   property: Property;
 }
 
 export function PropertyCard({ property }: PropertyCardProps) {
+  const { convert } = useCurrency();
+  
   return (
     <Link href={`/property/${property.id}`}>
       <Card className="group overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col">
@@ -34,14 +36,14 @@ export function PropertyCard({ property }: PropertyCardProps) {
               </Badge>
             )}
           </div>
-          <button className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500 transition-colors">
+          <button className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500 transition-colors z-10" onClick={(e) => { e.preventDefault(); /* Like logic here */ }}>
             <Heart className="h-4 w-4" />
           </button>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <p className="text-white font-bold text-xl">
               {property.type === "rent" 
-                ? `${formatCurrency(property.price)}/mo` 
-                : formatCurrency(property.price)}
+                ? `${convert(property.price)}/mo` 
+                : convert(property.price)}
             </p>
           </div>
         </div>

@@ -169,6 +169,18 @@ export default function AddBNB() {
                   <Input id="address" placeholder="e.g. 123 Langata Road" />
                 </div>
                 <div className="space-y-2">
+                  <Label>Map Location (Pin)</Label>
+                  <div className="text-sm text-gray-500 mb-2">Set the exact location of your property on the map. This helps guests find your property easily.</div>
+                  <div className="bg-gray-100 rounded-lg h-[200px] border border-gray-200 flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer">
+                    <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" />
+                    <div className="relative z-10 flex flex-col items-center bg-white/90 p-4 rounded-lg shadow-sm">
+                      <MapPin className="h-8 w-8 text-primary mb-2" />
+                      <span className="font-medium text-sm">Click to set exact pin location</span>
+                    </div>
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="desc">Description</Label>
                   <Textarea id="desc" placeholder="Tell guests what makes your place special..." className="min-h-[120px]" />
                 </div>

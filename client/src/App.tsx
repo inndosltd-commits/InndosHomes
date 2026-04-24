@@ -16,6 +16,9 @@ import AddListing from "@/pages/AddListing";
 import AddBNB from "@/pages/AddBNB";
 import BNB from "@/pages/BNB";
 import { AuthProvider } from "./lib/auth";
+import { CurrencyProvider } from "./lib/currency";
+import { LanguageProvider } from "./lib/language";
+import { CookieBanner } from "@/components/layout/CookieBanner";
 
 function Router() {
   return (
@@ -41,12 +44,17 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <CurrencyProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+              <CookieBanner />
+            </TooltipProvider>
+          </AuthProvider>
+        </CurrencyProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

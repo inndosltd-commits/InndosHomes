@@ -2,11 +2,16 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserCircle, Menu, PlusCircle, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
+import { useLanguage } from "@/lib/language";
 import { useState, useRef, useEffect } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { currency, setCurrency } = useCurrency();
+  const { language, setLanguage } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLElement>(null);
 
@@ -72,6 +77,35 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
+          <div className="hidden md:flex gap-2">
+            <div className="w-[85px]">
+              <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
+                <SelectTrigger className="h-8 text-xs border-gray-200">
+                  <SelectValue placeholder="Lang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EN">🇺🇸 EN</SelectItem>
+                  <SelectItem value="SW">🇰🇪 SW</SelectItem>
+                  <SelectItem value="FR">🇫🇷 FR</SelectItem>
+                  <SelectItem value="ZH">🇨🇳 ZH</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[85px]">
+              <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
+                <SelectTrigger className="h-8 text-xs border-gray-200">
+                  <SelectValue placeholder="Currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="KES">KES</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {user ? (
             <>
               <span className="hidden md:inline text-sm font-medium text-muted-foreground">
@@ -154,6 +188,36 @@ export function Navbar() {
           
           <div className="h-px bg-gray-100 my-2" />
           
+          <div className="flex items-center justify-between mb-2">
+             <span className="text-sm font-medium text-gray-500">Language</span>
+             <Select value={language} onValueChange={(v: any) => { setLanguage(v); setIsMobileMenuOpen(false); }}>
+               <SelectTrigger className="h-8 w-[100px] text-xs border-gray-200">
+                 <SelectValue placeholder="Lang" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="EN">🇺🇸 EN</SelectItem>
+                 <SelectItem value="SW">🇰🇪 SW</SelectItem>
+                 <SelectItem value="FR">🇫🇷 FR</SelectItem>
+                 <SelectItem value="ZH">🇨🇳 ZH</SelectItem>
+               </SelectContent>
+             </Select>
+          </div>
+
+          <div className="flex items-center justify-between mb-4">
+             <span className="text-sm font-medium text-gray-500">Currency</span>
+             <Select value={currency} onValueChange={(v: any) => { setCurrency(v); setIsMobileMenuOpen(false); }}>
+               <SelectTrigger className="h-8 w-[100px] text-xs border-gray-200">
+                 <SelectValue placeholder="Currency" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="KES">KES</SelectItem>
+                 <SelectItem value="USD">USD</SelectItem>
+                 <SelectItem value="EUR">EUR</SelectItem>
+                 <SelectItem value="GBP">GBP</SelectItem>
+               </SelectContent>
+             </Select>
+          </div>
+
           {user ? (
             <>
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
