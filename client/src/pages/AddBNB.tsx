@@ -25,7 +25,7 @@ const BNB_TYPES = [
 
 export default function AddBNB() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -36,6 +36,43 @@ export default function AddBNB() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if we are editing an existing listing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // Handle both standard query params and hash-based query params
+  const getQueryParam = (param: string) => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has(param)) return searchParams.get(param);
+    
+    // Check hash for params if using hash routing
+    const hashParts = window.location.hash.split('?');
+    if (hashParts.length > 1) {
+      const hashParams = new URLSearchParams(hashParts[1]);
+      return hashParams.get(param);
+    }
+    return null;
+  };
+
+  useState(() => {
+    const editParam = getQueryParam("edit");
+    if (editParam) {
+      setIsEditing(true);
+      setEditId(editParam);
+      // In a real app we'd fetch the existing data here
+      // For mockup, we just set some dummy data if editing
+      setTimeout(() => {
+        const titleEl = document.getElementById('title') as HTMLInputElement;
+        if (titleEl) titleEl.value = "Edited Property Title";
+        const descEl = document.getElementById('description') as HTMLTextAreaElement;
+        if (descEl) descEl.value = "This is an edited property description.";
+        setSearchQuery("Westlands, Nairobi");
+        setSelectedType("Entire place");
+        setGuestCapacity(4);
+      }, 100);
+    }
+  });
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -109,8 +146,8 @@ export default function AddBNB() {
         <div className="max-w-2xl mx-auto">
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold font-heading">List Your Space</h1>
-              <p className="text-muted-foreground">Become a host in a few easy steps.</p>
+              <h1 className="text-3xl font-bold font-heading">{isEditing ? "Edit Your Space" : "List Your Space"}</h1>
+              <p className="text-muted-foreground">{isEditing ? "Update the details for your space." : "Become a host in a few easy steps."}</p>
             </div>
             <div className="text-right">
                <span className="font-bold text-2xl text-primary">Step {step}/{totalSteps}</span>
@@ -333,7 +370,7 @@ export default function AddBNB() {
               <CardFooter className="flex justify-between">
                 <Button variant="outline" onClick={prevStep}><ChevronLeft className="mr-2 h-4 w-4" /> Back</Button>
                 <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-white">
-                  {isSubmitting ? "Publishing..." : "Publish Listing"}
+                  {isSubmitting ? (isEditing ? "Updating..." : "Publishing...") : (isEditing ? "Update Listing" : "Publish Listing")}
                 </Button>
               </CardFooter>
             </Card>

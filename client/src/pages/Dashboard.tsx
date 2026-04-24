@@ -198,6 +198,20 @@ export default function Dashboard() {
     });
   };
 
+  const handleTogglePropertyStatus = (id: string) => {
+    setOwnerProperties(prev => prev.map(p => {
+      if (p.id === id) {
+        const newStatus = p.status === 'active' ? 'inactive' : 'active';
+        toast({
+          title: `Property ${newStatus === 'active' ? 'Activated' : 'Deactivated'}`,
+          description: `The listing is now ${newStatus}.`,
+        });
+        return { ...p, status: newStatus };
+      }
+      return p;
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -348,15 +362,24 @@ export default function Dashboard() {
                             </Link>
                             <p className="text-sm text-muted-foreground truncate">{p.address}</p>
                             <div className="flex gap-2 mt-2">
-                              <Badge variant="outline">Active</Badge>
+                              <Badge variant={p.status === 'inactive' ? 'secondary' : 'outline'} className={p.status === 'inactive' ? 'bg-gray-200' : ''}>
+                                {p.status === 'inactive' ? 'Inactive' : 'Active'}
+                              </Badge>
                               <Badge variant="secondary">{p.type}</Badge>
                             </div>
                           </div>
                           <div className="text-right flex flex-col items-end gap-2">
                             <div className="font-bold text-xl text-primary">${p.price.toLocaleString()}</div>
                             <div className="flex gap-2">
-                              <Link href={`/property/${p.id}`}>
-                                 <Button size="sm" variant="outline" className="gap-2"><ExternalLink className="h-3 w-3" /> View</Button>
+                              <Button 
+                                size="sm" 
+                                variant={p.status === 'inactive' ? 'default' : 'outline'} 
+                                onClick={() => handleTogglePropertyStatus(p.id)}
+                              >
+                                {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                              </Button>
+                              <Link href={p.type === 'bnb' ? `/add-bnb?edit=${p.id}` : `/add-listing?edit=${p.id}`}>
+                                <Button size="sm" variant="outline" className="gap-2">Edit</Button>
                               </Link>
                               <Button 
                                 size="sm" 

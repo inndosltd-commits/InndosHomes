@@ -21,7 +21,7 @@ const AMENITIES = [
 
 export default function AddListing() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
@@ -29,6 +29,41 @@ export default function AddListing() {
   const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if we are editing an existing listing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // Handle both standard query params and hash-based query params
+  const getQueryParam = (param: string) => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has(param)) return searchParams.get(param);
+    
+    // Check hash for params if using hash routing
+    const hashParts = window.location.hash.split('?');
+    if (hashParts.length > 1) {
+      const hashParams = new URLSearchParams(hashParts[1]);
+      return hashParams.get(param);
+    }
+    return null;
+  };
+
+  useState(() => {
+    const editParam = getQueryParam("edit");
+    if (editParam) {
+      setIsEditing(true);
+      setEditId(editParam);
+      // In a real app we'd fetch the existing data here
+      // For mockup, we just set some dummy data if editing
+      setTimeout(() => {
+        const titleEl = document.getElementById('title') as HTMLInputElement;
+        if (titleEl) titleEl.value = "Edited Listing Title";
+        const descEl = document.getElementById('description') as HTMLTextAreaElement;
+        if (descEl) descEl.value = "This is an edited property description.";
+        setSearchQuery("Kilimani, Nairobi");
+      }, 100);
+    }
+  });
 
   const handleCameraClick = () => {
     if (cameraInputRef.current) {
@@ -93,8 +128,8 @@ export default function AddListing() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold font-heading">Add New Listing</h1>
-            <p className="text-muted-foreground">Fill in the details below to publish your property. Admin approval is required before the listing goes live.</p>
+            <h1 className="text-3xl font-bold font-heading">{isEditing ? "Edit Listing" : "Add New Listing"}</h1>
+            <p className="text-muted-foreground">{isEditing ? "Update your property details below." : "Fill in the details below to publish your property. Admin approval is required before the listing goes live."}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -310,11 +345,9 @@ export default function AddListing() {
                 </Button>
                 <Button type="submit" className="bg-primary" disabled={isSubmitting}>
                   {isSubmitting ? (
-                    "Submitting..."
+                    isEditing ? "Updating..." : "Submitting..."
                   ) : (
-                    <span className="flex items-center gap-2">
-                      <Check className="h-4 w-4" /> Submit for Approval
-                    </span>
+                    isEditing ? "Update Property" : <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Submit for Approval</span>
                   )}
                 </Button>
               </div>
