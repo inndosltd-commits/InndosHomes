@@ -166,13 +166,14 @@ export default function Login() {
                     )}
                     {!isSignUp && (
                       <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
-                        <span className="font-semibold">Demo Creds:</span> {role}@inndos.com / {role}123
+                        <span className="font-semibold">Demo Creds:</span> {role}@inndos.com {"/"} {role}123
                       </div>
                     )}
                   </div>
                 </TabsContent>
               ))}
             </Tabs>
+            )}
           </CardContent>
           <CardFooter className="flex justify-center border-t p-4">
             <p className="text-xs text-muted-foreground">

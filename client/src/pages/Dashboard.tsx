@@ -910,24 +910,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="push-notif" className="flex flex-col gap-1">
-                        <span>Push Notifications</span>
-                        <span className="font-normal text-xs text-muted-foreground">Receive real-time alerts in browser</span>
-                      </Label>
-                      <Input type="checkbox" id="push-notif" className="h-4 w-4" defaultChecked />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex justify-end">
-                  <Button onClick={() => toast({ title: "Settings Saved", description: "Your profile has been updated." })}>
-                    Save Changes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
