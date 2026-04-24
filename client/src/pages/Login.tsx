@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Login() {
   const [location, setLocation] = useLocation();
@@ -15,7 +16,7 @@ export default function Login() {
   const { login, user } = useAuth();
 
   useEffect(() => {
-    if (window.location.search.includes("signup=true")) {
+    if (window.location.search.includes("signup=true") || window.location.hash.includes("signup=true")) {
       setIsSignUp(true);
     }
   }, [location]);

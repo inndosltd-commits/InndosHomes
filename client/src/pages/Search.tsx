@@ -12,7 +12,22 @@ import { useLanguage } from "@/lib/language";
 
 export default function Search() {
   const [location] = useLocation();
-  const queryType = new URLSearchParams(window.location.search).get("type") || "rent";
+  
+  // Handle both standard query params and hash-based query params
+  const getQueryParam = (param: string) => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has(param)) return searchParams.get(param);
+    
+    // Check hash for params if using hash routing
+    const hashParts = window.location.hash.split('?');
+    if (hashParts.length > 1) {
+      const hashParams = new URLSearchParams(hashParts[1]);
+      return hashParams.get(param);
+    }
+    return null;
+  };
+
+  const queryType = getQueryParam("type") || "rent";
   const { t } = useLanguage();
   
   // Filter States
