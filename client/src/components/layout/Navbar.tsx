@@ -67,6 +67,11 @@ export function Navbar() {
               {t('nav.hotels')}
             </span>
           </Link>
+          <Link href="/search?type=hostel">
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.hostels')}
+            </span>
+          </Link>
           {user && (
             <Link href="/dashboard">
               <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -175,6 +180,11 @@ export function Navbar() {
           <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hotels')}
+            </span>
+          </Link>
+          <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
+            <span className={`block text-sm font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+              {t('nav.hostels')}
             </span>
           </Link>
           

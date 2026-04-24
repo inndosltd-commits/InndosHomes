@@ -14,7 +14,7 @@ export interface Property {
   id: string;
   ownerId: string; // Link to owner/host
   title: string;
-  type: "rent" | "sale" | "bnb" | "hotel";
+  type: "rent" | "sale" | "bnb" | "hotel" | "hostel";
   price: number;
   address: string;
   specs: {
@@ -254,4 +254,27 @@ const HOTEL_LISTINGS: Property[] = [
   }
 ];
 
-export const PROPERTIES: Property[] = [...RENT_PROPERTIES, ...SALE_PROPERTIES, ...BNB_LISTINGS, ...HOTEL_LISTINGS];
+const HOSTEL_LISTINGS: Property[] = [
+  {
+    id: "ho1", ownerId: "h1", title: "Downtown Backpackers", type: "hostel", price: 1500, address: "Nairobi CBD",
+    specs: { beds: 1, baths: 4, sqft: 150, guests: 1 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Bunk Beds", "Shared Kitchen", "Social Area", "Free WiFi"],
+    location: { lat: -1.283, lng: 36.816 }
+  },
+  {
+    id: "ho2", ownerId: "h2", title: "Oasis Youth Hostel", type: "hostel", price: 2500, address: "Westlands, Nairobi",
+    specs: { beds: 1, baths: 2, sqft: 200, guests: 1 }, image: "/images/modern_happy_family_moving_into_new_home.png", isVerified: true, tags: ["Private Pods", "Bar", "Pool", "Events"],
+    location: { lat: -1.267, lng: 36.805 }
+  },
+  {
+    id: "ho3", ownerId: "h1", title: "Eco-Friendly Hostel", type: "hostel", price: 1800, address: "Karen, Nairobi",
+    specs: { beds: 1, baths: 6, sqft: 180, guests: 1 }, image: "/images/modern_apartment_exterior.png", isVerified: true, tags: ["Garden", "Organic Breakfast", "Bicycle Rental", "Quiet"],
+    location: { lat: -1.321, lng: 36.705 }
+  },
+  {
+    id: "ho4", ownerId: "h2", title: "Beach Bums Hostel", type: "hostel", price: 3000, address: "Diani, Mombasa",
+    specs: { beds: 1, baths: 8, sqft: 250, guests: 1 }, image: "/images/cozy_modern_bedroom_interior.png", isVerified: true, tags: ["Beachfront", "Surf Lessons", "Hammocks", "Barbecue"],
+    location: { lat: -4.285, lng: 39.590 }
+  }
+];
+
+export const PROPERTIES: Property[] = [...RENT_PROPERTIES, ...SALE_PROPERTIES, ...BNB_LISTINGS, ...HOTEL_LISTINGS, ...HOSTEL_LISTINGS];

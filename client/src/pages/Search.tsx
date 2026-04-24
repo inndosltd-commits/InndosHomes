@@ -212,7 +212,7 @@ export default function Search() {
                  {filteredProperties.length} {t('search.properties_found')}
                </h1>
                <p className="text-sm text-muted-foreground">
-                 {t('search.showing_properties')} <strong>{queryType === 'rent' ? t('nav.rent') : queryType === 'sale' ? t('nav.buy') : queryType === 'hotel' ? t('nav.hotels') : t('nav.bnb')}</strong>
+                 {t('search.showing_properties')} <strong>{queryType === 'rent' ? t('nav.rent') : queryType === 'sale' ? t('nav.buy') : queryType === 'hotel' ? t('nav.hotels') : queryType === 'hostel' ? t('nav.hostels') : t('nav.bnb')}</strong>
                  {searchQuery && <span> {t('search.matching')} "<strong>{searchQuery}</strong>"</span>}
                </p>
              </div>

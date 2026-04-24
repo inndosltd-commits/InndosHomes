@@ -135,7 +135,7 @@ export default function PropertyDetails() {
                <div>
                  <div className="flex items-center gap-2 mb-2">
                    <Badge className={property.type === 'rent' ? 'bg-primary' : 'bg-secondary'}>
-                     {property.type === 'rent' ? t('prop.for_rent') : property.type === 'sale' ? t('prop.for_sale') : property.type === 'hotel' ? t('prop.hotel') : t('prop.bnb')}
+                     {property.type === 'rent' ? t('prop.for_rent') : property.type === 'sale' ? t('prop.for_sale') : property.type === 'hotel' ? t('prop.hotel') : property.type === 'hostel' ? t('nav.hostels') : t('prop.bnb')}
                    </Badge>
                    {property.isVerified && (
                      <Badge variant="outline" className="border-green-600 text-green-600 flex items-center gap-1">
