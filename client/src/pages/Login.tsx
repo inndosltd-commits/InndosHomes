@@ -13,6 +13,7 @@ export default function Login() {
   const [location, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const { login, user } = useAuth();
 
   useEffect(() => {
@@ -45,6 +46,18 @@ export default function Login() {
     }, 800);
   };
 
+  const handleForgotPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    // Simulate network delay
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsForgotPassword(false);
+      // In a real app, we'd show a success toast here
+      alert("Password reset instructions have been sent to your email.");
+    }, 800);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -52,15 +65,34 @@ export default function Login() {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold font-heading text-primary">
-              {isSignUp ? "Create an Account" : "Welcome Back"}
+              {isForgotPassword ? "Reset Password" : (isSignUp ? "Create an Account" : "Welcome Back")}
             </CardTitle>
             <CardDescription>
-              {isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard"}
+              {isForgotPassword 
+                ? "Enter your email address and we'll send you instructions to reset your password."
+                : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="tenant" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 mb-8">
+            {isForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email Address</Label>
+                  <Input id="reset-email" type="email" placeholder="name@example.com" required />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Sending..." : "Send Reset Instructions"}
+                </Button>
+                <div className="text-center mt-4">
+                  <Button variant="link" onClick={() => setIsForgotPassword(false)} className="text-sm">
+                    Back to login
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <Tabs defaultValue="tenant" className="w-full">
+                <TabsList className="grid w-full grid-cols-5 mb-8">
                 <TabsTrigger value="tenant" className="text-xs px-1">Tenant</TabsTrigger>
                 <TabsTrigger value="owner" className="text-xs px-1">Owner</TabsTrigger>
                 <TabsTrigger value="host" className="text-xs px-1">Host</TabsTrigger>
@@ -100,6 +132,13 @@ export default function Login() {
                         <label htmlFor={`terms-${role}`} className="text-sm text-gray-500 leading-tight">
                           I agree to the <Link href="/terms" className="text-primary hover:underline font-medium">Terms and Conditions</Link> and acknowledge that I have read the privacy policy.
                         </label>
+                      </div>
+                    )}
+                    {!isSignUp && (
+                      <div className="flex justify-end mt-2">
+                        <Button variant="link" className="text-xs px-0 h-auto font-medium" onClick={() => setIsForgotPassword(true)}>
+                          Forgot Password?
+                        </Button>
                       </div>
                     )}
                     {!isSignUp && (

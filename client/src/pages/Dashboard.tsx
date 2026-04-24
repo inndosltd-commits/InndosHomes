@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark } from "lucide-react";
+import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle } from "lucide-react";
 import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
@@ -244,7 +244,7 @@ export default function Dashboard() {
             <TabsTrigger value="messages" className="px-6 py-2">Messages</TabsTrigger>
             {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
             {user.role === 'admin' && <TabsTrigger value="all-properties" className="px-6 py-2">All Properties</TabsTrigger>}
-            <TabsTrigger value="settings" className="px-6 py-2">Settings</TabsTrigger>
+            <TabsTrigger value="settings" className="px-6 py-2">My Profile</TabsTrigger>
           </TabsList>
 
           {/* MESSAGES TAB (Shared) */}
@@ -816,37 +816,100 @@ export default function Dashboard() {
           <TabsContent value="settings" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your profile and preferences</CardDescription>
+                <CardTitle>My Profile</CardTitle>
+                <CardDescription>Manage your personal information and documents</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" defaultValue={user.name} />
+              <CardContent className="space-y-8">
+                {/* Profile Picture */}
+                <div className="flex flex-col gap-2">
+                  <Label>Profile Picture (Strictly face passport)</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-24 w-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                      <UserCircle className="h-12 w-12 text-gray-400" />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input id="email" defaultValue={user.email} readOnly className="bg-gray-50" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea id="bio" placeholder="Tell us a bit about yourself" />
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <UploadCloud className="h-4 w-4" /> Upload Picture
+                    </Button>
                   </div>
                 </div>
-                
-                <div className="pt-4 border-t">
-                  <h3 className="text-lg font-medium mb-4">Notifications</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="email-notif" className="flex flex-col gap-1">
-                        <span>Email Notifications</span>
-                        <span className="font-normal text-xs text-muted-foreground">Receive updates about your listings and messages</span>
-                      </Label>
-                      <Input type="checkbox" id="email-notif" className="h-4 w-4" defaultChecked />
-                    </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input id="name" defaultValue={user.name} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" defaultValue={user.email} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone No</Label>
+                    <Input id="phone" placeholder="+254 700 000000" />
+                  </div>
+                </div>
+
+                {/* Document Upload */}
+                <div className="space-y-2">
+                  <Label>National ID or Passport</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Please upload a clean, clear copy of your National ID or Passport for verification.</p>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center bg-gray-50/50">
+                    <UploadCloud className="h-8 w-8 text-gray-400 mb-3" />
+                    <p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p>
+                    <p className="text-xs text-muted-foreground mt-1">PDF, JPG or PNG (max. 10MB)</p>
+                  </div>
+                </div>
+
+                <Button className="w-full md:w-auto" onClick={() => toast({ title: "Profile Updated", description: "Your profile details have been saved." })}>Save Changes</Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="bg-gray-50/50 border-b pb-4 mb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Lock className="h-5 w-5 text-gray-500" /> Change Password
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2 max-w-md">
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <Input id="current-password" type="password" placeholder="Enter current password" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">New Password</Label>
+                    <Input id="new-password" type="password" placeholder="At least 8 characters" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Input id="confirm-password" type="password" placeholder="Repeat new password" />
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="mt-2 font-medium" 
+                  onClick={() => toast({ title: "Password Updated", description: "Your password has been changed successfully.", className: "bg-green-50 border-green-200 text-green-800" })}
+                >
+                  Change Password
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Notifications Card */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-medium mb-4">Notifications</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="email-notif" className="flex flex-col gap-1 cursor-pointer">
+                      <span>Email Notifications</span>
+                      <span className="font-normal text-xs text-muted-foreground">Receive updates about your listings and messages</span>
+                    </Label>
+                    <Input type="checkbox" id="email-notif" className="h-4 w-4 accent-primary" defaultChecked />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="push-notif" className="flex flex-col gap-1">
                         <span>Push Notifications</span>
