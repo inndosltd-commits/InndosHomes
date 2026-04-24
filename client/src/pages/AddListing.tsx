@@ -26,9 +26,7 @@ export default function AddListing() {
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -334,60 +332,33 @@ export default function AddListing() {
             </DialogDescription>
           </DialogHeader>
           <div className="relative h-[400px] w-full bg-[#e5e3df] overflow-hidden">
-            {/* Draggable Map Area */}
-            <div 
-              className={`absolute inset-0 select-none touch-none z-0 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-              onPointerDown={(e) => {
-                setIsDragging(true);
-                e.currentTarget.setPointerCapture(e.pointerId);
-                setDragStart({ x: e.clientX - mapOffset.x, y: e.clientY - mapOffset.y });
-              }}
-              onPointerMove={(e) => {
-                if (isDragging) {
-                  setMapOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-                }
-              }}
-              onPointerUp={(e) => {
-                setIsDragging(false);
-                e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-              onPointerCancel={(e) => {
-                setIsDragging(false);
-                e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-            >
-              <div 
-                className="absolute inset-[-1000px] opacity-60 bg-[url('https://i.pinimg.com/736x/8a/4f/2e/8a4f2e9603bce30b0b8e72ef6f9e0eb9.jpg')] bg-repeat"
-                style={{ 
-                  transform: `translate(${mapOffset.x}px, ${mapOffset.y}px)`,
-                  backgroundSize: '400px'
-                }}
-              ></div>
-            </div>
+            {/* Real Interactive Map Iframe */}
+            <iframe 
+              width="100%" 
+              height="100%" 
+              style={{ border: 0 }} 
+              loading="lazy" 
+              allowFullScreen 
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(searchQuery || 'Nairobi, Kenya')}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
+              className="absolute inset-0 z-0"
+            ></iframe>
             
-            {/* Draggable pin mockup */}
+            {/* Center pin mockup */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-               <div className={`relative transition-transform duration-200 ${isDragging ? '-translate-y-4' : ''}`}>
+               <div className="relative transition-transform duration-200">
                  <MapPin className="h-10 w-10 text-primary -mt-10 drop-shadow-md" fill="currentColor" />
-                 <div className={`absolute bottom-0 left-1/2 bg-black/30 rounded-[100%] blur-[2px] -translate-x-1/2 transition-all duration-200 ${isDragging ? 'w-4 h-1.5 opacity-40' : 'w-2 h-1 opacity-70'}`}></div>
+                 <div className="absolute bottom-0 left-1/2 bg-black/30 rounded-[100%] blur-[2px] -translate-x-1/2 w-2 h-1 opacity-70"></div>
                </div>
             </div>
             
-            {/* Search Input - Must be above map and pin, and have pointer events enabled */}
+            {/* Search Input - Must be above map and pin */}
             <div className="absolute top-4 left-4 right-4 z-20">
               <Input 
                 placeholder="Search for area or street..." 
                 className="bg-white shadow-lg border-0" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (e.target.value.length > 3) {
-                    // Simulate searching by moving the map
-                    setMapOffset({ 
-                      x: Math.random() * 200 - 100, 
-                      y: Math.random() * 200 - 100 
-                    });
-                  }
-                }}
               />
             </div>
           </div>
