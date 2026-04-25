@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle } from "lucide-react";
 import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState } from "react";
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const { toast } = useToast();
 
   // --- REAL-TIME STATE ---
@@ -213,46 +213,141 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="container mx-auto px-4 pt-8 pb-4 border-b bg-white mb-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-            <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back, <span className="font-semibold text-primary">{user.name}</span>
-            </p>
-          </div>
-          <div className="flex gap-3">
-             {user.role === 'owner' && (
-              <Link href="/add-listing">
-                <Button className="bg-primary shadow-lg hover:shadow-xl transition-all"><Plus className="mr-2 h-4 w-4" /> Add New Listing</Button>
-              </Link>
-            )}
-            {user.role === 'host' && (
-              <Link href="/add-bnb">
-                <Button className="bg-primary shadow-lg hover:shadow-xl transition-all"><Plus className="mr-2 h-4 w-4" /> List a Space</Button>
-              </Link>
-            )}
-          </div>
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-[#f4f7f9] flex flex-col md:flex-row overflow-hidden w-full font-sans">
+      {/* Mobile Header (Visible only on small screens) */}
+      <div className="md:hidden bg-[#2E5C8A] p-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-white rounded flex items-center justify-center font-bold text-[#2E5C8A]">in</div>
+          <span className="text-white font-bold text-xl tracking-tight">inndos</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="text-white/80 hover:text-white rounded-full"><Bell className="w-5 h-5" /></Button>
         </div>
       </div>
-      <div className="container mx-auto px-4 pb-12">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col md:flex-row gap-6 md:gap-8">
-          <div className="w-full md:w-64 flex-shrink-0">
-            <div className="bg-white border rounded-xl shadow-sm p-3 mb-6 md:mb-0 sticky top-24">
-              <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-1">
-            <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Overview</TabsTrigger>
-            <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Messages</TabsTrigger>
-            <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Analytics & Reports</TabsTrigger>
-            {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">My Listings</TabsTrigger>}
-            {user.role === 'admin' && <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">All Properties</TabsTrigger>}
-            <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">My Profile</TabsTrigger>
-          </TabsList>
+      
+      {/* Mobile Tabs List (Horizontal scroll) */}
+      <div className="md:hidden bg-[#244b73] shrink-0 border-b border-white/10">
+        <TabsList className="flex w-full h-auto bg-transparent p-2 overflow-x-auto justify-start no-scrollbar gap-2">
+          <TabsTrigger value="overview" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Messages
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Analytics
+          </TabsTrigger>
+          {(user.role === 'owner' || user.role === 'host') && (
+            <TabsTrigger value="listings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Listings
+            </TabsTrigger>
+          )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Properties
+            </TabsTrigger>
+          )}
+        </TabsList>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="w-[280px] flex-shrink-0 bg-[#2E5C8A] flex-col h-screen overflow-hidden hidden md:flex">
+        {/* Logo */}
+        <div className="p-6 pb-2">
+            <Link href="/">
+            <div className="flex items-center gap-2 cursor-pointer mb-6">
+                <div className="w-9 h-9 bg-white rounded flex items-center justify-center font-bold text-[#2E5C8A] text-lg">in</div>
+                <span className="text-white font-bold text-[22px] tracking-tight">inndos</span>
             </div>
-          </div>
-          <div className="flex-1 min-w-0">
+            </Link>
+            <div className="mb-6">
+              <p className="text-[#a0c4e8] text-xs font-semibold tracking-widest uppercase mb-1">{user.role} PORTAL</p>
+            </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto px-4 py-2">
+            <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-1">
+            <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Home className="w-5 h-5 mr-3" /> Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <UserCircle className="w-5 h-5 mr-3" /> My Profile
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <MessageSquare className="w-5 h-5 mr-3" /> Messages
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <BarChart3 className="w-5 h-5 mr-3" /> Analytics
+            </TabsTrigger>
+            {(user.role === 'owner' || user.role === 'host') && (
+                <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <FileText className="w-5 h-5 mr-3" /> My Listings
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Home className="w-5 h-5 mr-3" /> All Properties
+                </TabsTrigger>
+            )}
+            </TabsList>
+        </div>
+
+        <div className="p-4 mt-auto mb-4 mx-4 border-t border-white/10 pt-6">
+            <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-[#3b73a8] flex items-center justify-center text-white font-semibold shrink-0">
+                {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="text-white min-w-0">
+                <div className="font-medium text-sm leading-tight truncate">{user.name}</div>
+                <div className="text-xs text-[#a0c4e8] leading-tight truncate mt-1">{user.email || `${user.role}@inndos.com`}</div>
+            </div>
+            </div>
+            <Button variant="ghost" className="w-full justify-start text-[#a0c4e8] hover:text-white hover:bg-white/5 px-2 font-normal" onClick={logout}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+            Sign Out
+            </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-[calc(100vh-120px)] md:h-screen overflow-hidden">
+        {/* Desktop Header */}
+        <div className="bg-white border-b px-8 py-4 hidden md:flex items-center justify-between shrink-0 shadow-sm z-10">
+            <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" className="text-gray-500 rounded-full hover:bg-gray-100"><Bell className="w-5 h-5" /></Button>
+                <Link href="/">
+                <Button variant="outline" size="sm" className="gap-2 font-medium text-gray-700 bg-white hover:bg-gray-50"><ExternalLink className="w-4 h-4" /> Back to Site</Button>
+                </Link>
+            </div>
+        </div>
+        
+        {/* Tab Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#f4f7f9]">
+            {activeTab === 'overview' && (
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back, {user.name.split(' ')[0]}!</h1>
+                <p className="text-gray-500 text-sm">Here's your {user.role} overview</p>
+              </div>
+            )}
+            {/* ANALYTICS TAB (Shared Placeholder) */}
+          <TabsContent value="analytics" className="space-y-6">
+             <Card>
+               <CardHeader>
+                 <CardTitle>Analytics & Reports</CardTitle>
+                 <CardDescription>View your performance metrics and download reports</CardDescription>
+               </CardHeader>
+               <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                 <BarChart3 className="h-16 w-16 text-gray-300 mb-4" />
+                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available Yet</h3>
+                 <p className="max-w-md">Your analytics dashboard will populate with insights once your properties start receiving views, inquiries, and bookings.</p>
+                 <Button variant="outline" className="mt-6">Download Sample Report</Button>
+               </CardContent>
+             </Card>
+          </TabsContent>
 
           {/* MESSAGES TAB (Shared) */}
           <TabsContent value="messages" className="space-y-6">
@@ -821,12 +916,40 @@ export default function Dashboard() {
 
           {/* SETTINGS TAB (Shared) */}
           <TabsContent value="settings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Profile</CardTitle>
-                <CardDescription>Manage your personal information and documents</CardDescription>
+            
+            {/* Profile Completion Header */}
+            <div className="bg-white border rounded-xl shadow-sm p-6 mb-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="h-16 w-16 rounded-full bg-[#2E5C8A] flex items-center justify-center text-white text-2xl font-bold shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+                  <p className="text-gray-500 capitalize">{user.role}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-gray-600">Profile completion:</span>
+                  <span className="text-[#2E5C8A]">78%</span>
+                </div>
+                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#2E5C8A] rounded-full" style={{ width: '78%' }}></div>
+                </div>
+              </div>
+            </div>
+
+            <Card className="border-none shadow-sm">
+              <CardHeader className="border-b bg-gray-50/50 rounded-t-xl pb-4">
+                <div className="flex items-center gap-2">
+                  <UserCircle className="w-5 h-5 text-gray-500" />
+                  <CardTitle className="text-lg">Personal Information</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-8">
+              <CardContent className="space-y-8 pt-6">
+                {/* Profile Picture */}
+
                 {/* Profile Picture */}
                 <div className="flex flex-col gap-2">
                   <Label>Profile Picture (Strictly face passport)</Label>
@@ -917,9 +1040,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-          </div>
-        </Tabs>
+        </div>
       </div>
-    </div>
+    </Tabs>
   );
 }

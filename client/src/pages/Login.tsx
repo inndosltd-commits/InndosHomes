@@ -123,7 +123,7 @@ export default function Login() {
 
               {["tenant", "owner", "host", "guest", "admin"].map((role) => (
                 <TabsContent key={role} value={role}>
-                  <div className="space-y-4">
+                  <div className="space-y-4" key={isSignUp ? "signup" : "login"}>
                     {isSignUp && (
                       <div className="space-y-2">
                         <Label htmlFor={`name-${role}`}>Full Name</Label>
