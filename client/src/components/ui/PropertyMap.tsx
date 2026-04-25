@@ -100,6 +100,8 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         zoom={12} // Reduced zoom to 12
         scrollWheelZoom={false} 
         zoomControl={false}
+        dragging={!L.Browser.mobile} // Disable dragging on mobile to prevent getting stuck
+        tap={!L.Browser.mobile} // Disable tap dragging on mobile
         className="h-full w-full z-0"
       >
         <ZoomControl position="bottomright" />

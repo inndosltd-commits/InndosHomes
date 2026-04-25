@@ -216,9 +216,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-          <div>
+      <div className="container mx-auto px-4 pt-8 pb-4 border-b bg-white mb-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
             <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
             <p className="text-muted-foreground">
               Welcome back, <span className="font-semibold text-primary">{user.name}</span>
@@ -237,15 +237,22 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-8 w-full justify-start bg-white p-1 border rounded-lg h-auto overflow-x-auto">
-            <TabsTrigger value="overview" className="px-6 py-2">Overview</TabsTrigger>
-            <TabsTrigger value="messages" className="px-6 py-2">Messages</TabsTrigger>
-            {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="px-6 py-2">My Listings</TabsTrigger>}
-            {user.role === 'admin' && <TabsTrigger value="all-properties" className="px-6 py-2">All Properties</TabsTrigger>}
-            <TabsTrigger value="settings" className="px-6 py-2">My Profile</TabsTrigger>
+      </div>
+      <div className="container mx-auto px-4 pb-12">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col md:flex-row gap-6 md:gap-8">
+          <div className="w-full md:w-64 flex-shrink-0">
+            <div className="bg-white border rounded-xl shadow-sm p-3 mb-6 md:mb-0 sticky top-24">
+              <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-1">
+            <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Overview</TabsTrigger>
+            <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Messages</TabsTrigger>
+            <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">Analytics & Reports</TabsTrigger>
+            {(user.role === 'owner' || user.role === 'host') && <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">My Listings</TabsTrigger>}
+            {user.role === 'admin' && <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">All Properties</TabsTrigger>}
+            <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-gray-50 transition-colors">My Profile</TabsTrigger>
           </TabsList>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
 
           {/* MESSAGES TAB (Shared) */}
           <TabsContent value="messages" className="space-y-6">
@@ -910,6 +917,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
