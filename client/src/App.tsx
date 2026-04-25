@@ -17,6 +17,7 @@ import AddListing from "@/pages/AddListing";
 import AddBNB from "@/pages/AddBNB";
 import BNB from "@/pages/BNB";
 import Terms from "@/pages/Terms";
+import AdminAnalytics from "@/pages/AdminAnalytics";
 import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>
       <Route path="/property/:id" component={PropertyDetails}/>
+      <Route path="/admin/analytics" component={AdminAnalytics}/>
       <Route component={NotFound} />
     </Switch>
   );

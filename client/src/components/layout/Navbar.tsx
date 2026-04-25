@@ -6,6 +6,7 @@ import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
 import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -124,6 +125,8 @@ export function Navbar() {
               <span>{t('nav.list_property')}</span>
             </Button>
           </Link>
+
+          <NotificationBell />
 
           {user ? (
             <>
