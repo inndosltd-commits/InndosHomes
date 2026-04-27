@@ -17,7 +17,10 @@ const ThreadsIcon = ({ className }: { className?: string }) => (
 );
 
 
+import { useLanguage } from "@/lib/language";
+
 export function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="bg-primary text-white py-12">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -26,26 +29,26 @@ export function Footer() {
            <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
         </div>
         <div>
-          <h4 className="font-bold mb-4">Platform</h4>
+          <h4 className="font-bold mb-4">{t("footer.platform")}</h4>
           <ul className="space-y-2 text-sm text-gray-300">
-            <li><Link href="/search?type=rent" className="hover:text-white cursor-pointer">For Rent</Link></li>
-            <li><Link href="/search?type=sale" className="hover:text-white cursor-pointer">For Sale</Link></li>
-            <li><Link href="/dashboard" className="hover:text-white cursor-pointer">List Property</Link></li>
-            <li><Link href="/pricing" className="hover:text-white cursor-pointer">Pricing</Link></li>
+            <li><Link href="/search?type=rent" className="hover:text-white cursor-pointer">{t("nav.rent")}</Link></li>
+            <li><Link href="/search?type=sale" className="hover:text-white cursor-pointer">{t("nav.buy")}</Link></li>
+            <li><Link href="/dashboard" className="hover:text-white cursor-pointer">{t("nav.list_property")}</Link></li>
+            <li><Link href="/pricing" className="hover:text-white cursor-pointer">{t("footer.pricing")}</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="font-bold mb-4">Support & About</h4>
+          <h4 className="font-bold mb-4">{t("footer.support")}</h4>
           <ul className="space-y-2 text-sm text-gray-300">
-            <li><Link href="/about" className="hover:text-white cursor-pointer">About Us</Link></li>
-            <li><Link href="/help" className="hover:text-white cursor-pointer">Help Center</Link></li>
-            <li><Link href="/terms" className="hover:text-white cursor-pointer">Terms of Service</Link></li>
-            <li><Link href="/privacy" className="hover:text-white cursor-pointer">Privacy Policy</Link></li>
-            <li><Link href="/contact" className="hover:text-white cursor-pointer">Contact Us</Link></li>
+            <li><Link href="/about" className="hover:text-white cursor-pointer">{t("footer.about")}</Link></li>
+            <li><Link href="/help" className="hover:text-white cursor-pointer">{t("footer.help")}</Link></li>
+            <li><Link href="/terms" className="hover:text-white cursor-pointer">{t("footer.terms")}</Link></li>
+            <li><Link href="/privacy" className="hover:text-white cursor-pointer">{t("footer.privacy")}</Link></li>
+            <li><Link href="/contact" className="hover:text-white cursor-pointer">{t("footer.contact")}</Link></li>
           </ul>
         </div>
          <div>
-          <h4 className="font-bold mb-4">Contact & Follow Us</h4>
+          <h4 className="font-bold mb-4">{t("footer.follow")}</h4>
           <p className="text-sm text-gray-300 mb-4">Nairobi, Kenya<br/>support@inndos.com<br/>+254 713 361799</p>
           
           <div className="flex items-center gap-4 mt-4">

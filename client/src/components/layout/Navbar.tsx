@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { UserCircle, Menu, PlusCircle, LogOut } from "lucide-react";
+import { UserCircle, Menu, PlusCircle, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
@@ -14,6 +14,7 @@ export function Navbar() {
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isRentExpanded, setIsRentExpanded] = useState(false);
   const menuRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -193,32 +194,39 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 top-20 bg-white z-[90] overflow-y-auto pb-24 border-t shadow-2xl flex flex-col p-4 gap-4 pointer-events-auto">
+        <div className="lg:hidden fixed top-20 left-0 w-full h-[calc(100vh-80px)] bg-white z-[90] overflow-y-auto pb-24 border-t shadow-2xl flex flex-col p-4 gap-4 pointer-events-auto" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
           <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
             </span>
           </Link>
-          <div>
-            <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
-              <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+          <div className="border-b border-gray-50 pb-2">
+            <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsRentExpanded(!isRentExpanded)}>
+              <span className={`block text-lg font-medium transition-colors hover:text-primary ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
                 {t('nav.rent')}
               </span>
-            </Link>
-            <div className="pl-4 mt-2 flex flex-col gap-2 border-l-2 border-gray-100 ml-2">
-              <Link href="/search?type=rent-business" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
-              </Link>
-              <Link href="/search?type=rent-godown" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
-              </Link>
-              <Link href="/search?type=rent-stall" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
-              </Link>
-              <Link href="/search?type=rent-shop" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
-              </Link>
+              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isRentExpanded ? 'rotate-180' : ''}`} />
             </div>
+            
+            {isRentExpanded && (
+              <div className="pl-4 mt-3 flex flex-col gap-3 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200">
+                <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="block text-base font-medium text-gray-700 hover:text-primary">All Rentals</span>
+                </Link>
+                <Link href="/search?type=rent-business" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
+                </Link>
+                <Link href="/search?type=rent-godown" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
+                </Link>
+                <Link href="/search?type=rent-stall" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
+                </Link>
+                <Link href="/search?type=rent-shop" onClick={() => setIsMobileMenuOpen(false)}>
+                  <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
+                </Link>
+              </div>
+            )}
           </div>
           <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -238,31 +246,37 @@ export function Navbar() {
           
           <div className="h-px bg-gray-100 my-2" />
           
-          <div className="flex items-center justify-between mb-2 z-[110] relative">
+                    <div className="flex items-center justify-between mb-2">
              <span className="text-base font-medium text-gray-500">Language</span>
-             <select 
-               value={language} 
-               onChange={(e) => setLanguage(e.target.value)}
-               className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary"
-             >
-               <option value="EN">🇺🇸 EN</option>
-               <option value="FR">🇫🇷 FR</option>
-               <option value="DE">🇩🇪 DE</option>
-             </select>
+             <div className="w-[120px]">
+               <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
+                 <SelectTrigger className="h-10 text-sm border-gray-200 bg-white">
+                   <SelectValue placeholder="Lang" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="EN">🇺🇸 EN</SelectItem>
+                   <SelectItem value="FR">🇫🇷 FR</SelectItem>
+                   <SelectItem value="DE">🇩🇪 DE</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-4 z-[110] relative">
+          <div className="flex items-center justify-between mb-4">
              <span className="text-base font-medium text-gray-500">Currency</span>
-             <select 
-               value={currency} 
-               onChange={(e) => setCurrency(e.target.value)}
-               className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary"
-             >
-               <option value="KES">KES</option>
-               <option value="USD">USD</option>
-               <option value="EUR">EUR</option>
-               <option value="GBP">GBP</option>
-             </select>
+             <div className="w-[120px]">
+               <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
+                 <SelectTrigger className="h-10 text-sm border-gray-200 bg-white">
+                   <SelectValue placeholder="Currency" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="KES">KES</SelectItem>
+                   <SelectItem value="USD">USD</SelectItem>
+                   <SelectItem value="EUR">EUR</SelectItem>
+                   <SelectItem value="GBP">GBP</SelectItem>
+                 </SelectContent>
+               </Select>
+             </div>
           </div>
 
           {user ? (

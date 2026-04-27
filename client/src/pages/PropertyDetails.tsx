@@ -222,7 +222,7 @@ export default function PropertyDetails() {
                <section>
                  <h2 className="text-xl font-bold mb-4">{t('prop.description')}</h2>
                  <p className="text-gray-600 leading-relaxed">
-                   Experience the pinnacle of modern living in this stunning property. Featuring spacious interiors flooded with natural light, high-end finishes, and thoughtful design details throughout. The open-concept layout is perfect for entertaining, while private retreats offer serenity and comfort. Located in a prime neighborhood with easy access to amenities, schools, and transportation.
+                   {t('prop.dummy_desc')}
                  </p>
                </section>
 
