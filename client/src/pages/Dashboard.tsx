@@ -213,12 +213,11 @@ export default function Dashboard() {
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-[#f4f7f9] flex flex-col md:flex-row overflow-hidden w-full font-sans">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
       {/* Mobile Header (Visible only on small screens) */}
-      <div className="md:hidden bg-[#2E5C8A] p-4 flex items-center justify-between shrink-0">
+      <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center font-bold text-[#2E5C8A]">in</div>
-          <span className="text-white font-bold text-xl tracking-tight">inndos</span>
+          <img src="/logo.png" alt="inndos" className="h-8 w-auto brightness-0 invert" />
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="text-white/80 hover:text-white rounded-full"><Bell className="w-5 h-5" /></Button>
@@ -226,7 +225,7 @@ export default function Dashboard() {
       </div>
       
       {/* Mobile Tabs List (Horizontal scroll) */}
-      <div className="md:hidden bg-[#244b73] shrink-0 border-b border-white/10">
+      <div className="md:hidden bg-zinc-800 shrink-0 border-b border-white/10">
         <TabsList className="flex w-full h-auto bg-transparent p-2 overflow-x-auto justify-start no-scrollbar gap-2">
           <TabsTrigger value="overview" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Dashboard
@@ -254,41 +253,40 @@ export default function Dashboard() {
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="w-[280px] flex-shrink-0 bg-[#2E5C8A] flex-col h-screen overflow-hidden hidden md:flex">
+      <div className="w-[280px] flex-shrink-0 bg-zinc-900 flex-col h-screen overflow-hidden hidden md:flex">
         {/* Logo */}
         <div className="p-6 pb-2">
             <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer mb-6">
-                <div className="w-9 h-9 bg-white rounded flex items-center justify-center font-bold text-[#2E5C8A] text-lg">in</div>
-                <span className="text-white font-bold text-[22px] tracking-tight">inndos</span>
+                <img src="/logo.png" alt="inndos" className="h-8 w-auto brightness-0 invert" />
             </div>
             </Link>
             <div className="mb-6">
-              <p className="text-[#a0c4e8] text-xs font-semibold tracking-widest uppercase mb-1">{user.role} PORTAL</p>
+              <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase mb-1">{user.role} PORTAL</p>
             </div>
         </div>
         
         <div className="flex-1 overflow-y-auto px-4 py-2">
             <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-1">
-            <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+            <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Home className="w-5 h-5 mr-3" /> Dashboard
             </TabsTrigger>
-            <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+            <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <UserCircle className="w-5 h-5 mr-3" /> My Profile
             </TabsTrigger>
-            <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+            <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <MessageSquare className="w-5 h-5 mr-3" /> Messages
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+            <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> Analytics
             </TabsTrigger>
             {(user.role === 'owner' || user.role === 'host') && (
-                <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <FileText className="w-5 h-5 mr-3" /> My Listings
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
-                <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-[#3b73a8] data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Home className="w-5 h-5 mr-3" /> All Properties
                 </TabsTrigger>
             )}
@@ -297,15 +295,15 @@ export default function Dashboard() {
 
         <div className="p-4 mt-auto mb-4 mx-4 border-t border-white/10 pt-6">
             <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 rounded-full bg-[#3b73a8] flex items-center justify-center text-white font-semibold shrink-0">
+            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold shrink-0">
                 {user.name.charAt(0).toUpperCase()}
             </div>
             <div className="text-white min-w-0">
                 <div className="font-medium text-sm leading-tight truncate">{user.name}</div>
-                <div className="text-xs text-[#a0c4e8] leading-tight truncate mt-1">{user.email || `${user.role}@inndos.com`}</div>
+                <div className="text-xs text-zinc-400 leading-tight truncate mt-1">{user.email || `${user.role}@inndos.com`}</div>
             </div>
             </div>
-            <Button variant="ghost" className="w-full justify-start text-[#a0c4e8] hover:text-white hover:bg-white/5 px-2 font-normal" onClick={logout}>
+            <Button variant="ghost" className="w-full justify-start text-zinc-400 hover:text-white hover:bg-white/5 px-2 font-normal" onClick={logout}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
             Sign Out
             </Button>
@@ -326,7 +324,7 @@ export default function Dashboard() {
         </div>
         
         {/* Tab Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#f4f7f9]">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50">
             {activeTab === 'overview' && (
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
@@ -335,7 +333,7 @@ export default function Dashboard() {
                 </div>
                 {(user?.role === 'owner' || user?.role === 'host') && (
                   <Link href="/add-listing">
-                    <Button className="bg-[#2E5C8A] hover:bg-[#234A72] text-white gap-2 shadow-sm rounded-full px-5 h-10">
+                    <Button className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-5 h-10">
                       <Plus className="h-4 w-4" />
                       List Property
                     </Button>
@@ -464,7 +462,7 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-500">Manage your active listings</p>
                   </div>
                   <Link href="/add-listing">
-                    <Button className="bg-[#2E5C8A] hover:bg-[#234A72] text-white gap-2 shadow-sm rounded-full px-4 h-10">
+                    <Button className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-4 h-10">
                       <Plus className="h-4 w-4" />
                       List Property
                     </Button>
@@ -871,7 +869,7 @@ export default function Dashboard() {
                                     </div>
                                   </div>
                                   <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
-                                     <Button variant="outline" className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 border-blue-200" onClick={() => {
+                                     <Button variant="outline" className="text-blue-600 hover:bg-zinc-800 hover:text-blue-700 border-blue-200" onClick={() => {
                                        toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
                                      }}>
                                         <Edit className="h-4 w-4 mr-2" /> Edit Property
@@ -897,7 +895,7 @@ export default function Dashboard() {
                                 </DialogContent>
                               </Dialog>
                               
-                              <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => {
+                              <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700 hover:bg-zinc-800" onClick={() => {
                                 toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
                               }}>
                                 <Edit className="h-4 w-4 mr-1" /> Edit
@@ -942,7 +940,7 @@ export default function Dashboard() {
             {/* Profile Completion Header */}
             <div className="bg-white border rounded-xl shadow-sm p-6 mb-6">
               <div className="flex items-center gap-4 mb-6">
-                <div className="h-16 w-16 rounded-full bg-[#2E5C8A] flex items-center justify-center text-white text-2xl font-bold shrink-0">
+                <div className="h-16 w-16 rounded-full bg-zinc-900 flex items-center justify-center text-white text-2xl font-bold shrink-0">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -957,7 +955,7 @@ export default function Dashboard() {
                   <span className="text-[#2E5C8A]">78%</span>
                 </div>
                 <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#2E5C8A] rounded-full" style={{ width: '78%' }}></div>
+                  <div className="h-full bg-zinc-900 rounded-full" style={{ width: '78%' }}></div>
                 </div>
               </div>
             </div>
