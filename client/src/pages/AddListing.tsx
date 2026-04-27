@@ -155,6 +155,10 @@ export default function AddListing() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="rent">For Rent</SelectItem>
+                          <SelectItem value="rent-business">For Rent - Business Space</SelectItem>
+                          <SelectItem value="rent-godown">For Rent - Godown</SelectItem>
+                          <SelectItem value="rent-stall">For Rent - Stall</SelectItem>
+                          <SelectItem value="rent-shop">For Rent - Shop</SelectItem>
                           <SelectItem value="sale">For Sale</SelectItem>
                           <SelectItem value="bnb">B&B / Short Stay</SelectItem>
                           <SelectItem value="hotel">Hotel</SelectItem>

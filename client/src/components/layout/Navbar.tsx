@@ -18,27 +18,32 @@ export function Navbar() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
+      // Ignore clicks on Radix UI portals (like Select dropdowns)
+      const target = event.target as Element;
+      if (target.closest('[data-radix-portal]')) {
+        return;
+      }
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMobileMenuOpen(false);
       }
     }
     
-    function handleScroll() {
-      if (isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    }
+    // function handleScroll() {
+    //   if (isMobileMenuOpen) {
+    //     setIsMobileMenuOpen(false);
+    //   }
+    // }
     
     if (isMobileMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("touchstart", handleClickOutside);
-      window.addEventListener("scroll", handleScroll, { passive: true });
+      // window.addEventListener("scroll", handleScroll, { passive: true });
     }
     
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
-      window.removeEventListener("scroll", handleScroll);
+      // window.removeEventListener("scroll", handleScroll);
     };
   }, [isMobileMenuOpen]);
 
@@ -61,11 +66,27 @@ export function Navbar() {
               {t('nav.bnb')}
             </span>
           </Link>
-          <Link href="/search?type=rent">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.rent')}
-            </span>
-          </Link>
+          <div className="relative group cursor-pointer">
+            <Link href="/search?type=rent">
+              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+                {t('nav.rent')}
+              </span>
+            </Link>
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-2">
+              <Link href="/search?type=rent-business">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Business Spaces</div>
+              </Link>
+              <Link href="/search?type=rent-godown">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Godowns</div>
+              </Link>
+              <Link href="/search?type=rent-stall">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Stalls</div>
+              </Link>
+              <Link href="/search?type=rent-shop">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Shops</div>
+              </Link>
+            </div>
+          </div>
           <Link href="/search?type=hostel">
             <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
@@ -119,7 +140,7 @@ export function Navbar() {
             </div>
           </div>
 
-          <Link href={user ? "/dashboard" : "/login?role=owner"} className="hidden lg:block">
+          <Link href={user ? "/add-listing" : "/login?role=owner"} className="hidden lg:block">
             <Button variant="ghost" size="sm" className="gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-3 xl:px-4 h-9">
               <PlusCircle className="h-4 w-4" />
               <span>{t('nav.list_property')}</span>
@@ -178,11 +199,27 @@ export function Navbar() {
               {t('nav.bnb')}
             </span>
           </Link>
-          <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.rent')}
-            </span>
-          </Link>
+          <div>
+            <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
+              <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+                {t('nav.rent')}
+              </span>
+            </Link>
+            <div className="pl-4 mt-2 flex flex-col gap-2 border-l-2 border-gray-100 ml-2">
+              <Link href="/search?type=rent-business" onClick={() => setIsMobileMenuOpen(false)}>
+                <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
+              </Link>
+              <Link href="/search?type=rent-godown" onClick={() => setIsMobileMenuOpen(false)}>
+                <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
+              </Link>
+              <Link href="/search?type=rent-stall" onClick={() => setIsMobileMenuOpen(false)}>
+                <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
+              </Link>
+              <Link href="/search?type=rent-shop" onClick={() => setIsMobileMenuOpen(false)}>
+                <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
+              </Link>
+            </div>
+          </div>
           <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
@@ -237,7 +274,7 @@ export function Navbar() {
                   {t('nav.dashboard')}
                 </span>
               </Link>
-              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+              <Link href="/add-listing" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
                   <PlusCircle className="h-5 w-5" />
                   {t('nav.list_property')}
