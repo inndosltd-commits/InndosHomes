@@ -7,49 +7,18 @@ import { useLanguage } from "@/lib/language";
 import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isRentExpanded, setIsRentExpanded] = useState(false);
-  const menuRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      // Ignore clicks on Radix UI portals (like Select dropdowns)
-      const target = event.target as Element;
-      if (target.closest('[data-radix-portal]')) {
-        return;
-      }
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMobileMenuOpen(false);
-      }
-    }
-    
-    // function handleScroll() {
-    //   if (isMobileMenuOpen) {
-    //     setIsMobileMenuOpen(false);
-    //   }
-    // }
-    
-    if (isMobileMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-      // window.addEventListener("scroll", handleScroll, { passive: true });
-    }
-    
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-      // window.removeEventListener("scroll", handleScroll);
-    };
-  }, [isMobileMenuOpen]);
-
+    const [isRentExpanded, setIsRentExpanded] = useState(false);
+  
+  
   return (
-    <nav ref={menuRef} className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer group">
@@ -180,153 +149,151 @@ export function Navbar() {
               </Link>
             </div>
           )}
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="lg:hidden flex items-center justify-center relative z-[100] cursor-pointer pointer-events-auto"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed top-20 left-0 w-full h-[calc(100vh-80px)] bg-white z-[90] overflow-y-auto pb-24 border-t shadow-2xl flex flex-col p-4 gap-4 pointer-events-auto" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-          <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.bnb')}
-            </span>
-          </Link>
-          <div className="border-b border-gray-50 pb-2">
-            <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsRentExpanded(!isRentExpanded)}>
-              <span className={`block text-lg font-medium transition-colors hover:text-primary ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
-                {t('nav.rent')}
-              </span>
-              <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isRentExpanded ? 'rotate-180' : ''}`} />
-            </div>
-            
-            {isRentExpanded && (
-              <div className="pl-4 mt-3 flex flex-col gap-3 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200">
-                <Link href="/search?type=rent" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span className="block text-base font-medium text-gray-700 hover:text-primary">All Rentals</span>
-                </Link>
-                <Link href="/search?type=rent-business" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
-                </Link>
-                <Link href="/search?type=rent-godown" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
-                </Link>
-                <Link href="/search?type=rent-stall" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
-                </Link>
-                <Link href="/search?type=rent-shop" onClick={() => setIsMobileMenuOpen(false)}>
-                  <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
-                </Link>
-              </div>
-            )}
-          </div>
-          <Link href="/search?type=hostel" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.hostels')}
-            </span>
-          </Link>
-          <Link href="/search?type=hotel" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.hotels')}
-            </span>
-          </Link>
-          <Link href="/search?type=sale" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.buy')}
-            </span>
-          </Link>
-          
-          <div className="h-px bg-gray-100 my-2" />
-          
-                    <div className="flex items-center justify-between mb-2">
-             <span className="text-base font-medium text-gray-500">Language</span>
-             <div className="w-[120px]">
-               <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
-                 <SelectTrigger className="h-10 text-sm border-gray-200 bg-white">
-                   <SelectValue placeholder="Lang" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="EN">🇺🇸 EN</SelectItem>
-                   <SelectItem value="FR">🇫🇷 FR</SelectItem>
-                   <SelectItem value="DE">🇩🇪 DE</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-             <span className="text-base font-medium text-gray-500">Currency</span>
-             <div className="w-[120px]">
-               <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-                 <SelectTrigger className="h-10 text-sm border-gray-200 bg-white">
-                   <SelectValue placeholder="Currency" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="KES">KES</SelectItem>
-                   <SelectItem value="USD">USD</SelectItem>
-                   <SelectItem value="EUR">EUR</SelectItem>
-                   <SelectItem value="GBP">GBP</SelectItem>
-                 </SelectContent>
-               </Select>
-             </div>
-          </div>
-
-          {user ? (
-            <>
-              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-                <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {t('nav.dashboard')}
-                </span>
-              </Link>
-              <Link href="/add-listing" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
-                  <PlusCircle className="h-5 w-5" />
-                  {t('nav.list_property')}
-                </Button>
-              </Link>
+          <Sheet>
+            <SheetTrigger asChild>
               <Button 
                 variant="outline" 
-                className="w-full justify-start gap-2 h-12 text-lg mt-2"
-                onClick={() => {
-                  logout();
-                  setIsMobileMenuOpen(false);
-                }}
+                size="icon" 
+                className="lg:hidden flex items-center justify-center"
+                aria-label="Toggle menu"
               >
-                <LogOut className="h-5 w-5" />
-                {t('nav.signout')}
+                <Menu className="h-5 w-5" />
               </Button>
-            </>
-          ) : (
-            <>
-              <Link href="/login?role=owner" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
-                  <PlusCircle className="h-5 w-5" />
-                  {t('nav.list_property')}
-                </Button>
-              </Link>
-              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full justify-start gap-2 h-12 text-lg mt-2">
-                  <UserCircle className="h-5 w-5" />
-                  {t('nav.signin')}
-                </Button>
-              </Link>
-              <Link href="/login?signup=true" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 h-12 text-lg">
-                  {t('nav.signup')}
-                </Button>
-              </Link>
-            </>
-          )}
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0 flex flex-col bg-white">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <div className="p-4 border-b border-gray-100 flex items-center gap-3">
+                <img src="/logo.png" alt="INNDOS" className="h-8 w-auto object-contain" />
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+                <Link href="/bnb">
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {t('nav.bnb')}
+                  </span>
+                </Link>
+                <div className="border-b border-gray-50 pb-2">
+                  <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsRentExpanded(!isRentExpanded)}>
+                    <span className={`block text-lg font-medium transition-colors hover:text-primary ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {t('nav.rent')}
+                    </span>
+                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isRentExpanded ? 'rotate-180' : ''}`} />
+                  </div>
+                  
+                  {isRentExpanded && (
+                    <div className="pl-4 mt-3 flex flex-col gap-3 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200">
+                      <Link href="/search?type=rent">
+                        <span className="block text-base font-medium text-gray-700 hover:text-primary">All Rentals</span>
+                      </Link>
+                      <Link href="/search?type=rent-business">
+                        <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
+                      </Link>
+                      <Link href="/search?type=rent-godown">
+                        <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
+                      </Link>
+                      <Link href="/search?type=rent-stall">
+                        <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
+                      </Link>
+                      <Link href="/search?type=rent-shop">
+                        <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+                <Link href="/search?type=hostel">
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {t('nav.hostels')}
+                  </span>
+                </Link>
+                <Link href="/search?type=hotel">
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {t('nav.hotels')}
+                  </span>
+                </Link>
+                <Link href="/search?type=sale">
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {t('nav.buy')}
+                  </span>
+                </Link>
+                
+                <div className="h-px bg-gray-100 my-2" />
+                
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-base font-medium text-gray-500">Language</span>
+                  <select 
+                    value={language} 
+                    onChange={(e) => setLanguage(e.target.value as any)}
+                    className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary appearance-none"
+                    style={{ WebkitAppearance: 'none' }}
+                  >
+                    <option value="EN">🇺🇸 EN</option>
+                    <option value="FR">🇫🇷 FR</option>
+                    <option value="DE">🇩🇪 DE</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-base font-medium text-gray-500">Currency</span>
+                  <select 
+                    value={currency} 
+                    onChange={(e) => setCurrency(e.target.value as any)}
+                    className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary appearance-none"
+                    style={{ WebkitAppearance: 'none' }}
+                  >
+                    <option value="KES">KES</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </div>
+
+                {user ? (
+                  <>
+                    <Link href="/dashboard">
+                      <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {t('nav.dashboard')}
+                      </span>
+                    </Link>
+                    <Link href="/add-listing">
+                      <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
+                        <PlusCircle className="h-5 w-5" />
+                        {t('nav.list_property')}
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start gap-2 h-12 text-lg mt-2"
+                      onClick={() => logout()}
+                    >
+                      <LogOut className="h-5 w-5" />
+                      {t('nav.signout')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login?role=owner">
+                      <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
+                        <PlusCircle className="h-5 w-5" />
+                        {t('nav.list_property')}
+                      </Button>
+                    </Link>
+                    <Link href="/login">
+                      <Button variant="outline" className="w-full justify-start gap-2 h-12 text-lg mt-2">
+                        <UserCircle className="h-5 w-5" />
+                        {t('nav.signin')}
+                      </Button>
+                    </Link>
+                    <Link href="/login?signup=true">
+                      <Button className="w-full justify-start gap-2 bg-black hover:bg-gray-800 text-white h-12 text-lg">
+                        {t('nav.signup')}
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      )}
+      </div>
     </nav>
   );
 }
