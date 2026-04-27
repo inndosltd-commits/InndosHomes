@@ -240,7 +240,7 @@ export function Navbar() {
           
           <div className="flex items-center justify-between mb-2">
              <span className="text-base font-medium text-gray-500">Language</span>
-             <Select value={language} onValueChange={(v: any) => { setLanguage(v); setIsMobileMenuOpen(false); }}>
+             <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
                <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
                  <SelectValue placeholder="Lang" />
                </SelectTrigger>
@@ -254,7 +254,7 @@ export function Navbar() {
 
           <div className="flex items-center justify-between mb-4">
              <span className="text-base font-medium text-gray-500">Currency</span>
-             <Select value={currency} onValueChange={(v: any) => { setCurrency(v); setIsMobileMenuOpen(false); }}>
+             <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
                <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
                  <SelectValue placeholder="Currency" />
                </SelectTrigger>
