@@ -193,7 +193,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden border-t bg-white absolute top-20 left-0 w-full shadow-2xl flex flex-col p-4 gap-4 z-[90]">
+        <div className="lg:hidden fixed inset-0 top-20 bg-white z-[90] overflow-y-auto pb-24 border-t shadow-2xl flex flex-col p-4 gap-4 pointer-events-auto">
           <Link href="/bnb" onClick={() => setIsMobileMenuOpen(false)}>
             <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
@@ -238,33 +238,31 @@ export function Navbar() {
           
           <div className="h-px bg-gray-100 my-2" />
           
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 z-[110] relative">
              <span className="text-base font-medium text-gray-500">Language</span>
-             <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
-               <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
-                 <SelectValue placeholder="Lang" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="EN">🇺🇸 EN</SelectItem>
-                 <SelectItem value="FR">🇫🇷 FR</SelectItem>
-                 <SelectItem value="DE">🇩🇪 DE</SelectItem>
-               </SelectContent>
-             </Select>
+             <select 
+               value={language} 
+               onChange={(e) => setLanguage(e.target.value)}
+               className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary"
+             >
+               <option value="EN">🇺🇸 EN</option>
+               <option value="FR">🇫🇷 FR</option>
+               <option value="DE">🇩🇪 DE</option>
+             </select>
           </div>
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 z-[110] relative">
              <span className="text-base font-medium text-gray-500">Currency</span>
-             <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
-               <SelectTrigger className="h-10 w-[120px] text-sm border-gray-200">
-                 <SelectValue placeholder="Currency" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="KES">KES</SelectItem>
-                 <SelectItem value="USD">USD</SelectItem>
-                 <SelectItem value="EUR">EUR</SelectItem>
-                 <SelectItem value="GBP">GBP</SelectItem>
-               </SelectContent>
-             </Select>
+             <select 
+               value={currency} 
+               onChange={(e) => setCurrency(e.target.value)}
+               className="h-10 w-[120px] text-sm border border-gray-200 rounded-md px-3 bg-white outline-none focus:ring-2 focus:ring-primary"
+             >
+               <option value="KES">KES</option>
+               <option value="USD">USD</option>
+               <option value="EUR">EUR</option>
+               <option value="GBP">GBP</option>
+             </select>
           </div>
 
           {user ? (
