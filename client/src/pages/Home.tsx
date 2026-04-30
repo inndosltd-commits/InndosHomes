@@ -42,22 +42,19 @@ export default function Home() {
       <div className="bg-white pt-4 pb-0">
           <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 w-full">
-                 {/* Right Side: List Property & Search Bar */}
-                 <div className="flex w-full items-center justify-end gap-3">
-                    <Link href="/add-listing" className="hidden lg:block">
-                      <Button className="rounded-full px-6 bg-gray-900 text-white hover:bg-gray-800 border-none shadow-sm font-medium h-11 text-sm whitespace-nowrap">{t('nav.list_property')}</Button>
-                    </Link>
-                    <div className="relative w-full md:w-64 lg:w-80 flex-shrink-0">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                 {/* Search Bar */}
+                 <div className="flex w-full items-center justify-center py-2">
+                    <div className="relative w-full max-w-2xl">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input 
-                        placeholder={t('home.search_placeholder')} 
-                        className="h-10 md:h-11 pl-10 rounded-full border-gray-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm text-[13px] md:text-sm w-full transition-all" 
+                        placeholder={t('search.placeholder_location') || "Search locations..."} 
+                        className="w-full pl-10 pr-4 h-12 bg-white border-gray-200 rounded-full shadow-sm focus:ring-primary focus:border-primary transition-all text-base"
                       />
                     </div>
                  </div>
               </div>
           </div>
-      </div>
+          </div>
 
       {/* Map Section replacing Hero */}
       <section className="relative h-[70vh] w-full bg-gray-100 border-t">
