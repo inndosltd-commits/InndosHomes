@@ -42,29 +42,8 @@ export default function Home() {
       <div className="bg-white pt-4 pb-0">
           <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 w-full">
-                 {/* Filter Pills - Scrollable on mobile */}
-                 <div className="w-full md:w-auto overflow-x-auto no-scrollbar pb-1 md:pb-0 flex-shrink-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    <div className="flex items-center gap-2 w-max pr-4 md:pr-0">
-                      <Link href="/search?type=bnb">
-                        <Button variant="outline" className="rounded-full px-5 bg-white border-gray-200 hover:bg-primary/5 hover:border-primary hover:text-primary shadow-sm font-medium h-10 md:h-11 text-[13px] md:text-sm whitespace-nowrap transition-colors">{t('nav.bnb')}</Button>
-                      </Link>
-                      <Link href="/search?type=rent">
-                        <Button variant="outline" className="rounded-full px-5 bg-white border-gray-200 hover:bg-primary/5 hover:border-primary hover:text-primary shadow-sm font-medium h-10 md:h-11 text-[13px] md:text-sm whitespace-nowrap transition-colors">{t('nav.rent')}</Button>
-                      </Link>
-                      <Link href="/search?type=hostel">
-                        <Button variant="outline" className="rounded-full px-5 bg-white border-gray-200 hover:bg-primary/5 hover:border-primary hover:text-primary shadow-sm font-medium h-10 md:h-11 text-[13px] md:text-sm whitespace-nowrap transition-colors">{t('nav.hostels')}</Button>
-                      </Link>
-                      <Link href="/search?type=hotel">
-                        <Button variant="outline" className="rounded-full px-5 bg-white border-gray-200 hover:bg-primary/5 hover:border-primary hover:text-primary shadow-sm font-medium h-10 md:h-11 text-[13px] md:text-sm whitespace-nowrap transition-colors">{t('nav.hotels')}</Button>
-                      </Link>
-                      <Link href="/search?type=sale">
-                        <Button variant="outline" className="rounded-full px-5 bg-white border-gray-200 hover:bg-primary/5 hover:border-primary hover:text-primary shadow-sm font-medium h-10 md:h-11 text-[13px] md:text-sm whitespace-nowrap transition-colors">{t('nav.buy')}</Button>
-                      </Link>
-                    </div>
-                 </div>
-                 
                  {/* Right Side: List Property & Search Bar */}
-                 <div className="flex w-full md:w-auto items-center gap-3 ml-auto">
+                 <div className="flex w-full items-center justify-end gap-3">
                     <Link href="/add-listing" className="hidden lg:block">
                       <Button className="rounded-full px-6 bg-gray-900 text-white hover:bg-gray-800 border-none shadow-sm font-medium h-11 text-sm whitespace-nowrap">{t('nav.list_property')}</Button>
                     </Link>
