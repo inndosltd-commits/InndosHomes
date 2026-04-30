@@ -39,25 +39,21 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="bg-white pt-4 pb-0">
-          <div className="container mx-auto px-4">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 w-full">
-                 {/* Search Bar */}
-                 <div className="flex w-full items-center justify-center py-2">
-                    <div className="relative w-full max-w-2xl">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input 
-                        placeholder={t('search.placeholder_location') || "Search locations..."} 
-                        className="w-full pl-10 pr-4 h-12 bg-white border-gray-200 rounded-full shadow-sm focus:ring-primary focus:border-primary transition-all text-base"
-                      />
-                    </div>
-                 </div>
-              </div>
-          </div>
-          </div>
+      
 
       {/* Map Section replacing Hero */}
       <section className="relative h-[70vh] w-full bg-gray-100 border-t">
+
+      {/* Floating Search Bar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] w-full max-w-2xl px-4 pointer-events-none">
+        <div className="relative w-full pointer-events-auto">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+          <Input 
+            placeholder={t('search.placeholder_location') || "Search locations..."} 
+            className="w-full pl-12 pr-4 h-14 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-lg rounded-full focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-base"
+          />
+        </div>
+      </div>
         <div className="absolute inset-0 z-0">
           <PropertyMap properties={filteredProperties} />
         </div>
