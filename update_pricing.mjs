@@ -1,4 +1,7 @@
-import { Navbar } from "@/components/layout/Navbar";
+import fs from 'fs';
+
+const path = 'client/src/pages/Pricing.tsx';
+const content = `import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -109,3 +112,7 @@ export default function Pricing() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync(path, content);
+console.log("Created Pricing.tsx");

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, Phone, Mail, MessageSquare, PhoneCall, MessageCircle, Copy, Star } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Phone, Mail, MessageSquare, PhoneCall, MessageCircle, Copy, Star } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { PROPERTIES, OWNERS } from "@/lib/mockData";
 import { useToast } from "@/hooks/use-toast";
@@ -141,8 +141,8 @@ export default function PropertyDetails() {
                      {property.type === 'rent' ? t('prop.for_rent') : property.type === 'sale' ? t('prop.for_sale') : property.type === 'hotel' ? t('prop.hotel') : property.type === 'hostel' ? t('nav.hostels') : t('prop.bnb')}
                    </Badge>
                    {property.isVerified && (
-                     <Badge variant="outline" className="border-green-600 text-green-600 flex items-center gap-1">
-                       <CheckCircle className="h-3 w-3" /> {t('prop.verified')}
+                     <Badge variant="outline" className="border-green-600 bg-green-50 text-green-700 flex items-center gap-1 px-3 py-1 shadow-sm">
+                       <ShieldCheck className="h-4 w-4" /> Verified by Inndos
                      </Badge>
                    )}
                    <div className="flex items-center text-yellow-500 ml-2 text-sm font-medium">
@@ -356,11 +356,31 @@ export default function PropertyDetails() {
                      </div>
                    )}
                    
-                   {!isBooked ? (
-                     <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
-                       {property.type === 'rent' || property.type === 'sale' ? t('prop.request_tour') : t('prop.book_now')}
-                     </Button>
-                   ) : (
+                   
+                  {property.type === 'bnb' || property.type === 'hotel' || property.type === 'hostel' ? (
+                    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20" onClick={e => !isBooked && e.preventDefault()}>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Select Dates</label>
+                      <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
+                        <div className="flex items-center gap-2">
+                           <Calendar className="h-4 w-4 text-gray-400" />
+                           <span className="text-sm font-medium">Check-in</span>
+                        </div>
+                        <div className="h-4 w-px bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                           <span className="text-sm font-medium">Check-out</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-center text-primary mt-2 flex items-center justify-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> Dates Available
+                      </p>
+                    </div>
+                  ) : null}
+                  
+                  {!isBooked ? (
+                    <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
+                      {property.type === 'rent' || property.type === 'sale' ? t('prop.request_tour') : t('prop.book_now')}
+                    </Button>
+                  ) : (
                      <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center mb-4 flex items-center justify-center gap-2 font-medium">
                        <CheckCircle className="h-5 w-5" /> 
                        {property.type === 'rent' || property.type === 'sale' ? t('prop.tour_requested') : t('prop.booking_confirmed')}
