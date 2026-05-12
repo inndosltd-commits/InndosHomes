@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "INNDOS"
+version = "1.0.0"
+id = "artifacts/inndos"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21995
+
+[services.development]
+run = "pnpm --filter @workspace/inndos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/inndos", "run", "build" ]
+publicDir = "artifacts/inndos/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21995"
+BASE_PATH = "/"
