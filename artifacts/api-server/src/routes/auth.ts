@@ -39,6 +39,11 @@ router.post("/signup", async (req, res) => {
 
   const { name, email, password, role } = result.data;
 
+  const SELF_SIGNUP_ROLES = ["tenant", "guest"] as const;
+  type SelfSignupRole = typeof SELF_SIGNUP_ROLES[number];
+  const allowedRole: SelfSignupRole =
+    role === "tenant" || role === "guest" ? role : "tenant";
+
   const existing = await db.select().from(users).where(eq(users.email, email));
   if (existing.length > 0) {
     res.status(409).json({ error: "Email already in use" });
@@ -48,7 +53,7 @@ router.post("/signup", async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
   const [user] = await db
     .insert(users)
-    .values({ name, email, password: hashed, role: role || "tenant" })
+    .values({ name, email, password: hashed, role: allowedRole })
     .returning();
 
   const token = signToken(user.id);

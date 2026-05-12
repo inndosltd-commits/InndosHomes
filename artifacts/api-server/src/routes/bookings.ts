@@ -1,24 +1,10 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import { db } from "@workspace/db";
 import { bookings, properties, insertBookingSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { verifyToken } from "./auth";
+import { requireAuth } from "../lib/requireAuth";
 
 const router = Router();
-
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Not authenticated" });
-    return null;
-  }
-  const payload = verifyToken(authHeader.slice(7));
-  if (!payload) {
-    res.status(401).json({ error: "Invalid token" });
-    return null;
-  }
-  return payload.userId;
-}
 
 router.get("/", async (req, res) => {
   const userId = requireAuth(req, res);

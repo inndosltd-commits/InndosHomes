@@ -1,26 +1,12 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, insertPropertySchema } from "@workspace/db";
 import { eq, and, ilike, or } from "drizzle-orm";
-import { verifyToken } from "./auth";
+import { requireAuth } from "../lib/requireAuth";
 
 const router = Router();
 
 type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
-
-function requireAuth(req: Request, res: Response): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Not authenticated" });
-    return null;
-  }
-  const payload = verifyToken(authHeader.slice(7));
-  if (!payload) {
-    res.status(401).json({ error: "Invalid token" });
-    return null;
-  }
-  return payload.userId;
-}
 
 const PROPERTY_COLUMNS = {
   id: properties.id,
