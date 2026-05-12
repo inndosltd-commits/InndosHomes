@@ -48,10 +48,10 @@ export default function Login() {
     const password = passwordInput?.value || DEMO_CREDS[role].password;
     try {
       await login(email, password);
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Login failed",
-        description: err.message || "Please check your credentials.",
+        description: err instanceof Error ? err.message : "Please check your credentials.",
         variant: "destructive",
       });
     } finally {
@@ -77,10 +77,10 @@ export default function Login() {
 
     try {
       await signup(role, name, email, password);
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "Sign up failed",
-        description: err.message || "Something went wrong.",
+        description: err instanceof Error ? err.message : "Something went wrong.",
         variant: "destructive",
       });
     } finally {
@@ -96,8 +96,8 @@ export default function Login() {
       } else {
         await login(DEMO_CREDS[role].email, DEMO_CREDS[role].password);
       }
-    } catch (err: any) {
-      toast({ title: "Auth failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Auth failed", description: err instanceof Error ? err.message : "Authentication failed.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

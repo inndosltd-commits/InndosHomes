@@ -8,10 +8,11 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-const JWT_SECRET = process.env["JWT_SECRET"];
-if (!JWT_SECRET) {
+const rawSecret = process.env["JWT_SECRET"];
+if (!rawSecret) {
   throw new Error("JWT_SECRET environment variable is required.");
 }
+const JWT_SECRET: string = rawSecret;
 
 export function signToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
@@ -19,7 +20,11 @@ export function signToken(userId: string) {
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (typeof decoded === "object" && decoded !== null && "userId" in decoded) {
+      return decoded as { userId: string };
+    }
+    return null;
   } catch {
     return null;
   }

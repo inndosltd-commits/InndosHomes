@@ -82,7 +82,7 @@ export default function PropertyDetails() {
       try {
         const today = new Date().toISOString().slice(0, 10);
         const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-        await fetch("/api/bookings", {
+        const res = await fetch("/api/bookings", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
@@ -92,7 +92,19 @@ export default function PropertyDetails() {
             totalPrice: property.price,
           }),
         });
-      } catch {}
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast({
+            title: "Booking failed",
+            description: (data as { error?: string }).error || "Could not complete booking. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {
+        toast({ title: "Booking failed", description: "Network error. Please try again.", variant: "destructive" });
+        return;
+      }
     }
 
     setIsBooked(true);

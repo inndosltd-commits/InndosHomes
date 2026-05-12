@@ -11,6 +11,7 @@ import { useLocation } from "wouter";
 import { Upload, Image as ImageIcon, Check, Camera, X, MapPin } from "lucide-react";
 import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/lib/auth";
 
 const UNIT_AMENITIES = [
   { id: "instant_shower", label: "Instant shower" },
@@ -53,9 +54,20 @@ const PREMISE_AMENITIES = [
   { id: "dsq", label: "DSQ" }
 ];
 
+type ApiPropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
+
+function toApiType(raw: string): ApiPropertyType {
+  if (raw === "sale") return "sale";
+  if (raw === "bnb") return "bnb";
+  if (raw === "hotel") return "hotel";
+  if (raw === "hostel") return "hostel";
+  return "rent";
+}
+
 export default function AddListing() {
   const { toast } = useToast();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
+  const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
@@ -64,39 +76,25 @@ export default function AddListing() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // Controlled state for Select fields
+  const [listingType, setListingType] = useState("");
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [address, setAddress] = useState("");
+  const [beds, setBeds] = useState("");
+  const [baths, setBaths] = useState("");
+  const [sqft, setSqft] = useState("");
+  const [description, setDescription] = useState("");
+
   // Check if we are editing an existing listing
-  const [isEditing, setIsEditing] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-
-  // Handle both standard query params and hash-based query params
-  const getQueryParam = (param: string) => {
+  const [isEditing] = useState(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.has(param)) return searchParams.get(param);
-    
-    // Check hash for params if using hash routing
-    const hashParts = window.location.hash.split('?');
+    if (searchParams.has("edit")) return true;
+    const hashParts = window.location.hash.split("?");
     if (hashParts.length > 1) {
-      const hashParams = new URLSearchParams(hashParts[1]);
-      return hashParams.get(param);
+      return new URLSearchParams(hashParts[1]).has("edit");
     }
-    return null;
-  };
-
-  useState(() => {
-    const editParam = getQueryParam("edit");
-    if (editParam) {
-      setIsEditing(true);
-      setEditId(editParam);
-      // In a real app we'd fetch the existing data here
-      // For mockup, we just set some dummy data if editing
-      setTimeout(() => {
-        const titleEl = document.getElementById('title') as HTMLInputElement;
-        if (titleEl) titleEl.value = "Edited Listing Title";
-        const descEl = document.getElementById('description') as HTMLTextAreaElement;
-        if (descEl) descEl.value = "This is an edited property description.";
-        setSearchQuery("Kilimani, Nairobi");
-      }, 100);
-    }
+    return false;
   });
 
   const handleCameraClick = () => {
@@ -123,37 +121,53 @@ export default function AddListing() {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) {
+      toast({ title: "Sign in required", description: "Please sign in to add a listing.", variant: "destructive" });
+      return;
+    }
+    if (!listingType) {
+      toast({ title: "Missing field", description: "Please select a listing type.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      const title = (document.getElementById('title') as HTMLInputElement)?.value || "New Property";
-      const newListing = {
-        id: Date.now(),
-        title: title,
-        type: "Listing",
-        submittedBy: "Owner", 
-        time: "Just now",
-        image: images[0] || "/images/modern_apartment_exterior.png"
+    try {
+      const body = {
+        title,
+        type: toApiType(listingType),
+        price: parseInt(price, 10),
+        address: address || searchQuery,
+        beds: parseInt(beds, 10) || 0,
+        baths: parseInt(baths, 10) || 0,
+        sqft: parseInt(sqft, 10) || 0,
+        image: images[0] || "/images/modern_apartment_exterior.png",
+        tags: [] as string[],
       };
-      
-      const saved = localStorage.getItem('pendingListings');
-      let existing = saved ? JSON.parse(saved) : [
-        { id: 4, title: "Cozy Cottage in Karen", type: "B&B", submittedBy: "Mama Safi", time: "Just now", image: "/images/cozy_modern_bedroom_interior.png" },
-        { id: 5, title: "Modern Apartment in Westlands", type: "Rent", submittedBy: "John Landlord", time: "1h ago", image: "/images/modern_apartment_exterior.png" }
-      ];
-      
-      localStorage.setItem('pendingListings', JSON.stringify([newListing, ...existing]));
-
-      setIsSubmitting(false);
+      const res = await fetch("/api/properties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "Submission failed",
+          description: (data as { error?: string }).error || "Could not submit listing. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Listing Submitted Successfully",
-        description: "Your property is now pending review by our moderation team.",
+        description: "Your property has been created and is now live.",
       });
       setLocation("/dashboard");
-    }, 1500);
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -177,13 +191,13 @@ export default function AddListing() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">Property Title</Label>
-                    <Input id="title" placeholder="e.g. Modern Apartment in Westlands" required />
+                    <Input id="title" placeholder="e.g. Modern Apartment in Westlands" value={title} onChange={e => setTitle(e.target.value)} required />
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Listing Type</Label>
-                      <Select required>
+                      <Select value={listingType} onValueChange={setListingType} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -202,7 +216,7 @@ export default function AddListing() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="price">Price (KES)</Label>
-                      <Input id="price" type="number" placeholder="e.g. 85000" required />
+                      <Input id="price" type="number" placeholder="e.g. 85000" value={price} onChange={e => setPrice(e.target.value)} required />
                     </div>
                   </div>
 
@@ -223,7 +237,7 @@ export default function AddListing() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Full Address</Label>
-                    <Input id="address" placeholder="e.g. 123 Peponi Road, Westlands, Nairobi" required />
+                    <Input id="address" placeholder="e.g. 123 Peponi Road, Westlands, Nairobi" value={address} onChange={e => setAddress(e.target.value)} required />
                   </div>
 
                   <div className="space-y-2">
@@ -262,15 +276,15 @@ export default function AddListing() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="beds">Bedrooms</Label>
-                      <Input id="beds" type="number" min="0" required />
+                      <Input id="beds" type="number" min="0" value={beds} onChange={e => setBeds(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="baths">Bathrooms</Label>
-                      <Input id="baths" type="number" min="0" required />
+                      <Input id="baths" type="number" min="0" value={baths} onChange={e => setBaths(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="sqft">Square Ft</Label>
-                      <Input id="sqft" type="number" min="0" />
+                      <Input id="sqft" type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} />
                     </div>
                   </div>
                   
@@ -297,6 +311,8 @@ export default function AddListing() {
                       id="description" 
                       placeholder="Describe the property features, neighborhood, etc." 
                       className="min-h-[150px]"
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
                       required 
                     />
                   </div>
