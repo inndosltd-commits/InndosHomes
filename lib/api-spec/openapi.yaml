@@ -2,14 +2,21 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: INNDOS API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: properties
+    description: Property listings
+  - name: bookings
+    description: Bookings
+
 paths:
   /healthz:
     get:
@@ -24,7 +31,214 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Create a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already in use
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+
+  /properties:
+    get:
+      operationId: listProperties
+      tags: [properties]
+      summary: List properties
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [rent, sale, bnb, hotel, hostel]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+    post:
+      operationId: createProperty
+      tags: [properties]
+      summary: Create a property listing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePropertyInput"
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+
+  /properties/{id}:
+    get:
+      operationId: getProperty
+      tags: [properties]
+      summary: Get a property by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteProperty
+      tags: [properties]
+      summary: Delete a property
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /bookings:
+    get:
+      operationId: listBookings
+      tags: [bookings]
+      summary: List current user's bookings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Booking"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingInput"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /bookings/{id}/cancel:
+    patch:
+      operationId: cancelBooking
+      tags: [bookings]
+      summary: Cancel a booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +248,221 @@ components:
       required:
         - status
 
+    SignupInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [owner, tenant, admin, host, guest]
+      required:
+        - name
+        - email
+        - password
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - token
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, tenant, admin, host, guest]
+        status:
+          type: string
+          enum: [active, pending, suspended]
+        joinDate:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - email
+        - role
+        - status
+        - joinDate
+
+    Property:
+      type: object
+      properties:
+        id:
+          type: string
+        ownerId:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+          enum: [rent, sale, bnb, hotel, hostel]
+        price:
+          type: integer
+        address:
+          type: string
+        beds:
+          type: integer
+        baths:
+          type: integer
+        sqft:
+          type: integer
+        guests:
+          type: integer
+          nullable: true
+        image:
+          type: string
+        isVerified:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        lat:
+          type: string
+          nullable: true
+        lng:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        ownerName:
+          type: string
+          nullable: true
+      required:
+        - id
+        - ownerId
+        - title
+        - type
+        - price
+        - address
+        - beds
+        - baths
+        - sqft
+        - image
+        - isVerified
+        - tags
+
+    CreatePropertyInput:
+      type: object
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+          enum: [rent, sale, bnb, hotel, hostel]
+        price:
+          type: integer
+        address:
+          type: string
+        beds:
+          type: integer
+        baths:
+          type: integer
+        sqft:
+          type: integer
+        guests:
+          type: integer
+        image:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        lat:
+          type: string
+        lng:
+          type: string
+      required:
+        - title
+        - type
+        - price
+        - address
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        propertyId:
+          type: string
+        userId:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        totalPrice:
+          type: integer
+        createdAt:
+          type: string
+        propertyTitle:
+          type: string
+          nullable: true
+        propertyAddress:
+          type: string
+          nullable: true
+        propertyImage:
+          type: string
+          nullable: true
+        propertyType:
+          type: string
+          nullable: true
+      required:
+        - id
+        - propertyId
+        - userId
+        - status
+        - startDate
+        - endDate
+        - totalPrice
+
+    CreateBookingInput:
+      type: object
+      properties:
+        propertyId:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        totalPrice:
+          type: integer
+      required:
+        - propertyId
+        - startDate
+        - endDate
+        - totalPrice

@@ -1,97 +1,124 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ADMINS, OWNERS, TENANTS, HOSTS, GUESTS, UserProfile } from "./mockData";
 
 type UserRole = "tenant" | "owner" | "admin" | "host" | "guest" | null;
 
-// Re-export UserProfile as User for compatibility with existing code
-export type User = UserProfile;
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "owner" | "tenant" | "admin" | "host" | "guest";
+  status: "active" | "pending" | "suspended";
+  joinDate: string;
+  avatar?: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
-  login: (role: UserRole, email?: string) => void;
-  signup: (role: UserRole, name: string, email: string) => void;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (role: UserRole, name: string, email: string, password?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_BASE = "/api";
+
+async function apiFetch(path: string, options?: RequestInit, token?: string | null) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options?.headers as Record<string, string> || {}) },
+  });
+  return res;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Check for existing session in localStorage on mount
-    const storedUser = localStorage.getItem("inndos_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const storedToken = localStorage.getItem("inndos_token");
+    if (storedToken) {
+      setToken(storedToken);
+      apiFetch("/auth/me", undefined, storedToken)
+        .then(async (res) => {
+          if (res.ok) {
+            const u = await res.json();
+            setUser(u);
+          } else {
+            localStorage.removeItem("inndos_token");
+            setToken(null);
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("inndos_token");
+          setToken(null);
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const login = (role: UserRole, email?: string) => {
-    let mockUser: User | undefined;
-    
-    // If email is provided, try to find the specific user
-    if (email) {
-      if (role === "admin") mockUser = ADMINS.find(u => u.email === email);
-      else if (role === "owner") mockUser = OWNERS.find(u => u.email === email);
-      else if (role === "tenant") mockUser = TENANTS.find(u => u.email === email);
-      else if (role === "host") mockUser = HOSTS.find(u => u.email === email);
-      else if (role === "guest") mockUser = GUESTS.find(u => u.email === email);
-    } 
-    
-    // Fallback to default demo users if no email provided or user not found
-    if (!mockUser) {
-      switch (role) {
-        case "admin":
-          mockUser = ADMINS[0];
-          break;
-        case "owner":
-          mockUser = OWNERS[0];
-          break;
-        case "tenant":
-          mockUser = TENANTS[0];
-          break;
-        case "host":
-          mockUser = HOSTS[0];
-          break;
-        case "guest":
-          mockUser = GUESTS[0];
-          break;
-      }
+  const login = async (email: string, password: string) => {
+    setError(null);
+    const res = await apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Login failed");
     }
-
-    if (mockUser) {
-      setUser(mockUser);
-      localStorage.setItem("inndos_user", JSON.stringify(mockUser));
-      setLocation("/dashboard");
-    }
+    const { token: newToken, user: newUser } = await res.json();
+    setToken(newToken);
+    setUser(newUser);
+    localStorage.setItem("inndos_token", newToken);
+    setLocation("/dashboard");
   };
 
-  const signup = (role: UserRole, name: string, email: string) => {
+  const signup = async (role: UserRole, name: string, email: string, password?: string) => {
+    setError(null);
     if (!role) return;
-    const newUser: User = {
-      id: Math.random().toString(36).substring(2, 11),
-      name: name || `New ${role}`,
-      email: email || `new_${role}@example.com`,
-      role: role as any,
-    };
+    const res = await apiFetch("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        name: name || `New ${role}`,
+        email: email || `${role}_${Date.now()}@inndos.com`,
+        password: password || "password123",
+        role,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Signup failed");
+    }
+    const { token: newToken, user: newUser } = await res.json();
+    setToken(newToken);
     setUser(newUser);
-    localStorage.setItem("inndos_user", JSON.stringify(newUser));
+    localStorage.setItem("inndos_token", newToken);
     setLocation("/dashboard");
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("inndos_user");
+    setToken(null);
+    localStorage.removeItem("inndos_token");
     setLocation("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,6 +6,7 @@
     "types": ["node"]
   },
   "include": ["src"],
+  "exclude": ["src/index-dev.ts"],
   "references": [
     {
       "path": "../../lib/db"

@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
+import { useCallback, useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,6 +23,27 @@ import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
 import { CookieBanner } from "@/components/layout/CookieBanner";
+
+function useHashLocationWithQuery(): [string, (to: string) => void] {
+  const getPath = () => {
+    const hash = window.location.hash.replace(/^#/, "") || "/";
+    return hash.split("?")[0] || "/";
+  };
+
+  const [path, setPath] = useState(getPath);
+
+  useEffect(() => {
+    const onHashChange = () => setPath(getPath());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const navigate = useCallback((to: string) => {
+    window.location.hash = to;
+  }, []);
+
+  return [path, navigate];
+}
 
 function Router() {
   return (
@@ -52,7 +73,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <CurrencyProvider>
-          <WouterRouter hook={useHashLocation}>
+          <WouterRouter hook={useHashLocationWithQuery}>
             <AuthProvider>
               <TooltipProvider>
                 <Toaster />

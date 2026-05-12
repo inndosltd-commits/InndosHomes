@@ -277,14 +277,14 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label className="mb-2 block">Amenities</Label>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {AMENITIES.map((item) => (
-                        <div key={item} className="flex items-center space-x-2">
-                          <Checkbox id={`amenity-${item}`} />
+                      {UNIT_AMENITIES.map((item) => (
+                        <div key={item.id} className="flex items-center space-x-2">
+                          <Checkbox id={`amenity-${item.id}`} />
                           <label
-                            htmlFor={`amenity-${item}`}
+                            htmlFor={`amenity-${item.id}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {item}
+                            {item.label}
                           </label>
                         </div>
                       ))}

@@ -1,14 +1,13 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Property } from "@/lib/mockData";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import type { ApiProperty } from "@/components/property/PropertyCard";
 
-// Fix for default marker icon missing in React Leaflet
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -21,7 +20,6 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom black house icon for properties
 const houseIcon = L.divIcon({
   className: "bg-transparent",
   html: `<div class="flex items-center justify-center w-8 h-8 bg-transparent transition-transform hover:scale-125">
@@ -31,7 +29,6 @@ const houseIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
-// Custom "My Location" marker (Black circle with white dot)
 const myLocationIcon = L.divIcon({
   className: "bg-transparent",
   html: `<div class="relative flex items-center justify-center w-16 h-16">
@@ -45,129 +42,95 @@ const myLocationIcon = L.divIcon({
 });
 
 interface PropertyMapProps {
-  properties: Property[];
+  properties: ApiProperty[];
 }
 
-function UserLocationMarker() {
-  const [position, setPosition] = useState<L.LatLngExpression | null>(null);
+function FlyToNairobi() {
   const map = useMap();
-
   useEffect(() => {
-    map.locate().on("locationfound", function (e) {
-      setPosition(e.latlng);
-      map.flyTo(e.latlng, 12); // Reduced zoom to 12 for "moderate area"
-    });
-    
-    // Fallback for demo if location denied/not found immediately
-    setTimeout(() => {
-       if (!position) {
-          const demoPos: L.LatLngExpression = [-1.2921, 36.8219];
-          setPosition(demoPos);
-       }
-    }, 3000);
+    map.setView([-1.2921, 36.8219], 11);
   }, [map]);
-
-  return position === null ? null : (
-    <>
-      <Marker position={position} icon={myLocationIcon}>
-         {/* No popup needed, visual is enough based on screenshot */}
-      </Marker>
-      {/* Floating label next to marker */}
-      <Marker 
-        position={position} 
-        icon={L.divIcon({
-          className: 'bg-transparent',
-          html: `<div class="ml-10 -mt-8 whitespace-nowrap">
-                  <div class="font-bold text-lg text-black">My Location</div>
-                  <div class="text-xs text-gray-500 font-medium">Listed properties near me</div>
-                 </div>`,
-          iconSize: [200, 50],
-          iconAnchor: [-20, 25]
-        })}
-      />
-    </>
-  );
-}
-
-
-function MapUpdater({ properties }: { properties: Property[] }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    // Only adjust bounds if we have a filtered subset (e.g. from search)
-    // To prevent hijacking the initial UserLocationMarker flyTo, we can just check if properties is small,
-    // or just fly to the selected property.
-    if (properties.length === 1 && properties[0].location) {
-      map.flyTo([properties[0].location.lat, properties[0].location.lng], 15, { animate: true, duration: 1.5 });
-    } else if (properties.length > 0 && properties.length < 20) {
-      // If we filtered down to a few properties, fit bounds
-      const validProps = properties.filter(p => p.location);
-      if (validProps.length > 0) {
-        const bounds = L.latLngBounds(validProps.map(p => [p.location.lat, p.location.lng]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
-      }
-    }
-  }, [properties, map]);
-
   return null;
 }
 
 export default function PropertyMap({ properties }: PropertyMapProps) {
-  // Default center: Nairobi
-  const center: [number, number] = [-1.2921, 36.8219];
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+
+  const propertiesWithLocation = properties.filter((p) => {
+    const lat = p.lat ? parseFloat(p.lat as string) : (p as any).location?.lat;
+    const lng = p.lng ? parseFloat(p.lng as string) : (p as any).location?.lng;
+    return lat && lng && !isNaN(lat) && !isNaN(lng);
+  });
+
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        () => {}
+      );
+    }
+  };
 
   return (
-    <div className="h-full w-full rounded-none overflow-hidden z-0 bg-[#f5f5f5]">
-      <MapContainer 
-        center={center} 
-        zoom={12} // Reduced zoom to 12
-        scrollWheelZoom={false} 
+    <div className="w-full h-full relative">
+      <MapContainer
+        center={[-1.2921, 36.8219]}
+        zoom={11}
+        className="w-full h-full z-0"
         zoomControl={false}
-        dragging={!L.Browser.mobile} // Disable dragging on mobile to prevent getting stuck
-        tap={!L.Browser.mobile} // Disable tap dragging on mobile
-        className="h-full w-full z-0"
+        whenReady={() => setMapReady(true)}
       >
-        <ZoomControl position="bottomright" />
-        
-        {/* Minimalist Grayscale Map */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <UserLocationMarker />
-        <MapUpdater properties={properties} />
-        {properties.map((property) => (
-          property.location && (
-            <Marker 
-              key={property.id} 
-              position={[property.location.lat, property.location.lng]}
-              icon={houseIcon}
-              eventHandlers={{
-                mouseover: (e) => {
-                  e.target.openPopup();
-                },
-              }}
-            >
+        <ZoomControl position="bottomright" />
+        <FlyToNairobi />
+
+        {propertiesWithLocation.map((property) => {
+          const lat = property.lat ? parseFloat(property.lat as string) : (property as any).location?.lat;
+          const lng = property.lng ? parseFloat(property.lng as string) : (property as any).location?.lng;
+
+          return (
+            <Marker key={property.id} position={[lat, lng]} icon={houseIcon}>
               <Popup>
-                <div className="min-w-[200px]">
-                  <img src={property.image} alt={property.title} className="w-full h-24 object-cover rounded-md mb-2" />
-                  <h3 className="font-bold text-sm truncate">{property.title}</h3>
-                  <p className="text-xs text-gray-500 mb-2">{property.address}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-primary">
-                      {formatCurrency(property.price)}
-                      {property.type !== 'sale' && '/mo'}
-                    </span>
+                <div className="w-48">
+                  <img src={property.image} alt={property.title} className="w-full h-24 object-cover rounded-t-md" />
+                  <div className="p-2">
+                    <p className="font-bold text-sm">{property.title}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> {property.address}
+                    </p>
+                    <p className="font-semibold text-sm mt-1">{formatCurrency(property.price)}</p>
                     <Link href={`/property/${property.id}`}>
-                      <Button size="sm" variant="outline" className="h-6 text-xs px-2">View</Button>
+                      <Button size="sm" className="w-full mt-2 h-7 text-xs">View Property</Button>
                     </Link>
                   </div>
                 </div>
               </Popup>
             </Marker>
-          )
-        ))}
+          );
+        })}
+
+        {userLocation && (
+          <Marker position={userLocation} icon={myLocationIcon}>
+            <Popup>
+              <p className="font-medium text-sm">Your Location</p>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
+
+      <button
+        onClick={handleLocateMe}
+        className="absolute bottom-20 right-4 z-[1000] bg-white border border-gray-200 rounded-full p-3 shadow-lg hover:shadow-xl transition-all hover:bg-gray-50"
+        title="Find my location"
+      >
+        <MapPin className="h-5 w-5 text-gray-700" />
+      </button>
     </div>
   );
 }
