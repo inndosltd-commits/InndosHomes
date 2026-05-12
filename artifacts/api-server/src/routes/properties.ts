@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { properties, users, insertPropertySchema } from "@workspace/db";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
+import { verifyToken } from "./auth";
 
 const router = Router();
 
@@ -35,8 +36,18 @@ function isValidType(t: string): t is PropertyType {
   return VALID_TYPES.includes(t as PropertyType);
 }
 
+async function getCallerInfo(req: Parameters<typeof requireAuth>[0]): Promise<{ userId: string | null; role: string | null }> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return { userId: null, role: null };
+  const payload = verifyToken(authHeader.slice(7));
+  if (!payload) return { userId: null, role: null };
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, payload.userId));
+  return { userId: payload.userId, role: user?.role ?? null };
+}
+
 router.get("/", async (req, res) => {
   const { type, search, ownerId } = req.query as Record<string, string>;
+  const caller = await getCallerInfo(req);
 
   const baseQuery = db
     .select(PROPERTY_COLUMNS)
@@ -55,6 +66,12 @@ router.get("/", async (req, res) => {
     );
   }
 
+  const isOwnerQuery = ownerId && ownerId === caller.userId;
+  const isAdmin = caller.role === "admin";
+  if (!isAdmin && !isOwnerQuery) {
+    conditions.push(eq(properties.isVerified, true));
+  }
+
   const rows = conditions.length > 0
     ? await baseQuery.where(and(...conditions))
     : await baseQuery;
@@ -63,6 +80,8 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
+  const caller = await getCallerInfo(req);
+
   const [prop] = await db
     .select(PROPERTY_COLUMNS)
     .from(properties)
@@ -74,6 +93,13 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
+  const isOwner = caller.userId && caller.userId === prop.ownerId;
+  const isAdmin = caller.role === "admin";
+  if (!prop.isVerified && !isOwner && !isAdmin) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
   res.json(prop);
 });
 
@@ -81,13 +107,14 @@ router.post("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const result = insertPropertySchema.safeParse({ ...req.body, ownerId: userId });
+  const { isVerified: _ignored, ...body } = req.body;
+  const result = insertPropertySchema.safeParse({ ...body, ownerId: userId });
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
   }
 
-  const [prop] = await db.insert(properties).values(result.data).returning();
+  const [prop] = await db.insert(properties).values({ ...result.data, isVerified: false }).returning();
   res.status(201).json(prop);
 });
 
@@ -107,8 +134,9 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  const updateSchema = insertPropertySchema.omit({ ownerId: true }).partial();
-  const result = updateSchema.safeParse(req.body);
+  const { isVerified: _ignored, ...body } = req.body;
+  const updateSchema = insertPropertySchema.omit({ ownerId: true, isVerified: true }).partial();
+  const result = updateSchema.safeParse(body);
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;

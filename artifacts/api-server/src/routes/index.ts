@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import propertiesRouter from "./properties";
 import bookingsRouter from "./bookings";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -10,5 +11,6 @@ router.use(healthRouter);
 router.use("/auth", authRouter);
 router.use("/properties", propertiesRouter);
 router.use("/bookings", bookingsRouter);
+router.use("/admin", adminRouter);
 
 export default router;

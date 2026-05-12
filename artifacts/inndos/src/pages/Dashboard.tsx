@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2 } from "lucide-react";
-import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
+import { PROPERTIES } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -22,33 +22,15 @@ export default function Dashboard() {
 
   // --- REAL-TIME STATE ---
   // Admin State
-  const [moderationQueue, setModerationQueue] = useState<any[]>(() => {
-    const saved = localStorage.getItem('pendingListings');
-    if (saved) return JSON.parse(saved);
-    return []; // Start empty unless there are actual pending listings from local storage
-  });
+  const [moderationQueue, setModerationQueue] = useState<any[]>([]);
   const [reportedListings, setReportedListings] = useState<number[]>([]);
-  // Initialize with real count from mock data
-  const [usersCount, setUsersCount] = useState(() => {
-    return OWNERS.length + TENANTS.length + ADMINS.length + HOSTS.length + GUESTS.length;
-  });
-  const [revenue, setRevenue] = useState(() => {
-    // Calculate realistic platform revenue from existing mock properties
-    let totalRevenue = 0;
-    PROPERTIES.forEach(p => {
-        if (p.type === 'rent') totalRevenue += p.price * 0.05; // 5% commission on rent
-        if (p.type === 'bnb') totalRevenue += (p.price * 10) * 0.10; // 10% commission on ~10 days booking
-    });
-    return totalRevenue;
-  }); 
-  const [pendingUsers, setPendingUsers] = useState(
-    [...OWNERS, ...TENANTS, ...HOSTS, ...GUESTS].filter(u => u.status === 'pending').map(u => u.name)
-  );
-
-  // New states for admin analytics (mocked for visual completeness)
-  const [totalReviews, setTotalReviews] = useState(124);
-  const [avgRating, setAvgRating] = useState(4.8);
-  const [totalSaved, setTotalSaved] = useState(892);
+  const [usersCount, setUsersCount] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [totalProperties, setTotalProperties] = useState(0);
+  const [pendingUsers, setPendingUsers] = useState<string[]>([]);
+  const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
+  const [isLoadingModeration, setIsLoadingModeration] = useState(false);
 
   // Owner State
   const [ownerProperties, setOwnerProperties] = useState<any[]>([]);
@@ -102,6 +84,49 @@ export default function Dashboard() {
   }, [ownerProperties]);
 
   const [activeTab, setActiveTab] = useState("overview");
+
+  const fetchAdminStats = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminStats(true);
+    try {
+      const res = await fetch("/api/admin/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsersCount(data.totalUsers);
+        setRevenue(data.totalRevenue);
+        setTotalBookings(data.totalBookings);
+        setTotalProperties(data.totalProperties);
+      } else {
+        toast({ title: "Could not load admin stats", description: "Failed to fetch platform statistics.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load admin stats.", variant: "destructive" });
+    } finally {
+      setIsLoadingAdminStats(false);
+    }
+  }, [user, token, toast]);
+
+  const fetchModerationQueue = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingModeration(true);
+    try {
+      const res = await fetch("/api/admin/moderation", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setModerationQueue(data);
+      } else {
+        toast({ title: "Could not load moderation queue", description: "Failed to fetch pending properties.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load the moderation queue.", variant: "destructive" });
+    } finally {
+      setIsLoadingModeration(false);
+    }
+  }, [user, token, toast]);
 
   const fetchOwnerProperties = useCallback(async () => {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
@@ -174,65 +199,62 @@ export default function Dashboard() {
       fetchOwnerProperties();
       fetchBookings();
       fetchReceivedBookings();
+      if (user.role === 'admin') {
+        fetchAdminStats();
+        fetchModerationQueue();
+      }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchAdminStats, fetchModerationQueue]);
 
   if (isLoading || !user) {
     return null;
   }
 
   // Handlers for interactions
-  const handleApprove = (id: number) => {
-    // 1. Remove from pending queue
-    const updatedQueue = moderationQueue.filter(item => item.id !== id);
-    setModerationQueue(updatedQueue);
-    localStorage.setItem('pendingListings', JSON.stringify(updatedQueue));
-    
-    // 2. Add to active properties list
-    const approvedProperty = moderationQueue.find(item => item.id === id);
-    if (approvedProperty) {
-      const activePropertiesStr = localStorage.getItem('activeListings');
-      const activeProperties = activePropertiesStr ? JSON.parse(activePropertiesStr) : [];
-      
-      const newActiveProperty = {
-        id: `m_${approvedProperty.id}`, // Generate a string ID for the mock data system
-        ownerId: "o1", // Mock owner
-        title: approvedProperty.title,
-        type: approvedProperty.type.toLowerCase() === 'b&b' ? 'bnb' : 'rent', // Map type
-        price: 50000, // Mock price for newly approved
-        address: "Newly Approved Location",
-        specs: { beds: 2, baths: 1, sqft: 1000 },
-        image: approvedProperty.image,
-        isVerified: true,
-        tags: ["New"],
-        location: { lat: -1.292, lng: 36.821 }
-      };
-      
-      localStorage.setItem('activeListings', JSON.stringify([newActiveProperty, ...activeProperties]));
-      
-      // Update owner's active properties in dashboard view if they are the owner
-      if (user?.role === 'owner' || user?.role === 'host') {
-        setOwnerProperties(prev => [newActiveProperty as any, ...prev]);
+  const handleApprove = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/properties/${id}/verify`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast({ title: "Approval failed", description: "Could not approve this property.", variant: "destructive" });
+        return;
       }
+      setModerationQueue(prev => prev.filter(item => item.id !== id));
+      await fetchAdminStats();
+      toast({
+        title: "Listing Approved",
+        description: "Property is now live on the platform.",
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
     }
-    
-    toast({
-      title: "Listing Approved",
-      description: `Property is now live on the platform.`,
-      className: "bg-green-50 border-green-200 text-green-800",
-    });
   };
 
-  const handleReject = (id: number) => {
-    const updatedQueue = moderationQueue.filter(item => item.id !== id);
-    setModerationQueue(updatedQueue);
-    localStorage.setItem('pendingListings', JSON.stringify(updatedQueue));
-
-    toast({
-      title: "Listing Rejected",
-      description: `Property has been removed from queue.`,
-      variant: "destructive",
-    });
+  const handleReject = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/properties/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast({ title: "Rejection failed", description: "Could not remove this property.", variant: "destructive" });
+        return;
+      }
+      setModerationQueue(prev => prev.filter(item => item.id !== id));
+      await fetchAdminStats();
+      toast({
+        title: "Listing Rejected",
+        description: "Property has been removed.",
+        variant: "destructive",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    }
   };
 
   const handleResolveReport = (id: number) => {
@@ -836,6 +858,11 @@ export default function Dashboard() {
           {/* ADMIN DASHBOARD */}
           {user.role === 'admin' && (
             <TabsContent value="overview" className="space-y-6">
+              {isLoadingAdminStats ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading platform stats...
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-white border-l-4 border-l-yellow-500 shadow-sm cursor-pointer hover:bg-yellow-50/10 transition-colors" onClick={() => setActiveTab("overview")}>
                   <CardContent className="p-6">
@@ -854,9 +881,7 @@ export default function Dashboard() {
                       <Users className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="text-3xl font-bold">{usersCount.toLocaleString()}</div>
-                    <p className="text-xs text-green-600 flex items-center mt-1">
-                      <ArrowUpRight className="h-3 w-3 mr-1" /> +12 this week
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Registered on the platform</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-green-500 shadow-sm">
@@ -865,33 +890,32 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-muted-foreground">Platform Revenue</p>
                       <DollarSign className="h-4 w-4 text-green-600" />
                     </div>
-                    <div className="text-3xl font-bold">${revenue.toLocaleString()}</div>
-                    <p className="text-xs text-green-600 flex items-center mt-1">
-                      <ArrowUpRight className="h-3 w-3 mr-1" /> +8% growth
-                    </p>
+                    <div className="text-3xl font-bold">KES {revenue.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground mt-1">From non-cancelled bookings</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-purple-500 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm font-medium text-muted-foreground">Platform Reviews</p>
-                      <Star className="h-4 w-4 text-purple-600" />
+                      <p className="text-sm font-medium text-muted-foreground">Total Bookings</p>
+                      <Calendar className="h-4 w-4 text-purple-600" />
                     </div>
-                    <div className="text-3xl font-bold">{totalReviews}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Average rating: {avgRating} <Star className="inline h-3 w-3 text-yellow-400 fill-yellow-400" /></p>
+                    <div className="text-3xl font-bold">{totalBookings.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground mt-1">All-time reservations</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-red-500 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
-                      <p className="text-sm font-medium text-muted-foreground">Properties Saved</p>
-                      <Bookmark className="h-4 w-4 text-red-600" />
+                      <p className="text-sm font-medium text-muted-foreground">Total Properties</p>
+                      <Home className="h-4 w-4 text-red-600" />
                     </div>
-                    <div className="text-3xl font-bold">{totalSaved}</div>
-                    <p className="text-xs text-muted-foreground mt-1">By all tenants & guests</p>
+                    <div className="text-3xl font-bold">{totalProperties.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Listed on the platform</p>
                   </CardContent>
                 </Card>
               </div>
+              )}
 
               <div className="grid grid-cols-1 gap-6">
                 <Card>
@@ -905,7 +929,11 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent>
                      <div className="space-y-4">
-                       {moderationQueue.length > 0 ? (
+                       {isLoadingModeration ? (
+                         <div className="flex items-center justify-center py-12 text-muted-foreground">
+                           <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading moderation queue...
+                         </div>
+                       ) : moderationQueue.length > 0 ? (
                          moderationQueue.map(item => (
                            <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                              <div className="flex items-center gap-4">
@@ -914,7 +942,9 @@ export default function Dashboard() {
                                </div>
                                <div>
                                  <p className="font-bold text-sm">{item.title}</p>
-                                 <p className="text-xs text-muted-foreground">Submitted by {item.submittedBy} • {item.time}</p>
+                                 <p className="text-xs text-muted-foreground">
+                                   Submitted by {item.ownerName || "Unknown"} • {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ""}
+                                 </p>
                                  <Badge variant="outline" className="mt-1 text-[10px] h-4">{item.type}</Badge>
                                </div>
                              </div>
@@ -941,30 +971,31 @@ export default function Dashboard() {
                                        <div className="flex gap-2">
                                          <Badge>{item.type}</Badge>
                                          <Badge variant="outline" className="text-primary font-bold">
-                                            {item.type === 'rent' || item.type === 'bnb' ? '$' : '$'}{item.price?.toLocaleString() || 0}
+                                            KES {item.price?.toLocaleString() || 0}
                                          </Badge>
                                        </div>
                                        <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
                                          <div>
                                             <span className="text-muted-foreground block mb-1">Submitted By</span>
-                                            <span className="font-medium flex items-center gap-2"><div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">{item.submittedBy?.charAt(0) || 'U'}</div> {item.submittedBy}</span>
+                                            <span className="font-medium flex items-center gap-2">
+                                              <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                                                {item.ownerName?.charAt(0) || 'U'}
+                                              </div>
+                                              {item.ownerName || "Unknown"}
+                                            </span>
                                          </div>
                                          <div>
-                                            <span className="text-muted-foreground block mb-1">Time</span>
-                                            <span className="font-medium">{item.time}</span>
+                                            <span className="text-muted-foreground block mb-1">Submitted</span>
+                                            <span className="font-medium">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}</span>
                                          </div>
-                                         {item.specs && (
-                                           <>
-                                             <div>
-                                                <span className="text-muted-foreground block mb-1">Specs</span>
-                                                <span className="font-medium">{item.specs.beds} Beds • {item.specs.baths} Baths</span>
-                                             </div>
-                                             <div>
-                                                <span className="text-muted-foreground block mb-1">Size</span>
-                                                <span className="font-medium">{item.specs.sqft} sqft</span>
-                                             </div>
-                                           </>
-                                         )}
+                                         <div>
+                                            <span className="text-muted-foreground block mb-1">Specs</span>
+                                            <span className="font-medium">{item.beds} Beds • {item.baths} Baths</span>
+                                         </div>
+                                         <div>
+                                            <span className="text-muted-foreground block mb-1">Size</span>
+                                            <span className="font-medium">{item.sqft} sqft</span>
+                                         </div>
                                        </div>
                                        <div className="border-t pt-4">
                                           <span className="text-muted-foreground block text-sm mb-2">Description</span>
