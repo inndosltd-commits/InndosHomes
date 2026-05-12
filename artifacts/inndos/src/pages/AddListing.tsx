@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { Upload, Image as ImageIcon, Check, Camera, X, MapPin } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
 
@@ -64,11 +64,23 @@ function toApiType(raw: string): ApiPropertyType {
   return "rent";
 }
 
+function getEditId(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  if (searchParams.has("edit")) return searchParams.get("edit");
+  const hashParts = window.location.hash.split("?");
+  if (hashParts.length > 1) {
+    const hp = new URLSearchParams(hashParts[1]);
+    if (hp.has("edit")) return hp.get("edit");
+  }
+  return null;
+}
+
 export default function AddListing() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -86,16 +98,36 @@ export default function AddListing() {
   const [sqft, setSqft] = useState("");
   const [description, setDescription] = useState("");
 
-  // Check if we are editing an existing listing
-  const [isEditing] = useState(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.has("edit")) return true;
-    const hashParts = window.location.hash.split("?");
-    if (hashParts.length > 1) {
-      return new URLSearchParams(hashParts[1]).has("edit");
-    }
-    return false;
-  });
+  const editId = getEditId();
+  const isEditing = editId !== null;
+
+  // Fetch existing property data when in edit mode
+  useEffect(() => {
+    if (!editId || !token) return;
+    setIsLoadingProperty(true);
+    fetch(`/api/properties/${editId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Property not found");
+        return res.json();
+      })
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; description?: string }) => {
+        setTitle(prop.title ?? "");
+        setListingType(prop.type ?? "");
+        setPrice(prop.price != null ? String(prop.price) : "");
+        setAddress(prop.address ?? "");
+        setBeds(prop.beds != null ? String(prop.beds) : "");
+        setBaths(prop.baths != null ? String(prop.baths) : "");
+        setSqft(prop.sqft != null ? String(prop.sqft) : "");
+        setDescription(prop.description ?? "");
+        if (prop.image) setImages([prop.image]);
+      })
+      .catch(() => {
+        toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
+      })
+      .finally(() => setIsLoadingProperty(false));
+  }, [editId, token]);
 
   const handleCameraClick = () => {
     if (cameraInputRef.current) {
@@ -141,26 +173,31 @@ export default function AddListing() {
         beds: parseInt(beds, 10) || 0,
         baths: parseInt(baths, 10) || 0,
         sqft: parseInt(sqft, 10) || 0,
+        description: description || null,
         image: images[0] || "/images/modern_apartment_exterior.png",
         tags: [] as string[],
       };
-      const res = await fetch("/api/properties", {
-        method: "POST",
+
+      const url = isEditing ? `/api/properties/${editId}` : "/api/properties";
+      const method = isEditing ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         toast({
-          title: "Submission failed",
+          title: isEditing ? "Update failed" : "Submission failed",
           description: (data as { error?: string }).error || "Could not submit listing. Please try again.",
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: "Listing Submitted Successfully",
-        description: "Your property has been created and is now live.",
+        title: isEditing ? "Listing Updated" : "Listing Submitted Successfully",
+        description: isEditing ? "Your property has been updated." : "Your property has been created and is now live.",
       });
       setLocation("/dashboard");
     } catch {
@@ -169,6 +206,17 @@ export default function AddListing() {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoadingProperty) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading property details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">

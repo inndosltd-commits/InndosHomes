@@ -20,6 +20,7 @@ const PROPERTY_COLUMNS = {
   sqft: properties.sqft,
   guests: properties.guests,
   image: properties.image,
+  description: properties.description,
   isVerified: properties.isVerified,
   tags: properties.tags,
   lat: properties.lat,
@@ -88,6 +89,38 @@ router.post("/", async (req, res) => {
 
   const [prop] = await db.insert(properties).values(result.data).returning();
   res.status(201).json(prop);
+});
+
+router.patch("/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [prop] = await db.select().from(properties).where(eq(properties.id, req.params.id));
+
+  if (!prop) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  if (prop.ownerId !== userId) {
+    res.status(403).json({ error: "Not your property" });
+    return;
+  }
+
+  const updateSchema = insertPropertySchema.omit({ ownerId: true }).partial();
+  const result = updateSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
+    return;
+  }
+
+  const [updated] = await db
+    .update(properties)
+    .set(result.data)
+    .where(eq(properties.id, req.params.id))
+    .returning();
+
+  res.json(updated);
 });
 
 router.delete("/:id", async (req, res) => {
