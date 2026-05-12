@@ -1,5 +1,6 @@
 import { useCreateBooking, useGetProperty } from "@workspace/api-client-react";
 import { getListBookingsQueryKey } from "@workspace/api-client-react";
+import { getImageUrl } from "@/utils/imageUrl";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
@@ -148,7 +149,7 @@ export default function PropertyDetailScreen() {
       >
         <View style={styles.heroContainer}>
           <Image
-            source={{ uri: property.image }}
+            source={{ uri: getImageUrl(property.image) }}
             style={styles.heroImage}
             resizeMode="cover"
           />

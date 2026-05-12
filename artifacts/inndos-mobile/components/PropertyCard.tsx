@@ -1,5 +1,6 @@
 import type { Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
+import { getImageUrl } from "@/utils/imageUrl";
 import React from "react";
 import {
   Dimensions,
@@ -51,7 +52,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
     >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: property.image }}
+          source={{ uri: getImageUrl(property.image) }}
           style={styles.image}
           resizeMode="cover"
         />
