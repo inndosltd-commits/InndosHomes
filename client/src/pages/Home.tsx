@@ -60,11 +60,22 @@ export default function Home() {
               if (query) {
                 setFilteredProperties(PROPERTIES.filter(p => 
                   p.title.toLowerCase().includes(query) || 
-                  p.location.toLowerCase().includes(query) ||
+                  p.address.toLowerCase().includes(query) ||
                   p.type.toLowerCase().includes(query)
                 ));
               } else {
                 setFilteredProperties(PROPERTIES);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                // If they hit enter, select the first result if available
+                if (filteredProperties.length > 0 && searchQuery) {
+                  setSearchQuery(filteredProperties[0].location);
+                  setFilteredProperties([filteredProperties[0]]);
+                  setIsSearchFocused(false);
+                }
               }
             }}
             onFocus={() => setIsSearchFocused(true)}
@@ -81,7 +92,7 @@ export default function Home() {
                       key={property.id}
                       className="px-4 hover:bg-gray-50 cursor-pointer flex items-start gap-4 transition-colors group"
                       onClick={() => {
-                        setSearchQuery(property.location);
+                        setSearchQuery(property.address);
                         setFilteredProperties([property]);
                         setIsSearchFocused(false);
                       }}
@@ -90,7 +101,7 @@ export default function Home() {
                         <MapPin className="h-5 w-5 text-gray-400 group-hover:text-black transition-colors" />
                       </div>
                       <div className={`flex-1 min-w-0 py-4 ${index !== Math.min(filteredProperties.length, 5) - 1 ? 'border-b border-gray-100' : ''}`}>
-                        <div className="font-medium text-gray-900 text-base truncate">{property.location}</div>
+                        <div className="font-medium text-gray-900 text-base truncate">{property.address}</div>
                         <div className="text-sm text-gray-500 truncate mt-0.5">{property.title}</div>
                       </div>
                     </div>

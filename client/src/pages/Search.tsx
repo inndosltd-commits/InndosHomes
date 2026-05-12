@@ -202,7 +202,24 @@ export default function Search() {
           </div>
 
           <div>
-             <h3 className="font-bold mb-3">{t('search.amenities')}</h3>
+             
+            <div className="mb-6">
+              <h3 className="font-bold mb-3">Price Range</h3>
+              <div className="px-2">
+                <Slider 
+                  defaultValue={[0, 500000]} 
+                  max={1000000} 
+                  step={1000}
+                  onValueChange={(val) => setPriceRange(val)}
+                />
+                <div className="flex justify-between mt-2 text-sm text-gray-600">
+                  <span>KES {priceRange[0]?.toLocaleString()}</span>
+                  <span>KES {priceRange[1]?.toLocaleString()}{priceRange[1] === 1000000 ? '+' : ''}</span>
+                </div>
+              </div>
+            </div>
+            
+            <h3 className="font-bold mb-3">{t('search.amenities')}</h3>
              <div className="space-y-2">
                {["Parking", "Pool", "Gym", "Pet Friendly", "Wifi", "Balcony", "Garden", "Security"].map(a => (
                  <div key={a} className="flex items-center space-x-2">

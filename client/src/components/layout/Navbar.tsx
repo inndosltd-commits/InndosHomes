@@ -32,17 +32,35 @@ export function Navbar() {
 
         <div className="hidden lg:flex items-center gap-6 xl:gap-8">
           <Link href="/bnb">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'bnb') || location === '/bnb' ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
             </span>
           </Link>
           <div className="relative group cursor-pointer">
             <Link href="/search?type=rent">
-              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type')?.includes('rent')) ? 'text-primary' : 'text-muted-foreground'}`}>
                 {t('nav.rent')}
               </span>
             </Link>
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-2">
+            <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-2">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Apartments</div>
+              <Link href="/search?type=rent&filter=studio">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Studio / Bedsitter</div>
+              </Link>
+              <Link href="/search?type=rent&filter=bedrooms">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">By Bedrooms</div>
+              </Link>
+              <Link href="/search?type=rent&filter=penthouse">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Penthouse</div>
+              </Link>
+              <Link href="/search?type=rent&filter=own-compound">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Own Compound</div>
+              </Link>
+              <Link href="/search?type=rent&filter=condominium">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Condominiums</div>
+              </Link>
+              <div className="h-px bg-gray-100 my-1" />
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Commercial</div>
               <Link href="/search?type=rent-business">
                 <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Business Spaces</div>
               </Link>
@@ -58,20 +76,33 @@ export function Navbar() {
             </div>
           </div>
           <Link href="/search?type=hostel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hostel') || location === '/hostel' ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
             </span>
           </Link>
           <Link href="/search?type=hotel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hotel') || location === '/hotel' ? 'text-primary' : 'text-muted-foreground'}`}>
               {t('nav.hotels')}
             </span>
           </Link>
-          <Link href="/search?type=sale">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-              {t('nav.buy')}
-            </span>
-          </Link>
+          <div className="relative group cursor-pointer">
+            <Link href="/search?type=sale">
+              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'sale') || location === '/sale' ? 'text-primary' : 'text-muted-foreground'}`}>
+                {t('nav.buy')}
+              </span>
+            </Link>
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-2">
+              <Link href="/search?type=sale&category=apartments">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Apartments</div>
+              </Link>
+              <Link href="/search?type=sale&category=homes">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Homes</div>
+              </Link>
+              <Link href="/search?type=sale&category=lands">
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Lands</div>
+              </Link>
+            </div>
+          </div>
           {user && (
             <Link href="/dashboard">
               <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${location === '/dashboard' ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -167,13 +198,13 @@ export function Navbar() {
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                 <Link href="/bnb">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('bnb') ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'bnb') || location === '/bnb' ? 'text-primary' : 'text-muted-foreground'}`}>
                     {t('nav.bnb')}
                   </span>
                 </Link>
                 <div className="border-b border-gray-50 pb-2">
                   <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsRentExpanded(!isRentExpanded)}>
-                    <span className={`block text-lg font-medium transition-colors hover:text-primary ${location.includes('rent') ? 'text-primary' : 'text-muted-foreground'}`}>
+                    <span className={`block text-lg font-medium transition-colors hover:text-primary ${(location === '/search' && new URLSearchParams(window.location.search).get('type')?.includes('rent')) ? 'text-primary' : 'text-muted-foreground'}`}>
                       {t('nav.rent')}
                     </span>
                     <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isRentExpanded ? 'rotate-180' : ''}`} />
@@ -200,17 +231,17 @@ export function Navbar() {
                   )}
                 </div>
                 <Link href="/search?type=hostel">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hostel') ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hostel') || location === '/hostel' ? 'text-primary' : 'text-muted-foreground'}`}>
                     {t('nav.hostels')}
                   </span>
                 </Link>
                 <Link href="/search?type=hotel">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('hotel') ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hotel') || location === '/hotel' ? 'text-primary' : 'text-muted-foreground'}`}>
                     {t('nav.hotels')}
                   </span>
                 </Link>
                 <Link href="/search?type=sale">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${location.includes('sale') ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'sale') || location === '/sale' ? 'text-primary' : 'text-muted-foreground'}`}>
                     {t('nav.buy')}
                   </span>
                 </Link>

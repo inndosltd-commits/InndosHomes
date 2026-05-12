@@ -12,11 +12,45 @@ import { Upload, Image as ImageIcon, Check, Camera, X, MapPin } from "lucide-rea
 import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const AMENITIES = [
-  "WiFi", "Parking", "Swimming Pool", "Gym", "24/7 Security", 
-  "Backup Generator", "Borehole Water", "Elevator", "Balcony", 
-  "Garden", "Pet Friendly", "Furnished", "CCTV", "Electric Fence",
-  "DSQ", "Laundry Area", "Solar Water Heating"
+const UNIT_AMENITIES = [
+  { id: "instant_shower", label: "Instant shower" },
+  { id: "study_desk", label: "Study desk" },
+  { id: "safe", label: "Safe" },
+  { id: "babycot", label: "Baby court" },
+  { id: "housekeeping", label: "Daily housekeeping" },
+  { id: "private_chef", label: "Private chef (additional)" },
+  { id: "hairdryer", label: "Hair dryer" },
+  { id: "ironbox", label: "Iron box" },
+  { id: "wifi", label: "WiFi" },
+  { id: "laundry", label: "Laundry area" },
+  { id: "balcony", label: "Balcony" },
+  { id: "ac", label: "Air conditioner" },
+  { id: "smoker_alert", label: "Smoker alerts" },
+  { id: "fridge", label: "Fridge" },
+  { id: "microwave", label: "Microwave" },
+  { id: "dishwasher", label: "Dishwasher" },
+  { id: "coffee", label: "Coffee maker/kettle" },
+  { id: "smart_tv", label: "Smart TV" },
+  { id: "smoking_allowed", label: "Smoking allowed" },
+  { id: "no_smoking", label: "Smoking not allowed" },
+  { id: "self_locking", label: "Self locking/keylocker" }
+];
+
+const PREMISE_AMENITIES = [
+  { id: "gym", label: "Gym" },
+  { id: "borewater", label: "Borehole water" },
+  { id: "garden", label: "Garden" },
+  { id: "cctv", label: "CCTV" },
+  { id: "parking", label: "Parking" },
+  { id: "security", label: "24/7 security" },
+  { id: "elevator", label: "Elevator" },
+  { id: "electric_fence", label: "Electric fence" },
+  { id: "solar", label: "Solar water heating" },
+  { id: "pool", label: "Swimming pool" },
+  { id: "smoking_area", label: "Smoking area" },
+  { id: "generator", label: "Backup generator" },
+  { id: "pet_friendly", label: "Pet friendly" },
+  { id: "dsq", label: "DSQ" }
 ];
 
 export default function AddListing() {

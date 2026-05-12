@@ -121,7 +121,7 @@ export default function Login() {
                 <TabsTrigger value="admin" className="text-xs px-1">Admin</TabsTrigger>
               </TabsList>
 
-              {["tenant", "owner", "host", "guest", "admin"].map((role) => (
+              {["owner", "host", "admin"].map((role) => (
                 <TabsContent key={role} value={role}>
                   <div className="space-y-4" key={isSignUp ? "signup" : "login"}>
                     {isSignUp && (
