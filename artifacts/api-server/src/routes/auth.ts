@@ -8,7 +8,10 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "inndos-dev-secret-2024";
+const JWT_SECRET = process.env["JWT_SECRET"];
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required.");
+}
 
 export function signToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
