@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
+import { PropertyMapView } from "@/components/PropertyMapView";
 import { Feather } from "@expo/vector-icons";
 
 const FILTER_TYPES = [
@@ -35,6 +36,7 @@ export default function BrowseScreen() {
   const [activeType, setActiveType] = useState<ListPropertiesParams["type"]>(undefined);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   const { data: properties, isLoading, error, refetch } = useListProperties({
     type: activeType,
@@ -64,8 +66,18 @@ export default function BrowseScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>INNDOS</Text>
-        <Pressable onPress={() => router.push("/property/search")} style={styles.headerIcon}>
-          <Feather name="map" size={22} color={colors.foreground} />
+        <Pressable
+          onPress={() => setShowMap((v) => !v)}
+          style={[
+            styles.headerIcon,
+            showMap && { backgroundColor: colors.primary, borderRadius: 8 },
+          ]}
+        >
+          <Feather
+            name={showMap ? "list" : "map"}
+            size={22}
+            color={showMap ? colors.primaryForeground : colors.foreground}
+          />
         </Pressable>
       </View>
 
@@ -134,6 +146,8 @@ export default function BrowseScreen() {
             <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
           </Pressable>
         </View>
+      ) : showMap ? (
+        <PropertyMapView properties={properties ?? []} />
       ) : (
         <FlatList
           data={properties ?? []}
