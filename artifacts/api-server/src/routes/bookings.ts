@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties, insertBookingSchema } from "@workspace/db";
+import { bookings, properties, users, insertBookingSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
 
 const router = Router();
@@ -28,6 +29,35 @@ router.get("/", async (req, res) => {
     .from(bookings)
     .leftJoin(properties, eq(bookings.propertyId, properties.id))
     .where(eq(bookings.userId, userId));
+
+  res.json(rows);
+});
+
+router.get("/received", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const guests = alias(users, "guests");
+
+  const rows = await db
+    .select({
+      id: bookings.id,
+      propertyId: bookings.propertyId,
+      propertyTitle: properties.title,
+      propertyAddress: properties.address,
+      propertyImage: properties.image,
+      guestId: bookings.userId,
+      guestName: guests.name,
+      status: bookings.status,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      totalPrice: bookings.totalPrice,
+      createdAt: bookings.createdAt,
+    })
+    .from(bookings)
+    .innerJoin(properties, eq(bookings.propertyId, properties.id))
+    .leftJoin(guests, eq(bookings.userId, guests.id))
+    .where(eq(properties.ownerId, userId));
 
   res.json(rows);
 });

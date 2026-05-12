@@ -60,6 +60,10 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
+  // Received bookings state (for owners/hosts)
+  const [receivedBookings, setReceivedBookings] = useState<any[]>([]);
+  const [isLoadingReceivedBookings, setIsLoadingReceivedBookings] = useState(false);
+
   // Keep pending properties from localStorage (local only, not yet persisted to API)
   const [pendingProperties] = useState<any[]>([]);
 
@@ -139,6 +143,26 @@ export default function Dashboard() {
     }
   }, [user, token, toast]);
 
+  const fetchReceivedBookings = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    setIsLoadingReceivedBookings(true);
+    try {
+      const res = await fetch("/api/bookings/received", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReceivedBookings(data);
+      } else {
+        toast({ title: "Could not load reservations", description: "Failed to fetch incoming bookings. Please refresh.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load reservations.", variant: "destructive" });
+    } finally {
+      setIsLoadingReceivedBookings(false);
+    }
+  }, [user, token, toast]);
+
   useEffect(() => {
     if (!isLoading && !user) {
       setLocation("/login");
@@ -149,8 +173,9 @@ export default function Dashboard() {
     if (user && token) {
       fetchOwnerProperties();
       fetchBookings();
+      fetchReceivedBookings();
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings]);
 
   if (isLoading || !user) {
     return null;
@@ -302,6 +327,11 @@ export default function Dashboard() {
               Listings
             </TabsTrigger>
           )}
+          {(user.role === 'owner' || user.role === 'host') && (
+            <TabsTrigger value="reservations" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Reservations
+            </TabsTrigger>
+          )}
           {user.role === 'admin' && (
             <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Properties
@@ -344,6 +374,11 @@ export default function Dashboard() {
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <FileText className="w-5 h-5 mr-3" /> My Listings
+                </TabsTrigger>
+            )}
+            {(user.role === 'owner' || user.role === 'host') && (
+                <TabsTrigger value="reservations" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Users className="w-5 h-5 mr-3" /> Reservations
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
@@ -668,6 +703,68 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="reservations" className="space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Incoming Bookings</h2>
+                    <p className="text-sm text-gray-500">Reservations made by guests on your properties</p>
+                  </div>
+                  <Badge variant="secondary" className="text-sm px-3 py-1">
+                    {receivedBookings.length} total
+                  </Badge>
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    {isLoadingReceivedBookings ? (
+                      <div className="flex items-center justify-center py-12 text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading reservations...
+                      </div>
+                    ) : receivedBookings.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                        <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <h3 className="text-lg font-medium text-gray-900">No bookings received yet</h3>
+                        <p className="mb-4">Reservations from guests will appear here once they book your properties.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {receivedBookings.map((b: any) => (
+                          <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                            {b.propertyImage && (
+                              <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
+                              <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="h-6 w-6 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 font-semibold text-xs shrink-0">
+                                  {b.guestName ? b.guestName.charAt(0).toUpperCase() : "G"}
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{b.guestName || "Guest"}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                                  {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {b.startDate && b.endDate && (
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                                </p>
+                              )}
+                              {b.totalPrice != null && (
+                                <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
