@@ -1,10 +1,10 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2 } from "lucide-react";
 import { PROPERTIES, OWNERS, TENANTS, ADMINS, HOSTS, GUESTS } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { user, isLoading, logout } = useAuth();
+  const { user, token, isLoading, logout } = useAuth();
   const { toast } = useToast();
 
   // --- REAL-TIME STATE ---
@@ -51,35 +51,17 @@ export default function Dashboard() {
   const [totalSaved, setTotalSaved] = useState(892);
 
   // Owner State
-  // Filter properties for the current logged-in owner
-  const [ownerProperties, setOwnerProperties] = useState(() => {
-    if (user?.role === 'owner' || user?.role === 'host') {
-      // Get approved properties from mock data
-      const baseProperties = PROPERTIES.filter(p => p.ownerId === user.id);
-      
-      // Get newly approved properties from local storage
-      const activeStr = localStorage.getItem('activeListings');
-      const activeProperties = activeStr ? JSON.parse(activeStr).filter((p: any) => p.ownerId === user.id) : [];
-      
-      return [...activeProperties, ...baseProperties];
-    }
-    return [];
-  });
+  const [ownerProperties, setOwnerProperties] = useState<any[]>([]);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
 
   const [deactivatedProperties, setDeactivatedProperties] = useState<string[]>([]);
 
-  // Get pending properties for this owner
-  const [pendingProperties, setPendingProperties] = useState(() => {
-    if (user?.role === 'owner' || user?.role === 'host') {
-      const saved = localStorage.getItem('pendingListings');
-      if (saved) {
-        const queue = JSON.parse(saved);
-        // We match by owner ID or name (since our mock queue used 'submittedBy' name initially)
-        return queue.filter((p: any) => p.ownerId === user.id || p.submittedBy === user.name);
-      }
-    }
-    return [];
-  });
+  // Bookings state (for tenants/guests)
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+
+  // Keep pending properties from localStorage (local only, not yet persisted to API)
+  const [pendingProperties] = useState<any[]>([]);
 
   // Calculate dynamic stats based on real properties
   const calculateStats = () => {
@@ -107,13 +89,68 @@ export default function Dashboard() {
   const [visits, setVisits] = useState(stats.visits);
   const [ownerRevenue, setOwnerRevenue] = useState(stats.revenue);
 
+  useEffect(() => {
+    const s = calculateStats();
+    setActiveInquiries(s.inquiries);
+    setVisits(s.visits);
+    setOwnerRevenue(s.revenue);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerProperties]);
+
   const [activeTab, setActiveTab] = useState("overview");
+
+  const fetchOwnerProperties = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    setIsLoadingProperties(true);
+    try {
+      const res = await fetch(`/api/properties?ownerId=${encodeURIComponent(user.id)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOwnerProperties(data);
+      } else {
+        toast({ title: "Could not load listings", description: "Failed to fetch your properties. Please refresh.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load your listings.", variant: "destructive" });
+    } finally {
+      setIsLoadingProperties(false);
+    }
+  }, [user, token, toast]);
+
+  const fetchBookings = useCallback(async () => {
+    if (!user || !token) return;
+    setIsLoadingBookings(true);
+    try {
+      const res = await fetch("/api/bookings", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data);
+      } else {
+        toast({ title: "Could not load bookings", description: "Failed to fetch your bookings. Please refresh.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load your bookings.", variant: "destructive" });
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  }, [user, token, toast]);
 
   useEffect(() => {
     if (!isLoading && !user) {
       setLocation("/login");
     }
   }, [user, isLoading, setLocation]);
+
+  useEffect(() => {
+    if (user && token) {
+      fetchOwnerProperties();
+      fetchBookings();
+    }
+  }, [user, token, fetchOwnerProperties, fetchBookings]);
 
   if (isLoading || !user) {
     return null;
@@ -190,12 +227,30 @@ export default function Dashboard() {
     });
   };
 
-  const handleDeleteProperty = (id: string) => {
-    setOwnerProperties(prev => prev.filter(p => p.id !== id));
-    toast({
-      title: "Property Removed",
-      description: "Listing deleted successfully.",
-    });
+  const handleDeleteProperty = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "Delete failed",
+          description: (data as { error?: string }).error || "Could not delete property.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setOwnerProperties(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: "Property Removed",
+        description: "Listing deleted successfully.",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    }
   };
 
   const handleTogglePropertyStatus = (id: string) => {
@@ -235,6 +290,9 @@ export default function Dashboard() {
           </TabsTrigger>
           <TabsTrigger value="messages" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Messages
+          </TabsTrigger>
+          <TabsTrigger value="bookings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Bookings
           </TabsTrigger>
           <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Analytics
@@ -276,6 +334,9 @@ export default function Dashboard() {
             </TabsTrigger>
             <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <MessageSquare className="w-5 h-5 mr-3" /> Messages
+            </TabsTrigger>
+            <TabsTrigger value="bookings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Calendar className="w-5 h-5 mr-3" /> Bookings
             </TabsTrigger>
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> Analytics
@@ -355,6 +416,64 @@ export default function Dashboard() {
                  <Button variant="outline" className="mt-6">Download Sample Report</Button>
                </CardContent>
              </Card>
+          </TabsContent>
+
+          {/* BOOKINGS TAB (Shared) */}
+          <TabsContent value="bookings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" /> My Bookings
+                </CardTitle>
+                <CardDescription>View and manage your property bookings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingBookings ? (
+                  <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading bookings...
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <h3 className="text-lg font-medium text-gray-900">No bookings yet</h3>
+                    <p className="mb-4">Your bookings will appear here once you make a reservation.</p>
+                    <Link href="/properties">
+                      <Button variant="outline">Browse Properties</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bookings.map((b: any) => (
+                      <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                        {b.propertyImage && (
+                          <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
+                          <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                              {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
+                            </Badge>
+                            {b.propertyType && <Badge variant="outline">{b.propertyType}</Badge>}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {b.startDate && b.endDate && (
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                            </p>
+                          )}
+                          {b.totalPrice != null && (
+                            <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* MESSAGES TAB (Shared) */}
@@ -474,6 +593,11 @@ export default function Dashboard() {
                     <CardDescription>Manage your active listings</CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {isLoadingProperties ? (
+                      <div className="flex items-center justify-center py-12 text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading your listings...
+                      </div>
+                    ) : (
                     <div className="space-y-4">
                       {ownerProperties.map(p => (
                         <div key={p.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group bg-white shadow-sm">
@@ -544,6 +668,7 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
