@@ -8,13 +8,16 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
@@ -39,6 +42,27 @@ function getPriceLabel(type: string, price: number): string {
   return formatted;
 }
 
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-KE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function daysBetween(a: Date, b: Date): number {
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -48,12 +72,38 @@ export default function PropertyDetailScreen() {
   const queryClient = useQueryClient();
   const isWeb = Platform.OS === "web";
 
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+  const [checkIn, setCheckIn] = useState<Date>(today);
   const [bookingNights, setBookingNights] = useState(1);
+  const [showCheckInPicker, setShowCheckInPicker] = useState(false);
+  const [showCheckOutPicker, setShowCheckOutPicker] = useState(false);
+
+  const checkOut = addDays(checkIn, bookingNights);
 
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
+
+  const handleCheckInChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === "android") setShowCheckInPicker(false);
+    if (!date) return;
+    const picked = new Date(date);
+    picked.setHours(0, 0, 0, 0);
+    if (picked < today) return;
+    setCheckIn(picked);
+  };
+
+  const handleCheckOutChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === "android") setShowCheckOutPicker(false);
+    if (!date) return;
+    const picked = new Date(date);
+    picked.setHours(0, 0, 0, 0);
+    const minOut = addDays(checkIn, 1);
+    if (picked <= checkIn) return;
+    setBookingNights(daysBetween(checkIn, picked));
+  };
+
+  const adjustNights = (delta: number) => {
+    setBookingNights((n) => Math.max(1, n + delta));
+  };
 
   const handleBook = () => {
     if (!user) {
@@ -64,15 +114,11 @@ export default function PropertyDetailScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const start = new Date();
-    const end = new Date();
-    end.setDate(end.getDate() + bookingNights);
-
     const totalPrice = property.price * bookingNights;
 
     Alert.alert(
       "Confirm Booking",
-      `Book "${property.title}" for ${bookingNights} night${bookingNights !== 1 ? "s" : ""}?\n\nTotal: KES ${totalPrice.toLocaleString()}`,
+      `Book "${property.title}"?\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -82,8 +128,8 @@ export default function PropertyDetailScreen() {
               {
                 data: {
                   propertyId: property.id,
-                  startDate: start.toISOString(),
-                  endDate: end.toISOString(),
+                  startDate: checkIn.toISOString(),
+                  endDate: checkOut.toISOString(),
                   totalPrice,
                 },
               },
@@ -91,7 +137,7 @@ export default function PropertyDetailScreen() {
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() });
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  Alert.alert("Booked!", "Your booking is confirmed.", [
+                  Alert.alert("Booked!", "Your booking has been submitted and is pending confirmation.", [
                     { text: "View Bookings", onPress: () => router.push("/(tabs)/bookings") },
                     { text: "OK" },
                   ]);
@@ -105,10 +151,6 @@ export default function PropertyDetailScreen() {
         },
       ]
     );
-  };
-
-  const adjustNights = (delta: number) => {
-    setBookingNights((n) => Math.max(1, n + delta));
   };
 
   const bottomPad = isWeb ? 34 : insets.bottom;
@@ -241,23 +283,114 @@ export default function PropertyDetailScreen() {
           )}
 
           {showBooking && isNightly && (
-            <View style={[styles.nightsSelector, { borderColor: colors.border }]}>
-              <Text style={[styles.nightsLabel, { color: colors.foreground }]}>Nights</Text>
-              <View style={styles.nightsControls}>
-                <Pressable
-                  style={[styles.nightsBtn, { borderColor: colors.border }]}
-                  onPress={() => adjustNights(-1)}
-                >
-                  <Feather name="minus" size={16} color={colors.foreground} />
-                </Pressable>
-                <Text style={[styles.nightsCount, { color: colors.foreground }]}>{bookingNights}</Text>
-                <Pressable
-                  style={[styles.nightsBtn, { borderColor: colors.border }]}
-                  onPress={() => adjustNights(1)}
-                >
-                  <Feather name="plus" size={16} color={colors.foreground} />
-                </Pressable>
+            <View style={[styles.bookingSection, { borderColor: colors.border }]}>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT DATES</Text>
+
+              <View style={styles.datePickerRow}>
+                <View style={styles.datePickerBlock}>
+                  <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
+                  {isWeb ? (
+                    <TextInput
+                      style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
+                      value={checkIn.toISOString().split("T")[0]}
+                      onChangeText={(val) => {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime()) && d >= today) setCheckIn(d);
+                      }}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.mutedForeground}
+                    />
+                  ) : (
+                    <Pressable
+                      style={[styles.datePickerBtn, { borderColor: colors.border }]}
+                      onPress={() => setShowCheckInPicker(true)}
+                    >
+                      <Feather name="calendar" size={14} color={colors.primary} />
+                      <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
+                        {formatDate(checkIn)}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                <Feather name="arrow-right" size={16} color={colors.mutedForeground} style={styles.dateArrow} />
+
+                <View style={styles.datePickerBlock}>
+                  <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
+                  {isWeb ? (
+                    <TextInput
+                      style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
+                      value={checkOut.toISOString().split("T")[0]}
+                      onChangeText={(val) => {
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime()) && d > checkIn) {
+                          setBookingNights(daysBetween(checkIn, d));
+                        }
+                      }}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.mutedForeground}
+                    />
+                  ) : (
+                    <Pressable
+                      style={[styles.datePickerBtn, { borderColor: colors.border }]}
+                      onPress={() => setShowCheckOutPicker(true)}
+                    >
+                      <Feather name="calendar" size={14} color={colors.primary} />
+                      <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
+                        {formatDate(checkOut)}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
               </View>
+
+              <View style={styles.nightsRow}>
+                <Text style={[styles.nightsLabel, { color: colors.foreground }]}>
+                  {bookingNights} night{bookingNights !== 1 ? "s" : ""}
+                </Text>
+                <View style={styles.nightsControls}>
+                  <Pressable
+                    style={[styles.nightsBtn, { borderColor: colors.border }]}
+                    onPress={() => adjustNights(-1)}
+                  >
+                    <Feather name="minus" size={16} color={colors.foreground} />
+                  </Pressable>
+                  <Text style={[styles.nightsCount, { color: colors.foreground }]}>{bookingNights}</Text>
+                  <Pressable
+                    style={[styles.nightsBtn, { borderColor: colors.border }]}
+                    onPress={() => adjustNights(1)}
+                  >
+                    <Feather name="plus" size={16} color={colors.foreground} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={[styles.priceSummary, { backgroundColor: colors.muted }]}>
+                <View style={styles.priceSummaryRow}>
+                  <Text style={[styles.priceSummaryLabel, { color: colors.mutedForeground }]}>
+                    KES {property.price.toLocaleString()} × {bookingNights} night{bookingNights !== 1 ? "s" : ""}
+                  </Text>
+                  <Text style={[styles.priceSummaryValue, { color: colors.foreground }]}>
+                    KES {totalPrice.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={[styles.priceDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.priceSummaryRow}>
+                  <Text style={[styles.priceTotalLabel, { color: colors.foreground }]}>Total</Text>
+                  <Text style={[styles.priceTotalValue, { color: colors.primary }]}>
+                    KES {totalPrice.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {showBooking && !isNightly && property.type === "rent" && (
+            <View style={[styles.rentSummary, { backgroundColor: colors.muted }]}>
+              <Feather name="info" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.rentSummaryText, { color: colors.mutedForeground }]}>
+                Monthly rate · KES {property.price.toLocaleString()}/mo
+              </Text>
             </View>
           )}
         </View>
@@ -287,6 +420,72 @@ export default function PropertyDetailScreen() {
             )}
           </Pressable>
         </View>
+      )}
+
+      {showCheckInPicker && Platform.OS === "ios" && (
+        <Modal transparent animationType="slide">
+          <View style={styles.iosPickerBackdrop}>
+            <Pressable style={styles.iosPickerOverlay} onPress={() => setShowCheckInPicker(false)} />
+            <View style={[styles.iosPickerSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+              <View style={styles.iosPickerHeader}>
+                <Text style={[styles.iosPickerTitle, { color: colors.foreground }]}>Check-in Date</Text>
+                <Pressable onPress={() => setShowCheckInPicker(false)}>
+                  <Text style={[styles.iosPickerDone, { color: colors.primary }]}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={checkIn}
+                mode="date"
+                display="spinner"
+                minimumDate={today}
+                onChange={handleCheckInChange}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showCheckInPicker && Platform.OS === "android" && (
+        <DateTimePicker
+          value={checkIn}
+          mode="date"
+          display="default"
+          minimumDate={today}
+          onChange={handleCheckInChange}
+        />
+      )}
+
+      {showCheckOutPicker && Platform.OS === "ios" && (
+        <Modal transparent animationType="slide">
+          <View style={styles.iosPickerBackdrop}>
+            <Pressable style={styles.iosPickerOverlay} onPress={() => setShowCheckOutPicker(false)} />
+            <View style={[styles.iosPickerSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+              <View style={styles.iosPickerHeader}>
+                <Text style={[styles.iosPickerTitle, { color: colors.foreground }]}>Check-out Date</Text>
+                <Pressable onPress={() => setShowCheckOutPicker(false)}>
+                  <Text style={[styles.iosPickerDone, { color: colors.primary }]}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={checkOut}
+                mode="date"
+                display="spinner"
+                minimumDate={addDays(checkIn, 1)}
+                onChange={handleCheckOutChange}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showCheckOutPicker && Platform.OS === "android" && (
+        <DateTimePicker
+          value={checkOut}
+          mode="date"
+          display="default"
+          minimumDate={addDays(checkIn, 1)}
+          onChange={handleCheckOutChange}
+        />
       )}
     </View>
   );
@@ -429,34 +628,112 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 13,
       fontFamily: "Outfit_400Regular",
     },
-    nightsSelector: {
+    bookingSection: {
+      borderWidth: 1,
+      padding: 16,
+      gap: 14,
+    },
+    datePickerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    datePickerBlock: {
+      flex: 1,
+      gap: 6,
+    },
+    datePickerLabel: {
+      fontSize: 10,
+      fontFamily: "Outfit_600SemiBold",
+      letterSpacing: 1,
+    },
+    datePickerBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+    },
+    datePickerValue: {
+      fontSize: 13,
+      fontFamily: "Outfit_500Medium",
+      flex: 1,
+    },
+    webDateInput: {
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      fontSize: 13,
+      fontFamily: "Outfit_500Medium",
+    },
+    dateArrow: {
+      marginTop: 20,
+    },
+    nightsRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      borderWidth: 1,
-      padding: 16,
     },
     nightsLabel: {
-      fontSize: 15,
+      fontSize: 14,
       fontFamily: "Outfit_500Medium",
     },
     nightsControls: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 16,
+      gap: 12,
     },
     nightsBtn: {
-      width: 36,
-      height: 36,
+      width: 32,
+      height: 32,
       borderWidth: 1,
       alignItems: "center",
       justifyContent: "center",
     },
     nightsCount: {
-      fontSize: 20,
+      fontSize: 18,
       fontFamily: "Outfit_700Bold",
-      minWidth: 30,
+      minWidth: 28,
       textAlign: "center",
+    },
+    priceSummary: {
+      padding: 14,
+      gap: 10,
+    },
+    priceSummaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    priceSummaryLabel: {
+      fontSize: 13,
+      fontFamily: "Outfit_400Regular",
+    },
+    priceSummaryValue: {
+      fontSize: 13,
+      fontFamily: "Outfit_500Medium",
+    },
+    priceDivider: {
+      height: 1,
+    },
+    priceTotalLabel: {
+      fontSize: 14,
+      fontFamily: "Outfit_700Bold",
+    },
+    priceTotalValue: {
+      fontSize: 16,
+      fontFamily: "Outfit_700Bold",
+    },
+    rentSummary: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      padding: 14,
+    },
+    rentSummaryText: {
+      fontSize: 13,
+      fontFamily: "Outfit_400Regular",
     },
     bookingBar: {
       position: "absolute",
@@ -501,6 +778,32 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     backBtnText: {
       fontSize: 14,
       fontFamily: "Outfit_500Medium",
+    },
+    iosPickerBackdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    iosPickerOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.4)",
+    },
+    iosPickerSheet: {
+      borderTopWidth: 1,
+    },
+    iosPickerHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    iosPickerTitle: {
+      fontSize: 16,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    iosPickerDone: {
+      fontSize: 16,
+      fontFamily: "Outfit_600SemiBold",
     },
   });
 }
