@@ -1,0 +1,26 @@
+kind = "mobile"
+previewPath = "/inndos-mobile/"
+title = "INNDOS Mobile"
+version = "1.0.0"
+id = "artifacts/inndos-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+name = "expo"
+paths = [ "/inndos-mobile/" ]
+localPort = 25756
+
+[services.development]
+run = "pnpm --filter @workspace/inndos-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/inndos-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/inndos-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "25756"
+BASE_PATH = "/inndos-mobile/"
