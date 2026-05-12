@@ -75,10 +75,11 @@ export const insertUserSchema = createInsertSchema(users)
     role: z.enum(["owner", "tenant", "admin", "host", "guest"]).optional(),
   });
 
-export const insertPropertySchema = createInsertSchema(properties).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertPropertySchema = createInsertSchema(properties)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    type: z.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({
   id: true,

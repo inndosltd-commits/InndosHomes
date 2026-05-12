@@ -142,8 +142,8 @@ export default function PropertyDetails() {
   const beds = property.beds ?? property.specs?.beds ?? 0;
   const baths = property.baths ?? property.specs?.baths ?? 0;
   const sqft = property.sqft ?? property.specs?.sqft ?? 0;
-  const lat = property.lat ? parseFloat(property.lat) : (property as any).location?.lat || -1.2921;
-  const lng = property.lng ? parseFloat(property.lng) : (property as any).location?.lng || 36.8219;
+  const lat = property.lat != null ? parseFloat(property.lat) : -1.2921;
+  const lng = property.lng != null ? parseFloat(property.lng) : 36.8219;
 
   const getTypeBadgeLabel = () => {
     switch (property.type) {

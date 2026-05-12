@@ -1,12 +1,12 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties } from "@workspace/db";
+import { bookings, properties, insertBookingSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyToken } from "./auth";
 
 const router = Router();
 
-function requireAuth(req: any, res: any): string | null {
+function requireAuth(req: Request, res: Response): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Not authenticated" });
@@ -50,16 +50,15 @@ router.post("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { propertyId, startDate, endDate, totalPrice } = req.body;
-  if (!propertyId || !startDate || !endDate || !totalPrice) {
-    res.status(400).json({ error: "Missing required fields" });
+  const result = insertBookingSchema.safeParse({ ...req.body, userId });
+  if (!result.success) {
+    res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
   }
 
-  const [prop] = await db
-    .select()
-    .from(properties)
-    .where(eq(properties.id, propertyId));
+  const { propertyId, startDate, endDate, totalPrice } = result.data;
+
+  const [prop] = await db.select().from(properties).where(eq(properties.id, propertyId));
   if (!prop) {
     res.status(404).json({ error: "Property not found" });
     return;
@@ -77,10 +76,7 @@ router.patch("/:id/cancel", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const [booking] = await db
-    .select()
-    .from(bookings)
-    .where(eq(bookings.id, req.params.id));
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, req.params.id));
 
   if (!booking) {
     res.status(404).json({ error: "Booking not found" });

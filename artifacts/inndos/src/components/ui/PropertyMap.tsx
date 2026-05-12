@@ -11,7 +11,7 @@ import type { ApiProperty } from "@/components/property/PropertyCard";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
-let DefaultIcon = L.icon({
+const DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
   iconSize: [25, 41],
@@ -45,6 +45,24 @@ interface PropertyMapProps {
   properties: ApiProperty[];
 }
 
+interface MappableProperty {
+  property: ApiProperty;
+  lat: number;
+  lng: number;
+}
+
+function parseMappableProperties(props: ApiProperty[]): MappableProperty[] {
+  return props.reduce<MappableProperty[]>((acc, property) => {
+    const latRaw = property.lat;
+    const lngRaw = property.lng;
+    if (latRaw == null || lngRaw == null) return acc;
+    const lat = typeof latRaw === "string" ? parseFloat(latRaw) : latRaw;
+    const lng = typeof lngRaw === "string" ? parseFloat(lngRaw) : lngRaw;
+    if (!isNaN(lat) && !isNaN(lng)) acc.push({ property, lat, lng });
+    return acc;
+  }, []);
+}
+
 function FlyToNairobi() {
   const map = useMap();
   useEffect(() => {
@@ -55,13 +73,8 @@ function FlyToNairobi() {
 
 export default function PropertyMap({ properties }: PropertyMapProps) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [mapReady, setMapReady] = useState(false);
 
-  const propertiesWithLocation = properties.filter((p) => {
-    const lat = p.lat ? parseFloat(p.lat as string) : (p as any).location?.lat;
-    const lng = p.lng ? parseFloat(p.lng as string) : (p as any).location?.lng;
-    return lat && lng && !isNaN(lat) && !isNaN(lng);
-  });
+  const mappable = parseMappableProperties(properties);
 
   const handleLocateMe = () => {
     if (navigator.geolocation) {
@@ -81,7 +94,6 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         zoom={11}
         className="w-full h-full z-0"
         zoomControl={false}
-        whenReady={() => setMapReady(true)}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -90,30 +102,25 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         <ZoomControl position="bottomright" />
         <FlyToNairobi />
 
-        {propertiesWithLocation.map((property) => {
-          const lat = property.lat ? parseFloat(property.lat as string) : (property as any).location?.lat;
-          const lng = property.lng ? parseFloat(property.lng as string) : (property as any).location?.lng;
-
-          return (
-            <Marker key={property.id} position={[lat, lng]} icon={houseIcon}>
-              <Popup>
-                <div className="w-48">
-                  <img src={property.image} alt={property.title} className="w-full h-24 object-cover rounded-t-md" />
-                  <div className="p-2">
-                    <p className="font-bold text-sm">{property.title}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> {property.address}
-                    </p>
-                    <p className="font-semibold text-sm mt-1">{formatCurrency(property.price)}</p>
-                    <Link href={`/property/${property.id}`}>
-                      <Button size="sm" className="w-full mt-2 h-7 text-xs">View Property</Button>
-                    </Link>
-                  </div>
+        {mappable.map(({ property, lat, lng }) => (
+          <Marker key={property.id} position={[lat, lng]} icon={houseIcon}>
+            <Popup>
+              <div className="w-48">
+                <img src={property.image} alt={property.title} className="w-full h-24 object-cover rounded-t-md" />
+                <div className="p-2">
+                  <p className="font-bold text-sm">{property.title}</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {property.address}
+                  </p>
+                  <p className="font-semibold text-sm mt-1">{formatCurrency(property.price)}</p>
+                  <Link href={`/property/${property.id}`}>
+                    <Button size="sm" className="w-full mt-2 h-7 text-xs">View Property</Button>
+                  </Link>
                 </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {userLocation && (
           <Marker position={userLocation} icon={myLocationIcon}>

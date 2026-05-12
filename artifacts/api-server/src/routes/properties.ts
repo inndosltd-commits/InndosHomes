@@ -1,39 +1,63 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { db } from "@workspace/db";
-import { properties, users } from "@workspace/db";
+import { properties, users, insertPropertySchema } from "@workspace/db";
 import { eq, and, ilike, or } from "drizzle-orm";
 import { verifyToken } from "./auth";
 
 const router = Router();
 
+type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
+
+function requireAuth(req: Request, res: Response): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Not authenticated" });
+    return null;
+  }
+  const payload = verifyToken(authHeader.slice(7));
+  if (!payload) {
+    res.status(401).json({ error: "Invalid token" });
+    return null;
+  }
+  return payload.userId;
+}
+
+const PROPERTY_COLUMNS = {
+  id: properties.id,
+  ownerId: properties.ownerId,
+  title: properties.title,
+  type: properties.type,
+  price: properties.price,
+  address: properties.address,
+  beds: properties.beds,
+  baths: properties.baths,
+  sqft: properties.sqft,
+  guests: properties.guests,
+  image: properties.image,
+  isVerified: properties.isVerified,
+  tags: properties.tags,
+  lat: properties.lat,
+  lng: properties.lng,
+  createdAt: properties.createdAt,
+  ownerName: users.name,
+} as const;
+
+const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];
+
+function isValidType(t: string): t is PropertyType {
+  return VALID_TYPES.includes(t as PropertyType);
+}
+
 router.get("/", async (req, res) => {
   const { type, search, ownerId } = req.query as Record<string, string>;
 
-  let query = db
-    .select({
-      id: properties.id,
-      ownerId: properties.ownerId,
-      title: properties.title,
-      type: properties.type,
-      price: properties.price,
-      address: properties.address,
-      beds: properties.beds,
-      baths: properties.baths,
-      sqft: properties.sqft,
-      guests: properties.guests,
-      image: properties.image,
-      isVerified: properties.isVerified,
-      tags: properties.tags,
-      lat: properties.lat,
-      lng: properties.lng,
-      createdAt: properties.createdAt,
-      ownerName: users.name,
-    })
+  const baseQuery = db
+    .select(PROPERTY_COLUMNS)
     .from(properties)
     .leftJoin(users, eq(properties.ownerId, users.id));
 
   const conditions = [];
-  if (type) conditions.push(eq(properties.type, type as any));
+  if (type && isValidType(type)) conditions.push(eq(properties.type, type));
   if (ownerId) conditions.push(eq(properties.ownerId, ownerId));
   if (search) {
     conditions.push(
@@ -45,33 +69,15 @@ router.get("/", async (req, res) => {
   }
 
   const rows = conditions.length > 0
-    ? await query.where(and(...conditions))
-    : await query;
+    ? await baseQuery.where(and(...conditions))
+    : await baseQuery;
 
   res.json(rows);
 });
 
 router.get("/:id", async (req, res) => {
   const [prop] = await db
-    .select({
-      id: properties.id,
-      ownerId: properties.ownerId,
-      title: properties.title,
-      type: properties.type,
-      price: properties.price,
-      address: properties.address,
-      beds: properties.beds,
-      baths: properties.baths,
-      sqft: properties.sqft,
-      guests: properties.guests,
-      image: properties.image,
-      isVerified: properties.isVerified,
-      tags: properties.tags,
-      lat: properties.lat,
-      lng: properties.lng,
-      createdAt: properties.createdAt,
-      ownerName: users.name,
-    })
+    .select(PROPERTY_COLUMNS)
     .from(properties)
     .leftJoin(users, eq(properties.ownerId, users.id))
     .where(eq(properties.id, req.params.id));
@@ -85,68 +91,31 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Not authenticated" });
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const result = insertPropertySchema.safeParse({ ...req.body, ownerId: userId });
+  if (!result.success) {
+    res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
   }
-  const payload = verifyToken(authHeader.slice(7));
-  if (!payload) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
 
-  const {
-    title, type, price, address, beds, baths, sqft,
-    guests, image, isVerified, tags, lat, lng,
-  } = req.body;
-
-  const [prop] = await db
-    .insert(properties)
-    .values({
-      ownerId: payload.userId,
-      title,
-      type,
-      price,
-      address,
-      beds: beds ?? 0,
-      baths: baths ?? 0,
-      sqft: sqft ?? 0,
-      guests,
-      image: image || "/images/modern_apartment_exterior.png",
-      isVerified: isVerified ?? false,
-      tags: tags ?? [],
-      lat,
-      lng,
-    })
-    .returning();
-
+  const [prop] = await db.insert(properties).values(result.data).returning();
   res.status(201).json(prop);
 });
 
 router.delete("/:id", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
-  const payload = verifyToken(authHeader.slice(7));
-  if (!payload) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
+  const userId = requireAuth(req, res);
+  if (!userId) return;
 
-  const [prop] = await db
-    .select()
-    .from(properties)
-    .where(eq(properties.id, req.params.id));
+  const [prop] = await db.select().from(properties).where(eq(properties.id, req.params.id));
 
   if (!prop) {
     res.status(404).json({ error: "Property not found" });
     return;
   }
 
-  if (prop.ownerId !== payload.userId) {
+  if (prop.ownerId !== userId) {
     res.status(403).json({ error: "Not your property" });
     return;
   }
