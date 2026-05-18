@@ -97,6 +97,13 @@ export default function AddListing() {
   const [baths, setBaths] = useState("");
   const [sqft, setSqft] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+
+  const toggleAmenity = (id: string) => {
+    setSelectedAmenities(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    );
+  };
 
   const editId = getEditId();
   const isEditing = editId !== null;
@@ -112,7 +119,7 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; description?: string }) => {
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; description?: string; tags?: string[] }) => {
         setTitle(prop.title ?? "");
         setListingType(prop.type ?? "");
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -122,6 +129,7 @@ export default function AddListing() {
         setSqft(prop.sqft != null ? String(prop.sqft) : "");
         setDescription(prop.description ?? "");
         if (prop.image) setImages([prop.image]);
+        if (prop.tags) setSelectedAmenities(prop.tags);
       })
       .catch(() => {
         toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
@@ -175,7 +183,7 @@ export default function AddListing() {
         sqft: parseInt(sqft, 10) || 0,
         description: description || null,
         image: images[0] || "/images/modern_apartment_exterior.png",
-        tags: [] as string[],
+        tags: selectedAmenities,
       };
 
       const url = isEditing ? `/api/properties/${editId}` : "/api/properties";
@@ -338,15 +346,48 @@ export default function AddListing() {
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label className="mb-2 block">Amenities</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {/* Unit Amenities */}
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Unit Amenities</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Features inside the individual unit/room</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
                       {UNIT_AMENITIES.map((item) => (
                         <div key={item.id} className="flex items-center space-x-2">
-                          <Checkbox id={`amenity-${item.id}`} />
+                          <Checkbox
+                            id={`amenity-${item.id}`}
+                            checked={selectedAmenities.includes(item.id)}
+                            onCheckedChange={() => toggleAmenity(item.id)}
+                          />
                           <label
                             htmlFor={`amenity-${item.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            className="text-sm leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {item.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Premise Amenities */}
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Premise Amenities</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Shared facilities available on the property</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
+                      {PREMISE_AMENITIES.map((item) => (
+                        <div key={item.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`amenity-${item.id}`}
+                            checked={selectedAmenities.includes(item.id)}
+                            onCheckedChange={() => toggleAmenity(item.id)}
+                          />
+                          <label
+                            htmlFor={`amenity-${item.id}`}
+                            className="text-sm leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
                             {item.label}
                           </label>
