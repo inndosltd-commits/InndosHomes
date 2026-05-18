@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     localStorage.removeItem("inndos_token");
-    setLocation("/");
+    window.location.replace("/");
   };
 
   return (
