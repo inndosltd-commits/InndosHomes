@@ -918,7 +918,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">My Properties</h2>
-                    <p className="text-sm text-gray-500">Manage your active listings</p>
+                    <p className="text-sm text-gray-500">Manage your listings — pending ones await admin approval</p>
                   </div>
                   <Link href="/add-listing">
                     <Button className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-4 h-10">
@@ -940,33 +940,45 @@ export default function Dashboard() {
                     ) : (
                     <div className="space-y-4">
                       {ownerProperties.map(p => (
-                        <div key={p.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group bg-white shadow-sm">
-                          <img src={p.image} className="h-20 w-20 object-cover rounded-md" alt={p.title} />
+                        <div key={p.id} className={`flex items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${p.isVerified === false ? 'bg-yellow-50/40 border-yellow-200 hover:bg-yellow-50' : 'bg-white hover:bg-gray-50'}`}>
+                          <img src={p.image} className={`h-20 w-20 object-cover rounded-md ${p.isVerified === false ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
                           <div className="flex-1 min-w-0">
-                            <Link href={`/property/${p.id}`}>
-                              <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
-                            </Link>
+                            {p.isVerified !== false ? (
+                              <Link href={`/property/${p.id}`}>
+                                <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
+                              </Link>
+                            ) : (
+                              <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
+                            )}
                             <p className="text-sm text-muted-foreground truncate">{p.address}</p>
-                            <div className="flex gap-2 mt-2">
-                              <Badge variant={p.status === 'inactive' ? 'secondary' : 'outline'} className={p.status === 'inactive' ? 'bg-gray-200' : ''}>
-                                {p.status === 'inactive' ? 'Inactive' : 'Active'}
-                              </Badge>
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              {p.isVerified === false ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">Pending Approval</Badge>
+                              ) : (
+                                <Badge variant={p.status === 'inactive' ? 'secondary' : 'outline'} className={p.status === 'inactive' ? 'bg-gray-200' : ''}>
+                                  {p.status === 'inactive' ? 'Inactive' : 'Active'}
+                                </Badge>
+                              )}
                               <Badge variant="secondary">{p.type}</Badge>
                             </div>
                           </div>
                           <div className="text-right flex flex-col items-end gap-2">
                             <div className="font-bold text-xl text-primary">${p.price.toLocaleString()}</div>
                             <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant={p.status === 'inactive' ? 'default' : 'outline'} 
-                                onClick={() => handleTogglePropertyStatus(p.id)}
-                              >
-                                {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
-                              </Button>
-                              <Link href={p.type === 'bnb' ? `/add-bnb?edit=${p.id}` : `/add-listing?edit=${p.id}`}>
-                                <Button size="sm" variant="outline" className="gap-2">Edit</Button>
-                              </Link>
+                              {p.isVerified !== false && (
+                                <Button 
+                                  size="sm" 
+                                  variant={p.status === 'inactive' ? 'default' : 'outline'} 
+                                  onClick={() => handleTogglePropertyStatus(p.id)}
+                                >
+                                  {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                                </Button>
+                              )}
+                              {p.isVerified !== false && (
+                                <Link href={p.type === 'bnb' ? `/add-bnb?edit=${p.id}` : `/add-listing?edit=${p.id}`}>
+                                  <Button size="sm" variant="outline" className="gap-2">Edit</Button>
+                                </Link>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="destructive" 

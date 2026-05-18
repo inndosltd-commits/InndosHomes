@@ -276,8 +276,10 @@ export default function AddListing() {
       }
       setFieldErrors({});
       toast({
-        title: isEditing ? "Listing Updated" : "Listing Submitted Successfully",
-        description: isEditing ? "Your property has been updated." : "Your property has been created and is now live.",
+        title: isEditing ? "Listing Updated" : "Listing Submitted for Review",
+        description: isEditing
+          ? "Your property has been updated."
+          : "Your listing has been submitted and is pending admin approval before it goes live.",
       });
       setLocation("/dashboard");
     } catch {
