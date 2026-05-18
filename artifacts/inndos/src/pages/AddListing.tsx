@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2 } from "lucide-react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
@@ -100,6 +100,8 @@ export default function AddListing() {
   const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const dragSrcRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const { uploadFile } = useUpload({
     onError: (err: Error) => {
@@ -201,6 +203,38 @@ export default function AddListing() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragStart = (index: number) => {
+    dragSrcRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const srcIndex = dragSrcRef.current;
+    if (srcIndex === null || srcIndex === dropIndex) {
+      dragSrcRef.current = null;
+      setDragOverIndex(null);
+      return;
+    }
+    setImages(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(srcIndex, 1);
+      next.splice(dropIndex, 0, moved);
+      return next;
+    });
+    dragSrcRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragSrcRef.current = null;
+    setDragOverIndex(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -677,13 +711,30 @@ export default function AddListing() {
                   </div>
                   
                   {(images.length > 0 || uploadingCount > 0) ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <>
+                      {images.length > 1 && (
+                        <p className="text-xs text-muted-foreground mb-2 mt-4 flex items-center gap-1">
+                          <GripVertical className="h-3 w-3" /> Drag photos to reorder. The first photo is the cover image.
+                        </p>
+                      )}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
                       {images.map((img, i) => (
-                        <div key={img} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                          <img src={getImageDisplayUrl(img)} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                          {i === 0 && (
-                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Cover</span>
-                          )}
+                        <div
+                          key={img}
+                          draggable
+                          onDragStart={() => handleDragStart(i)}
+                          onDragOver={e => handleDragOver(e, i)}
+                          onDrop={e => handleDrop(e, i)}
+                          onDragEnd={handleDragEnd}
+                          className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden group cursor-grab active:cursor-grabbing transition-all ${dragOverIndex === i && dragSrcRef.current !== i ? "ring-2 ring-primary scale-105" : ""}`}
+                        >
+                          <img src={getImageDisplayUrl(img)} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
+                          {i === 0 ? (
+                            <span className="absolute bottom-1 left-1 bg-primary text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">Cover</span>
+                          ) : null}
+                          <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded p-0.5">
+                            <GripVertical className="h-3 w-3 text-white" />
+                          </div>
                           <button 
                             type="button"
                             onClick={() => removeImage(i)}
@@ -700,6 +751,7 @@ export default function AddListing() {
                         </div>
                       ))}
                     </div>
+                    </>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 opacity-50">
                       {[1, 2, 3, 4].map(i => (
