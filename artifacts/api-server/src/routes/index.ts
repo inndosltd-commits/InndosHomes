@@ -7,6 +7,7 @@ import adminRouter from "./admin";
 import storageRouter from "./storage";
 import notificationsRouter from "./notifications";
 import favoritesRouter from "./favorites";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use("/admin", adminRouter);
 router.use(storageRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/favorites", favoritesRouter);
+router.use("/subscriptions", subscriptionsRouter);
 
 export default router;

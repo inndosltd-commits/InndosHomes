@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2 } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,18 @@ export default function Dashboard() {
     .sort((a: any, z: any) => new Date(a.startDate).getTime() - new Date(z.startDate).getTime())[0];
 
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Subscription state
+  const [subscription, setSubscription] = useState<{
+    plan: string; status: string; billingCycle: string; billingMonths: number;
+    amountPaid: number; startDate: string; endDate: string;
+    listingCount: number; listingLimit: number;
+  } | null>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [upgradeDialogPlan, setUpgradeDialogPlan] = useState<"silver" | "gold" | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
+  const [customMonths, setCustomMonths] = useState(3);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const fetchAdminStats = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
@@ -246,6 +258,76 @@ export default function Dashboard() {
     }
   }, [user, token, unreadBookingCount]);
 
+  const fetchSubscription = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    setIsLoadingSubscription(true);
+    try {
+      const res = await fetch("/api/subscriptions/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data);
+      }
+    } catch {
+      // non-critical, subscription tab will show loading state
+    } finally {
+      setIsLoadingSubscription(false);
+    }
+  }, [user, token]);
+
+  const handleSubscriptionUpgrade = async () => {
+    if (!upgradeDialogPlan || !token) return;
+    setIsUpgrading(true);
+    try {
+      const res = await fetch("/api/subscriptions/upgrade", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: upgradeDialogPlan,
+          billingCycle,
+          months: customMonths,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Upgrade failed", description: data.error || "Could not upgrade plan.", variant: "destructive" });
+        return;
+      }
+      await fetchSubscription();
+      setUpgradeDialogPlan(null);
+      toast({
+        title: "Plan Activated!",
+        description: data.message || "Your subscription has been upgraded.",
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  const handleDowngradeToFree = async () => {
+    if (!token) return;
+    setIsUpgrading(true);
+    try {
+      const res = await fetch("/api/subscriptions/upgrade", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "standard" }),
+      });
+      if (res.ok) {
+        await fetchSubscription();
+        toast({ title: "Downgraded to Standard", description: "Your plan has been set back to Free." });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     if (tab === "reservations") {
@@ -265,6 +347,7 @@ export default function Dashboard() {
       fetchBookings();
       fetchReceivedBookings();
       fetchUnreadBookingCount();
+      fetchSubscription();
       if (user.role === 'admin') {
         fetchAdminStats();
         fetchModerationQueue();
@@ -272,7 +355,7 @@ export default function Dashboard() {
         fetchAdminProperties();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties]);
 
   if (isLoading || !user) {
     return null;
@@ -566,6 +649,11 @@ export default function Dashboard() {
             Analytics
           </TabsTrigger>
           {(user.role === 'owner' || user.role === 'host') && (
+            <TabsTrigger value="subscription" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Subscription
+            </TabsTrigger>
+          )}
+          {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="listings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Listings
             </TabsTrigger>
@@ -624,6 +712,11 @@ export default function Dashboard() {
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> Analytics
             </TabsTrigger>
+            {(user.role === 'owner' || user.role === 'host') && (
+                <TabsTrigger value="subscription" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Crown className="w-5 h-5 mr-3" /> Subscription
+                </TabsTrigger>
+            )}
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <FileText className="w-5 h-5 mr-3" /> My Listings
@@ -1782,6 +1875,259 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Subscription Tab */}
+      {(user.role === 'owner' || user.role === 'host') && (
+        <TabsContent value="subscription" className="space-y-6 mt-0">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Subscription</h1>
+              <p className="text-gray-500 text-sm">Manage your listing plan and billing</p>
+            </div>
+          </div>
+
+          {/* Current Plan Banner */}
+          {isLoadingSubscription ? (
+            <Card className="border-2 border-zinc-200">
+              <CardContent className="py-8 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+              </CardContent>
+            </Card>
+          ) : subscription && (
+            <Card className={`border-2 ${subscription.plan === 'gold' ? 'border-yellow-400 bg-yellow-50' : subscription.plan === 'silver' ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
+              <CardContent className="py-5 px-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {subscription.plan === 'gold' ? <Crown className="h-7 w-7 text-yellow-500" /> : subscription.plan === 'silver' ? <Zap className="h-7 w-7 text-zinc-500" /> : <Gift className="h-7 w-7 text-zinc-400" />}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold capitalize">{subscription.plan} Plan</span>
+                        <Badge className={subscription.plan === 'gold' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : subscription.plan === 'silver' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
+                          {subscription.status}
+                        </Badge>
+                      </div>
+                      {subscription.plan !== 'standard' && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Valid until {subscription.endDate} · {subscription.billingCycle === 'custom' ? `${subscription.billingMonths} months` : subscription.billingCycle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-gray-700">
+                      {subscription.listingCount} / {subscription.listingLimit === Infinity ? '∞' : subscription.listingLimit} listings used
+                    </div>
+                    <div className="w-40 bg-gray-200 rounded-full h-2 mt-1.5">
+                      <div
+                        className={`h-2 rounded-full ${subscription.plan === 'gold' ? 'bg-yellow-400' : subscription.plan === 'silver' ? 'bg-zinc-500' : 'bg-zinc-800'}`}
+                        style={{ width: subscription.listingLimit === Infinity ? `${Math.min((subscription.listingCount / 10) * 100, 100)}%` : `${Math.min((subscription.listingCount / subscription.listingLimit) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {subscription.plan !== 'standard' && (
+                  <div className="mt-4 pt-3 border-t border-black/10">
+                    <button
+                      onClick={handleDowngradeToFree}
+                      disabled={isUpgrading}
+                      className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
+                    >
+                      Downgrade to Standard (Free)
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Plan Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Standard */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'standard' ? 'border-zinc-800 ring-2 ring-zinc-800 ring-offset-2' : 'border-zinc-200'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gift className="h-5 w-5 text-zinc-400" />
+                  <CardTitle className="text-base font-bold">Standard</CardTitle>
+                  {subscription?.plan === 'standard' && <Badge className="ml-auto text-[10px] bg-zinc-800 text-white">Current</Badge>}
+                </div>
+                <CardDescription className="text-2xl font-black text-zinc-900">Free</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-1 gap-4">
+                <ul className="space-y-2 text-sm text-gray-600 flex-1">
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 3 property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Basic analytics</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Priority support</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
+                </ul>
+                <Button variant="outline" disabled className="w-full mt-auto">
+                  {subscription?.plan === 'standard' ? 'Active Plan' : 'Free Tier'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Silver */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'silver' ? 'border-zinc-500 ring-2 ring-zinc-500 ring-offset-2' : 'border-zinc-200'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="h-5 w-5 text-zinc-500" />
+                  <CardTitle className="text-base font-bold">Silver</CardTitle>
+                  {subscription?.plan === 'silver' && <Badge className="ml-auto text-[10px] bg-zinc-500 text-white">Current</Badge>}
+                </div>
+                <CardDescription>
+                  <span className="text-2xl font-black text-zinc-900">KES 200</span>
+                  <span className="text-gray-400 text-sm"> / month</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-1 gap-4">
+                <ul className="space-y-2 text-sm text-gray-600 flex-1">
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 7 property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
+                </ul>
+                <Button
+                  className="w-full mt-auto bg-zinc-800 hover:bg-zinc-700 text-white"
+                  onClick={() => { setUpgradeDialogPlan("silver"); setBillingCycle("monthly"); setCustomMonths(3); }}
+                  disabled={subscription?.plan === 'silver'}
+                >
+                  {subscription?.plan === 'silver' ? 'Active Plan' : subscription?.plan === 'gold' ? 'Downgrade to Silver' : 'Upgrade to Silver'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Gold */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'gold' ? 'border-yellow-400 ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50' : 'border-yellow-300'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Crown className="h-5 w-5 text-yellow-500" />
+                  <CardTitle className="text-base font-bold">Gold</CardTitle>
+                  <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-300">Best Value</Badge>
+                  {subscription?.plan === 'gold' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
+                </div>
+                <CardDescription>
+                  <span className="text-2xl font-black text-zinc-900">KES 300</span>
+                  <span className="text-gray-400 text-sm"> / month</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-1 gap-4">
+                <ul className="space-y-2 text-sm text-gray-600 flex-1">
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Featured listings</li>
+                </ul>
+                <Button
+                  className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"
+                  onClick={() => { setUpgradeDialogPlan("gold"); setBillingCycle("monthly"); setCustomMonths(3); }}
+                  disabled={subscription?.plan === 'gold'}
+                >
+                  {subscription?.plan === 'gold' ? 'Active Plan' : 'Upgrade to Gold'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Upgrade Dialog */}
+          <Dialog open={!!upgradeDialogPlan} onOpenChange={(open) => { if (!open) setUpgradeDialogPlan(null); }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {upgradeDialogPlan === 'gold' ? <Crown className="h-5 w-5 text-yellow-500" /> : <Zap className="h-5 w-5 text-zinc-500" />}
+                  Activate {upgradeDialogPlan === 'gold' ? 'Gold' : 'Silver'} Plan
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-5 py-2">
+                <p className="text-sm text-muted-foreground">
+                  {upgradeDialogPlan === 'gold' ? 'KES 300/month · Unlimited listings · All features' : 'KES 200/month · Up to 7 listings · Priority support'}
+                </p>
+
+                {/* Billing cycle selector */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Billing Period</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['monthly', 'yearly', 'custom'] as const).map((cycle) => (
+                      <button
+                        key={cycle}
+                        onClick={() => setBillingCycle(cycle)}
+                        className={`py-2 px-3 rounded-lg border text-sm font-medium transition-colors capitalize ${billingCycle === cycle ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}
+                      >
+                        {cycle === 'yearly' ? 'Yearly' : cycle === 'monthly' ? 'Monthly' : 'Custom'}
+                      </button>
+                    ))}
+                  </div>
+                  {billingCycle === 'yearly' && (
+                    <p className="text-xs text-green-600 font-medium">Save KES {upgradeDialogPlan === 'gold' ? '24' : '16'} with yearly billing!</p>
+                  )}
+                </div>
+
+                {/* Custom months input */}
+                {billingCycle === 'custom' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Number of Months</label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setCustomMonths(m => Math.max(1, m - 1))}
+                        className="h-8 w-8 rounded-full border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none"
+                      >−</button>
+                      <span className="w-10 text-center font-bold text-lg">{customMonths}</span>
+                      <button
+                        onClick={() => setCustomMonths(m => Math.min(24, m + 1))}
+                        className="h-8 w-8 rounded-full border border-zinc-300 flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none"
+                      >+</button>
+                      <span className="text-sm text-gray-500">months</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Price summary */}
+                <div className="bg-gray-50 rounded-lg p-4 border space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Rate</span>
+                    <span className="font-medium">KES {upgradeDialogPlan === 'gold' ? 300 : 200}/month</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Duration</span>
+                    <span className="font-medium">
+                      {billingCycle === 'monthly' ? '1 month' : billingCycle === 'yearly' ? '12 months' : `${customMonths} months`}
+                    </span>
+                  </div>
+                  {billingCycle === 'yearly' && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Yearly discount</span>
+                      <span>− KES {upgradeDialogPlan === 'gold' ? 24 : 16}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-base pt-1 border-t">
+                    <span>Total</span>
+                    <span>
+                      KES {(() => {
+                        const base = upgradeDialogPlan === 'gold' ? 300 : 200;
+                        const months = billingCycle === 'monthly' ? 1 : billingCycle === 'yearly' ? 12 : customMonths;
+                        const discount = billingCycle === 'yearly' ? (upgradeDialogPlan === 'gold' ? 24 : 16) : 0;
+                        return (base * months - discount).toLocaleString();
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setUpgradeDialogPlan(null)}>Cancel</Button>
+                <Button
+                  className={upgradeDialogPlan === 'gold' ? 'bg-yellow-500 hover:bg-yellow-400 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}
+                  onClick={handleSubscriptionUpgrade}
+                  disabled={isUpgrading}
+                >
+                  {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Activate Plan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+      )}
         </div>
       </div>
 

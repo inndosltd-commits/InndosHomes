@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, bookings, insertPropertySchema } from "@workspace/db";
-import { eq, and, ilike, or, inArray } from "drizzle-orm";
+import { eq, and, ilike, or, inArray, count } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
+import { getActiveSubscription, getPlanLimit } from "./subscriptions";
 
 const router = Router();
 
@@ -145,6 +146,25 @@ router.post("/", async (req, res) => {
   if (!caller || !allowedRoles.includes(caller.role)) {
     res.status(403).json({ error: "Only owners and hosts can create property listings" });
     return;
+  }
+
+  if (caller.role !== "admin") {
+    const sub = await getActiveSubscription(userId);
+    const plan = sub?.plan ?? "standard";
+    const limit = getPlanLimit(plan);
+    const [{ listingCount }] = await db
+      .select({ listingCount: count() })
+      .from(properties)
+      .where(eq(properties.ownerId, userId));
+    if (Number(listingCount) >= limit) {
+      res.status(403).json({
+        error: `Your ${plan} plan allows a maximum of ${limit} listing${limit === 1 ? "" : "s"}. Please upgrade your subscription to add more.`,
+        code: "SUBSCRIPTION_LIMIT",
+        plan,
+        limit,
+      });
+      return;
+    }
   }
 
   const { isVerified: _ignored, ...body } = req.body;

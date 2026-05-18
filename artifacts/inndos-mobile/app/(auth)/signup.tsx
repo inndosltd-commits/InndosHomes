@@ -18,7 +18,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 
 const ROLES: { label: string; value: string }[] = [
-  { label: "Tenant / Guest", value: "tenant" },
   { label: "Property Owner", value: "owner" },
   { label: "Host (BnB / Hotel)", value: "host" },
 ];
@@ -33,7 +32,7 @@ export default function SignupScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("tenant");
+  const [role, setRole] = useState("owner");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
