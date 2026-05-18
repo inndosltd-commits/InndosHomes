@@ -173,7 +173,10 @@ export default function BookingsScreen() {
             const imageUrl = getImageUrl(coverImage);
 
             return (
-              <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Pressable
+                style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push(`/booking/${item.id}` as never)}
+              >
                 {imageUrl ? (
                   <Image
                     source={{ uri: imageUrl }}
@@ -239,13 +242,16 @@ export default function BookingsScreen() {
                 {status !== "cancelled" && (
                   <Pressable
                     style={[styles.cancelBtn, { borderColor: colors.border }]}
-                    onPress={() => handleCancel(item.id)}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      handleCancel(item.id);
+                    }}
                     disabled={isCancelling}
                   >
                     <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Cancel</Text>
                   </Pressable>
                 )}
-              </View>
+              </Pressable>
             );
           }}
         />
