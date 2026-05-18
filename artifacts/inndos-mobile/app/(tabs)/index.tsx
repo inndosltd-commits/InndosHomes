@@ -1,7 +1,7 @@
 import { useListProperties } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyMapView } from "@/components/PropertyMapView";
+import { PriceRangeSlider } from "@/components/PriceRangeSlider";
 import { Feather } from "@expo/vector-icons";
 
 const FILTER_TYPES = [
@@ -38,10 +39,33 @@ export default function BrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
+  const [priceLow, setPriceLow] = useState<number | undefined>(undefined);
+  const [priceHigh, setPriceHigh] = useState<number | undefined>(undefined);
+
   const { data: properties, isLoading, error, refetch } = useListProperties({
     type: activeType,
     search: debouncedSearch || undefined,
   });
+
+  const priceBounds = useMemo<{ min: number; max: number }>(() => {
+    if (!properties || properties.length === 0) return { min: 0, max: 0 };
+    const prices = properties.map((p: Property) => p.price);
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }, [properties]);
+
+  useEffect(() => {
+    if (priceBounds.min === 0 && priceBounds.max === 0) return;
+    setPriceLow(priceBounds.min);
+    setPriceHigh(priceBounds.max);
+  }, [priceBounds.min, priceBounds.max]);
+
+  const filteredProperties = useMemo<Property[]>(() => {
+    if (!properties) return [];
+    const lo = priceLow ?? priceBounds.min;
+    const hi = priceHigh ?? priceBounds.max;
+    if (lo <= priceBounds.min && hi >= priceBounds.max) return properties;
+    return properties.filter((p: Property) => p.price >= lo && p.price <= hi);
+  }, [properties, priceLow, priceHigh, priceBounds]);
 
   const handleSearch = (text: string) => {
     setSearch(text);
@@ -57,10 +81,22 @@ export default function BrowseScreen() {
     setRefreshing(false);
   };
 
+  const handleTypeChange = (type: ListPropertiesParams["type"]) => {
+    setActiveType(type);
+    setPriceLow(undefined);
+    setPriceHigh(undefined);
+  };
+
   const isWeb = Platform.OS === "web";
   const topPadding = isWeb ? 67 : insets.top;
 
   const styles = getStyles(colors);
+
+  const showPriceSlider =
+    showMap &&
+    priceBounds.min < priceBounds.max &&
+    priceLow !== undefined &&
+    priceHigh !== undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -116,7 +152,7 @@ export default function BrowseScreen() {
                     borderColor: isActive ? colors.primary : colors.border,
                   },
                 ]}
-                onPress={() => setActiveType(item.value)}
+                onPress={() => handleTypeChange(item.value)}
               >
                 <Text
                   style={[
@@ -131,6 +167,21 @@ export default function BrowseScreen() {
           }}
         />
       </View>
+
+      {showPriceSlider && (
+        <PriceRangeSlider
+          min={priceBounds.min}
+          max={priceBounds.max}
+          low={priceLow!}
+          high={priceHigh!}
+          onLowChange={setPriceLow}
+          onHighChange={setPriceHigh}
+          onReset={() => {
+            setPriceLow(priceBounds.min);
+            setPriceHigh(priceBounds.max);
+          }}
+        />
+      )}
 
       {isLoading ? (
         <View style={styles.center}>
@@ -147,7 +198,7 @@ export default function BrowseScreen() {
           </Pressable>
         </View>
       ) : showMap ? (
-        <PropertyMapView properties={properties ?? []} />
+        <PropertyMapView properties={filteredProperties} />
       ) : (
         <FlatList
           data={properties ?? []}
@@ -164,7 +215,7 @@ export default function BrowseScreen() {
               tintColor={colors.primary}
             />
           }
-          scrollEnabled={!!properties && properties.length > 0}
+          scrollEnabled={!!filteredProperties && filteredProperties.length > 0}
           ListEmptyComponent={
             <View style={styles.center}>
               <Feather name="home" size={40} color={colors.mutedForeground} />
