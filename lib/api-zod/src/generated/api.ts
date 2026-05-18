@@ -274,6 +274,7 @@ export const ListBookingsResponseItem = zod.object({
   propertyTitle: zod.string().nullish(),
   propertyAddress: zod.string().nullish(),
   propertyImage: zod.string().nullish(),
+  propertyImages: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
 });
 export const ListBookingsResponse = zod.array(ListBookingsResponseItem);
@@ -307,5 +308,6 @@ export const CancelBookingResponse = zod.object({
   propertyTitle: zod.string().nullish(),
   propertyAddress: zod.string().nullish(),
   propertyImage: zod.string().nullish(),
+  propertyImages: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
 });

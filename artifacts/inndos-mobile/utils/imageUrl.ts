@@ -9,8 +9,11 @@ export function getImageUrl(imagePath: string | null | undefined): string {
   if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
     return imagePath;
   }
-  if (_baseUrl && imagePath.startsWith("/")) {
-    return `${_baseUrl}${imagePath}`;
+  const resolved = imagePath.startsWith("/objects/")
+    ? `/api/storage${imagePath}`
+    : imagePath;
+  if (_baseUrl && resolved.startsWith("/")) {
+    return `${_baseUrl}${resolved}`;
   }
-  return imagePath;
+  return resolved;
 }

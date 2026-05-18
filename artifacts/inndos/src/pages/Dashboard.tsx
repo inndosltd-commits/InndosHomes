@@ -14,6 +14,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function resolvePropertyImageUrl(path: string | null | undefined): string {
+  if (!path) return "/images/modern_apartment_exterior.png";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("/objects/")) return `/api/storage${path}`;
+  return path;
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user, token, isLoading, logout } = useAuth();
@@ -889,11 +896,12 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {bookings.map((b: any) => (
+                      {bookings.map((b: any) => {
+                        const rawCover = (b.propertyImages && b.propertyImages.length > 0) ? b.propertyImages[0] : (b.propertyImage || null);
+                        const coverPhoto = resolvePropertyImageUrl(rawCover);
+                        return (
                         <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                          {b.propertyImage && (
-                            <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
-                          )}
+                          <img src={coverPhoto} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/modern_apartment_exterior.png"; }} />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
                             <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
@@ -915,7 +923,8 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   )}
                 </CardContent>
@@ -1207,11 +1216,12 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {receivedBookings.map((b: any) => (
+                        {receivedBookings.map((b: any) => {
+                        const rawCover = (b.propertyImages && b.propertyImages.length > 0) ? b.propertyImages[0] : (b.propertyImage || null);
+                        const coverPhoto = resolvePropertyImageUrl(rawCover);
+                        return (
                           <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                            {b.propertyImage && (
-                              <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
-                            )}
+                            <img src={coverPhoto} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/modern_apartment_exterior.png"; }} />
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
                               <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
@@ -1261,7 +1271,8 @@ export default function Dashboard() {
                               )}
                             </div>
                           </div>
-                        ))}
+                        );
+                        })}
                       </div>
                     )}
                   </CardContent>

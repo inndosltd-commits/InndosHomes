@@ -166,6 +166,7 @@ export interface Booking {
   propertyTitle?: string | null;
   propertyAddress?: string | null;
   propertyImage?: string | null;
+  propertyImages?: string[] | null;
   propertyType?: string | null;
 }
 

@@ -24,6 +24,7 @@ router.get("/", async (req, res) => {
       propertyTitle: properties.title,
       propertyAddress: properties.address,
       propertyImage: properties.image,
+      propertyImages: properties.images,
       propertyType: properties.type,
     })
     .from(bookings)
@@ -46,6 +47,7 @@ router.get("/received", async (req, res) => {
       propertyTitle: properties.title,
       propertyAddress: properties.address,
       propertyImage: properties.image,
+      propertyImages: properties.images,
       guestId: bookings.userId,
       guestName: guests.name,
       status: bookings.status,

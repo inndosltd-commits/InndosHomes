@@ -169,7 +169,8 @@ export default function BookingsScreen() {
               year: "numeric",
             });
 
-            const imageUrl = getImageUrl(item.propertyImage);
+            const coverImage = (item.propertyImages && item.propertyImages.length > 0) ? item.propertyImages[0] : item.propertyImage;
+            const imageUrl = getImageUrl(coverImage);
 
             return (
               <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
