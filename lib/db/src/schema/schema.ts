@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   decimal,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -93,16 +94,20 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const favorites = pgTable("favorites", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .notNull()
-    .references(() => users.id),
-  propertyId: varchar("property_id")
-    .notNull()
-    .references(() => properties.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id),
+    propertyId: varchar("property_id")
+      .notNull()
+      .references(() => properties.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("favorites_user_property_idx").on(table.userId, table.propertyId)],
+);
 
 export type Favorite = typeof favorites.$inferSelect;
 export type InsertFavorite = typeof favorites.$inferInsert;
