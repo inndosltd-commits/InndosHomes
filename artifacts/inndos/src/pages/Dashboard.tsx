@@ -70,7 +70,7 @@ export default function Dashboard() {
 
   // Real stats derived from actual received bookings
   const receivedBookingsCount = receivedBookings.length;
-  const receivedRevenue = receivedBookings.reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
+  const receivedRevenue = receivedBookings.filter((b: any) => b.status === 'confirmed').reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
   const today = new Date().toDateString();
   const todayCheckIns = receivedBookings.filter((b: any) => b.startDate && new Date(b.startDate).toDateString() === today);
   const nextCheckIn = receivedBookings
@@ -1115,7 +1115,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-2xl font-bold">KES {isLoadingReceivedBookings ? '—' : receivedRevenue.toLocaleString()}</div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {receivedBookingsCount > 0 ? 'From confirmed bookings' : 'No revenue yet'}
+                        From confirmed bookings only
                       </p>
                     </CardContent>
                   </Card>
