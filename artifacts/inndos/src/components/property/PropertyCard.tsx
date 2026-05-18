@@ -23,6 +23,7 @@ export interface ApiProperty {
   images?: string[];
   lat?: string | null;
   lng?: string | null;
+  description?: string | null;
   createdAt?: string;
   ownerName?: string | null;
   description?: string | null;

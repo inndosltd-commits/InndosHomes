@@ -326,10 +326,12 @@ export default function PropertyDetails() {
             </div>
 
             <div className="space-y-8">
-              <section>
-                <h2 className="text-xl font-bold mb-4">{t("prop.description")}</h2>
-                <p className="text-gray-600 leading-relaxed">{t("prop.dummy_desc")}</p>
-              </section>
+              {property.description && (
+                <section>
+                  <h2 className="text-xl font-bold mb-4">{t("prop.description")}</h2>
+                  <p className="text-gray-600 leading-relaxed">{property.description}</p>
+                </section>
+              )}
 
               <section>
                 <h2 className="text-xl font-bold mb-4">{t("prop.amenities")}</h2>

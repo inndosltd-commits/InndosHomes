@@ -95,6 +95,7 @@ export interface Property {
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
+  description?: string | null;
   ownerName?: string | null;
 }
 
@@ -121,6 +122,7 @@ export interface CreatePropertyInput {
   image?: string;
   images?: string[];
   tags?: string[];
+  description?: string | null;
   lat?: string;
   lng?: string;
 }

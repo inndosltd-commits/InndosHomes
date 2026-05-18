@@ -25,5 +25,6 @@ export interface Property {
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
+  description?: string | null;
   ownerName?: string | null;
 }

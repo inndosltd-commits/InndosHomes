@@ -19,6 +19,7 @@ export interface CreatePropertyInput {
   image?: string;
   images?: string[];
   tags?: string[];
+  description?: string | null;
   lat?: string;
   lng?: string;
 }

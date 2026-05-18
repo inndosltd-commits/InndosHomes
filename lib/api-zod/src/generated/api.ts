@@ -86,6 +86,7 @@ export const ListPropertiesResponseItem = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 export const ListPropertiesResponse = zod.array(ListPropertiesResponseItem);
@@ -105,6 +106,7 @@ export const CreatePropertyBody = zod.object({
   image: zod.string().optional(),
   images: zod.array(zod.string()).optional(),
   tags: zod.array(zod.string()).optional(),
+  description: zod.string().nullish(),
   lat: zod.string().optional(),
   lng: zod.string().optional(),
 });
@@ -134,6 +136,7 @@ export const GetPropertyResponse = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 
@@ -204,6 +207,7 @@ export const ListFavoritesResponseItem = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 export const ListFavoritesResponse = zod.array(ListFavoritesResponseItem);

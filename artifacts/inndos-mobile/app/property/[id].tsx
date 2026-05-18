@@ -313,6 +313,13 @@ export default function PropertyDetailScreen() {
             )}
           </View>
 
+          {property.description ? (
+            <View style={styles.descriptionSection}>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>ABOUT THIS PLACE</Text>
+              <Text style={[styles.descriptionText, { color: colors.foreground }]}>{property.description}</Text>
+            </View>
+          ) : null}
+
           {property.ownerName && (
             <View style={[styles.ownerCard, { backgroundColor: colors.muted }]}>
               <View style={[styles.ownerAvatar, { backgroundColor: colors.primary }]}>
@@ -683,6 +690,14 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontFamily: "Outfit_600SemiBold",
       letterSpacing: 1.5,
       marginBottom: 10,
+    },
+    descriptionSection: {
+      gap: 4,
+    },
+    descriptionText: {
+      fontSize: 15,
+      fontFamily: "Outfit_400Regular",
+      lineHeight: 24,
     },
     tagsRow: {
       flexDirection: "row",

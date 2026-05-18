@@ -530,6 +530,9 @@ components:
           nullable: true
         createdAt:
           type: string
+        description:
+          type: string
+          nullable: true
         ownerName:
           type: string
           nullable: true
@@ -577,6 +580,9 @@ components:
           type: array
           items:
             type: string
+        description:
+          type: string
+          nullable: true
         lat:
           type: string
         lng:
