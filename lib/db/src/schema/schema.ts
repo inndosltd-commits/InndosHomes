@@ -81,6 +81,12 @@ export const insertPropertySchema = createInsertSchema(properties)
   .omit({ id: true, createdAt: true })
   .extend({
     type: z.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+    title: z.string().min(1, "Title is required"),
+    address: z.string().min(1, "Address is required"),
+    price: z.number().int().positive("Price must be greater than 0"),
+    beds: z.number().int().min(0, "Bedrooms cannot be negative"),
+    baths: z.number().int().min(0, "Bathrooms cannot be negative"),
+    sqft: z.number().int().min(0, "Square footage cannot be negative"),
   });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({

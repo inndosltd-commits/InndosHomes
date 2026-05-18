@@ -137,6 +137,7 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
+  const sentKeys = new Set(Object.keys(req.body));
   const { isVerified: _ignored, ...body } = req.body;
   const imageList: string[] | undefined = Array.isArray(body.images) ? body.images : undefined;
   const patchBody = {
@@ -150,9 +151,33 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
+  const updatePayload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(result.data)) {
+    if (!sentKeys.has(key) || value === undefined) continue;
+    const currentValue = prop[key as keyof typeof prop];
+    const changed = Array.isArray(value)
+      ? JSON.stringify(value) !== JSON.stringify(currentValue)
+      : value !== currentValue;
+    if (changed) {
+      updatePayload[key] = value;
+    }
+  }
+
+  if (imageList !== undefined && 'images' in updatePayload) {
+    const derivedImage = imageList[0] || prop.image || "/images/modern_apartment_exterior.png";
+    if (derivedImage !== prop.image) {
+      updatePayload.image = derivedImage;
+    }
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    res.json(prop);
+    return;
+  }
+
   const [updated] = await db
     .update(properties)
-    .set(result.data)
+    .set(updatePayload)
     .where(eq(properties.id, req.params.id))
     .returning();
 

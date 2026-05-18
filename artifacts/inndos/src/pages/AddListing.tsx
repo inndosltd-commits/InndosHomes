@@ -93,6 +93,7 @@ export default function AddListing() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProperty, setIsLoadingProperty] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
@@ -212,16 +213,36 @@ export default function AddListing() {
       toast({ title: "Upload in progress", description: "Please wait for all photos to finish uploading.", variant: "destructive" });
       return;
     }
+
+    const parsedPrice = parseInt(price, 10);
+    const parsedBeds = parseInt(beds, 10);
+    const parsedBaths = parseInt(baths, 10);
+    const parsedSqft = parseInt(sqft, 10);
+
+    const clientErrors: Record<string, string[]> = {};
+    if (!title.trim()) clientErrors.title = ["Title is required"];
+    if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
+    if (!address.trim() && !searchQuery.trim()) clientErrors.address = ["Address is required"];
+    if (!isNaN(parsedBeds) && parsedBeds < 0) clientErrors.beds = ["Bedrooms cannot be negative"];
+    if (!isNaN(parsedBaths) && parsedBaths < 0) clientErrors.baths = ["Bathrooms cannot be negative"];
+
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      toast({ title: "Please fix the errors below", variant: "destructive" });
+      return;
+    }
+
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
       const body = {
         title,
         type: toApiType(listingType),
-        price: parseInt(price, 10),
+        price: parsedPrice,
         address: address || searchQuery,
-        beds: parseInt(beds, 10) || 0,
-        baths: parseInt(baths, 10) || 0,
-        sqft: parseInt(sqft, 10) || 0,
+        beds: isNaN(parsedBeds) ? 0 : parsedBeds,
+        baths: isNaN(parsedBaths) ? 0 : parsedBaths,
+        sqft: isNaN(parsedSqft) ? 0 : parsedSqft,
         description: description || null,
         images,
         tags: selectedAmenities,
@@ -236,14 +257,24 @@ export default function AddListing() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast({
-          title: isEditing ? "Update failed" : "Submission failed",
-          description: (data as { error?: string }).error || "Could not submit listing. Please try again.",
-          variant: "destructive",
-        });
+        const data = await res.json().catch(() => ({})) as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
+        if (data.details?.fieldErrors && Object.keys(data.details.fieldErrors).length > 0) {
+          setFieldErrors(data.details.fieldErrors);
+          toast({
+            title: isEditing ? "Update failed" : "Submission failed",
+            description: "Please fix the highlighted errors below.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: isEditing ? "Update failed" : "Submission failed",
+            description: data.error || "Could not submit listing. Please try again.",
+            variant: "destructive",
+          });
+        }
         return;
       }
+      setFieldErrors({});
       toast({
         title: isEditing ? "Listing Updated" : "Listing Submitted Successfully",
         description: isEditing ? "Your property has been updated." : "Your property has been created and is now live.",
@@ -288,7 +319,8 @@ export default function AddListing() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">Property Title</Label>
-                    <Input id="title" placeholder="e.g. Modern Apartment in Westlands" value={title} onChange={e => setTitle(e.target.value)} required />
+                    <Input id="title" placeholder="e.g. Modern Apartment in Westlands" value={title} onChange={e => { setTitle(e.target.value); setFieldErrors(prev => ({ ...prev, title: [] })); }} required className={fieldErrors.title?.length ? "border-red-500" : ""} />
+                    {fieldErrors.title?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,7 +345,8 @@ export default function AddListing() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="price">Price (KES)</Label>
-                      <Input id="price" type="number" placeholder="e.g. 85000" value={price} onChange={e => setPrice(e.target.value)} required />
+                      <Input id="price" type="number" placeholder="e.g. 85000" value={price} onChange={e => { setPrice(e.target.value); setFieldErrors(prev => ({ ...prev, price: [] })); }} required className={fieldErrors.price?.length ? "border-red-500" : ""} />
+                      {fieldErrors.price?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                   </div>
 
@@ -336,7 +369,8 @@ export default function AddListing() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Full Address</Label>
-                    <Input id="address" placeholder="e.g. 123 Peponi Road, Westlands, Nairobi" value={address} onChange={e => setAddress(e.target.value)} required />
+                    <Input id="address" placeholder="e.g. 123 Peponi Road, Westlands, Nairobi" value={address} onChange={e => { setAddress(e.target.value); setFieldErrors(prev => ({ ...prev, address: [] })); }} required className={fieldErrors.address?.length ? "border-red-500" : ""} />
+                    {fieldErrors.address?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                   </div>
 
                   <div className="space-y-2">
@@ -375,15 +409,18 @@ export default function AddListing() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="beds">Bedrooms</Label>
-                      <Input id="beds" type="number" min="0" value={beds} onChange={e => setBeds(e.target.value)} required />
+                      <Input id="beds" type="number" min="0" value={beds} onChange={e => { setBeds(e.target.value); setFieldErrors(prev => ({ ...prev, beds: [] })); }} required className={fieldErrors.beds?.length ? "border-red-500" : ""} />
+                      {fieldErrors.beds?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="baths">Bathrooms</Label>
-                      <Input id="baths" type="number" min="0" value={baths} onChange={e => setBaths(e.target.value)} required />
+                      <Input id="baths" type="number" min="0" value={baths} onChange={e => { setBaths(e.target.value); setFieldErrors(prev => ({ ...prev, baths: [] })); }} required className={fieldErrors.baths?.length ? "border-red-500" : ""} />
+                      {fieldErrors.baths?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="sqft">Square Ft</Label>
-                      <Input id="sqft" type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} />
+                      <Input id="sqft" type="number" min="0" value={sqft} onChange={e => { setSqft(e.target.value); setFieldErrors(prev => ({ ...prev, sqft: [] })); }} className={fieldErrors.sqft?.length ? "border-red-500" : ""} />
+                      {fieldErrors.sqft?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                   </div>
                   
