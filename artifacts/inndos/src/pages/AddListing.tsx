@@ -268,8 +268,9 @@ export default function AddListing() {
                     </div>
                   </div>
 
+                  {listingType === 'hostel' && (
                   <div className="space-y-2">
-                    <Label htmlFor="payment_term">Payment Term (For Hostels/Rentals)</Label>
+                    <Label htmlFor="payment_term">Payment Term</Label>
                     <Select>
                       <SelectTrigger>
                         <SelectValue placeholder="Select payment term" />
@@ -280,8 +281,9 @@ export default function AddListing() {
                         <SelectItem value="yearly">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Select the required payment term so students/tenants know as they book.</p>
+                    <p className="text-xs text-muted-foreground">Select the required payment term so students know when they book.</p>
                   </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Full Address</Label>
