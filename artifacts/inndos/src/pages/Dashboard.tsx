@@ -2,7 +2,6 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2 } from "lucide-react";
-import { PROPERTIES } from "@/lib/mockData";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +32,9 @@ export default function Dashboard() {
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
+  const [adminProperties, setAdminProperties] = useState<any[]>([]);
+  const [isLoadingAdminProperties, setIsLoadingAdminProperties] = useState(false);
+  const [adminPropertyActionLoading, setAdminPropertyActionLoading] = useState<Record<string, boolean>>({});
 
   const pendingUsers = adminUsers.filter((u: any) => u.status === "pending");
 
@@ -127,6 +129,26 @@ export default function Dashboard() {
       toast({ title: "Network error", description: "Could not reach the server to load the moderation queue.", variant: "destructive" });
     } finally {
       setIsLoadingModeration(false);
+    }
+  }, [user, token, toast]);
+
+  const fetchAdminProperties = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminProperties(true);
+    try {
+      const res = await fetch("/api/properties", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminProperties(data);
+      } else {
+        toast({ title: "Could not load properties", description: "Failed to fetch platform listings.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load properties.", variant: "destructive" });
+    } finally {
+      setIsLoadingAdminProperties(false);
     }
   }, [user, token, toast]);
 
@@ -244,9 +266,10 @@ export default function Dashboard() {
         fetchAdminStats();
         fetchModerationQueue();
         fetchAdminUsers();
+        fetchAdminProperties();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue, fetchAdminUsers]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties]);
 
   if (isLoading || !user) {
     return null;
@@ -305,6 +328,53 @@ export default function Dashboard() {
       title: "Report Resolved",
       description: `Action taken on listing #${id}.`,
     });
+  };
+
+  const handleAdminDeleteProperty = async (id: string) => {
+    if (!token) return;
+    setAdminPropertyActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/admin/properties/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast({ title: "Delete failed", description: "Could not delete this property.", variant: "destructive" });
+        return;
+      }
+      setAdminProperties(prev => prev.filter(p => p.id !== id));
+      await fetchAdminStats();
+      toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setAdminPropertyActionLoading(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleAdminToggleProperty = async (id: string) => {
+    if (!token) return;
+    setAdminPropertyActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/admin/properties/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast({ title: "Update failed", description: "Could not update this property.", variant: "destructive" });
+        return;
+      }
+      const updated = await res.json();
+      setAdminProperties(prev => prev.map(p => p.id === id ? { ...p, isVerified: updated.isVerified } : p));
+      toast({
+        title: updated.isVerified ? "Property Activated" : "Property Deactivated",
+        description: updated.isVerified ? "This listing is now live." : "This listing has been taken offline.",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setAdminPropertyActionLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const handleUserStatusUpdate = async (userId: string, newStatus: "active" | "suspended") => {
@@ -1066,28 +1136,13 @@ export default function Dashboard() {
               </div>
 
               <h2 className="text-xl font-bold mt-8 mb-4">Saved Properties</h2>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {PROPERTIES.slice(1,4).map(p => (
-                    <div key={p.id} className="border rounded-lg overflow-hidden bg-white flex flex-col shadow-sm hover:shadow-md transition-shadow">
-                       <div className="h-48 bg-gray-200 relative group cursor-pointer">
-                         <Link href={`/property/${p.id}`}>
-                           <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                         </Link>
-                         <Badge className="absolute top-2 left-2 bg-white/90 text-black hover:bg-white">{p.type}</Badge>
-                       </div>
-                       <div className="p-4 flex-1 flex flex-col">
-                         <h3 className="font-bold truncate text-lg">{p.title}</h3>
-                         <p className="text-sm text-gray-500 mb-4 flex items-center gap-1">
-                           <Clock className="h-3 w-3" /> Added 2 days ago
-                         </p>
-                         <div className="mt-auto flex justify-between items-center pt-4 border-t">
-                           <span className="font-bold text-xl text-primary">${p.price.toLocaleString()}</span>
-                           <Button size="sm" variant="outline">Contact Owner</Button>
-                         </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border rounded-lg bg-white">
+                <Heart className="h-8 w-8 mb-3 text-gray-300" />
+                <p className="text-sm">You haven't saved any properties yet.</p>
+                <Link href="/">
+                  <Button variant="outline" size="sm" className="mt-4">Browse Listings</Button>
+                </Link>
+              </div>
             </TabsContent>
           )}
 
@@ -1281,12 +1336,20 @@ export default function Dashboard() {
                   <CardDescription>Manage, edit or terminate existing listings across the platform</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {isLoadingAdminProperties ? (
+                    <div className="flex items-center justify-center py-8 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading properties...
+                    </div>
+                  ) : adminProperties.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">No properties found on the platform.</div>
+                  ) : (
                   <div className="space-y-4">
-                    {PROPERTIES.map(p => {
-                      const isDeactivated = deactivatedProperties.includes(p.id);
+                    {adminProperties.map(p => {
+                      const isDeactivated = !p.isVerified;
+                      const isActioning = !!adminPropertyActionLoading[p.id];
                       return (
                       <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
-                        <img src={p.image} className={`h-20 w-20 object-cover rounded-md ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
+                        <img src={p.image} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
                         <div className="flex-1 min-w-0 w-full">
                           <div className="flex justify-between items-start">
                              <div>
@@ -1295,23 +1358,19 @@ export default function Dashboard() {
                                 </Link>
                                 <p className="text-sm text-muted-foreground truncate">{p.address}</p>
                              </div>
-                             <div className="font-bold text-xl text-primary">${p.price.toLocaleString()}</div>
+                             <div className="font-bold text-xl text-primary">KES {Number(p.price).toLocaleString()}</div>
                           </div>
                           
                           <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                             <div className="flex gap-2">
                               <Badge variant="outline" className={isDeactivated ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-green-700 border-green-200"}>
-                                {isDeactivated ? 'Deactivated' : 'Active'}
+                                {isDeactivated ? 'Inactive' : 'Active'}
                               </Badge>
                               <Badge variant="secondary">{p.type}</Badge>
                               <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
                             </div>
                             
                             <div className="flex gap-2 items-center">
-                              <div className="flex items-center gap-4 mr-4 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /> {Math.floor(Math.random() * 20) + 1}</span>
-                                <span className="flex items-center gap-1"><Bookmark className="h-3 w-3" /> {Math.floor(Math.random() * 50) + 5}</span>
-                              </div>
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-900">
@@ -1334,83 +1393,80 @@ export default function Dashboard() {
                                       <div className="flex gap-2">
                                         <Badge>{p.type}</Badge>
                                         <Badge variant="outline" className="text-primary font-bold">
-                                           {p.type === 'rent' || p.type === 'bnb' ? '$' : '$'}{p.price?.toLocaleString() || 0}
+                                           KES {Number(p.price)?.toLocaleString() || 0}
                                         </Badge>
                                       </div>
                                       <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
-                                        {p.specs && (
+                                        {(p.beds || p.baths) && (
                                           <>
                                             <div>
                                                <span className="text-muted-foreground block mb-1">Specs</span>
-                                               <span className="font-medium">{p.specs.beds} Beds • {p.specs.baths} Baths</span>
+                                               <span className="font-medium">{p.beds} Beds • {p.baths} Baths</span>
                                             </div>
+                                            {p.sqft && (
                                             <div>
                                                <span className="text-muted-foreground block mb-1">Size</span>
-                                               <span className="font-medium">{p.specs.sqft} sqft</span>
+                                               <span className="font-medium">{p.sqft} sqft</span>
                                             </div>
+                                            )}
                                           </>
                                         )}
                                       </div>
+                                      {p.description && (
                                       <div className="border-t pt-4">
                                          <span className="text-muted-foreground block text-sm mb-2">Description</span>
-                                         <p className="text-sm">A beautiful {p.type} property located in a prime area, offering great amenities and convenience.</p>
+                                         <p className="text-sm">{p.description}</p>
                                       </div>
+                                      )}
+                                      {p.ownerName && (
+                                      <div className="border-t pt-4 text-sm">
+                                        <span className="text-muted-foreground block mb-1">Owner</span>
+                                        <span className="font-medium">{p.ownerName}</span>
+                                      </div>
+                                      )}
                                     </div>
                                   </div>
                                   <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
-                                     <Button variant="outline" className="text-blue-600 hover:bg-zinc-800 hover:text-blue-700 border-blue-200" onClick={() => {
-                                       toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
-                                     }}>
-                                        <Edit className="h-4 w-4 mr-2" /> Edit Property
-                                     </Button>
-                                     <Button variant="outline" className={isDeactivated ? "text-green-600 hover:bg-green-50 hover:text-green-700 border-green-200" : "text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200"} onClick={() => {
-                                       if (isDeactivated) {
-                                         setDeactivatedProperties(prev => prev.filter(id => id !== p.id));
-                                         toast({ title: "Property Activated", description: "This listing is now live.", variant: "default" })
-                                       } else {
-                                         setDeactivatedProperties(prev => [...prev, p.id]);
-                                         toast({ title: "Property Deactivated", description: "This listing has been taken offline.", variant: "default" })
-                                       }
-                                     }}>
-                                        {isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />} 
+                                     <Button
+                                       variant="outline"
+                                       disabled={isActioning}
+                                       className={isDeactivated ? "text-green-600 hover:bg-green-50 hover:text-green-700 border-green-200" : "text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200"}
+                                       onClick={() => handleAdminToggleProperty(p.id)}
+                                     >
+                                        {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : (isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />)}
                                         {isDeactivated ? 'Activate' : 'Deactivate'}
                                      </Button>
-                                     <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => {
-                                       toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" })
-                                     }}>
-                                        <Trash2 className="h-4 w-4 mr-2" /> Delete Completely
+                                     <Button
+                                       variant="outline"
+                                       disabled={isActioning}
+                                       className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                       onClick={() => handleAdminDeleteProperty(p.id)}
+                                     >
+                                        {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                                        Delete Completely
                                      </Button>
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
-                              
-                              <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700 hover:bg-zinc-800" onClick={() => {
-                                toast({ title: "Edit Mode", description: "Opening property editor...", variant: "default" })
-                              }}>
-                                <Edit className="h-4 w-4 mr-1" /> Edit
-                              </Button>
 
-                              <Button size="sm" variant="outline" className={isDeactivated ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"} onClick={() => {
-                                if (isDeactivated) {
-                                  setDeactivatedProperties(prev => prev.filter(id => id !== p.id));
-                                  toast({ title: "Property Activated", description: "This listing is now live.", variant: "default" })
-                                } else {
-                                  setDeactivatedProperties(prev => [...prev, p.id]);
-                                  toast({ title: "Property Deactivated", description: "This listing has been taken offline.", variant: "default" })
-                                }
-                              }}>
-                                {isDeactivated ? <Check className="h-4 w-4 mr-1" /> : <AlertTriangle className="h-4 w-4 mr-1" />} 
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={isActioning}
+                                className={isDeactivated ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"}
+                                onClick={() => handleAdminToggleProperty(p.id)}
+                              >
+                                {isActioning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : (isDeactivated ? <Check className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />)}
                                 {isDeactivated ? 'Activate' : 'Deactivate'}
                               </Button>
                               <Button 
                                 size="sm" 
                                 variant="destructive" 
                                 className="gap-2"
-                                onClick={() => {
-                                  toast({ title: "Property Deleted", description: "Listing permanently removed.", variant: "destructive" })
-                                }}
+                                disabled={isActioning}
+                                onClick={() => handleAdminDeleteProperty(p.id)}
                               >
-                                <Trash2 className="h-3 w-3" /> Delete
+                                {isActioning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete
                               </Button>
                             </div>
                           </div>
@@ -1418,6 +1474,7 @@ export default function Dashboard() {
                       </div>
                     )})}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

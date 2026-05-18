@@ -138,6 +138,25 @@ router.patch("/users/:id/status", async (req, res) => {
   res.json(updated);
 });
 
+router.patch("/properties/:id", async (req, res) => {
+  const userId = await requireAdmin(req, res);
+  if (!userId) return;
+
+  const [prop] = await db.select({ id: properties.id, isVerified: properties.isVerified }).from(properties).where(eq(properties.id, req.params.id));
+  if (!prop) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(properties)
+    .set({ isVerified: !prop.isVerified })
+    .where(eq(properties.id, req.params.id))
+    .returning();
+
+  res.json(updated);
+});
+
 router.delete("/properties/:id", async (req, res) => {
   const userId = await requireAdmin(req, res);
   if (!userId) return;
