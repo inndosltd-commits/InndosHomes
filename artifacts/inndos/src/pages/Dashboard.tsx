@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +90,26 @@ export default function Dashboard() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [customMonths, setCustomMonths] = useState(3);
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // Admin subscription management state
+  const [adminSubscriptions, setAdminSubscriptions] = useState<any[]>([]);
+  const [isLoadingAdminSubs, setIsLoadingAdminSubs] = useState(false);
+  const [adminPayments, setAdminPayments] = useState<any[]>([]);
+  const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
+  const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [assignPlan, setAssignPlan] = useState<"standard" | "silver" | "gold">("silver");
+  const [assignMonths, setAssignMonths] = useState(1);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Admin payment settings state
+  const [paymentSettings, setPaymentSettings] = useState<{
+    pesapalConsumerKey: string; pesapalConsumerSecret: string;
+    pesapalMode: string; pesapalIpnId: string;
+  } | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ pesapalConsumerKey: "", pesapalConsumerSecret: "", pesapalMode: "live" });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isRegisteringIpn, setIsRegisteringIpn] = useState(false);
 
   const fetchAdminStats = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
@@ -265,6 +285,37 @@ export default function Dashboard() {
     }
   }, [user, token, unreadBookingCount]);
 
+  const fetchAdminSubscriptions = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminSubs(true);
+    try {
+      const res = await fetch("/api/admin/subscriptions", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAdminSubscriptions(await res.json());
+    } catch { /* non-critical */ } finally { setIsLoadingAdminSubs(false); }
+  }, [user, token]);
+
+  const fetchAdminPayments = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminPayments(true);
+    try {
+      const res = await fetch("/api/admin/payments", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAdminPayments(await res.json());
+    } catch { /* non-critical */ } finally { setIsLoadingAdminPayments(false); }
+  }, [user, token]);
+
+  const fetchPaymentSettings = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingSettings(true);
+    try {
+      const res = await fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentSettings(data);
+        setSettingsForm({ pesapalConsumerKey: data.pesapalConsumerKey, pesapalConsumerSecret: "", pesapalMode: data.pesapalMode });
+      }
+    } catch { /* non-critical */ } finally { setIsLoadingSettings(false); }
+  }, [user, token]);
+
   const fetchSubscription = useCallback(async () => {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
     setIsLoadingSubscription(true);
@@ -360,9 +411,45 @@ export default function Dashboard() {
         fetchModerationQueue();
         fetchAdminUsers();
         fetchAdminProperties();
+        fetchAdminSubscriptions();
+        fetchAdminPayments();
+        fetchPaymentSettings();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings]);
+
+  // Handle return from PesaPal payment
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("payment=")) return;
+    const params = new URLSearchParams(hash.split("?")[1] ?? "");
+    const paymentResult = params.get("payment");
+    if (!paymentResult) return;
+
+    // Clean up URL
+    const cleanHash = hash.replace(/[?&]payment=[^&]*/, "");
+    window.history.replaceState(null, "", window.location.pathname + cleanHash);
+
+    if (paymentResult === "success") {
+      fetchSubscription();
+      toast({
+        title: "Payment successful!",
+        description: "Your subscription has been activated. Thank you!",
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
+    } else if (paymentResult === "failed") {
+      toast({
+        title: "Payment failed",
+        description: "The payment was not completed. Please try again.",
+        variant: "destructive",
+      });
+    } else if (paymentResult === "cancelled") {
+      toast({ title: "Payment cancelled", description: "No charges were made." });
+    } else if (paymentResult === "error") {
+      toast({ title: "Payment error", description: "Something went wrong processing your payment.", variant: "destructive" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading || !user) {
     return null;
@@ -685,6 +772,16 @@ export default function Dashboard() {
               Users
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="admin-subscriptions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Subscriptions
+            </TabsTrigger>
+          )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="payment-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Payments
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -747,6 +844,16 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="users" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Users className="w-5 h-5 mr-3" /> Users
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="admin-subscriptions" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Crown className="w-5 h-5 mr-3" /> Subscriptions
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="payment-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <CreditCard className="w-5 h-5 mr-3" /> Payments
                 </TabsTrigger>
             )}
             </TabsList>
@@ -1887,6 +1994,393 @@ export default function Dashboard() {
             </Card>
           </TabsContent>
 
+          {/* ── Admin: Subscription Management Tab ─────────────────── */}
+          {user.role === 'admin' && (
+            <TabsContent value="admin-subscriptions" className="space-y-6 mt-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">Subscription Management</h1>
+                  <p className="text-gray-500 text-sm">View, assign, and manage all user subscription plans</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={fetchAdminSubscriptions} disabled={isLoadingAdminSubs} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${isLoadingAdminSubs ? 'animate-spin' : ''}`} /> Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { label: "Total", value: adminSubscriptions.length, color: "text-gray-900" },
+                  { label: "Active", value: adminSubscriptions.filter(s => s.status === 'active').length, color: "text-green-600" },
+                  { label: "Silver", value: adminSubscriptions.filter(s => s.plan === 'silver' && s.status === 'active').length, color: "text-zinc-500" },
+                  { label: "Gold", value: adminSubscriptions.filter(s => s.plan === 'gold' && s.status === 'active').length, color: "text-yellow-500" },
+                ].map(stat => (
+                  <Card key={stat.label}>
+                    <CardContent className="py-4 text-center">
+                      <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                      <div className="text-xs text-gray-500 mt-1">{stat.label} Subscriptions</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Subscriptions table */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">All Subscriptions</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {isLoadingAdminSubs ? (
+                    <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+                  ) : adminSubscriptions.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400">No subscriptions yet</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">User</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Plan</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Period</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Paid</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-600">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {adminSubscriptions.map((sub: any) => (
+                            <tr key={sub.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-gray-900">{sub.userName ?? "—"}</div>
+                                <div className="text-xs text-gray-400">{sub.userEmail ?? ""}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={sub.plan === 'gold' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : sub.plan === 'silver' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
+                                  {sub.plan}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className={sub.status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}>
+                                  {sub.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-gray-500">
+                                <div>{sub.startDate} →</div>
+                                <div>{sub.endDate === '9999-12-31' ? 'No expiry' : sub.endDate}</div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-700 font-medium">
+                                {sub.amountPaid > 0 ? `KES ${sub.amountPaid.toLocaleString()}` : 'Free'}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="text-xs h-7 px-2"
+                                    onClick={() => setAssignSubDialog({ userId: sub.userId, userName: sub.userName ?? sub.userEmail ?? "User" })}
+                                  >
+                                    Reassign
+                                  </Button>
+                                  {sub.status === 'active' && (
+                                    <Button
+                                      size="sm" variant="outline"
+                                      className="text-xs h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                      onClick={async () => {
+                                        if (!token) return;
+                                        const r = await fetch(`/api/admin/subscriptions/${sub.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                                        if (r.ok) { await fetchAdminSubscriptions(); toast({ title: "Subscription cancelled" }); }
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Assign plan dialog */}
+              <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Assign Subscription Plan</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <p className="text-sm text-muted-foreground">Assigning to: <span className="font-semibold">{assignSubDialog?.userName}</span></p>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold">Plan</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['standard', 'silver', 'gold'] as const).map(p => (
+                          <button key={p} onClick={() => setAssignPlan(p)} className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${assignPlan === p ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}>{p}</button>
+                        ))}
+                      </div>
+                    </div>
+                    {assignPlan !== 'standard' && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">Duration (months)</label>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setAssignMonths(m => Math.max(1, m - 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">−</button>
+                          <span className="w-8 text-center font-bold text-lg">{assignMonths}</span>
+                          <button onClick={() => setAssignMonths(m => Math.min(24, m + 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">+</button>
+                          <span className="text-sm text-gray-500">months</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
+                    <Button
+                      className="bg-zinc-900 hover:bg-zinc-800 text-white"
+                      disabled={isAssigning}
+                      onClick={async () => {
+                        if (!assignSubDialog || !token) return;
+                        setIsAssigning(true);
+                        try {
+                          const r = await fetch("/api/admin/subscriptions/assign", {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths }),
+                          });
+                          if (r.ok) {
+                            await fetchAdminSubscriptions();
+                            setAssignSubDialog(null);
+                            toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-green-50 border-green-200 text-green-800" });
+                          } else {
+                            const d = await r.json();
+                            toast({ title: "Failed", description: d.error, variant: "destructive" });
+                          }
+                        } finally { setIsAssigning(false); }
+                      }}
+                    >
+                      {isAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Assign Plan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </TabsContent>
+          )}
+
+          {/* ── Admin: Payment Settings Tab ─────────────────────────── */}
+          {user.role === 'admin' && (
+            <TabsContent value="payment-settings" className="space-y-6 mt-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">Payment Settings</h1>
+                  <p className="text-gray-500 text-sm">Configure PesaPal integration and manage payment credentials</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchPaymentSettings} disabled={isLoadingSettings} className="gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isLoadingSettings ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+
+              {/* Mode + status banner */}
+              <Card className={`border-2 ${paymentSettings?.pesapalMode === 'live' ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
+                <CardContent className="py-4 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Globe className={`h-6 w-6 ${paymentSettings?.pesapalMode === 'live' ? 'text-green-600' : 'text-yellow-600'}`} />
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {paymentSettings?.pesapalMode === 'live' ? 'Live Mode (Production)' : 'Sandbox Mode (Testing)'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {paymentSettings?.pesapalMode === 'live'
+                          ? 'Real payments are being processed via pay.pesapal.com'
+                          : 'Test payments only via cybqa.pesapal.com'}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge className={paymentSettings?.pesapalMode === 'live' ? 'bg-green-100 text-green-800 border-green-300 text-sm' : 'bg-yellow-100 text-yellow-800 border-yellow-300 text-sm'}>
+                    {paymentSettings?.pesapalMode === 'live' ? '● LIVE' : '◌ SANDBOX'}
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              {/* PesaPal config card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-zinc-500" /> PesaPal Configuration
+                  </CardTitle>
+                  <CardDescription>Update your PesaPal API credentials. Changes take effect immediately.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Consumer Key</label>
+                    <input
+                      type="text"
+                      value={settingsForm.pesapalConsumerKey}
+                      onChange={e => setSettingsForm(f => ({ ...f, pesapalConsumerKey: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder="PesaPal Consumer Key"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Consumer Secret</label>
+                    <input
+                      type="password"
+                      value={settingsForm.pesapalConsumerSecret}
+                      onChange={e => setSettingsForm(f => ({ ...f, pesapalConsumerSecret: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder={paymentSettings?.pesapalConsumerSecret ? `Current: ${paymentSettings.pesapalConsumerSecret}` : "Enter new secret"}
+                    />
+                    <p className="text-xs text-gray-400">Leave blank to keep the existing secret unchanged.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Mode</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['sandbox', 'live'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setSettingsForm(f => ({ ...f, pesapalMode: mode }))}
+                          className={`py-2 px-4 rounded-lg border text-sm font-medium transition-colors capitalize ${settingsForm.pesapalMode === mode ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}
+                        >
+                          {mode === 'live' ? '● Live (Production)' : '◌ Sandbox (Testing)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white w-full sm:w-auto gap-2"
+                    disabled={isSavingSettings}
+                    onClick={async () => {
+                      if (!token) return;
+                      setIsSavingSettings(true);
+                      try {
+                        const r = await fetch("/api/admin/settings", {
+                          method: "PUT",
+                          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                          body: JSON.stringify(settingsForm),
+                        });
+                        if (r.ok) {
+                          await fetchPaymentSettings();
+                          toast({ title: "Settings saved", description: "PesaPal configuration updated.", className: "bg-green-50 border-green-200 text-green-800" });
+                        } else {
+                          const d = await r.json();
+                          toast({ title: "Save failed", description: d.error, variant: "destructive" });
+                        }
+                      } finally { setIsSavingSettings(false); }
+                    }}
+                  >
+                    {isSavingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
+                    Save Configuration
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* IPN Registration */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">IPN Webhook</CardTitle>
+                  <CardDescription>Register the Instant Payment Notification (IPN) URL with PesaPal. This allows PesaPal to notify INNDOS when a payment is completed.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg border p-3 font-mono text-xs text-gray-700 break-all">
+                    {`${window.location.origin}/api/subscriptions/ipn`}
+                  </div>
+                  {paymentSettings?.pesapalIpnId && (
+                    <div className="flex items-center gap-2 text-sm text-green-700">
+                      <Check className="h-4 w-4" />
+                      <span>IPN Registered — ID: <span className="font-mono">{paymentSettings.pesapalIpnId}</span></span>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={isRegisteringIpn}
+                    onClick={async () => {
+                      if (!token) return;
+                      setIsRegisteringIpn(true);
+                      try {
+                        const ipnUrl = `${window.location.origin}/api/subscriptions/ipn`;
+                        const r = await fetch("/api/admin/settings/register-ipn", {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({ ipnUrl }),
+                        });
+                        const d = await r.json();
+                        if (r.ok) {
+                          await fetchPaymentSettings();
+                          toast({ title: "IPN Registered", description: `ID: ${d.ipnId}`, className: "bg-green-50 border-green-200 text-green-800" });
+                        } else {
+                          toast({ title: "Registration failed", description: d.error, variant: "destructive" });
+                        }
+                      } finally { setIsRegisteringIpn(false); }
+                    }}
+                  >
+                    {isRegisteringIpn ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {paymentSettings?.pesapalIpnId ? 'Re-register IPN' : 'Register IPN URL'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Payment History */}
+              <Card>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Payment History</CardTitle>
+                    <CardDescription>All PesaPal payment transactions</CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={fetchAdminPayments} disabled={isLoadingAdminPayments} className="gap-1 text-xs">
+                    <RefreshCw className={`h-3 w-3 ${isLoadingAdminPayments ? 'animate-spin' : ''}`} />
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {isLoadingAdminPayments ? (
+                    <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
+                  ) : adminPayments.length === 0 ? (
+                    <div className="py-8 text-center text-gray-400 text-sm">No payments recorded yet</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">User</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Plan</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Amount</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Method</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Ref</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {adminPayments.map((p: any) => (
+                            <tr key={p.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">{p.userName ?? "—"}</div>
+                                <div className="text-xs text-gray-400">{p.userEmail}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={p.plan === 'gold' ? 'bg-yellow-100 text-yellow-800' : 'bg-zinc-200 text-zinc-700'}>{p.plan}</Badge>
+                              </td>
+                              <td className="px-4 py-3 font-semibold">KES {p.amount?.toLocaleString()}</td>
+                              <td className="px-4 py-3">
+                                <Badge className={p.status === 'completed' ? 'bg-green-100 text-green-800' : p.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}>
+                                  {p.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{p.paymentMethod ?? '—'}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3 text-gray-400 text-xs font-mono">{p.merchantReference?.slice(-10) ?? '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
           {/* Subscription Tab */}
       {(user.role === 'owner' || user.role === 'host') && (
         <TabsContent value="subscription" className="space-y-6 mt-0">
@@ -2124,16 +2618,54 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setUpgradeDialogPlan(null)}>Cancel</Button>
+              <DialogFooter className="flex-col gap-2 sm:flex-col">
+                {/* PesaPal — primary payment method */}
                 <Button
-                  className={upgradeDialogPlan === 'gold' ? 'bg-yellow-500 hover:bg-yellow-400 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}
-                  onClick={handleSubscriptionUpgrade}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 text-white gap-2"
                   disabled={isUpgrading}
+                  onClick={async () => {
+                    if (!upgradeDialogPlan || !token) return;
+                    setIsUpgrading(true);
+                    try {
+                      const res = await fetch("/api/subscriptions/checkout", {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                        body: JSON.stringify({ plan: upgradeDialogPlan, billingCycle, months: customMonths }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        toast({ title: "Checkout failed", description: data.error || "Could not initiate payment.", variant: "destructive" });
+                        return;
+                      }
+                      // Redirect to PesaPal payment page
+                      window.location.href = data.redirectUrl;
+                    } catch {
+                      toast({ title: "Error", description: "Could not connect to payment gateway.", variant: "destructive" });
+                    } finally {
+                      setIsUpgrading(false);
+                    }
+                  }}
                 >
-                  {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Activate Plan
+                  {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                  Pay via PesaPal
                 </Button>
+                <div className="flex items-center gap-3 w-full">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-gray-400">or activate manually (demo)</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                <div className="flex gap-2 w-full">
+                  <Button variant="outline" className="flex-1" onClick={() => setUpgradeDialogPlan(null)}>Cancel</Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 text-xs"
+                    onClick={handleSubscriptionUpgrade}
+                    disabled={isUpgrading}
+                  >
+                    {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Activate (Skip Payment)
+                  </Button>
+                </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>

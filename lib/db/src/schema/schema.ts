@@ -142,6 +142,38 @@ export const subscriptions = pgTable("subscriptions", {
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;
 
+export const settings = pgTable("settings", {
+  key: varchar("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type Setting = typeof settings.$inferSelect;
+
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subscriptionId: varchar("subscription_id").references(() => subscriptions.id),
+  pesapalOrderId: varchar("pesapal_order_id"),
+  pesapalTrackingId: varchar("pesapal_tracking_id"),
+  merchantReference: varchar("merchant_reference"),
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("KES"),
+  plan: text("plan").$type<"silver" | "gold">().notNull(),
+  billingMonths: integer("billing_months").notNull().default(1),
+  status: text("status")
+    .$type<"pending" | "completed" | "failed" | "cancelled">()
+    .notNull()
+    .default("pending"),
+  paymentMethod: text("payment_method"),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users)
   .pick({ name: true, email: true, password: true, role: true })
   .extend({
