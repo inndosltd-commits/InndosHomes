@@ -102,7 +102,7 @@ export default function AddListing() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFile } = useUpload({
-    onError: (err) => {
+    onError: (err: Error) => {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     },
   });
@@ -189,7 +189,7 @@ export default function AddListing() {
       })
     );
 
-    const uploaded = results.filter((p): p is string => p !== null);
+    const uploaded = (results as (string | null)[]).filter((p): p is string => p !== null);
     if (uploaded.length < fileArray.length) {
       toast({ title: "Some uploads failed", description: "One or more photos could not be uploaded.", variant: "destructive" });
     }
@@ -397,6 +397,75 @@ export default function AddListing() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">Helps buyers filter by property category.</p>
+                  </div>
+                  )}
+
+                  {/* BnB Type selector */}
+                  {listingType === 'bnb' && (
+                  <div className="space-y-3">
+                    <Label htmlFor="bnb_subtype">B&B Property Type</Label>
+                    <Select value={subtype} onValueChange={setSubtype}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select B&B type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="serviced-apartment">
+                          <div>
+                            <div className="font-medium">Serviced Apartment</div>
+                            <div className="text-xs text-muted-foreground">Fully furnished with hotel-like amenities</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="entire-place">
+                          <div>
+                            <div className="font-medium">Entire Place</div>
+                            <div className="text-xs text-muted-foreground">Private home, apartment or villa with dedicated entrance</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="private-room">
+                          <div>
+                            <div className="font-medium">Private Room</div>
+                            <div className="text-xs text-muted-foreground">Own bedroom; shared kitchen, living room or bathroom</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="shared-room">
+                          <div>
+                            <div className="font-medium">Shared Room</div>
+                            <div className="text-xs text-muted-foreground">Shared bedroom and common areas with other guests</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="unique-stays">
+                          <div>
+                            <div className="font-medium">Unique Stays</div>
+                            <div className="text-xs text-muted-foreground">Treehouses, container homes, yurts, houseboats and more</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="hotel-room">
+                          <div>
+                            <div className="font-medium">Hotel Room / Boutique Hotel</div>
+                            <div className="text-xs text-muted-foreground">Rooms in hotels, hostels or Bed & Breakfasts</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="vacation-home">
+                          <div>
+                            <div className="font-medium">Vacation Home</div>
+                            <div className="text-xs text-muted-foreground">Cabins, rustic villas or standalone getaway properties</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="nature-stay">
+                          <div>
+                            <div className="font-medium">Nature-Focused Stay</div>
+                            <div className="text-xs text-muted-foreground">Cabins, bungalows, container homes, villas in nature settings</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="other">
+                          <div>
+                            <div className="font-medium">Other</div>
+                            <div className="text-xs text-muted-foreground">Any other type of short-stay accommodation</div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Helps guests understand what kind of stay they are booking.</p>
                   </div>
                   )}
 

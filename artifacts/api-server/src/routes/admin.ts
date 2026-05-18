@@ -61,6 +61,9 @@ router.get("/moderation", async (req, res) => {
       sqft: properties.sqft,
       createdAt: properties.createdAt,
       ownerName: users.name,
+      ownerId: properties.ownerId,
+      propertyStatus: properties.propertyStatus,
+      adminComment: properties.adminComment,
     })
     .from(properties)
     .leftJoin(users, eq(properties.ownerId, users.id))
@@ -75,7 +78,31 @@ router.patch("/properties/:id/verify", async (req, res) => {
 
   const [prop] = await db
     .update(properties)
-    .set({ isVerified: true })
+    .set({ isVerified: true, propertyStatus: "approved", adminComment: null })
+    .where(eq(properties.id, req.params.id))
+    .returning();
+
+  if (!prop) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  res.json(prop);
+});
+
+router.patch("/properties/:id/flag", async (req, res) => {
+  const userId = await requireAdmin(req, res);
+  if (!userId) return;
+
+  const { comment } = req.body as { comment?: string };
+  if (!comment?.trim()) {
+    res.status(400).json({ error: "A comment explaining the issue is required" });
+    return;
+  }
+
+  const [prop] = await db
+    .update(properties)
+    .set({ isVerified: false, propertyStatus: "flagged", adminComment: comment.trim() })
     .where(eq(properties.id, req.params.id))
     .returning();
 

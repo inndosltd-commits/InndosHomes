@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2 } from "lucide-react";
-import { useRoute } from "wouter";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock } from "lucide-react";
+import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useCurrency } from "@/lib/currency";
@@ -20,6 +20,7 @@ interface PropertyWithOwner extends ApiProperty {
 
 export default function PropertyDetails() {
   const [, params] = useRoute("/property/:id");
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { convert } = useCurrency();
   const { t } = useLanguage();
@@ -30,6 +31,8 @@ export default function PropertyDetails() {
   const [isLiked, setIsLiked] = useState(false);
   const [isBooked, setIsBooked] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
+  const [isCopyingPin, setIsCopyingPin] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -71,10 +74,51 @@ export default function PropertyDetails() {
     });
   };
 
+  const handleCopyPin = async () => {
+    setIsCopyingPin(true);
+    const pLat = property?.lat != null ? parseFloat(property.lat as string) : -1.2921;
+    const pLng = property?.lng != null ? parseFloat(property.lng as string) : 36.8219;
+    const mapsUrl = `https://maps.google.com/?q=${pLat},${pLng}`;
+    try {
+      await navigator.clipboard.writeText(mapsUrl);
+      toast({ title: "Location Copied", description: "Google Maps link copied to clipboard." });
+    } catch {
+      toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" });
+    } finally {
+      setTimeout(() => setIsCopyingPin(false), 1500);
+    }
+  };
+
+  const handleGetDirections = () => {
+    const pLat = property?.lat != null ? parseFloat(property.lat as string) : -1.2921;
+    const pLng = property?.lng != null ? parseFloat(property.lng as string) : 36.8219;
+    setIsGettingLocation(true);
+    if (!navigator.geolocation) {
+      window.open(`https://maps.google.com/maps/dir//${pLat},${pLng}`, "_blank");
+      setIsGettingLocation(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        window.open(
+          `https://maps.google.com/maps/dir/${latitude},${longitude}/${pLat},${pLng}`,
+          "_blank"
+        );
+        setIsGettingLocation(false);
+      },
+      () => {
+        window.open(`https://maps.google.com/maps/dir//${pLat},${pLng}`, "_blank");
+        setIsGettingLocation(false);
+      },
+      { timeout: 8000 }
+    );
+  };
+
   const handleBook = async () => {
     if (!property) return;
     if (!user || !token) {
-      toast({ title: "Sign in required", description: "Please sign in to book this property.", variant: "destructive" });
+      navigate("/login");
       return;
     }
 
@@ -319,35 +363,44 @@ export default function PropertyDetails() {
 
               <section>
                 <h2 className="text-xl font-bold mb-4">{t("prop.location")}</h2>
-                <div className="bg-gray-200 rounded-xl h-64 flex items-center justify-center text-gray-500 relative overflow-hidden group">
-                  <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm transition-transform duration-500 group-hover:scale-105" alt="" />
-                  {!showDirections ? (
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg flex items-center mb-4 shadow-sm">
-                        <MapPin className="h-8 w-8 mr-2 text-primary" />
-                        <span className="font-medium">{property.address}</span>
-                      </div>
-                      {isBooked ? (
-                        <Button onClick={() => setShowDirections(true)} className="bg-primary shadow-lg hover:bg-primary/90">
-                          <MapPin className="h-4 w-4 mr-2" /> {t("prop.get_directions")}
-                        </Button>
-                      ) : (
-                        <Badge variant="secondary" className="bg-white/80">{t("prop.book_to_see")}</Badge>
-                      )}
+                <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                  <div className="relative h-72">
+                    <iframe
+                      title="Property Location"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.012},${lat - 0.01},${lng + 0.012},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`}
+                      className="w-full h-full border-0"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 border-t border-gray-100">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <MapPin className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm text-gray-700 truncate">{property.address}</span>
                     </div>
-                  ) : (
-                    <div className="relative z-10 bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4 text-center">
-                      <MapPin className="h-10 w-10 text-primary mx-auto mb-3" />
-                      <h3 className="font-bold mb-2 text-lg">{t("prop.exact_unlocked")}</h3>
-                      <p className="text-sm text-gray-600 mb-4">{t("prop.exact_desc")}</p>
-                      <a href={`https://maps.google.com/?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="block w-full">
-                        <Button className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white">{t("prop.open_maps")}</Button>
-                      </a>
-                      <button onClick={() => setShowDirections(false)} className="text-xs text-gray-500 underline mt-4 hover:text-gray-800">
-                        {t("prop.hide_directions")}
-                      </button>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={handleCopyPin}
+                        disabled={isCopyingPin}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {isCopyingPin ? "Copied!" : "Copy Pin"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white"
+                        onClick={handleGetDirections}
+                        disabled={isGettingLocation}
+                      >
+                        {isGettingLocation
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Navigation className="h-3.5 w-3.5" />}
+                        Get Directions
+                      </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
             </div>
@@ -357,79 +410,121 @@ export default function PropertyDetails() {
           <div className="lg:w-[350px] shrink-0">
             <Card className="sticky top-24 shadow-lg border-t-4 border-t-primary">
               <CardContent className="p-6">
-                <div className={`transition-all duration-500 ${!isBooked ? "blur-[4px] opacity-70 select-none" : ""}`}>
-                  <div className="flex items-center gap-4 mb-6">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${property.ownerName || "owner"}`} />
-                      <AvatarFallback>{(property.ownerName || "O").charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-bold">{property.ownerName || "Property Owner"}</h3>
-                      <p className="text-sm text-muted-foreground capitalize">Owner / Host</p>
+                {!user ? (
+                  /* Not logged in — auth gate */
+                  <div className="space-y-4">
+                    <div className="text-center py-4">
+                      <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                        <Lock className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="font-bold text-lg mb-1">Sign in to view details</h3>
+                      <p className="text-sm text-muted-foreground">Create a free account or sign in to see contact information, phone numbers, and to book or request a tour.</p>
                     </div>
-                  </div>
-                  <div className="space-y-4 mb-6">
-                    <a href="tel:+254713361799" className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md" onClick={(e) => !isBooked && e.preventDefault()}>
-                      <PhoneCall className="h-4 w-4" />
-                      <span>+254 713 361 799</span>
-                    </a>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 p-2">
-                      <Mail className="h-4 w-4" />
-                      <span>{isBooked ? `${property.ownerName?.toLowerCase().replace(" ", ".")}@inndos.com` : "••••@•••••.com"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 relative z-10 mt-[-120px] pt-[130px]">
-                  {!isBooked && (
-                    <div className="absolute top-0 left-0 w-full text-center pb-4 text-sm font-medium text-gray-800">
-                      {t("prop.book_to_reveal")}
-                    </div>
-                  )}
-
-                  {(property.type === "bnb" || property.type === "hotel" || property.type === "hostel") && (
-                    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20" onClick={(e) => !isBooked && e.preventDefault()}>
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Select Dates</label>
-                      <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm font-medium">Check-in</span>
-                        </div>
-                        <div className="h-4 w-px bg-gray-300"></div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Check-out</span>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-3">
+                      <div className="flex items-center gap-3 text-sm text-gray-400">
+                        <Avatar className="h-10 w-10 opacity-30">
+                          <AvatarFallback>?</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="h-3 w-24 bg-gray-300 rounded animate-pulse" />
+                          <div className="h-2 w-16 bg-gray-200 rounded animate-pulse mt-1" />
                         </div>
                       </div>
-                      <p className="text-xs text-center text-primary mt-2 flex items-center justify-center gap-1">
-                        <CheckCircle className="h-3 w-3" /> Dates Available
-                      </p>
+                      <div className="flex items-center gap-3 text-sm text-gray-300">
+                        <PhoneCall className="h-4 w-4" />
+                        <span className="tracking-widest">+254 ••• ••• •••</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-300">
+                        <Mail className="h-4 w-4" />
+                        <span>••••@•••••.com</span>
+                      </div>
                     </div>
-                  )}
-
-                  {!isBooked ? (
-                    <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
-                      {property.type === "rent" || property.type === "sale" ? t("prop.request_tour") : t("prop.book_now")}
+                    <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-base font-bold" onClick={() => navigate("/login")}>
+                      Sign in to Book
                     </Button>
-                  ) : (
-                    <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center mb-4 flex items-center justify-center gap-2 font-medium">
-                      <CheckCircle className="h-5 w-5" />
-                      {property.type === "rent" || property.type === "sale" ? t("prop.tour_requested") : t("prop.booking_confirmed")}
+                    <p className="text-center text-xs text-muted-foreground">
+                      Don't have an account?{" "}
+                      <button className="underline hover:text-primary" onClick={() => navigate("/login")}>Sign up free</button>
+                    </p>
+                  </div>
+                ) : (
+                  /* Logged in — show contact + book/reveal flow */
+                  <>
+                    <div className={`transition-all duration-500 ${!isBooked ? "blur-[4px] opacity-70 select-none" : ""}`}>
+                      <div className="flex items-center gap-4 mb-6">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${property.ownerName || "owner"}`} />
+                          <AvatarFallback>{(property.ownerName || "O").charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-bold">{property.ownerName || "Property Owner"}</h3>
+                          <p className="text-sm text-muted-foreground capitalize">Owner / Host</p>
+                        </div>
+                      </div>
+                      <div className="space-y-4 mb-6">
+                        <a href="tel:+254713361799" className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md" onClick={(e) => !isBooked && e.preventDefault()}>
+                          <PhoneCall className="h-4 w-4" />
+                          <span>+254 713 361 799</span>
+                        </a>
+                        <div className="flex items-center gap-3 text-sm text-gray-600 p-2">
+                          <Mail className="h-4 w-4" />
+                          <span>{isBooked ? `${property.ownerName?.toLowerCase().replace(" ", ".")}@inndos.com` : "••••@•••••.com"}</span>
+                        </div>
+                      </div>
                     </div>
-                  )}
 
-                  <Button variant="outline" className="w-full gap-2" onClick={() => toast({ title: "Message sent!" })} disabled={!isBooked}>
-                    <MessageSquare className="h-4 w-4" /> {t("prop.send_message")}
-                  </Button>
-                  <a
-                    href="https://wa.me/254713361799"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center justify-center w-full h-10 px-4 py-2 text-white rounded-md transition-colors font-medium gap-2 ${isBooked ? "bg-[#25D366] hover:bg-[#128C7E]" : "bg-gray-300 cursor-not-allowed"}`}
-                    onClick={(e) => !isBooked && e.preventDefault()}
-                  >
-                    <MessageCircle className="h-4 w-4" /> {t("prop.chat_whatsapp")}
-                  </a>
-                </div>
+                    <div className="space-y-3 relative z-10 mt-[-120px] pt-[130px]">
+                      {!isBooked && (
+                        <div className="absolute top-0 left-0 w-full text-center pb-4 text-sm font-medium text-gray-800">
+                          {t("prop.book_to_reveal")}
+                        </div>
+                      )}
+
+                      {(property.type === "bnb" || property.type === "hotel" || property.type === "hostel") && (
+                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20" onClick={(e) => !isBooked && e.preventDefault()}>
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Select Dates</label>
+                          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm font-medium">Check-in</span>
+                            </div>
+                            <div className="h-4 w-px bg-gray-300"></div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">Check-out</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-center text-primary mt-2 flex items-center justify-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> Dates Available
+                          </p>
+                        </div>
+                      )}
+
+                      {!isBooked ? (
+                        <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
+                          {property.type === "rent" || property.type === "sale" ? t("prop.request_tour") : t("prop.book_now")}
+                        </Button>
+                      ) : (
+                        <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center mb-4 flex items-center justify-center gap-2 font-medium">
+                          <CheckCircle className="h-5 w-5" />
+                          {property.type === "rent" || property.type === "sale" ? t("prop.tour_requested") : t("prop.booking_confirmed")}
+                        </div>
+                      )}
+
+                      <Button variant="outline" className="w-full gap-2" onClick={() => toast({ title: "Message sent!" })} disabled={!isBooked}>
+                        <MessageSquare className="h-4 w-4" /> {t("prop.send_message")}
+                      </Button>
+                      <a
+                        href="https://wa.me/254713361799"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center w-full h-10 px-4 py-2 text-white rounded-md transition-colors font-medium gap-2 ${isBooked ? "bg-[#25D366] hover:bg-[#128C7E]" : "bg-gray-300 cursor-not-allowed"}`}
+                        onClick={(e) => !isBooked && e.preventDefault()}
+                      >
+                        <MessageCircle className="h-4 w-4" /> {t("prop.chat_whatsapp")}
+                      </a>
+                    </div>
+                  </>
+                )}
 
                 <Separator className="my-6" />
                 <div className="text-center">

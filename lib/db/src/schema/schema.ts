@@ -50,6 +50,11 @@ export const properties = pgTable("properties", {
   tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
   subtype: text("subtype"),
   hourlyRate: integer("hourly_rate"),
+  adminComment: text("admin_comment"),
+  propertyStatus: text("property_status")
+    .$type<"pending" | "approved" | "flagged">()
+    .notNull()
+    .default("pending"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
   lng: decimal("lng", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),

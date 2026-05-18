@@ -9,13 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
+function getHashParam(param: string): string | null {
+  const hash = window.location.hash;
+  const qIdx = hash.indexOf("?");
+  if (qIdx === -1) return null;
+  return new URLSearchParams(hash.slice(qIdx + 1)).get(param);
+}
+
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
-    const [isRentExpanded, setIsRentExpanded] = useState(false);
+  const [isRentExpanded, setIsRentExpanded] = useState(false);
   const [isBuyExpanded, setIsBuyExpanded] = useState(false);
+
+  const navType = getHashParam("type");
   
   
   return (
@@ -33,13 +42,13 @@ export function Navbar() {
 
         <div className="hidden lg:flex items-center gap-6 xl:gap-8">
           <Link href="/bnb">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'bnb') || location === '/bnb' ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap pb-1 ${location === '/bnb' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
               {t('nav.bnb')}
             </span>
           </Link>
           <div className="relative group cursor-pointer">
             <Link href="/search?type=rent">
-              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type')?.includes('rent')) ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap pb-1 ${location === '/search' && navType?.startsWith('rent') ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
                 {t('nav.rent')}
               </span>
             </Link>
@@ -77,18 +86,18 @@ export function Navbar() {
             </div>
           </div>
           <Link href="/search?type=hostel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hostel') || location === '/hostel' ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap pb-1 ${location === '/search' && navType === 'hostel' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
               {t('nav.hostels')}
             </span>
           </Link>
           <Link href="/search?type=hotel">
-            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hotel') || location === '/hotel' ? 'text-primary' : 'text-muted-foreground'}`}>
+            <span className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer whitespace-nowrap pb-1 ${location === '/search' && navType === 'hotel' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
               {t('nav.hotels')}
             </span>
           </Link>
           <div className="relative group cursor-pointer">
             <Link href="/search?type=sale">
-              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'sale') || location === '/sale' ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap pb-1 ${location === '/search' && navType === 'sale' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
                 {t('nav.buy')}
               </span>
             </Link>

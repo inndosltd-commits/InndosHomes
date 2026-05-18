@@ -24,6 +24,8 @@ const PROPERTY_COLUMNS = {
   images: properties.images,
   description: properties.description,
   isVerified: properties.isVerified,
+  propertyStatus: properties.propertyStatus,
+  adminComment: properties.adminComment,
   tags: properties.tags,
   subtype: properties.subtype,
   hourlyRate: properties.hourlyRate,
@@ -119,7 +121,8 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const [prop] = await db.insert(properties).values({ ...result.data, isVerified: false }).returning();
+  const { propertyStatus: _ps, adminComment: _ac, ...insertData } = result.data;
+  const [prop] = await db.insert(properties).values({ ...insertData, isVerified: false }).returning();
   res.status(201).json(prop);
 });
 
@@ -180,6 +183,29 @@ router.patch("/:id", async (req, res) => {
   const [updated] = await db
     .update(properties)
     .set(updatePayload)
+    .where(eq(properties.id, req.params.id))
+    .returning();
+
+  res.json(updated);
+});
+
+router.post("/:id/resubmit", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [prop] = await db.select().from(properties).where(eq(properties.id, req.params.id));
+  if (!prop) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+  if (prop.ownerId !== userId) {
+    res.status(403).json({ error: "Not your property" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(properties)
+    .set({ propertyStatus: "pending", adminComment: null, isVerified: false })
     .where(eq(properties.id, req.params.id))
     .returning();
 

@@ -35,6 +35,9 @@ export default function Dashboard() {
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
   const [isLoadingAdminProperties, setIsLoadingAdminProperties] = useState(false);
   const [adminPropertyActionLoading, setAdminPropertyActionLoading] = useState<Record<string, boolean>>({});
+  const [flagDialogId, setFlagDialogId] = useState<string | null>(null);
+  const [flagComment, setFlagComment] = useState("");
+  const [isFlagging, setIsFlagging] = useState(false);
 
   const pendingUsers = adminUsers.filter((u: any) => u.status === "pending");
 
@@ -316,6 +319,59 @@ export default function Dashboard() {
         title: "Listing Rejected",
         description: "Property has been removed.",
         variant: "destructive",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    }
+  };
+
+  const handleFlag = async () => {
+    if (!flagDialogId || !token || !flagComment.trim()) return;
+    setIsFlagging(true);
+    try {
+      const res = await fetch(`/api/admin/properties/${flagDialogId}/flag`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: flagComment.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Flag failed", description: (data as { error?: string }).error || "Could not flag property.", variant: "destructive" });
+        return;
+      }
+      setModerationQueue(prev => prev.filter(item => item.id !== flagDialogId));
+      setFlagDialogId(null);
+      setFlagComment("");
+      await fetchAdminStats();
+      toast({
+        title: "Listing Flagged",
+        description: "Owner has been notified with your feedback.",
+        className: "bg-orange-50 border-orange-200 text-orange-800",
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setIsFlagging(false);
+    }
+  };
+
+  const handleOwnerResubmit = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/properties/${id}/resubmit`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast({ title: "Resubmit failed", description: "Could not resubmit this property.", variant: "destructive" });
+        return;
+      }
+      const updated = await res.json();
+      setOwnerProperties(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+      toast({
+        title: "Resubmitted for Review",
+        description: "Your listing has been sent back to admin for approval.",
+        className: "bg-blue-50 border-blue-200 text-blue-800",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -939,58 +995,67 @@ export default function Dashboard() {
                       </div>
                     ) : (
                     <div className="space-y-4">
-                      {ownerProperties.map(p => (
-                        <div key={p.id} className={`flex items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${p.isVerified === false ? 'bg-yellow-50/40 border-yellow-200 hover:bg-yellow-50' : 'bg-white hover:bg-gray-50'}`}>
-                          <img src={p.image} className={`h-20 w-20 object-cover rounded-md ${p.isVerified === false ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
-                          <div className="flex-1 min-w-0">
-                            {p.isVerified !== false ? (
-                              <Link href={`/property/${p.id}`}>
-                                <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
-                              </Link>
-                            ) : (
-                              <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
-                            )}
-                            <p className="text-sm text-muted-foreground truncate">{p.address}</p>
-                            <div className="flex gap-2 mt-2 flex-wrap">
-                              {p.isVerified === false ? (
-                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">Pending Approval</Badge>
-                              ) : (
-                                <Badge variant={p.status === 'inactive' ? 'secondary' : 'outline'} className={p.status === 'inactive' ? 'bg-gray-200' : ''}>
-                                  {p.status === 'inactive' ? 'Inactive' : 'Active'}
-                                </Badge>
-                              )}
-                              <Badge variant="secondary">{p.type}</Badge>
-                            </div>
-                          </div>
-                          <div className="text-right flex flex-col items-end gap-2">
-                            <div className="font-bold text-xl text-primary">${p.price.toLocaleString()}</div>
-                            <div className="flex gap-2">
-                              {p.isVerified !== false && (
-                                <Button 
-                                  size="sm" 
-                                  variant={p.status === 'inactive' ? 'default' : 'outline'} 
-                                  onClick={() => handleTogglePropertyStatus(p.id)}
-                                >
-                                  {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
-                                </Button>
-                              )}
-                              {p.isVerified !== false && (
-                                <Link href={p.type === 'bnb' ? `/add-bnb?edit=${p.id}` : `/add-listing?edit=${p.id}`}>
-                                  <Button size="sm" variant="outline" className="gap-2">Edit</Button>
+                      {ownerProperties.map(p => {
+                        const isFlagged = p.propertyStatus === 'flagged';
+                        const isPending = !p.isVerified && !isFlagged;
+                        return (
+                        <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
+                          <div className="flex items-start gap-4">
+                            <img src={p.image} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
+                            <div className="flex-1 min-w-0">
+                              {p.isVerified ? (
+                                <Link href={`/property/${p.id}`}>
+                                  <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
                                 </Link>
+                              ) : (
+                                <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
                               )}
-                              <Button 
-                                size="sm" 
-                                variant="destructive" 
-                                className="gap-2"
-                                onClick={() => handleDeleteProperty(p.id)}
-                              >
-                                <Trash2 className="h-3 w-3" /> Delete
-                              </Button>
+                              <p className="text-sm text-muted-foreground truncate">{p.address}</p>
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                {isFlagged ? (
+                                  <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">Flagged — Action Required</Badge>
+                                ) : isPending ? (
+                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pending Approval</Badge>
+                                ) : p.isVerified ? (
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Verified & Live</Badge>
+                                ) : null}
+                                <Badge variant="secondary">{p.type}</Badge>
+                              </div>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-2 shrink-0">
+                              <div className="font-bold text-xl text-primary">KES {p.price.toLocaleString()}</div>
+                              <div className="flex gap-2 flex-wrap justify-end">
+                                {isFlagged && (
+                                  <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleOwnerResubmit(p.id)}>
+                                    <ArrowUpRight className="h-3 w-3" /> Resubmit
+                                  </Button>
+                                )}
+                                {p.isVerified && (
+                                  <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
+                                    {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                                  </Button>
+                                )}
+                                {!isFlagged && (
+                                  <Link href={`/add-listing?edit=${p.id}`}>
+                                    <Button size="sm" variant="outline">Edit</Button>
+                                  </Link>
+                                )}
+                                <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleDeleteProperty(p.id)}>
+                                  <Trash2 className="h-3 w-3" /> Delete
+                                </Button>
+                              </div>
                             </div>
                           </div>
+                          {isFlagged && p.adminComment && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                              <p className="font-semibold text-red-800 mb-1 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Admin Feedback</p>
+                              <p className="text-red-700">{p.adminComment}</p>
+                              <p className="text-xs text-red-500 mt-2">Please address the above issues, then click <strong>Resubmit</strong> to send for re-review.</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                       {pendingProperties.length > 0 && pendingProperties.map((p: any) => (
                         <div key={`pending-${p.id}`} className="flex items-center gap-4 p-4 border border-yellow-200 rounded-lg hover:bg-yellow-50 transition-colors group bg-yellow-50/30 shadow-sm">
                           <img src={p.image} className="h-20 w-20 object-cover rounded-md opacity-70 grayscale-[30%]" alt={p.title} />
@@ -1251,7 +1316,7 @@ export default function Dashboard() {
                                  <Badge variant="outline" className="mt-1 text-[10px] h-4">{item.type}</Badge>
                                </div>
                              </div>
-                             <div className="flex gap-2">
+                             <div className="flex gap-2 flex-wrap">
                                <Dialog>
                                  <DialogTrigger asChild>
                                    <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-900">
@@ -1271,19 +1336,18 @@ export default function Dashboard() {
                                          <h3 className="font-bold text-xl">{item.title}</h3>
                                          <p className="text-muted-foreground">{item.address || "Location not specified"}</p>
                                        </div>
-                                       <div className="flex gap-2">
+                                       <div className="flex gap-2 flex-wrap">
                                          <Badge>{item.type}</Badge>
-                                         <Badge variant="outline" className="text-primary font-bold">
-                                            KES {item.price?.toLocaleString() || 0}
-                                         </Badge>
+                                         <Badge variant="outline" className="text-primary font-bold">KES {item.price?.toLocaleString() || 0}</Badge>
+                                         {item.propertyStatus === 'flagged' && (
+                                           <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">Previously Flagged</Badge>
+                                         )}
                                        </div>
                                        <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
                                          <div>
                                             <span className="text-muted-foreground block mb-1">Submitted By</span>
                                             <span className="font-medium flex items-center gap-2">
-                                              <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
-                                                {item.ownerName?.charAt(0) || 'U'}
-                                              </div>
+                                              <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">{item.ownerName?.charAt(0) || 'U'}</div>
                                               {item.ownerName || "Unknown"}
                                             </span>
                                          </div>
@@ -1302,13 +1366,13 @@ export default function Dashboard() {
                                        </div>
                                        <div className="border-t pt-4">
                                           <span className="text-muted-foreground block text-sm mb-2">Description</span>
-                                          <p className="text-sm">A beautiful {item.type} property located in a prime area, offering great amenities and convenience. Currently pending review by the admin team.</p>
+                                          <p className="text-sm">A {item.type} property located in {item.address || "a prime area"}. Pending review by the admin team.</p>
                                        </div>
                                      </div>
                                    </div>
                                    <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
-                                      <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200" onClick={() => handleReject(item.id)}>
-                                         <X className="h-4 w-4 mr-2" /> Reject Listing
+                                      <Button variant="outline" className="text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
+                                         <AlertTriangle className="h-4 w-4 mr-2" /> Flag & Return
                                       </Button>
                                       <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
                                          <Check className="h-4 w-4 mr-2" /> Approve & Publish
@@ -1316,8 +1380,8 @@ export default function Dashboard() {
                                    </DialogFooter>
                                  </DialogContent>
                                </Dialog>
-                               <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(item.id)}>
-                                 <X className="h-4 w-4 mr-1" /> Reject
+                               <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
+                                 <AlertTriangle className="h-4 w-4 mr-1" /> Flag
                                </Button>
                                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
                                  <Check className="h-4 w-4 mr-1" /> Approve
@@ -1720,6 +1784,41 @@ export default function Dashboard() {
           </TabsContent>
         </div>
       </div>
+
+      {/* Flag Dialog */}
+      <Dialog open={!!flagDialogId} onOpenChange={(open) => { if (!open) { setFlagDialogId(null); setFlagComment(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-700"><AlertTriangle className="h-5 w-5" /> Flag Listing</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">This listing will be returned to the owner as "Flagged". It will not be visible on the platform until they fix the issues and resubmit.</p>
+            <div className="space-y-1">
+              <Label htmlFor="flag_comment" className="text-sm font-semibold">What needs to be corrected?</Label>
+              <Textarea
+                id="flag_comment"
+                placeholder="e.g. The photos are blurry, please upload clearer images. Also the price seems inconsistent with the description..."
+                value={flagComment}
+                onChange={e => setFlagComment(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">The owner will see exactly this message.</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setFlagDialogId(null); setFlagComment(""); }}>Cancel</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+              disabled={!flagComment.trim() || isFlagging}
+              onClick={handleFlag}
+            >
+              {isFlagging ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+              Flag & Return to Owner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Tabs>
   );
 }
