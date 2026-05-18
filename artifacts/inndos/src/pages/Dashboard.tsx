@@ -105,6 +105,13 @@ export default function Dashboard() {
   const [assignMonths, setAssignMonths] = useState(1);
   const [isAssigning, setIsAssigning] = useState(false);
 
+  // Admin plan management state
+  const [adminPlans, setAdminPlans] = useState<any[]>([]);
+  const [editingPlan, setEditingPlan] = useState<any | null>(null);
+  const [planForm, setPlanForm] = useState({ displayName: "", pricePerMonth: 0, listingLimit: 3, features: [] as string[], isActive: true });
+  const [newFeature, setNewFeature] = useState("");
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+
   // Admin payment settings state
   const [paymentSettings, setPaymentSettings] = useState<{
     pesapalConsumerKey: string; pesapalConsumerSecret: string;
@@ -341,6 +348,14 @@ export default function Dashboard() {
     }
   }, [token]);
 
+  const fetchAdminPlans = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    try {
+      const res = await fetch("/api/admin/plans", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAdminPlans(await res.json());
+    } catch { /* non-critical */ }
+  }, [user, token]);
+
   const fetchAdminSubscriptions = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
     setIsLoadingAdminSubs(true);
@@ -473,9 +488,10 @@ export default function Dashboard() {
         fetchAdminSubscriptions();
         fetchAdminPayments();
         fetchPaymentSettings();
+        fetchAdminPlans();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans]);
 
   // Handle return from PesaPal payment
   useEffect(() => {
@@ -2289,6 +2305,229 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ── Plan Packages Editor ─────────────────────────────── */}
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Subscription Packages</h2>
+                    <p className="text-sm text-gray-500">Edit plan prices, listing limits, and features</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchAdminPlans} className="gap-2">
+                    <RefreshCw className="h-4 w-4" /> Refresh
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {adminPlans.map((plan: any) => (
+                    <Card key={plan.name} className={`relative border-2 ${plan.name === 'gold' ? 'border-yellow-300' : plan.name === 'silver' ? 'border-zinc-300' : 'border-gray-200'}`}>
+                      <CardContent className="py-5 px-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {plan.name === 'gold' && <Crown className="h-5 w-5 text-yellow-500" />}
+                            {plan.name === 'silver' && <Zap className="h-5 w-5 text-zinc-500" />}
+                            {plan.name === 'standard' && <Gift className="h-5 w-5 text-gray-400" />}
+                            <span className="font-bold text-base capitalize">{plan.displayName}</span>
+                          </div>
+                          {!plan.isActive && <Badge className="bg-red-100 text-red-700 text-xs">Disabled</Badge>}
+                        </div>
+                        <div className="text-2xl font-bold text-gray-900 mb-1">
+                          {plan.pricePerMonth === 0 ? 'Free' : `KES ${plan.pricePerMonth?.toLocaleString()}`}
+                          {plan.pricePerMonth > 0 && <span className="text-sm font-normal text-gray-400">/mo</span>}
+                        </div>
+                        <div className="text-sm text-gray-500 mb-3">
+                          {plan.listingLimit >= 2147483646 ? 'Unlimited listings' : `Up to ${plan.listingLimit} listings`}
+                        </div>
+                        <div className="space-y-1 mb-4">
+                          {(plan.features ?? []).map((f: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                              <Check className="h-3 w-3 text-green-500 shrink-0" /> {f}
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => {
+                            setEditingPlan(plan);
+                            setPlanForm({
+                              displayName: plan.displayName,
+                              pricePerMonth: plan.pricePerMonth,
+                              listingLimit: plan.listingLimit >= 2147483646 ? 999999 : plan.listingLimit,
+                              features: plan.features ?? [],
+                              isActive: plan.isActive,
+                            });
+                          }}
+                        >
+                          <Edit className="h-3.5 w-3.5" /> Edit Package
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Plan edit dialog */}
+              <Dialog open={!!editingPlan} onOpenChange={(open) => { if (!open) { setEditingPlan(null); setNewFeature(""); } }}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 capitalize">
+                      {editingPlan?.name === 'gold' && <Crown className="h-5 w-5 text-yellow-500" />}
+                      {editingPlan?.name === 'silver' && <Zap className="h-5 w-5 text-zinc-500" />}
+                      {editingPlan?.name === 'standard' && <Gift className="h-5 w-5 text-gray-400" />}
+                      Edit {editingPlan?.name} Package
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">Display Name</label>
+                      <input
+                        type="text"
+                        value={planForm.displayName}
+                        onChange={e => setPlanForm(f => ({ ...f, displayName: e.target.value }))}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      />
+                    </div>
+                    {editingPlan?.name !== 'standard' && (
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold">Price per Month (KES)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={50}
+                          value={planForm.pricePerMonth}
+                          onChange={e => setPlanForm(f => ({ ...f, pricePerMonth: Number(e.target.value) }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">
+                        Listing Limit
+                        {planForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-green-600">(Unlimited)</span>}
+                      </label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min={1}
+                          max={999999}
+                          value={planForm.listingLimit}
+                          onChange={e => setPlanForm(f => ({ ...f, listingLimit: Number(e.target.value) }))}
+                          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                        />
+                        {editingPlan?.name === 'gold' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPlanForm(f => ({ ...f, listingLimit: 999999 }))}
+                            className="text-xs whitespace-nowrap"
+                          >
+                            Set Unlimited
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold">Features</label>
+                      <div className="space-y-1.5">
+                        {planForm.features.map((feat: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={feat}
+                              onChange={e => setPlanForm(f => {
+                                const feats = [...f.features];
+                                feats[i] = e.target.value;
+                                return { ...f, features: feats };
+                              })}
+                              className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                            />
+                            <button
+                              onClick={() => setPlanForm(f => ({ ...f, features: f.features.filter((_: string, j: number) => j !== i) }))}
+                              className="text-red-400 hover:text-red-600 shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newFeature}
+                            onChange={e => setNewFeature(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && newFeature.trim()) {
+                                setPlanForm(f => ({ ...f, features: [...f.features, newFeature.trim()] }));
+                                setNewFeature("");
+                              }
+                            }}
+                            placeholder="Add a feature… (press Enter)"
+                            className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800 border-dashed"
+                          />
+                          <Button
+                            size="sm" variant="outline"
+                            onClick={() => {
+                              if (newFeature.trim()) {
+                                setPlanForm(f => ({ ...f, features: [...f.features, newFeature.trim()] }));
+                                setNewFeature("");
+                              }
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setPlanForm(f => ({ ...f, isActive: !f.isActive }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${planForm.isActive ? 'bg-zinc-900' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${planForm.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                      <label className="text-sm font-medium">{planForm.isActive ? 'Active (visible to users)' : 'Disabled (hidden from users)'}</label>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => { setEditingPlan(null); setNewFeature(""); }}>Cancel</Button>
+                    <Button
+                      className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2"
+                      disabled={isSavingPlan || !planForm.displayName.trim()}
+                      onClick={async () => {
+                        if (!editingPlan || !token) return;
+                        setIsSavingPlan(true);
+                        try {
+                          const payload = {
+                            displayName: planForm.displayName,
+                            pricePerMonth: planForm.pricePerMonth,
+                            listingLimit: planForm.listingLimit >= 999999 ? 2147483647 : planForm.listingLimit,
+                            features: planForm.features.filter((f: string) => f.trim()),
+                            isActive: planForm.isActive,
+                          };
+                          const r = await fetch(`/api/admin/plans/${editingPlan.name}`, {
+                            method: "PUT",
+                            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                          });
+                          if (r.ok) {
+                            await fetchAdminPlans();
+                            setEditingPlan(null);
+                            setNewFeature("");
+                            toast({ title: "Package updated", description: `${planForm.displayName} plan saved successfully.`, className: "bg-green-50 border-green-200 text-green-800" });
+                          } else {
+                            const d = await r.json();
+                            toast({ title: "Save failed", description: d.error, variant: "destructive" });
+                          }
+                        } finally { setIsSavingPlan(false); }
+                      }}
+                    >
+                      {isSavingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Save Package
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Assign plan dialog */}
               <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>

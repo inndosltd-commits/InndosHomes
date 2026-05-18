@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { subscriptions, users, properties, payments, settings } from "@workspace/db";
-import { eq, and, desc, count, asc } from "drizzle-orm";
+import { subscriptions, users, properties, payments, settings, subscriptionPlans } from "@workspace/db";
+import { eq, and, desc, count } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import {
   submitOrder,
@@ -12,17 +12,36 @@ import {
 
 const router = Router();
 
-const PLAN_LIMITS: Record<string, number> = {
-  standard: 3,
-  silver: 7,
-  gold: Infinity,
-};
+// Fallback hardcoded values (used if DB is unavailable)
+const DEFAULT_PLAN_LIMITS: Record<string, number> = { standard: 3, silver: 7, gold: 2147483647 };
+const DEFAULT_PLAN_PRICES: Record<string, number> = { standard: 0, silver: 200, gold: 300 };
 
-const PLAN_PRICES: Record<string, number> = {
-  standard: 0,
-  silver: 200,
-  gold: 300,
-};
+// Load plan config from DB (cached per request via module-level cache with short TTL)
+let planCache: { data: Record<string, { price: number; limit: number }>; ts: number } | null = null;
+
+async function getPlansConfig(): Promise<Record<string, { price: number; limit: number }>> {
+  if (planCache && Date.now() - planCache.ts < 30_000) return planCache.data;
+  try {
+    const rows = await db.select().from(subscriptionPlans);
+    const data: Record<string, { price: number; limit: number }> = {};
+    for (const r of rows) {
+      data[r.name] = {
+        price: r.pricePerMonth,
+        limit: r.listingLimit,
+      };
+    }
+    planCache = { data, ts: Date.now() };
+    return data;
+  } catch {
+    return Object.fromEntries(
+      Object.keys(DEFAULT_PLAN_PRICES).map(k => [k, { price: DEFAULT_PLAN_PRICES[k] ?? 0, limit: DEFAULT_PLAN_LIMITS[k] ?? 3 }])
+    );
+  }
+}
+
+export function invalidatePlanCache() {
+  planCache = null;
+}
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
@@ -53,14 +72,25 @@ export async function getActiveSubscription(userId: string) {
 }
 
 export function getPlanLimit(plan: string): number {
-  return PLAN_LIMITS[plan] ?? 3;
+  return DEFAULT_PLAN_LIMITS[plan] ?? 3;
 }
 
-function calcAmount(plan: string, cycle: string, months: number): number {
-  const pricePerMonth = PLAN_PRICES[plan] ?? 0;
-  const discount = cycle === "yearly" ? (plan === "gold" ? 24 : 16) : 0;
-  return Math.max(0, pricePerMonth * months - discount);
+async function calcAmount(plan: string, cycle: string, months: number): Promise<number> {
+  const plans = await getPlansConfig();
+  const pricePerMonth = plans[plan]?.price ?? DEFAULT_PLAN_PRICES[plan] ?? 0;
+  const yearlyDiscount = cycle === "yearly" ? Math.round(pricePerMonth * 0.1 * 12) : 0; // 10% yearly discount
+  return Math.max(0, pricePerMonth * months - yearlyDiscount);
 }
+
+// GET /api/subscriptions/plans  — public endpoint returning plan details
+router.get("/plans", async (_req, res) => {
+  try {
+    const rows = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.isActive, true));
+    res.json(rows);
+  } catch {
+    res.json([]);
+  }
+});
 
 // GET /api/subscriptions/me
 router.get("/me", async (req, res) => {
@@ -73,6 +103,8 @@ router.get("/me", async (req, res) => {
     .from(properties)
     .where(eq(properties.ownerId, userId));
 
+  const plans = await getPlansConfig();
+
   if (!sub) {
     res.json({
       plan: "standard",
@@ -83,7 +115,7 @@ router.get("/me", async (req, res) => {
       startDate: toDateStr(new Date()),
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
-      listingLimit: PLAN_LIMITS.standard,
+      listingLimit: plans["standard"]?.limit ?? 3,
     });
     return;
   }
@@ -91,7 +123,7 @@ router.get("/me", async (req, res) => {
   res.json({
     ...sub,
     listingCount: Number(listingCount),
-    listingLimit: getPlanLimit(sub.plan),
+    listingLimit: plans[sub.plan]?.limit ?? getPlanLimit(sub.plan),
   });
 });
 
@@ -129,7 +161,7 @@ router.post("/upgrade", async (req, res) => {
   if (cycle === "yearly") billingMonths = 12;
   else if (cycle === "custom" && months && months >= 1) billingMonths = Math.floor(months);
 
-  const amountPaid = calcAmount(plan, cycle, billingMonths);
+  const amountPaid = await calcAmount(plan, cycle, billingMonths);
   const startDate = toDateStr(new Date());
   const endDate = toDateStr(addMonths(new Date(), billingMonths));
 
@@ -193,7 +225,7 @@ router.post("/checkout", async (req, res) => {
   if (cycle === "yearly") billingMonths = 12;
   else if (cycle === "custom" && months && months >= 1) billingMonths = Math.floor(months);
 
-  const amount = calcAmount(plan, cycle, billingMonths);
+  const amount = await calcAmount(plan, cycle, billingMonths);
 
   const merchantReference = `INNDOS-${userId.slice(0, 8).toUpperCase()}-${Date.now()}`;
 

@@ -147,6 +147,18 @@ export const subscriptions = pgTable("subscriptions", {
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;
 
+export const subscriptionPlans = pgTable("subscription_plans", {
+  name: varchar("name").primaryKey(),
+  displayName: text("display_name").notNull(),
+  pricePerMonth: integer("price_per_month").notNull().default(0),
+  listingLimit: integer("listing_limit").notNull().default(3),
+  features: text("features").array().notNull().default(sql`'{}'::text[]`),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+
 export const settings = pgTable("settings", {
   key: varchar("key").primaryKey(),
   value: text("value").notNull(),

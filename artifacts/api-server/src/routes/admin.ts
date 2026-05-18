@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { users, properties, bookings, subscriptions, payments, settings } from "@workspace/db";
+import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans } from "@workspace/db";
 import { eq, count, sum, ne, asc, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
@@ -460,6 +460,58 @@ router.put("/settings", async (req, res) => {
   invalidateTokenCache();
 
   res.json({ success: true, message: "Settings updated" });
+});
+
+// ── Subscription Plan Management ───────────────────────────────────────
+
+router.get("/plans", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+  const rows = await db.select().from(subscriptionPlans);
+  res.json(rows);
+});
+
+router.put("/plans/:name", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { name } = req.params;
+  if (!["standard", "silver", "gold"].includes(name)) {
+    res.status(400).json({ error: "Invalid plan name" });
+    return;
+  }
+
+  const { displayName, pricePerMonth, listingLimit, features, isActive } = req.body as {
+    displayName?: string;
+    pricePerMonth?: number;
+    listingLimit?: number;
+    features?: string[];
+    isActive?: boolean;
+  };
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (displayName !== undefined) updates.displayName = displayName;
+  if (pricePerMonth !== undefined && pricePerMonth >= 0) updates.pricePerMonth = Math.floor(pricePerMonth);
+  if (listingLimit !== undefined && listingLimit >= 1) updates.listingLimit = Math.floor(listingLimit);
+  if (Array.isArray(features)) updates.features = features.filter(f => f.trim());
+  if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+  const [updated] = await db
+    .update(subscriptionPlans)
+    .set(updates as Parameters<typeof db.update>[0] extends never ? never : Record<string, unknown>)
+    .where(eq(subscriptionPlans.name, name))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+
+  // Invalidate the plan cache so subscriptions route picks up new values
+  const { invalidatePlanCache } = await import("./subscriptions");
+  invalidatePlanCache();
+
+  res.json(updated);
 });
 
 router.post("/settings/register-ipn", async (req, res) => {
