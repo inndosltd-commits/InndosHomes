@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { bookings, properties, users, notifications, insertBookingSchema } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, lt, gt, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
 
@@ -77,6 +77,23 @@ router.post("/", async (req, res) => {
   const [prop] = await db.select().from(properties).where(eq(properties.id, propertyId));
   if (!prop) {
     res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  const overlapping = await db
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.propertyId, propertyId),
+        inArray(bookings.status, ["confirmed", "pending"]),
+        lt(bookings.startDate, endDate),
+        gt(bookings.endDate, startDate)
+      )
+    );
+
+  if (overlapping.length > 0) {
+    res.status(409).json({ error: "These dates are already booked. Please choose different dates." });
     return;
   }
 

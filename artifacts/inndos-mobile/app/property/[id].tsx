@@ -185,8 +185,18 @@ export default function PropertyDetailScreen() {
                     { text: "OK" },
                   ]);
                 },
-                onError: () => {
-                  Alert.alert("Error", "Failed to create booking. Please try again.");
+                onError: (err: unknown) => {
+                  const status = (err as { response?: { status?: number }; status?: number })?.response?.status
+                    ?? (err as { status?: number })?.status;
+                  if (status === 409) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    Alert.alert(
+                      "Dates Unavailable",
+                      "This property is already booked for the selected dates. Please choose different dates."
+                    );
+                  } else {
+                    Alert.alert("Error", "Failed to create booking. Please try again.");
+                  }
                 },
               }
             );
