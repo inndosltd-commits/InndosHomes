@@ -696,19 +696,30 @@ export default function PropertyDetailScreen() {
               KES {(isNightly ? totalPrice : property.price).toLocaleString()}
             </Text>
           </View>
-          <Pressable
-            style={[styles.bookBtn, { backgroundColor: colors.primary }, isBooking && { opacity: 0.6 }]}
-            onPress={handleBook}
-            disabled={isBooking}
-          >
-            {isBooking ? (
-              <ActivityIndicator size="small" color={colors.primaryForeground} />
-            ) : (
-              <Text style={[styles.bookBtnText, { color: colors.primaryForeground }]}>
-                {user ? "Book Now" : "Sign In to Book"}
+          <View style={styles.bookBtnWrapper}>
+            <Pressable
+              style={[
+                styles.bookBtn,
+                { backgroundColor: colors.primary },
+                (isBooking || (isNightly && isUnavailable)) && { opacity: 0.4 },
+              ]}
+              onPress={handleBook}
+              disabled={isBooking || (isNightly && isUnavailable)}
+            >
+              {isBooking ? (
+                <ActivityIndicator size="small" color={colors.primaryForeground} />
+              ) : (
+                <Text style={[styles.bookBtnText, { color: colors.primaryForeground }]}>
+                  {user ? "Book Now" : "Sign In to Book"}
+                </Text>
+              )}
+            </Pressable>
+            {isNightly && isUnavailable && (
+              <Text style={[styles.bookBtnHint, { color: colors.mutedForeground }]}>
+                These dates are already booked
               </Text>
             )}
-          </Pressable>
+          </View>
         </View>
       )}
 
@@ -1163,16 +1174,26 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 20,
       fontFamily: "Outfit_700Bold",
     },
+    bookBtnWrapper: {
+      alignItems: "center",
+      gap: 4,
+    },
     bookBtn: {
       paddingHorizontal: 32,
       paddingVertical: 14,
       alignItems: "center",
       justifyContent: "center",
       minWidth: 140,
+      borderRadius: 12,
     },
     bookBtnText: {
       fontSize: 15,
       fontFamily: "Outfit_600SemiBold",
+    },
+    bookBtnHint: {
+      fontSize: 11,
+      fontFamily: "Outfit_400Regular",
+      textAlign: "center",
     },
     errorText: {
       fontSize: 18,
