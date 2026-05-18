@@ -151,6 +151,12 @@ export function PropertyCard({ property }: PropertyCardProps) {
           </Text>
         </View>
 
+        {!!property.description && (
+          <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
+            {property.description}
+          </Text>
+        )}
+
         <View style={[styles.specs, { borderTopColor: colors.border }]}>
           {property.beds > 0 && (
             <View style={styles.specItem}>
@@ -274,6 +280,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     flex: 1,
+  },
+  description: {
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    lineHeight: 19,
   },
   specs: {
     flexDirection: "row",

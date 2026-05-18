@@ -26,7 +26,6 @@ export interface ApiProperty {
   description?: string | null;
   createdAt?: string;
   ownerName?: string | null;
-  description?: string | null;
   // Legacy mockData compat (specs object)
   specs?: { beds: number; baths: number; sqft: number; guests?: number };
 }
@@ -93,10 +92,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
           <h3 className="font-heading font-semibold text-lg text-gray-900 line-clamp-1 mb-1 group-hover:text-primary transition-colors">
             {property.title}
           </h3>
-          <div className="flex items-center text-muted-foreground text-sm mb-4">
+          <div className={`flex items-center text-muted-foreground text-sm ${property.description ? "mb-2" : "mb-4"}`}>
             <MapPin className="h-3 w-3 mr-1" />
             <span className="line-clamp-1">{property.address}</span>
           </div>
+
+          {property.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+              {property.description}
+            </p>
+          )}
 
           <div className="flex justify-between items-center py-3 border-t border-gray-100">
             {beds > 0 && (
