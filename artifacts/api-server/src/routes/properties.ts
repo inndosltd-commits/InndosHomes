@@ -112,6 +112,13 @@ router.post("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  const allowedRoles = ["owner", "host", "admin"];
+  if (!caller || !allowedRoles.includes(caller.role)) {
+    res.status(403).json({ error: "Only owners and hosts can create property listings" });
+    return;
+  }
+
   const { isVerified: _ignored, ...body } = req.body;
   const imageList: string[] = Array.isArray(body.images) ? body.images : [];
   const primaryImage = imageList[0] || body.image || "/images/modern_apartment_exterior.png";
