@@ -33,12 +33,12 @@ import {
   View,
 } from "react-native";
 
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { BookingCalendar } from "@/components/BookingCalendar";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -72,6 +72,12 @@ function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
+}
+
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 }
 
 function daysBetween(a: Date, b: Date): number {
@@ -122,6 +128,33 @@ export default function PropertyDetailScreen() {
       return checkInMs < end && checkOutMs > start;
     });
   }, [bookedRanges, checkIn, checkOut]);
+
+  const maxCheckoutDate = React.useMemo<Date | null>(() => {
+    if (!bookedRanges || bookedRanges.length === 0) return null;
+    const checkInMs = startOfDay(checkIn).getTime();
+    let earliest: Date | null = null;
+    for (const r of bookedRanges) {
+      const s = startOfDay(new Date(r.startDate));
+      if (s.getTime() > checkInMs) {
+        if (!earliest || s.getTime() < earliest.getTime()) {
+          earliest = s;
+        }
+      }
+    }
+    return earliest;
+  }, [bookedRanges, checkIn]);
+
+  const isCheckOutDateDisabled = React.useCallback((date: Date): boolean => {
+    if (maxCheckoutDate && startOfDay(date).getTime() > maxCheckoutDate.getTime()) return true;
+    return false;
+  }, [maxCheckoutDate]);
+
+  React.useEffect(() => {
+    if (maxCheckoutDate && startOfDay(checkOut).getTime() > maxCheckoutDate.getTime()) {
+      const nights = daysBetween(checkIn, maxCheckoutDate);
+      setBookingNights(Math.max(1, nights));
+    }
+  }, [maxCheckoutDate, checkIn, checkOut]);
 
   const { data: favoriteStatus } = useCheckFavorite(id ?? "");
   const isFavorited = favoriteStatus?.isFavorited ?? false;
@@ -185,21 +218,17 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  const handleCheckInChange = (_event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") setShowCheckInPicker(false);
-    if (!date) return;
-    const picked = new Date(date);
-    picked.setHours(0, 0, 0, 0);
+  const handleCheckInSelect = (date: Date) => {
+    const picked = startOfDay(date);
     if (picked < today) return;
     setCheckIn(picked);
+    if (picked >= checkOut) {
+      setBookingNights(1);
+    }
   };
 
-  const handleCheckOutChange = (_event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") setShowCheckOutPicker(false);
-    if (!date) return;
-    const picked = new Date(date);
-    picked.setHours(0, 0, 0, 0);
-    const minOut = addDays(checkIn, 1);
+  const handleCheckOutSelect = (date: Date) => {
+    const picked = startOfDay(date);
     if (picked <= checkIn) return;
     setBookingNights(daysBetween(checkIn, picked));
   };
@@ -723,71 +752,27 @@ export default function PropertyDetailScreen() {
         </View>
       )}
 
-      {showCheckInPicker && Platform.OS === "ios" && (
-        <Modal transparent animationType="slide">
-          <View style={styles.iosPickerBackdrop}>
-            <Pressable style={styles.iosPickerOverlay} onPress={() => setShowCheckInPicker(false)} />
-            <View style={[styles.iosPickerSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-              <View style={styles.iosPickerHeader}>
-                <Text style={[styles.iosPickerTitle, { color: colors.foreground }]}>Check-in Date</Text>
-                <Pressable onPress={() => setShowCheckInPicker(false)}>
-                  <Text style={[styles.iosPickerDone, { color: colors.primary }]}>Done</Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={checkIn}
-                mode="date"
-                display="spinner"
-                minimumDate={today}
-                onChange={handleCheckInChange}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
+      <BookingCalendar
+        visible={showCheckInPicker}
+        title="Check-in Date"
+        value={checkIn}
+        minDate={today}
+        bookedRanges={bookedRanges ?? []}
+        onSelect={handleCheckInSelect}
+        onClose={() => setShowCheckInPicker(false)}
+      />
 
-      {showCheckInPicker && Platform.OS === "android" && (
-        <DateTimePicker
-          value={checkIn}
-          mode="date"
-          display="default"
-          minimumDate={today}
-          onChange={handleCheckInChange}
-        />
-      )}
-
-      {showCheckOutPicker && Platform.OS === "ios" && (
-        <Modal transparent animationType="slide">
-          <View style={styles.iosPickerBackdrop}>
-            <Pressable style={styles.iosPickerOverlay} onPress={() => setShowCheckOutPicker(false)} />
-            <View style={[styles.iosPickerSheet, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-              <View style={styles.iosPickerHeader}>
-                <Text style={[styles.iosPickerTitle, { color: colors.foreground }]}>Check-out Date</Text>
-                <Pressable onPress={() => setShowCheckOutPicker(false)}>
-                  <Text style={[styles.iosPickerDone, { color: colors.primary }]}>Done</Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={checkOut}
-                mode="date"
-                display="spinner"
-                minimumDate={addDays(checkIn, 1)}
-                onChange={handleCheckOutChange}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {showCheckOutPicker && Platform.OS === "android" && (
-        <DateTimePicker
-          value={checkOut}
-          mode="date"
-          display="default"
-          minimumDate={addDays(checkIn, 1)}
-          onChange={handleCheckOutChange}
-        />
-      )}
+      <BookingCalendar
+        visible={showCheckOutPicker}
+        title="Check-out Date"
+        value={checkOut}
+        minDate={addDays(checkIn, 1)}
+        bookedRanges={bookedRanges ?? []}
+        allowBookedStartDates
+        isDateDisabled={isCheckOutDateDisabled}
+        onSelect={handleCheckOutSelect}
+        onClose={() => setShowCheckOutPicker(false)}
+      />
     </View>
   );
 }
@@ -1207,32 +1192,6 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     backBtnText: {
       fontSize: 14,
       fontFamily: "Outfit_500Medium",
-    },
-    iosPickerBackdrop: {
-      flex: 1,
-      justifyContent: "flex-end",
-    },
-    iosPickerOverlay: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.4)",
-    },
-    iosPickerSheet: {
-      borderTopWidth: 1,
-    },
-    iosPickerHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-    },
-    iosPickerTitle: {
-      fontSize: 16,
-      fontFamily: "Outfit_600SemiBold",
-    },
-    iosPickerDone: {
-      fontSize: 16,
-      fontFamily: "Outfit_600SemiBold",
     },
   });
 }
