@@ -25,6 +25,8 @@ const PROPERTY_COLUMNS = {
   description: properties.description,
   isVerified: properties.isVerified,
   tags: properties.tags,
+  subtype: properties.subtype,
+  hourlyRate: properties.hourlyRate,
   lat: properties.lat,
   lng: properties.lng,
   createdAt: properties.createdAt,

@@ -10,14 +10,12 @@ import { useAuth } from "@/lib/auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
-const ROLES = ["tenant", "owner", "host", "guest", "admin"] as const;
+const ROLES = ["owner", "host", "admin"] as const;
 type Role = typeof ROLES[number];
 
 const DEMO_CREDS: Record<Role, { email: string; password: string }> = {
-  tenant: { email: "tenant@inndos.com", password: "tenant123" },
   owner: { email: "owner@inndos.com", password: "owner123" },
   host: { email: "host@inndos.com", password: "host123" },
-  guest: { email: "guest@inndos.com", password: "guest123" },
   admin: { email: "admin@inndos.com", password: "admin123" },
 };
 
@@ -146,8 +144,8 @@ export default function Login() {
                 </div>
               </form>
             ) : (
-              <Tabs defaultValue="tenant" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 mb-8">
+              <Tabs defaultValue="owner" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-8">
                   {ROLES.map((role) => (
                     <TabsTrigger key={role} value={role} className="text-xs px-1">
                       {role.charAt(0).toUpperCase() + role.slice(1)}

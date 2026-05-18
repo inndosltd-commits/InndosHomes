@@ -18,10 +18,14 @@ export interface ApiProperty {
   image: string;
   isVerified: boolean;
   tags: string[];
+  subtype?: string | null;
+  hourlyRate?: number | null;
+  images?: string[];
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
   ownerName?: string | null;
+  description?: string | null;
   // Legacy mockData compat (specs object)
   specs?: { beds: number; baths: number; sqft: number; guests?: number };
 }

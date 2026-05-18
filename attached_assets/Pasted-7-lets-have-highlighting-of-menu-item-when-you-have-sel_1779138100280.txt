@@ -1,0 +1,18 @@
+7. lets have highlighting of menu item when you have selected that item on header menu.
+8. once property has been listed, let it indicate indicate approved, but now admin should later after getting that notification of new listed property , he can login and set it as Verified. admin can return back/flag to listers if it doesnt fit required standands, and commecnt whats not right for lister to action again. once flagged... it cant been seen on flatform font until lister of that property actions on what he ahs been told by admin to correct.  (all thse should show on front for users to differentiate) now i can see some showing verified but lets use this concept) remembers all these notifications from start of listing to booking etc all notifications should seen on notification bell, apps push notifications and emails notifications to admin and respective user.
+
+9. on list property form when you select bnb it should show  you where to choose bnb type (
+-Serviced Apartments: Fully furnished apartments with hotel-like amenities
+-Entire Place: The most common type, offering guests a private home, apartment, or villa with a dedicated entrance.
+-Private Room: Guests have their own bedroom but share spaces like the kitchen, living room, or bathroom.
+-Shared Room: Guests share a bedroom and common areas with others.
+-Unique Stays: Specialized, memorable properties such as treehouses, container homes, yurts, and houseboats.
+-Hotel Rooms & Boutique Hotels: Rooms in traditional hotels, hostels, or Bed & Breakfasts.
+-Vacation Homes: Standalone properties like rustic cabins or villas designed for vacationers.)
+-Nature focused: cabins, bugalos , containers, villas. 
+then last have others as last one
+Remaber to indicate what it covers  or means... note this should show only for when listing and you select bnb type only
+
+10. lets have price ranger filter on bnb page, on rent page, on hostels page, on buy page
+11. make it strictly only when you register/signup with us/you are login it is only when you can see booking details etc... when you click product, you can only see all details but you cant see phone number, emails, name, you cant send message or whatsapp lister/owner of property . and when you click book it prompts you to signup. 
+12. on property location, we should have functionality to copy the pin while still on app, as well add direction mapy that you can follow from where you are upto where the property is while still on app.... just the where we normally have maps on bolt or uber routing you from point a to be... make it well interruct to be used while somebody moving from point A to Point B.

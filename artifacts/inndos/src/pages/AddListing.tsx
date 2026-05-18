@@ -117,6 +117,8 @@ export default function AddListing() {
   const [sqft, setSqft] = useState("");
   const [description, setDescription] = useState("");
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [subtype, setSubtype] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
 
   const toggleAmenity = (id: string) => {
     setSelectedAmenities(prev =>
@@ -138,7 +140,7 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; description?: string; tags?: string[] }) => {
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
         setTitle(prop.title ?? "");
         setListingType(prop.type ?? "");
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -153,6 +155,8 @@ export default function AddListing() {
           setImages([prop.image]);
         }
         if (prop.tags) setSelectedAmenities(prop.tags);
+        if (prop.subtype) setSubtype(prop.subtype);
+        if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
       })
       .catch(() => {
         toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
@@ -246,6 +250,8 @@ export default function AddListing() {
         description: description || null,
         images,
         tags: selectedAmenities,
+        subtype: subtype || undefined,
+        hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
       };
 
       const url = isEditing ? `/api/properties/${editId}` : "/api/properties";
@@ -345,12 +351,76 @@ export default function AddListing() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {listingType !== 'bnb' && (
                     <div className="space-y-2">
                       <Label htmlFor="price">Price (KES)</Label>
                       <Input id="price" type="number" placeholder="e.g. 85000" value={price} onChange={e => { setPrice(e.target.value); setFieldErrors(prev => ({ ...prev, price: [] })); }} required className={fieldErrors.price?.length ? "border-red-500" : ""} />
                       {fieldErrors.price?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
+                    )}
                   </div>
+
+                  {/* Subtype selector — Rent: apartment category; Sale: property category */}
+                  {(listingType === 'rent') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subtype">Apartment Type</Label>
+                    <Select value={subtype} onValueChange={setSubtype}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select apartment type (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="studio">Studio / Bedsitter</SelectItem>
+                        <SelectItem value="1-bedroom">1 Bedroom</SelectItem>
+                        <SelectItem value="2-bedroom">2 Bedrooms</SelectItem>
+                        <SelectItem value="3-bedroom">3 Bedrooms</SelectItem>
+                        <SelectItem value="4-bedroom">4+ Bedrooms</SelectItem>
+                        <SelectItem value="penthouse">Penthouse</SelectItem>
+                        <SelectItem value="own-compound">Own Compound</SelectItem>
+                        <SelectItem value="condominium">Condominium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Helps guests find your property under the right category.</p>
+                  </div>
+                  )}
+
+                  {listingType === 'sale' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="subtype">Property Category</Label>
+                    <Select value={subtype} onValueChange={setSubtype}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="apartment">Apartment</SelectItem>
+                        <SelectItem value="home">Home / House</SelectItem>
+                        <SelectItem value="land">Land</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Helps buyers filter by property category.</p>
+                  </div>
+                  )}
+
+                  {/* BnB Pricing — daily (existing price) + optional hourly rate */}
+                  {listingType === 'bnb' && (
+                  <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <div>
+                      <Label className="text-sm font-semibold text-blue-800">B&B Pricing Options</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Set daily rate, hourly rate, or both.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="price_bnb" className="text-sm">Daily Rate (KES)</Label>
+                        <Input id="price_bnb" type="number" min="0" placeholder="e.g. 5000" value={price} onChange={e => { setPrice(e.target.value); setFieldErrors(prev => ({ ...prev, price: [] })); }} />
+                        <p className="text-xs text-muted-foreground">Price per night/day</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="hourly_rate" className="text-sm">Hourly Rate (KES) <span className="text-gray-400 font-normal">(optional)</span></Label>
+                        <Input id="hourly_rate" type="number" min="0" placeholder="e.g. 800" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} />
+                        <p className="text-xs text-muted-foreground">Leave blank if hourly is not available</p>
+                      </div>
+                    </div>
+                  </div>
+                  )}
 
                   {listingType === 'hostel' && (
                   <div className="space-y-2">

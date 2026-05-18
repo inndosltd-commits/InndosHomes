@@ -48,6 +48,8 @@ export const properties = pgTable("properties", {
   description: text("description"),
   isVerified: boolean("is_verified").notNull().default(false),
   tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+  subtype: text("subtype"),
+  hourlyRate: integer("hourly_rate"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
   lng: decimal("lng", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
