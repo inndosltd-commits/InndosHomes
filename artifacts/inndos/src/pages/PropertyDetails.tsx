@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
@@ -38,6 +38,9 @@ export default function PropertyDetails() {
   const [hoverRating, setHoverRating] = useState(0);
   const [hasRated, setHasRated] = useState(false);
   const [ratingStats] = useState({ average: 4.8, total: 24 });
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     if (!params?.id) return;
@@ -161,6 +164,21 @@ export default function PropertyDetails() {
     });
   };
 
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
+
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+
+  const lightboxPrev = useCallback((allPhotos: string[]) => {
+    setLightboxIndex((i) => (i - 1 + allPhotos.length) % allPhotos.length);
+  }, []);
+
+  const lightboxNext = useCallback((allPhotos: string[]) => {
+    setLightboxIndex((i) => (i + 1) % allPhotos.length);
+  }, []);
+
   const handleRate = (rating: number) => {
     if (!isBooked && !hasRated) {
       toast({ title: "Action Required", description: "You need to book or stay at this property first.", variant: "destructive" });
@@ -232,27 +250,119 @@ export default function PropertyDetails() {
     return amount;
   };
 
+  const allPhotos = (property.images && property.images.length > 0)
+    ? property.images
+    : [property.image];
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
 
       {/* Image Gallery */}
-      <div className="grid grid-cols-1 md:grid-cols-2 h-[250px] sm:h-[400px] md:h-[500px] gap-1">
-        <div className="h-full bg-gray-200 relative">
-          <img src={property.image} className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" alt={property.title} />
+      {allPhotos.length === 1 ? (
+        <div className="h-[250px] sm:h-[400px] md:h-[500px] bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
+          <img src={allPhotos[0]} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
         </div>
-        <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-1 h-full">
-          <div className="bg-gray-200"><img src="/images/cozy_modern_bedroom_interior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" alt="" /></div>
-          <div className="bg-gray-200"><img src="/images/modern_apartment_exterior.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" alt="" /></div>
-          <div className="bg-gray-200"><img src="/images/modern_happy_family_moving_into_new_home.png" className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" alt="" /></div>
-          <div className="bg-gray-200 relative">
-            <img src={property.image} className="w-full h-full object-cover hover:brightness-110 transition-all cursor-pointer" alt="" />
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold cursor-pointer hover:bg-black/50 transition-colors">
-              {t("prop.view_all_photos")}
-            </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 h-[250px] sm:h-[400px] md:h-[500px] gap-1">
+          {/* Main/hero image */}
+          <div className="h-full bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
+            <img src={allPhotos[0]} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
           </div>
+          {/* Thumbnail grid — show up to 4 secondary images */}
+          <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-1 h-full">
+            {allPhotos.slice(1, 5).map((photo, idx) => {
+              const isLast = idx === 3 && allPhotos.length > 5;
+              return (
+                <div key={photo} className="bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(idx + 1)}>
+                  <img src={photo} className="w-full h-full object-cover hover:brightness-110 transition-all" alt="" />
+                  {isLast && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white font-bold gap-1 hover:bg-black/60 transition-colors">
+                      <Images className="h-5 w-5" />
+                      <span className="text-sm">+{allPhotos.length - 5} more</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* Fill empty cells if fewer than 4 secondary photos */}
+            {allPhotos.length < 3 && (
+              <div className="bg-gray-100" />
+            )}
+            {allPhotos.length < 4 && (
+              <div className="bg-gray-100" />
+            )}
+            {allPhotos.length < 5 && allPhotos.length >= 4 && (
+              <div className="bg-gray-100 relative cursor-pointer" onClick={() => openLightbox(0)}>
+                <img src={allPhotos[0]} className="w-full h-full object-cover opacity-60 hover:opacity-80 transition-all" alt="" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm bg-black/40 px-3 py-1 rounded-full">{t("prop.view_all_photos")}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Mobile: show photo count badge on hero */}
+          <button
+            className="md:hidden absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10"
+            style={{ position: "absolute", bottom: 12, right: 12 }}
+            onClick={() => openLightbox(0)}
+          >
+            <Images className="h-3.5 w-3.5" />
+            {allPhotos.length} photos
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={closeLightbox}>
+          <button
+            className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full p-2 z-10 transition-colors"
+            onClick={closeLightbox}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/40 px-4 py-1.5 rounded-full">
+            {lightboxIndex + 1} / {allPhotos.length}
+          </div>
+          {allPhotos.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/20 rounded-full p-3 z-10 transition-colors"
+                onClick={(e) => { e.stopPropagation(); lightboxPrev(allPhotos); }}
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/20 rounded-full p-3 z-10 transition-colors"
+                onClick={(e) => { e.stopPropagation(); lightboxNext(allPhotos); }}
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </>
+          )}
+          <img
+            src={allPhotos[lightboxIndex]}
+            alt={`Photo ${lightboxIndex + 1}`}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {/* Thumbnail strip */}
+          {allPhotos.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-[90vw] px-4 pb-1">
+              {allPhotos.map((photo, idx) => (
+                <button
+                  key={photo}
+                  className={`shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-all ${idx === lightboxIndex ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-90"}`}
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(idx); }}
+                >
+                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">

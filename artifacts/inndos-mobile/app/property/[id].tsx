@@ -13,12 +13,16 @@ import { getListBookingsQueryKey } from "@workspace/api-client-react";
 import { getImageUrl } from "@/utils/imageUrl";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
+  FlatList,
   Image,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -27,12 +31,15 @@ import {
   TextInput,
   View,
 } from "react-native";
+
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -86,6 +93,12 @@ export default function PropertyDetailScreen() {
   const [bookingNights, setBookingNights] = useState(1);
   const [showCheckInPicker, setShowCheckInPicker] = useState(false);
   const [showCheckOutPicker, setShowCheckOutPicker] = useState(false);
+
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [lightboxVisible, setLightboxVisible] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const carouselRef = useRef<FlatList>(null);
+  const lightboxRef = useRef<FlatList>(null);
 
   const checkOut = addDays(checkIn, bookingNights);
 
@@ -228,6 +241,19 @@ export default function PropertyDetailScreen() {
   const bottomPad = isWeb ? 34 : insets.bottom;
   const styles = getStyles(colors);
 
+  const handleCarouselScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    setActivePhotoIndex(idx);
+  };
+
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxVisible(true);
+    setTimeout(() => {
+      lightboxRef.current?.scrollToIndex({ index, animated: false });
+    }, 50);
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
@@ -255,19 +281,108 @@ export default function PropertyDetailScreen() {
   const showBooking = property.type !== "sale";
   const totalPrice = property.price * bookingNights;
 
+  const allPhotos = (property.images && property.images.length > 0)
+    ? property.images
+    : [property.image];
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Lightbox Modal */}
+      <Modal
+        visible={lightboxVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxVisible(false)}
+      >
+        <View style={styles.lightboxBackdrop}>
+          <Pressable style={styles.lightboxClose} onPress={() => setLightboxVisible(false)}>
+            <Feather name="x" size={24} color="#fff" />
+          </Pressable>
+          <Text style={styles.lightboxCounter}>{lightboxIndex + 1} / {allPhotos.length}</Text>
+          <FlatList
+            ref={lightboxRef}
+            data={allPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={lightboxIndex}
+            getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              setLightboxIndex(idx);
+            }}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item }) => (
+              <View style={{ width: SCREEN_WIDTH, justifyContent: "center", alignItems: "center" }}>
+                <Image
+                  source={{ uri: getImageUrl(item) }}
+                  style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+          />
+          {/* Thumbnail strip */}
+          {allPhotos.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.lightboxThumbs}
+            >
+              {allPhotos.map((photo, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => {
+                    setLightboxIndex(idx);
+                    lightboxRef.current?.scrollToIndex({ index: idx, animated: true });
+                  }}
+                  style={[
+                    styles.lightboxThumb,
+                    { borderColor: idx === lightboxIndex ? "#fff" : "transparent" },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(photo) }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPad + 120 }}
       >
+        {/* Photo Carousel */}
         <View style={styles.heroContainer}>
-          <Image
-            source={{ uri: getImageUrl(property.image) }}
-            style={styles.heroImage}
-            resizeMode="cover"
+          <FlatList
+            ref={carouselRef}
+            data={allPhotos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleCarouselScroll}
+            keyExtractor={(_, i) => String(i)}
+            renderItem={({ item, index }) => (
+              <Pressable
+                style={{ width: SCREEN_WIDTH, height: 320 }}
+                onPress={() => openLightbox(index)}
+              >
+                <Image
+                  source={{ uri: getImageUrl(item) }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
+                <View style={styles.heroOverlay} />
+              </Pressable>
+            )}
           />
-          <View style={styles.heroOverlay} />
+
+          {/* Nav buttons */}
           <View style={[styles.heroBackBtn, { top: isWeb ? 67 + 12 : insets.top + 12 }]}>
             <Pressable
               style={[styles.backCircle, { backgroundColor: "rgba(255,255,255,0.9)" }]}
@@ -291,6 +406,8 @@ export default function PropertyDetailScreen() {
               )}
             </Pressable>
           </View>
+
+          {/* Price + type chip */}
           <View style={styles.heroPriceRow}>
             <Text style={styles.heroPriceText}>{getPriceLabel(property.type, property.price)}</Text>
             <View style={[styles.typeChip, { backgroundColor: colors.primary }]}>
@@ -299,6 +416,29 @@ export default function PropertyDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Dot indicators */}
+          {allPhotos.length > 1 && (
+            <View style={styles.dotsRow}>
+              {allPhotos.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.dot,
+                    idx === activePhotoIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Photo count badge */}
+          {allPhotos.length > 1 && (
+            <View style={styles.photoCountBadge}>
+              <Feather name="image" size={12} color="#fff" />
+              <Text style={styles.photoCountText}>{activePhotoIndex + 1}/{allPhotos.length}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.detailsSection}>
@@ -613,13 +753,88 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       height: 320,
       position: "relative",
     },
-    heroImage: {
-      width: "100%",
-      height: "100%",
-    },
     heroOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: "rgba(0,0,0,0.2)",
+    },
+    dotsRow: {
+      position: "absolute",
+      bottom: 56,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    dotActive: {
+      backgroundColor: "#fff",
+      width: 18,
+    },
+    dotInactive: {
+      backgroundColor: "rgba(255,255,255,0.5)",
+    },
+    photoCountBadge: {
+      position: "absolute",
+      bottom: 16,
+      right: 16,
+      backgroundColor: "rgba(0,0,0,0.55)",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    photoCountText: {
+      color: "#fff",
+      fontSize: 12,
+      fontFamily: "Outfit_500Medium",
+    },
+    lightboxBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.97)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    lightboxClose: {
+      position: "absolute",
+      top: 48,
+      right: 16,
+      zIndex: 10,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      borderRadius: 20,
+      padding: 8,
+    },
+    lightboxCounter: {
+      position: "absolute",
+      top: 54,
+      alignSelf: "center",
+      color: "#fff",
+      fontSize: 14,
+      fontFamily: "Outfit_500Medium",
+      backgroundColor: "rgba(0,0,0,0.4)",
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 20,
+      zIndex: 10,
+    },
+    lightboxThumbs: {
+      paddingHorizontal: 16,
+      gap: 8,
+      paddingBottom: 32,
+    },
+    lightboxThumb: {
+      width: 56,
+      height: 56,
+      borderRadius: 8,
+      overflow: "hidden",
+      borderWidth: 2,
     },
     heroBackBtn: {
       position: "absolute",
