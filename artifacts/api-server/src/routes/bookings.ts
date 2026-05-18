@@ -4,6 +4,7 @@ import { bookings, properties, users, notifications, insertBookingSchema } from 
 import { and, eq, lt, gt, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
+import { sendNewBookingEmail } from "../lib/email";
 
 const router = Router();
 
@@ -104,7 +105,10 @@ router.post("/", async (req, res) => {
     .values({ propertyId, userId, startDate, endDate, totalPrice, status: "pending" })
     .returning();
 
-  const [guest] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
+  const [guest] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId));
   const guestName = guest?.name ?? "A guest";
 
   try {
@@ -117,6 +121,33 @@ router.post("/", async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err, bookingId: booking.id }, "Failed to create owner notification for booking");
+  }
+
+  try {
+    const [owner] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, prop.ownerId));
+
+    if (owner) {
+      const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+      const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+      const dashboardUrl = `${baseUrl}/#/dashboard`;
+
+      await sendNewBookingEmail({
+        ownerEmail: owner.email,
+        ownerName: owner.name,
+        guestName,
+        propertyTitle: prop.title,
+        startDate,
+        endDate,
+        dashboardUrl,
+      });
+
+      req.log.info({ bookingId: booking.id, ownerEmail: owner.email }, "Booking email sent to owner");
+    }
+  } catch (err) {
+    req.log.error({ err, bookingId: booking.id }, "Failed to send booking email to owner");
   }
 
   res.status(201).json(booking);
