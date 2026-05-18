@@ -148,6 +148,22 @@ export const DeletePropertyParams = zod.object({
 });
 
 /**
+ * @summary Get booked date ranges for a property
+ */
+export const GetPropertyAvailabilityParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPropertyAvailabilityResponseItem = zod.object({
+  startDate: zod.string(),
+  endDate: zod.string(),
+  status: zod.enum(["pending", "confirmed"]),
+});
+export const GetPropertyAvailabilityResponse = zod.array(
+  GetPropertyAvailabilityResponseItem,
+);
+
+/**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
 metadata here, then uploads the file directly to the returned URL.
 

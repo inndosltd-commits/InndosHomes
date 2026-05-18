@@ -179,6 +179,29 @@ paths:
         "200":
           description: Deleted
 
+  /properties/{id}/availability:
+    get:
+      operationId: getPropertyAvailability
+      tags: [properties]
+      summary: Get booked date ranges for a property
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of booked date ranges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookedRange"
+        "404":
+          description: Not found
+
   /storage/uploads/request-url:
     post:
       tags: [Storage]
@@ -683,6 +706,21 @@ components:
       required:
         - isFavorited
         - propertyId
+
+    BookedRange:
+      type: object
+      properties:
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed]
+      required:
+        - startDate
+        - endDate
+        - status
 
     CreateBookingInput:
       type: object

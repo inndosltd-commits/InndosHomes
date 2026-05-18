@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { properties, users, insertPropertySchema } from "@workspace/db";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { properties, users, bookings, insertPropertySchema } from "@workspace/db";
+import { eq, and, ilike, or, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
 
@@ -106,6 +106,34 @@ router.get("/:id", async (req, res) => {
   }
 
   res.json(prop);
+});
+
+router.get("/:id/availability", async (req, res) => {
+  const [prop] = await db
+    .select({ id: properties.id })
+    .from(properties)
+    .where(eq(properties.id, req.params.id));
+
+  if (!prop) {
+    res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      status: bookings.status,
+    })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.propertyId, req.params.id),
+        inArray(bookings.status, ["pending", "confirmed"])
+      )
+    );
+
+  res.json(rows);
 });
 
 router.post("/", async (req, res) => {

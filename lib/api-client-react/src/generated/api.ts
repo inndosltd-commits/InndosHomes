@@ -18,6 +18,7 @@ import type {
 
 import type {
   AuthResponse,
+  BookedRange,
   Booking,
   CreateBookingInput,
   CreatePropertyInput,
@@ -704,6 +705,95 @@ export const useDeleteProperty = <
 > => {
   return useMutation(getDeletePropertyMutationOptions(options));
 };
+
+/**
+ * @summary Get booked date ranges for a property
+ */
+export const getGetPropertyAvailabilityUrl = (id: string) => {
+  return `/api/properties/${id}/availability`;
+};
+
+export const getPropertyAvailability = async (
+  id: string,
+  options?: RequestInit,
+): Promise<BookedRange[]> => {
+  return customFetch<BookedRange[]>(getGetPropertyAvailabilityUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPropertyAvailabilityQueryKey = (id: string) => {
+  return [`/api/properties/${id}/availability`] as const;
+};
+
+export const getGetPropertyAvailabilityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPropertyAvailability>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPropertyAvailability>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPropertyAvailabilityQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPropertyAvailability>>
+  > = ({ signal }) =>
+    getPropertyAvailability(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPropertyAvailability>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPropertyAvailabilityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPropertyAvailability>>
+>;
+export type GetPropertyAvailabilityQueryError = ErrorType<void>;
+
+/**
+ * @summary Get booked date ranges for a property
+ */
+
+export function useGetPropertyAvailability<
+  TData = Awaited<ReturnType<typeof getPropertyAvailability>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPropertyAvailability>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPropertyAvailabilityQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * Returns a presigned GCS URL for direct upload. The client sends JSON

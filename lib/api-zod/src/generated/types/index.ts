@@ -7,6 +7,8 @@
  */
 
 export * from "./authResponse";
+export * from "./bookedRange";
+export * from "./bookedRangeStatus";
 export * from "./booking";
 export * from "./bookingStatus";
 export * from "./createBookingInput";

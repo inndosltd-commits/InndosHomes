@@ -1,6 +1,8 @@
 import {
   useCreateBooking,
   useGetProperty,
+  useGetPropertyAvailability,
+  getGetPropertyAvailabilityQueryKey,
   useCheckFavorite,
   useAddFavorite,
   useRemoveFavorite,
@@ -89,6 +91,23 @@ export default function PropertyDetailScreen() {
 
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
+
+  const isNightlyProperty = property ? ["bnb", "hotel", "hostel"].includes(property.type) : false;
+  const { data: bookedRanges, isFetching: isCheckingAvailability } = useGetPropertyAvailability(
+    id ?? "",
+    { query: { queryKey: getGetPropertyAvailabilityQueryKey(id ?? ""), enabled: !!id && isNightlyProperty } }
+  );
+
+  const isUnavailable = React.useMemo(() => {
+    if (!bookedRanges || bookedRanges.length === 0) return false;
+    const checkInMs = checkIn.getTime();
+    const checkOutMs = checkOut.getTime();
+    return bookedRanges.some((range) => {
+      const start = new Date(range.startDate).getTime();
+      const end = new Date(range.endDate).getTime();
+      return checkInMs < end && checkOutMs > start;
+    });
+  }, [bookedRanges, checkIn, checkOut]);
 
   const { data: favoriteStatus } = useCheckFavorite(id ?? "");
   const isFavorited = favoriteStatus?.isFavorited ?? false;
@@ -417,6 +436,26 @@ export default function PropertyDetailScreen() {
                     </Pressable>
                   )}
                 </View>
+              </View>
+
+              <View style={[styles.availabilityRow]}>
+                {isCheckingAvailability ? (
+                  <ActivityIndicator size="small" color={colors.mutedForeground} />
+                ) : bookedRanges !== undefined ? (
+                  <View style={[
+                    styles.availabilityBadge,
+                    { backgroundColor: isUnavailable ? "#fef2f2" : "#f0fdf4", borderColor: isUnavailable ? "#fca5a5" : "#86efac" },
+                  ]}>
+                    <Feather
+                      name={isUnavailable ? "x-circle" : "check-circle"}
+                      size={14}
+                      color={isUnavailable ? "#dc2626" : "#16a34a"}
+                    />
+                    <Text style={[styles.availabilityText, { color: isUnavailable ? "#dc2626" : "#16a34a" }]}>
+                      {isUnavailable ? "Unavailable" : "Available"}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.nightsRow}>
@@ -764,6 +803,24 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     dateArrow: {
       marginTop: 20,
+    },
+    availabilityRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      minHeight: 28,
+    },
+    availabilityBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderWidth: 1,
+      borderRadius: 20,
+    },
+    availabilityText: {
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
     },
     nightsRow: {
       flexDirection: "row",

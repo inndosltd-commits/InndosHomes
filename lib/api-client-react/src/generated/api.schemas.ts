@@ -178,6 +178,20 @@ export interface FavoriteStatus {
   propertyId: string;
 }
 
+export type BookedRangeStatus =
+  (typeof BookedRangeStatus)[keyof typeof BookedRangeStatus];
+
+export const BookedRangeStatus = {
+  pending: "pending",
+  confirmed: "confirmed",
+} as const;
+
+export interface BookedRange {
+  startDate: string;
+  endDate: string;
+  status: BookedRangeStatus;
+}
+
 export interface CreateBookingInput {
   propertyId: string;
   startDate: string;
