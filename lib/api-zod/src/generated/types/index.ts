@@ -13,6 +13,8 @@ export * from "./createBookingInput";
 export * from "./createPropertyInput";
 export * from "./createPropertyInputType";
 export * from "./errorEnvelope";
+export * from "./favoriteInput";
+export * from "./favoriteStatus";
 export * from "./healthStatus";
 export * from "./listPropertiesParams";
 export * from "./listPropertiesType";

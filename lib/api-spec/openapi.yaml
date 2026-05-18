@@ -16,6 +16,8 @@ tags:
     description: Property listings
   - name: bookings
     description: Bookings
+  - name: favorites
+    description: Wishlist / favorites
   - name: Storage
     description: Object storage upload and serving endpoints.
 
@@ -260,6 +262,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+
+  /favorites:
+    get:
+      operationId: listFavorites
+      tags: [favorites]
+      summary: List current user's favorited properties
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Favorited properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+    post:
+      operationId: addFavorite
+      tags: [favorites]
+      summary: Add a property to favorites
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FavoriteInput"
+      responses:
+        "201":
+          description: Added to favorites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
+        "409":
+          description: Already in favorites
+
+  /favorites/{propertyId}:
+    delete:
+      operationId: removeFavorite
+      tags: [favorites]
+      summary: Remove a property from favorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Removed from favorites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
+        "404":
+          description: Not in favorites
+
+  /favorites/check/{propertyId}:
+    get:
+      operationId: checkFavorite
+      tags: [favorites]
+      summary: Check if a property is in favorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Favorite status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteStatus"
 
   /bookings:
     get:
@@ -574,6 +658,25 @@ components:
         - startDate
         - endDate
         - totalPrice
+
+    FavoriteInput:
+      type: object
+      properties:
+        propertyId:
+          type: string
+      required:
+        - propertyId
+
+    FavoriteStatus:
+      type: object
+      properties:
+        isFavorited:
+          type: boolean
+        propertyId:
+          type: string
+      required:
+        - isFavorited
+        - propertyId
 
     CreateBookingInput:
       type: object

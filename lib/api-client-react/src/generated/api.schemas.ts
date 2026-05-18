@@ -167,6 +167,15 @@ export interface Booking {
   propertyType?: string | null;
 }
 
+export interface FavoriteInput {
+  propertyId: string;
+}
+
+export interface FavoriteStatus {
+  isFavorited: boolean;
+  propertyId: string;
+}
+
 export interface CreateBookingInput {
   propertyId: string;
   startDate: string;

@@ -1,4 +1,12 @@
-import { useCreateBooking, useGetProperty } from "@workspace/api-client-react";
+import {
+  useCreateBooking,
+  useGetProperty,
+  useCheckFavorite,
+  useAddFavorite,
+  useRemoveFavorite,
+  getListFavoritesQueryKey,
+  getCheckFavoriteQueryKey,
+} from "@workspace/api-client-react";
 import { getListBookingsQueryKey } from "@workspace/api-client-react";
 import { getImageUrl } from "@/utils/imageUrl";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -81,6 +89,41 @@ export default function PropertyDetailScreen() {
 
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
+
+  const { data: favoriteStatus } = useCheckFavorite(id ?? "");
+  const isFavorited = favoriteStatus?.isFavorited ?? false;
+  const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
+  const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
+  const isFavoriteLoading = isAdding || isRemoving;
+
+  const handleFavoriteToggle = () => {
+    if (!user) {
+      router.push("/(auth)/login");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isFavorited) {
+      removeFavorite(
+        { propertyId: id ?? "" },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListFavoritesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getCheckFavoriteQueryKey(id ?? "") });
+          },
+        }
+      );
+    } else {
+      addFavorite(
+        { data: { propertyId: id ?? "" } },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListFavoritesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getCheckFavoriteQueryKey(id ?? "") });
+          },
+        }
+      );
+    }
+  };
 
   const handleCheckInChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "android") setShowCheckInPicker(false);
@@ -202,6 +245,21 @@ export default function PropertyDetailScreen() {
               onPress={() => router.back()}
             >
               <Feather name="arrow-left" size={20} color="#000" />
+            </Pressable>
+            <Pressable
+              style={[styles.heartCircle]}
+              onPress={handleFavoriteToggle}
+              disabled={isFavoriteLoading}
+            >
+              {isFavoriteLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather
+                  name="heart"
+                  size={20}
+                  color={isFavorited ? "#ef4444" : "#fff"}
+                />
+              )}
             </Pressable>
           </View>
           <View style={styles.heroPriceRow}>
@@ -510,11 +568,23 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     heroBackBtn: {
       position: "absolute",
       left: 16,
+      right: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
     },
     backCircle: {
       width: 40,
       height: 40,
       borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    heartCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.4)",
       alignItems: "center",
       justifyContent: "center",
     },

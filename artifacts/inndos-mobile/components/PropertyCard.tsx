@@ -1,6 +1,14 @@
 import type { Property } from "@workspace/api-client-react";
+import {
+  useCheckFavorite,
+  useAddFavorite,
+  useRemoveFavorite,
+  getListFavoritesQueryKey,
+  getCheckFavoriteQueryKey,
+} from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import { getImageUrl } from "@/utils/imageUrl";
+import { useAuth } from "@/context/AuthContext";
 import React from "react";
 import {
   Dimensions,
@@ -9,9 +17,12 @@ import {
   StyleSheet,
   Text,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 
 interface PropertyCardProps {
   property: Property;
@@ -41,6 +52,44 @@ function getPriceLabel(property: Property): string {
 export function PropertyCard({ property }: PropertyCardProps) {
   const colors = useColors();
   const router = useRouter();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: favoriteStatus } = useCheckFavorite(property.id);
+  const isFavorited = favoriteStatus?.isFavorited ?? false;
+
+  const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
+  const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
+  const isFavoriteLoading = isAdding || isRemoving;
+
+  const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
+    if (!user) {
+      router.push("/(auth)/login");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isFavorited) {
+      removeFavorite(
+        { propertyId: property.id },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListFavoritesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getCheckFavoriteQueryKey(property.id) });
+          },
+        }
+      );
+    } else {
+      addFavorite(
+        { data: { propertyId: property.id } },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListFavoritesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getCheckFavoriteQueryKey(property.id) });
+          },
+        }
+      );
+    }
+  };
 
   return (
     <Pressable
@@ -70,6 +119,22 @@ export function PropertyCard({ property }: PropertyCardProps) {
             </View>
           )}
         </View>
+        <Pressable
+          style={styles.heartBtn}
+          onPress={handleFavoriteToggle}
+          hitSlop={8}
+        >
+          {isFavoriteLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Feather
+              name="heart"
+              size={18}
+              color={isFavorited ? "#ef4444" : "#fff"}
+              style={isFavorited ? styles.heartFilled : undefined}
+            />
+          )}
+        </Pressable>
         <View style={styles.priceOverlay}>
           <Text style={styles.priceText}>{getPriceLabel(property)}</Text>
         </View>
@@ -163,6 +228,20 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 11,
     fontFamily: "Outfit_600SemiBold",
+  },
+  heartBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heartFilled: {
+    color: "#ef4444",
   },
   priceOverlay: {
     position: "absolute",

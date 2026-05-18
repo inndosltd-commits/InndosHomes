@@ -184,6 +184,62 @@ export const GetStorageObjectParams = zod.object({
 });
 
 /**
+ * @summary List current user's favorited properties
+ */
+export const ListFavoritesResponseItem = zod.object({
+  id: zod.string(),
+  ownerId: zod.string(),
+  title: zod.string(),
+  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  price: zod.number(),
+  address: zod.string(),
+  beds: zod.number(),
+  baths: zod.number(),
+  sqft: zod.number(),
+  guests: zod.number().nullish(),
+  image: zod.string(),
+  images: zod.array(zod.string()).optional(),
+  isVerified: zod.boolean(),
+  tags: zod.array(zod.string()),
+  lat: zod.string().nullish(),
+  lng: zod.string().nullish(),
+  createdAt: zod.string().optional(),
+  ownerName: zod.string().nullish(),
+});
+export const ListFavoritesResponse = zod.array(ListFavoritesResponseItem);
+
+/**
+ * @summary Add a property to favorites
+ */
+export const AddFavoriteBody = zod.object({
+  propertyId: zod.string(),
+});
+
+/**
+ * @summary Remove a property from favorites
+ */
+export const RemoveFavoriteParams = zod.object({
+  propertyId: zod.coerce.string(),
+});
+
+export const RemoveFavoriteResponse = zod.object({
+  isFavorited: zod.boolean(),
+  propertyId: zod.string(),
+});
+
+/**
+ * @summary Check if a property is in favorites
+ */
+export const CheckFavoriteParams = zod.object({
+  propertyId: zod.coerce.string(),
+});
+
+export const CheckFavoriteResponse = zod.object({
+  isFavorited: zod.boolean(),
+  propertyId: zod.string(),
+});
+
+/**
  * @summary List current user's bookings
  */
 export const ListBookingsResponseItem = zod.object({

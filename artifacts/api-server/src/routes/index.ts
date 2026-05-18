@@ -6,6 +6,7 @@ import bookingsRouter from "./bookings";
 import adminRouter from "./admin";
 import storageRouter from "./storage";
 import notificationsRouter from "./notifications";
+import favoritesRouter from "./favorites";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/bookings", bookingsRouter);
 router.use("/admin", adminRouter);
 router.use(storageRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/favorites", favoritesRouter);
 
 export default router;
