@@ -113,4 +113,39 @@ router.patch("/:id/cancel", async (req, res) => {
   res.json(updated);
 });
 
+router.patch("/:id/status", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { status } = req.body;
+  if (status !== "confirmed" && status !== "cancelled") {
+    res.status(400).json({ error: "Status must be 'confirmed' or 'cancelled'" });
+    return;
+  }
+
+  const [booking] = await db
+    .select({ id: bookings.id, ownerId: properties.ownerId })
+    .from(bookings)
+    .innerJoin(properties, eq(bookings.propertyId, properties.id))
+    .where(eq(bookings.id, req.params.id));
+
+  if (!booking) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+
+  if (booking.ownerId !== userId) {
+    res.status(403).json({ error: "Not your property" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(bookings)
+    .set({ status })
+    .where(eq(bookings.id, req.params.id))
+    .returning();
+
+  res.json(updated);
+});
+
 export default router;

@@ -289,6 +289,37 @@ export default function Dashboard() {
     }));
   };
 
+  const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
+
+  const handleBookingStatusUpdate = async (bookingId: string, status: "confirmed" | "cancelled") => {
+    if (!token) return;
+    setBookingActionLoading(prev => ({ ...prev, [bookingId]: true }));
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Action failed", description: (data as { error?: string }).error || "Could not update booking status.", variant: "destructive" });
+        return;
+      }
+      const updated = await res.json();
+      setReceivedBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: updated.status } : b));
+      toast({
+        title: status === "confirmed" ? "Booking confirmed" : "Booking declined",
+        description: status === "confirmed" ? "The guest has been confirmed." : "The booking has been declined.",
+        className: status === "confirmed" ? "bg-green-50 border-green-200 text-green-800" : undefined,
+        variant: status === "cancelled" ? "destructive" : undefined,
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setBookingActionLoading(prev => ({ ...prev, [bookingId]: false }));
+    }
+  };
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
       {/* Mobile Header (Visible only on small screens) */}
@@ -835,14 +866,37 @@ export default function Dashboard() {
                                 </Badge>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
+                            <div className="flex flex-col items-end gap-2 shrink-0">
                               {b.startDate && b.endDate && (
                                 <p className="text-sm text-muted-foreground">
                                   {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
                                 </p>
                               )}
                               {b.totalPrice != null && (
-                                <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                                <p className="font-bold text-lg text-primary">KES {Number(b.totalPrice).toLocaleString()}</p>
+                              )}
+                              {b.status === 'pending' && (
+                                <div className="flex gap-2 mt-1">
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                                    disabled={bookingActionLoading[b.id]}
+                                    onClick={() => handleBookingStatusUpdate(b.id, "confirmed")}
+                                  >
+                                    {bookingActionLoading[b.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                    Confirm
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-300 text-red-600 hover:bg-red-50 gap-1"
+                                    disabled={bookingActionLoading[b.id]}
+                                    onClick={() => handleBookingStatusUpdate(b.id, "cancelled")}
+                                  >
+                                    {bookingActionLoading[b.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                                    Decline
+                                  </Button>
+                                </div>
                               )}
                             </div>
                           </div>
