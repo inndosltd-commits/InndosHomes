@@ -5,6 +5,7 @@ import propertiesRouter from "./properties";
 import bookingsRouter from "./bookings";
 import adminRouter from "./admin";
 import storageRouter from "./storage";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/properties", propertiesRouter);
 router.use("/bookings", bookingsRouter);
 router.use("/admin", adminRouter);
 router.use(storageRouter);
+router.use("/notifications", notificationsRouter);
 
 export default router;

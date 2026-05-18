@@ -71,6 +71,29 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  type: text("type")
+    .$type<"new_booking">()
+    .notNull()
+    .default("new_booking"),
+  message: text("message").notNull(),
+  bookingId: varchar("booking_id").references(() => bookings.id),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users)
   .pick({ name: true, email: true, password: true, role: true })
   .extend({

@@ -46,6 +46,9 @@ export default function Dashboard() {
   const [receivedBookings, setReceivedBookings] = useState<any[]>([]);
   const [isLoadingReceivedBookings, setIsLoadingReceivedBookings] = useState(false);
 
+  // Unread booking notifications count (for owners/hosts)
+  const [unreadBookingCount, setUnreadBookingCount] = useState(0);
+
   // Keep pending properties from localStorage (local only, not yet persisted to API)
   const [pendingProperties] = useState<any[]>([]);
 
@@ -163,6 +166,44 @@ export default function Dashboard() {
     }
   }, [user, token, toast]);
 
+  const fetchUnreadBookingCount = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    try {
+      const res = await fetch("/api/notifications/unread-count", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadBookingCount(data.count ?? 0);
+      }
+    } catch {
+      // silent — badge is non-critical
+    }
+  }, [user, token]);
+
+  const markNotificationsRead = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    if (unreadBookingCount === 0) return;
+    try {
+      const res = await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setUnreadBookingCount(0);
+      }
+    } catch {
+      // non-critical UI operation; badge stays until next successful sync
+    }
+  }, [user, token, unreadBookingCount]);
+
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (tab === "reservations") {
+      markNotificationsRead();
+    }
+  }, [markNotificationsRead]);
+
   useEffect(() => {
     if (!isLoading && !user) {
       setLocation("/login");
@@ -174,12 +215,13 @@ export default function Dashboard() {
       fetchOwnerProperties();
       fetchBookings();
       fetchReceivedBookings();
+      fetchUnreadBookingCount();
       if (user.role === 'admin') {
         fetchAdminStats();
         fetchModerationQueue();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchAdminStats, fetchModerationQueue]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue]);
 
   if (isLoading || !user) {
     return null;
@@ -321,7 +363,7 @@ export default function Dashboard() {
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -358,6 +400,11 @@ export default function Dashboard() {
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="reservations" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Reservations
+              {unreadBookingCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                </span>
+              )}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
@@ -407,6 +454,11 @@ export default function Dashboard() {
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="reservations" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Users className="w-5 h-5 mr-3" /> Reservations
+                {unreadBookingCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                  </span>
+                )}
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (

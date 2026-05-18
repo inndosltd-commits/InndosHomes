@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties, users, insertBookingSchema } from "@workspace/db";
+import { bookings, properties, users, notifications, insertBookingSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
@@ -84,6 +84,21 @@ router.post("/", async (req, res) => {
     .insert(bookings)
     .values({ propertyId, userId, startDate, endDate, totalPrice, status: "pending" })
     .returning();
+
+  const [guest] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
+  const guestName = guest?.name ?? "A guest";
+
+  try {
+    await db.insert(notifications).values({
+      userId: prop.ownerId,
+      type: "new_booking",
+      message: `${guestName} booked "${prop.title}" from ${startDate} to ${endDate}.`,
+      bookingId: booking.id,
+      isRead: false,
+    });
+  } catch (err) {
+    req.log.error({ err, bookingId: booking.id }, "Failed to create owner notification for booking");
+  }
 
   res.status(201).json(booking);
 });
