@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, properties, bookings } from "@workspace/db";
-import { eq, count, sum, ne } from "drizzle-orm";
+import { eq, count, sum, ne, asc } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 
 const router = Router();
@@ -85,6 +85,57 @@ router.patch("/properties/:id/verify", async (req, res) => {
   }
 
   res.json(prop);
+});
+
+router.get("/users", async (req, res) => {
+  const userId = await requireAdmin(req, res);
+  if (!userId) return;
+
+  const rows = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      status: users.status,
+      joinDate: users.joinDate,
+      avatar: users.avatar,
+    })
+    .from(users)
+    .orderBy(asc(users.joinDate));
+
+  res.json(rows);
+});
+
+router.patch("/users/:id/status", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { status } = req.body as { status?: string };
+  if (status !== "active" && status !== "suspended") {
+    res.status(400).json({ error: "status must be 'active' or 'suspended'" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ status })
+    .where(eq(users.id, req.params.id))
+    .returning({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      status: users.status,
+      joinDate: users.joinDate,
+    });
+
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  res.json(updated);
 });
 
 router.delete("/properties/:id", async (req, res) => {

@@ -28,9 +28,13 @@ export default function Dashboard() {
   const [revenue, setRevenue] = useState(0);
   const [totalBookings, setTotalBookings] = useState(0);
   const [totalProperties, setTotalProperties] = useState(0);
-  const [pendingUsers, setPendingUsers] = useState<string[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
+  const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
+
+  const pendingUsers = adminUsers.filter((u: any) => u.status === "pending");
 
   // Owner State
   const [ownerProperties, setOwnerProperties] = useState<any[]>([]);
@@ -83,6 +87,26 @@ export default function Dashboard() {
       toast({ title: "Network error", description: "Could not reach the server to load admin stats.", variant: "destructive" });
     } finally {
       setIsLoadingAdminStats(false);
+    }
+  }, [user, token, toast]);
+
+  const fetchAdminUsers = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminUsers(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(data);
+      } else {
+        toast({ title: "Could not load users", description: "Failed to fetch user list.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server to load users.", variant: "destructive" });
+    } finally {
+      setIsLoadingAdminUsers(false);
     }
   }, [user, token, toast]);
 
@@ -219,9 +243,10 @@ export default function Dashboard() {
       if (user.role === 'admin') {
         fetchAdminStats();
         fetchModerationQueue();
+        fetchAdminUsers();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchAdminStats, fetchModerationQueue, fetchAdminUsers]);
 
   if (isLoading || !user) {
     return null;
@@ -282,13 +307,35 @@ export default function Dashboard() {
     });
   };
 
-  const handleVerifyUser = (name: string) => {
-    setPendingUsers(prev => prev.filter(u => u !== name));
-    setUsersCount(prev => prev + 1); // "Real" update
-    toast({
-      title: "User Verified",
-      description: `${name} verified. Total users updated.`,
-    });
+  const handleUserStatusUpdate = async (userId: string, newStatus: "active" | "suspended") => {
+    if (!token) return;
+    setUserActionLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Action failed", description: (data as { error?: string }).error || "Could not update user status.", variant: "destructive" });
+        return;
+      }
+      const updated = await res.json();
+      setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, status: updated.status } : u));
+      toast({
+        title: newStatus === "suspended" ? "User suspended" : "User reactivated",
+        description: newStatus === "suspended"
+          ? `${updated.name} has been suspended.`
+          : `${updated.name} is now active.`,
+        className: newStatus === "active" ? "bg-green-50 border-green-200 text-green-800" : undefined,
+        variant: newStatus === "suspended" ? "destructive" : undefined,
+      });
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setUserActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
   };
 
   const handleDeleteProperty = async (id: string) => {
@@ -412,6 +459,11 @@ export default function Dashboard() {
               Properties
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="users" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Users
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -464,6 +516,11 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Home className="w-5 h-5 mr-3" /> All Properties
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="users" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Users className="w-5 h-5 mr-3" /> Users
                 </TabsTrigger>
             )}
             </TabsList>
@@ -1361,6 +1418,106 @@ export default function Dashboard() {
                       </div>
                     )})}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ADMIN USERS TAB */}
+          {user.role === 'admin' && (
+            <TabsContent value="users" className="space-y-6">
+              {/* Pending users alert banner */}
+              {pendingUsers.length > 0 && (
+                <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                  <p className="text-sm text-amber-800 font-medium">
+                    {pendingUsers.length} user{pendingUsers.length > 1 ? 's' : ''} pending verification
+                  </p>
+                </div>
+              )}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" /> All Users
+                    {!isLoadingAdminUsers && (
+                      <Badge variant="secondary" className="ml-2">{adminUsers.length}</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>Browse and manage user accounts across the platform</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingAdminUsers ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading users...
+                    </div>
+                  ) : adminUsers.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="font-medium">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {adminUsers.map((u: any) => {
+                        const initials = u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                        const statusColor =
+                          u.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                          u.status === 'suspended' ? 'bg-red-50 text-red-700 border-red-200' :
+                          'bg-amber-50 text-amber-700 border-amber-200';
+                        const isBusy = !!userActionLoading[u.id];
+                        const isSelf = u.id === user.id;
+                        return (
+                          <div key={u.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                              {u.avatar
+                                ? <img src={u.avatar} alt={u.name} className="h-full w-full object-cover rounded-full" />
+                                : initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-sm truncate">{u.name}</span>
+                                {isSelf && <Badge variant="outline" className="text-[10px] px-1.5 h-4">You</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 h-4 capitalize">{u.role}</Badge>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 h-4 capitalize ${statusColor}`}>{u.status}</Badge>
+                                {u.joinDate && (
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                    Joined {new Date(u.joinDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              {!isSelf && u.status !== 'suspended' ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  disabled={isBusy}
+                                  onClick={() => handleUserStatusUpdate(u.id, 'suspended')}
+                                >
+                                  {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3 mr-1" />}
+                                  Suspend
+                                </Button>
+                              ) : !isSelf && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                  disabled={isBusy}
+                                  onClick={() => handleUserStatusUpdate(u.id, 'active')}
+                                >
+                                  {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                  Reactivate
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
