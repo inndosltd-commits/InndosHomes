@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -13,6 +14,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { getImageUrl } from "@/utils/imageUrl";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
@@ -167,8 +169,21 @@ export default function BookingsScreen() {
               year: "numeric",
             });
 
+            const imageUrl = getImageUrl(item.propertyImage);
+
             return (
               <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.thumbnail}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.thumbnailPlaceholder, { backgroundColor: colors.border }]}>
+                    <Feather name="image" size={24} color={colors.mutedForeground} />
+                  </View>
+                )}
                 <View style={styles.bookingHeader}>
                   <View style={styles.bookingTitleRow}>
                     <Text style={[styles.bookingProperty, { color: colors.foreground }]} numberOfLines={1}>
@@ -288,9 +303,21 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     bookingCard: {
       borderWidth: 1,
-      padding: 16,
+      overflow: "hidden",
+    },
+    thumbnail: {
+      width: "100%",
+      height: 140,
+    },
+    thumbnailPlaceholder: {
+      width: "100%",
+      height: 140,
+      alignItems: "center",
+      justifyContent: "center",
     },
     bookingHeader: {
+      padding: 16,
+      paddingBottom: 0,
       gap: 6,
     },
     bookingTitleRow: {
@@ -324,11 +351,14 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     divider: {
       height: 1,
       marginVertical: 14,
+      marginHorizontal: 16,
     },
     bookingDates: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
     },
     dateBlock: {
       flex: 1,
@@ -358,6 +388,8 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     cancelBtn: {
       marginTop: 14,
+      marginHorizontal: 16,
+      marginBottom: 16,
       borderWidth: 1,
       paddingVertical: 10,
       alignItems: "center",
