@@ -49,39 +49,14 @@ export default function Dashboard() {
   // Keep pending properties from localStorage (local only, not yet persisted to API)
   const [pendingProperties] = useState<any[]>([]);
 
-  // Calculate dynamic stats based on real properties
-  const calculateStats = () => {
-    if (ownerProperties.length === 0) return { inquiries: 0, visits: 0, revenue: 0 };
-    
-    // Calculate inquiries/bookings based on property count
-    const inquiries = ownerProperties.length * 4 + 2; 
-    const visits = Math.max(1, Math.floor(ownerProperties.length * 1.5));
-    
-    // Calculate revenue
-    let revenue = 0;
-    ownerProperties.forEach(p => {
-        if (p.type === 'rent') revenue += p.price; // Monthly rent
-        if (p.type === 'bnb') revenue += p.price * 12; // ~12 days occupancy avg
-        // For sales, we don't count it as monthly revenue, maybe just active listing value? 
-        // Let's stick to rental/bnb income for "Revenue" metric
-    });
-    
-    return { inquiries, visits, revenue };
-  };
-
-  const stats = calculateStats();
-
-  const [activeInquiries, setActiveInquiries] = useState(stats.inquiries);
-  const [visits, setVisits] = useState(stats.visits);
-  const [ownerRevenue, setOwnerRevenue] = useState(stats.revenue);
-
-  useEffect(() => {
-    const s = calculateStats();
-    setActiveInquiries(s.inquiries);
-    setVisits(s.visits);
-    setOwnerRevenue(s.revenue);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerProperties]);
+  // Real stats derived from actual received bookings
+  const receivedBookingsCount = receivedBookings.length;
+  const receivedRevenue = receivedBookings.reduce((sum: number, b: any) => sum + Number(b.totalPrice || 0), 0);
+  const today = new Date().toDateString();
+  const todayCheckIns = receivedBookings.filter((b: any) => b.startDate && new Date(b.startDate).toDateString() === today);
+  const nextCheckIn = receivedBookings
+    .filter((b: any) => b.startDate && new Date(b.startDate) >= new Date())
+    .sort((a: any, z: any) => new Date(a.startDate).getTime() - new Date(z.startDate).getTime())[0];
 
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -475,62 +450,118 @@ export default function Dashboard() {
              </Card>
           </TabsContent>
 
-          {/* BOOKINGS TAB (Shared) */}
+          {/* BOOKINGS TAB */}
           <TabsContent value="bookings" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" /> My Bookings
-                </CardTitle>
-                <CardDescription>View and manage your property bookings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingBookings ? (
-                  <div className="flex items-center justify-center py-12 text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading bookings...
-                  </div>
-                ) : bookings.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
-                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900">No bookings yet</h3>
-                    <p className="mb-4">Your bookings will appear here once you make a reservation.</p>
-                    <Link href="/properties">
-                      <Button variant="outline">Browse Properties</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {bookings.map((b: any) => (
-                      <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                        {b.propertyImage && (
-                          <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
-                          <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
-                              {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
-                            </Badge>
-                            {b.propertyType && <Badge variant="outline">{b.propertyType}</Badge>}
+            {/* Owner/Host: show bookings received on their properties */}
+            {(user.role === 'owner' || user.role === 'host') ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" /> Reservations Received
+                  </CardTitle>
+                  <CardDescription>Bookings guests have made on your properties</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingReceivedBookings ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading reservations...
+                    </div>
+                  ) : receivedBookings.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">No reservations yet</h3>
+                      <p className="mb-4">Bookings from guests will appear here once your listings receive reservations.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {receivedBookings.map((b: any) => (
+                        <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                          {b.propertyImage && (
+                            <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
+                            <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                            <p className="text-sm font-medium mt-1">Guest: {b.guestName || '—'}</p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                                {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {b.startDate && b.endDate && (
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                              </p>
+                            )}
+                            {b.totalPrice != null && (
+                              <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          {b.startDate && b.endDate && (
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
-                            </p>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              /* Tenant/Guest: show their own bookings */
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" /> My Bookings
+                  </CardTitle>
+                  <CardDescription>Your property reservations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingBookings ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading bookings...
+                    </div>
+                  ) : bookings.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <h3 className="text-lg font-medium text-gray-900">No bookings yet</h3>
+                      <p className="mb-4">Your bookings will appear here once you make a reservation.</p>
+                      <Link href="/properties">
+                        <Button variant="outline">Browse Properties</Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {bookings.map((b: any) => (
+                        <div key={b.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                          {b.propertyImage && (
+                            <img src={b.propertyImage} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" />
                           )}
-                          {b.totalPrice != null && (
-                            <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
+                            <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                                {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
+                              </Badge>
+                              {b.propertyType && <Badge variant="outline">{b.propertyType}</Badge>}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {b.startDate && b.endDate && (
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                              </p>
+                            )}
+                            {b.totalPrice != null && (
+                              <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* MESSAGES TAB (Shared) */}
@@ -566,34 +597,38 @@ export default function Dashboard() {
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-purple-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'host' ? 'Bookings' : 'Inquiries'}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Bookings</p>
                         <MessageSquare className="h-4 w-4 text-purple-500" />
                       </div>
-                      <div className="text-2xl font-bold">{activeInquiries}</div>
-                      <p className="text-xs text-green-600 flex items-center mt-1">
-                        <ArrowUpRight className="h-3 w-3 mr-1" /> +12% this week
+                      <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : receivedBookingsCount}</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {receivedBookingsCount === 0 ? 'No bookings yet' : `${receivedBookings.filter((b: any) => b.status === 'pending').length} pending`}
                       </p>
                     </CardContent>
                   </Card>
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-orange-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'host' ? 'Check-ins' : 'Visits'}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Check-ins</p>
                         <Calendar className="h-4 w-4 text-orange-500" />
                       </div>
-                      <div className="text-2xl font-bold">{visits}</div>
-                      <p className="text-xs text-muted-foreground mt-1">Next: Today 2 PM</p>
+                      <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : todayCheckIns.length}</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {nextCheckIn
+                          ? `Next: ${new Date(nextCheckIn.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                          : 'No upcoming check-ins'}
+                      </p>
                     </CardContent>
                   </Card>
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-green-500">
-                     <CardContent className="p-6">
+                    <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">Revenue</p>
                         <DollarSign className="h-4 w-4 text-green-500" />
                       </div>
-                      <div className="text-2xl font-bold">${ownerRevenue.toLocaleString()}</div>
-                      <p className="text-xs text-green-600 flex items-center mt-1">
-                        <ArrowUpRight className="h-3 w-3 mr-1" /> +8% vs last month
+                      <div className="text-2xl font-bold">KES {isLoadingReceivedBookings ? '—' : receivedRevenue.toLocaleString()}</div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {receivedBookingsCount > 0 ? 'From confirmed bookings' : 'No revenue yet'}
                       </p>
                     </CardContent>
                   </Card>
@@ -605,19 +640,45 @@ export default function Dashboard() {
                       <CardTitle>Recent Activity</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {[1,2,3].map(i => (
-                           <div key={i} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded transition-colors">
-                             <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                               JD
-                             </div>
-                             <div className="flex-1">
-                               <p className="text-sm font-medium">John Doe {user.role === 'host' ? 'booked' : 'viewed'} "Downtown Apt"</p>
-                               <p className="text-xs text-muted-foreground">2 hours ago</p>
-                             </div>
-                           </div>
-                        ))}
-                      </div>
+                      {isLoadingReceivedBookings ? (
+                        <div className="flex items-center justify-center py-8 text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
+                        </div>
+                      ) : receivedBookings.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm">No recent activity yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {receivedBookings.slice(0, 5).map((b: any) => {
+                            const initials = (b.guestName || 'G').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                            const ago = b.createdAt ? (() => {
+                              const diff = Date.now() - new Date(b.createdAt).getTime();
+                              const h = Math.floor(diff / 3600000);
+                              if (h < 1) return 'Just now';
+                              if (h < 24) return `${h}h ago`;
+                              return `${Math.floor(h / 24)}d ago`;
+                            })() : '';
+                            return (
+                              <div key={b.id} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded transition-colors">
+                                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                  {initials}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {b.guestName || 'A guest'} booked &ldquo;{b.propertyTitle || 'your property'}&rdquo;
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{ago}</p>
+                                </div>
+                                <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'} className="shrink-0 text-xs">
+                                  {b.status || 'pending'}
+                                </Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   <Card>
