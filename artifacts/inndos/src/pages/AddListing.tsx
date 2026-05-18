@@ -8,10 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X, MapPin } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
+import { useUpload } from "@workspace/object-storage-web";
+
+function getImageDisplayUrl(objectPath: string): string {
+  if (objectPath.startsWith("/objects/")) {
+    return `/api/storage${objectPath}`;
+  }
+  if (objectPath.startsWith("http")) {
+    return objectPath;
+  }
+  return `/api${objectPath}`;
+}
 
 const UNIT_AMENITIES = [
   { id: "instant_shower", label: "Instant shower" },
@@ -81,12 +92,19 @@ export default function AddListing() {
   const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProperty, setIsLoadingProperty] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile } = useUpload({
+    onError: (err) => {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   // Controlled state for Select fields
   const [listingType, setListingType] = useState("");
@@ -119,7 +137,7 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; description?: string; tags?: string[] }) => {
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; description?: string; tags?: string[] }) => {
         setTitle(prop.title ?? "");
         setListingType(prop.type ?? "");
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -128,7 +146,11 @@ export default function AddListing() {
         setBaths(prop.baths != null ? String(prop.baths) : "");
         setSqft(prop.sqft != null ? String(prop.sqft) : "");
         setDescription(prop.description ?? "");
-        if (prop.image) setImages([prop.image]);
+        if (prop.images && prop.images.length > 0) {
+          setImages(prop.images);
+        } else if (prop.image) {
+          setImages([prop.image]);
+        }
         if (prop.tags) setSelectedAmenities(prop.tags);
       })
       .catch(() => {
@@ -147,15 +169,30 @@ export default function AddListing() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    e.target.value = "";
 
-    // In a real app, this would upload to storage (S3, Cloudinary, etc.)
-    // For the mockup, we create local object URLs to preview
-    const newImages = Array.from(files).map(file => URL.createObjectURL(file));
-    setImages(prev => [...prev, ...newImages]);
-  };
+    const fileArray = Array.from(files);
+    setUploadingCount(prev => prev + fileArray.length);
+
+    const results = await Promise.all(
+      fileArray.map(async (file) => {
+        const result = await uploadFile(file);
+        return result?.objectPath ?? null;
+      })
+    );
+
+    const uploaded = results.filter((p): p is string => p !== null);
+    if (uploaded.length < fileArray.length) {
+      toast({ title: "Some uploads failed", description: "One or more photos could not be uploaded.", variant: "destructive" });
+    }
+    if (uploaded.length > 0) {
+      setImages(prev => [...prev, ...uploaded]);
+    }
+    setUploadingCount(prev => prev - fileArray.length);
+  }, [uploadFile, toast]);
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -171,6 +208,10 @@ export default function AddListing() {
       toast({ title: "Missing field", description: "Please select a listing type.", variant: "destructive" });
       return;
     }
+    if (uploadingCount > 0) {
+      toast({ title: "Upload in progress", description: "Please wait for all photos to finish uploading.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const body = {
@@ -182,7 +223,7 @@ export default function AddListing() {
         baths: parseInt(baths, 10) || 0,
         sqft: parseInt(sqft, 10) || 0,
         description: description || null,
-        image: images[0] || "/images/modern_apartment_exterior.png",
+        images,
         tags: selectedAmenities,
       };
 
@@ -457,11 +498,14 @@ export default function AddListing() {
                     </div>
                   </div>
                   
-                  {images.length > 0 ? (
+                  {(images.length > 0 || uploadingCount > 0) ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                       {images.map((img, i) => (
-                        <div key={i} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
-                          <img src={img} alt={`Upload ${i}`} className="w-full h-full object-cover" />
+                        <div key={img} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                          <img src={getImageDisplayUrl(img)} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                          {i === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Cover</span>
+                          )}
                           <button 
                             type="button"
                             onClick={() => removeImage(i)}
@@ -469,6 +513,12 @@ export default function AddListing() {
                           >
                             <X className="h-4 w-4" />
                           </button>
+                        </div>
+                      ))}
+                      {Array.from({ length: uploadingCount }).map((_, i) => (
+                        <div key={`uploading-${i}`} className="relative aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <span className="sr-only">Uploading…</span>
                         </div>
                       ))}
                     </div>
@@ -488,8 +538,10 @@ export default function AddListing() {
                 <Button variant="outline" type="button" onClick={() => setLocation("/dashboard")}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-primary" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" className="bg-primary" disabled={isSubmitting || uploadingCount > 0}>
+                  {uploadingCount > 0 ? (
+                    <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Uploading photos…</span>
+                  ) : isSubmitting ? (
                     isEditing ? "Updating..." : "Submitting..."
                   ) : (
                     isEditing ? "Update Property" : <span className="flex items-center gap-2"><Check className="h-4 w-4" /> Submit for Approval</span>

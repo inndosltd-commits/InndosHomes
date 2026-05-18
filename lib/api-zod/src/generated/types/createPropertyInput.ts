@@ -17,6 +17,7 @@ export interface CreatePropertyInput {
   sqft?: number;
   guests?: number;
   image?: string;
+  images?: string[];
   tags?: string[];
   lat?: string;
   lng?: string;

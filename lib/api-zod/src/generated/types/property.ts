@@ -19,6 +19,7 @@ export interface Property {
   sqft: number;
   guests?: number | null;
   image: string;
+  images?: string[];
   isVerified: boolean;
   tags: string[];
   lat?: string | null;

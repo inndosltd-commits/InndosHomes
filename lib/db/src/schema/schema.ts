@@ -44,6 +44,7 @@ export const properties = pgTable("properties", {
   sqft: integer("sqft").notNull().default(0),
   guests: integer("guests"),
   image: text("image").notNull().default("/images/modern_apartment_exterior.png"),
+  images: text("images").array().notNull().default(sql`'{}'::text[]`),
   description: text("description"),
   isVerified: boolean("is_verified").notNull().default(false),
   tags: text("tags").array().notNull().default(sql`'{}'::text[]`),

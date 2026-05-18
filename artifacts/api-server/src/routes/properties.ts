@@ -21,6 +21,7 @@ const PROPERTY_COLUMNS = {
   sqft: properties.sqft,
   guests: properties.guests,
   image: properties.image,
+  images: properties.images,
   description: properties.description,
   isVerified: properties.isVerified,
   tags: properties.tags,
@@ -108,7 +109,9 @@ router.post("/", async (req, res) => {
   if (!userId) return;
 
   const { isVerified: _ignored, ...body } = req.body;
-  const result = insertPropertySchema.safeParse({ ...body, ownerId: userId });
+  const imageList: string[] = Array.isArray(body.images) ? body.images : [];
+  const primaryImage = imageList[0] || body.image || "/images/modern_apartment_exterior.png";
+  const result = insertPropertySchema.safeParse({ ...body, images: imageList, image: primaryImage, ownerId: userId });
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
@@ -135,8 +138,13 @@ router.patch("/:id", async (req, res) => {
   }
 
   const { isVerified: _ignored, ...body } = req.body;
+  const imageList: string[] | undefined = Array.isArray(body.images) ? body.images : undefined;
+  const patchBody = {
+    ...body,
+    ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
+  };
   const updateSchema = insertPropertySchema.omit({ ownerId: true, isVerified: true }).partial();
-  const result = updateSchema.safeParse(body);
+  const result = updateSchema.safeParse(patchBody);
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;

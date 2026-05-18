@@ -89,6 +89,7 @@ export interface Property {
   sqft: number;
   guests?: number | null;
   image: string;
+  images?: string[];
   isVerified: boolean;
   tags: string[];
   lat?: string | null;
@@ -118,9 +119,29 @@ export interface CreatePropertyInput {
   sqft?: number;
   guests?: number;
   image?: string;
+  images?: string[];
   tags?: string[];
   lat?: string;
   lng?: string;
+}
+
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export interface ErrorEnvelope {
+  error: string;
 }
 
 export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus];
