@@ -9,8 +9,14 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
+import { useListFavorites, getListFavoritesQueryKey } from "@workspace/api-client-react";
 
-function NativeTabLayout() {
+interface TabLayoutProps {
+  savedCount: number;
+}
+
+function NativeTabLayout({ savedCount }: TabLayoutProps) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -21,7 +27,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
         <Label>Search</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="saved">
+      <NativeTabs.Trigger
+        name="saved"
+        options={{ badgeValue: savedCount > 0 ? String(savedCount) : undefined }}
+      >
         <Icon sf={{ default: "heart", selected: "heart.fill" }} />
         <Label>Saved</Label>
       </NativeTabs.Trigger>
@@ -45,7 +54,7 @@ function NativeTabLayout() {
   );
 }
 
-function ClassicTabLayout() {
+function ClassicTabLayout({ savedCount }: TabLayoutProps) {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -117,6 +126,7 @@ function ClassicTabLayout() {
         name="saved"
         options={{
           title: "Saved",
+          tabBarBadge: savedCount > 0 ? savedCount : undefined,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="heart" tintColor={color} size={24} />
@@ -178,8 +188,14 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const { data: savedProperties } = useListFavorites({
+    query: { queryKey: getListFavoritesQueryKey(), enabled: !!user },
+  });
+  const savedCount = user ? (savedProperties?.length ?? 0) : 0;
+
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
+    return <NativeTabLayout savedCount={savedCount} />;
   }
-  return <ClassicTabLayout />;
+  return <ClassicTabLayout savedCount={savedCount} />;
 }
