@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { LocationPicker } from "@/components/LocationPicker";
 
 const PROPERTY_TYPES = [
   { label: "For Rent", value: "rent" },
@@ -39,6 +40,8 @@ interface FormState {
   sqft: string;
   imageUrl: string;
   description: string;
+  lat: string;
+  lng: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -51,6 +54,8 @@ const EMPTY_FORM: FormState = {
   sqft: "",
   imageUrl: "",
   description: "",
+  lat: "",
+  lng: "",
 };
 
 export default function ListPropertyScreen() {
@@ -167,6 +172,11 @@ export default function ListPropertyScreen() {
     }
   }
 
+  function handleLocationChange(lat: string, lng: string) {
+    setForm((prev) => ({ ...prev, lat, lng }));
+    setErrors((prev) => ({ ...prev, lat: undefined, lng: undefined }));
+  }
+
   function validate(): boolean {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
 
@@ -187,6 +197,19 @@ export default function ListPropertyScreen() {
     }
     if (form.sqft && (isNaN(parseInt(form.sqft)) || parseInt(form.sqft) < 0)) {
       newErrors.sqft = "Enter a valid number";
+    }
+
+    if (form.lat.trim() !== "") {
+      const latVal = parseFloat(form.lat);
+      if (isNaN(latVal) || latVal < -90 || latVal > 90) {
+        newErrors.lat = "Latitude must be between -90 and 90";
+      }
+    }
+    if (form.lng.trim() !== "") {
+      const lngVal = parseFloat(form.lng);
+      if (isNaN(lngVal) || lngVal < -180 || lngVal > 180) {
+        newErrors.lng = "Longitude must be between -180 and 180";
+      }
     }
 
     setErrors(newErrors);
@@ -215,6 +238,9 @@ export default function ListPropertyScreen() {
         ...(form.description.trim() ? { description: form.description.trim() } : {}),
         image: imageList[0],
         images: imageList,
+        ...(form.lat.trim() && form.lng.trim()
+          ? { lat: form.lat.trim(), lng: form.lng.trim() }
+          : {}),
       },
     });
   }
@@ -382,6 +408,16 @@ export default function ListPropertyScreen() {
               returnKeyType="done"
             />
           </Field>
+
+          <SectionLabel text="Location (optional)" colors={colors} />
+
+          <LocationPicker
+            lat={form.lat}
+            lng={form.lng}
+            onLocationChange={handleLocationChange}
+            latError={errors.lat}
+            lngError={errors.lng}
+          />
 
           <Pressable
             style={[
