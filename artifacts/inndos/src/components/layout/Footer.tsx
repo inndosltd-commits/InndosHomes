@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Instagram, Facebook } from "lucide-react";
+import { Instagram, Facebook, Linkedin } from "lucide-react";
 
 // Custom icons for Tiktok and Threads since they aren't standard in all icon sets
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -58,11 +58,14 @@ export function Footer() {
             <a href="https://www.tiktok.com/@inndos_global?_r=1&_t=ZS-95srzxOYY6y" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
               <TikTokIcon className="h-5 w-5" />
             </a>
-            <a href="https://www.facebook.com/share/1FsxLtSy5y/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
+            <a href="https://www.facebook.com/share/v/17WV993g7G/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
               <Facebook className="h-5 w-5" />
             </a>
             <a href="https://www.threads.com/@inndos_global?igshid=NTc4MTIwNjQ2YQ==" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
               <ThreadsIcon className="h-5 w-5" />
+            </a>
+            <a href="https://www.linkedin.com/in/inndos-ltd-5a0833400" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
+              <Linkedin className="h-5 w-5" />
             </a>
           </div>
         </div>
