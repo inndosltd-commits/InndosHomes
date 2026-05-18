@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
@@ -13,6 +13,7 @@ import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
+import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
 
 interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
@@ -41,6 +42,31 @@ export default function PropertyDetails() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const [checkIn, setCheckIn] = useState(todayStr);
+  const [checkOut, setCheckOut] = useState(tomorrowStr);
+
+  const isNightlyType = property?.type === "bnb" || property?.type === "hotel" || property?.type === "hostel";
+
+  const { data: bookedRanges = [] } = useGetPropertyAvailability(
+    params?.id ?? "",
+    {
+      query: {
+        queryKey: getGetPropertyAvailabilityQueryKey(params?.id ?? ""),
+        enabled: !!params?.id && isNightlyType,
+      },
+    }
+  );
+
+  const isDateRangeAvailable = (() => {
+    if (!checkIn || !checkOut || checkIn >= checkOut) return null;
+    for (const range of bookedRanges) {
+      if (checkIn < range.endDate && checkOut > range.startDate) return false;
+    }
+    return true;
+  })();
 
   useEffect(() => {
     if (!params?.id) return;
@@ -127,15 +153,13 @@ export default function PropertyDetails() {
 
     if (property.type === "bnb" || property.type === "hotel" || property.type === "hostel") {
       try {
-        const today = new Date().toISOString().slice(0, 10);
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
         const res = await fetch("/api/bookings", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             propertyId: property.id,
-            startDate: today,
-            endDate: tomorrow,
+            startDate: checkIn,
+            endDate: checkOut,
             totalPrice: property.price,
           }),
         });
@@ -593,21 +617,54 @@ export default function PropertyDetails() {
                       )}
 
                       {(property.type === "bnb" || property.type === "hotel" || property.type === "hostel") && (
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20" onClick={(e) => !isBooked && e.preventDefault()}>
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Select Dates</label>
-                          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md border border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm font-medium">Check-in</span>
+                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20">
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Select Dates</label>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1">
+                                <Calendar className="h-3 w-3" /> Check-in
+                              </label>
+                              <input
+                                type="date"
+                                value={checkIn}
+                                min={todayStr}
+                                onChange={(e) => {
+                                  setCheckIn(e.target.value);
+                                  if (e.target.value >= checkOut) {
+                                    const next = new Date(e.target.value);
+                                    next.setDate(next.getDate() + 1);
+                                    setCheckOut(next.toISOString().slice(0, 10));
+                                  }
+                                }}
+                                className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
                             </div>
-                            <div className="h-4 w-px bg-gray-300"></div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">Check-out</span>
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Check-out</label>
+                              <input
+                                type="date"
+                                value={checkOut}
+                                min={checkIn > todayStr ? checkIn : tomorrowStr}
+                                onChange={(e) => setCheckOut(e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
                             </div>
                           </div>
-                          <p className="text-xs text-center text-primary mt-2 flex items-center justify-center gap-1">
-                            <CheckCircle className="h-3 w-3" /> Dates Available
-                          </p>
+                          {isDateRangeAvailable === true && (
+                            <Badge className="w-full justify-center gap-1.5 bg-green-100 text-green-700 hover:bg-green-100 border-green-200 border">
+                              <CheckCircle className="h-3.5 w-3.5" /> Available
+                            </Badge>
+                          )}
+                          {isDateRangeAvailable === false && (
+                            <Badge className="w-full justify-center gap-1.5 bg-red-100 text-red-700 hover:bg-red-100 border-red-200 border">
+                              <XCircle className="h-3.5 w-3.5" /> Unavailable
+                            </Badge>
+                          )}
+                          {isDateRangeAvailable === null && (
+                            <Badge variant="outline" className="w-full justify-center gap-1.5 text-gray-500">
+                              <Calendar className="h-3.5 w-3.5" /> Select valid dates
+                            </Badge>
+                          )}
                         </div>
                       )}
 
