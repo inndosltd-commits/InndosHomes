@@ -633,7 +633,19 @@ export default function Dashboard() {
                       </div>
                       <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : receivedBookingsCount}</div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {receivedBookingsCount === 0 ? 'No bookings yet' : `${receivedBookings.filter((b: any) => b.status === 'pending').length} pending`}
+                        {isLoadingReceivedBookings
+                          ? 'Loading...'
+                          : receivedBookingsCount === 0
+                          ? 'No bookings yet'
+                          : (() => {
+                              const pendingCount = receivedBookings.filter((b: any) => !b.status || b.status === 'pending').length;
+                              const confirmedCount = receivedBookings.filter((b: any) => b.status === 'confirmed').length;
+                              const parts = [];
+                              if (pendingCount > 0) parts.push(`${pendingCount} pending`);
+                              if (confirmedCount > 0) parts.push(`${confirmedCount} confirmed`);
+                              return parts.length > 0 ? parts.join(' · ') : 'All bookings';
+                            })()
+                        }
                       </p>
                     </CardContent>
                   </Card>
