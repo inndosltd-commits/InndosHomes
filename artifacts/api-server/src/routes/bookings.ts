@@ -189,7 +189,12 @@ router.patch("/:id/status", async (req, res) => {
   }
 
   const [booking] = await db
-    .select({ id: bookings.id, ownerId: properties.ownerId })
+    .select({
+      id: bookings.id,
+      guestId: bookings.userId,
+      ownerId: properties.ownerId,
+      propertyTitle: properties.title,
+    })
     .from(bookings)
     .innerJoin(properties, eq(bookings.propertyId, properties.id))
     .where(eq(bookings.id, req.params.id));
@@ -209,6 +214,21 @@ router.patch("/:id/status", async (req, res) => {
     .set({ status })
     .where(eq(bookings.id, req.params.id))
     .returning();
+
+  const statusLabel = status === "confirmed" ? "confirmed" : "declined";
+  const notificationMessage = `Your booking for "${booking.propertyTitle}" has been ${statusLabel}.`;
+
+  try {
+    await db.insert(notifications).values({
+      userId: booking.guestId,
+      type: status === "confirmed" ? "booking_confirmed" : "booking_cancelled",
+      message: notificationMessage,
+      bookingId: booking.id,
+      isRead: false,
+    });
+  } catch (err) {
+    req.log.error({ err, bookingId: booking.id }, "Failed to create guest notification for booking status update");
+  }
 
   res.json(updated);
 });

@@ -259,7 +259,7 @@ export default function Dashboard() {
   }, [user, token, toast]);
 
   const fetchUnreadBookingCount = useCallback(async () => {
-    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    if (!user || !token) return;
     try {
       const res = await fetch("/api/notifications/unread-count", {
         headers: { Authorization: `Bearer ${token}` },
@@ -274,7 +274,7 @@ export default function Dashboard() {
   }, [user, token]);
 
   const markNotificationsRead = useCallback(async () => {
-    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    if (!user || !token) return;
     if (unreadBookingCount === 0) return;
     try {
       const res = await fetch("/api/notifications/mark-all-read", {
@@ -444,7 +444,7 @@ export default function Dashboard() {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
-    if (tab === "reservations") {
+    if (tab === "reservations" || tab === "bookings") {
       markNotificationsRead();
     }
     if (tab === "notifications") {
@@ -797,6 +797,11 @@ export default function Dashboard() {
           </TabsTrigger>
           <TabsTrigger value="bookings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Bookings
+            {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Analytics
@@ -881,6 +886,11 @@ export default function Dashboard() {
             </TabsTrigger>
             <TabsTrigger value="bookings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Calendar className="w-5 h-5 mr-3" /> Bookings
+                {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                  </span>
+                )}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> Analytics

@@ -84,7 +84,7 @@ export const notifications = pgTable("notifications", {
     .notNull()
     .references(() => users.id),
   type: text("type")
-    .$type<"new_booking">()
+    .$type<"new_booking" | "booking_confirmed" | "booking_cancelled">()
     .notNull()
     .default("new_booking"),
   message: text("message").notNull(),
