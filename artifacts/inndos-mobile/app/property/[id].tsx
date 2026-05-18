@@ -26,6 +26,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -127,6 +128,33 @@ export default function PropertyDetailScreen() {
   const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
   const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
   const isFavoriteLoading = isAdding || isRemoving;
+
+  const handleShare = async () => {
+    if (!id) return;
+    const deepLink = `inndos-mobile://property/${id}`;
+    const title = property?.title ?? "Check out this property";
+    const message = `${title}\n${deepLink}`;
+
+    if (isWeb) {
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          await navigator.clipboard.writeText(deepLink);
+          Alert.alert("Link Copied", "Property link copied to clipboard.");
+        } else {
+          Alert.alert("Share Link", deepLink);
+        }
+      } catch {
+        Alert.alert("Share Link", deepLink);
+      }
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        await Share.share({ message, title, url: deepLink });
+      } catch {
+        // dismissed by user — no action needed
+      }
+    }
+  };
 
   const handleFavoriteToggle = () => {
     if (!user) {
@@ -390,21 +418,29 @@ export default function PropertyDetailScreen() {
             >
               <Feather name="arrow-left" size={20} color="#000" />
             </Pressable>
-            <Pressable
-              style={[styles.heartCircle]}
-              onPress={handleFavoriteToggle}
-              disabled={isFavoriteLoading}
-            >
-              {isFavoriteLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Feather
-                  name="heart"
-                  size={20}
-                  color={isFavorited ? "#ef4444" : "#fff"}
-                />
-              )}
-            </Pressable>
+            <View style={styles.heroRightActions}>
+              <Pressable
+                style={[styles.heartCircle]}
+                onPress={handleShare}
+              >
+                <Feather name="share-2" size={20} color="#fff" />
+              </Pressable>
+              <Pressable
+                style={[styles.heartCircle]}
+                onPress={handleFavoriteToggle}
+                disabled={isFavoriteLoading}
+              >
+                {isFavoriteLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather
+                    name="heart"
+                    size={20}
+                    color={isFavorited ? "#ef4444" : "#fff"}
+                  />
+                )}
+              </Pressable>
+            </View>
           </View>
 
           {/* Price + type chip */}
@@ -850,6 +886,11 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
+    },
+    heroRightActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
     heartCircle: {
       width: 40,
