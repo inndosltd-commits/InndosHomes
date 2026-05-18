@@ -4,6 +4,13 @@ import { users, properties, bookings, subscriptions, payments, settings } from "
 import { eq, count, sum, ne, asc, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
+import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
+
+function getDashboardUrl(req: import("express").Request): string {
+  const host = (process.env.REPLIT_DOMAINS ?? "").split(",")[0]?.trim();
+  const origin = host ? `https://${host}` : `${req.protocol}://${req.get("host")}`;
+  return `${origin}/owner`;
+}
 
 const router = Router();
 
@@ -86,6 +93,22 @@ router.patch("/properties/:id/verify", async (req, res) => {
   if (!prop) {
     res.status(404).json({ error: "Property not found" });
     return;
+  }
+
+  const [owner] = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, prop.ownerId));
+
+  if (owner?.email) {
+    sendListingApprovedEmail({
+      ownerEmail: owner.email,
+      ownerName: owner.name ?? "there",
+      propertyTitle: prop.title,
+      dashboardUrl: getDashboardUrl(req),
+    }).catch((err: unknown) => {
+      req.log.error({ err }, "Failed to send listing approved email");
+    });
   }
 
   res.json(prop);
@@ -195,8 +218,26 @@ router.delete("/properties/:id", async (req, res) => {
     return;
   }
 
+  const [owner] = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, prop.ownerId));
+
   await db.delete(bookings).where(eq(bookings.propertyId, req.params.id));
   await db.delete(properties).where(eq(properties.id, req.params.id));
+
+  if (owner?.email) {
+    sendListingRejectedEmail({
+      ownerEmail: owner.email,
+      ownerName: owner.name ?? "there",
+      propertyTitle: prop.title,
+      reason: prop.adminComment ?? undefined,
+      dashboardUrl: getDashboardUrl(req),
+    }).catch((err: unknown) => {
+      req.log.error({ err }, "Failed to send listing rejected email");
+    });
+  }
+
   res.json({ success: true });
 });
 
