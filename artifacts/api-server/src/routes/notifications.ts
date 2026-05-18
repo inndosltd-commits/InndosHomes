@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { notifications } from "@workspace/db";
+import { notifications, bookings, properties, users } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 
@@ -11,8 +11,23 @@ router.get("/", async (req, res) => {
   if (!userId) return;
 
   const rows = await db
-    .select()
+    .select({
+      id: notifications.id,
+      type: notifications.type,
+      message: notifications.message,
+      bookingId: notifications.bookingId,
+      isRead: notifications.isRead,
+      createdAt: notifications.createdAt,
+      bookingStartDate: bookings.startDate,
+      bookingEndDate: bookings.endDate,
+      bookingTotalPrice: bookings.totalPrice,
+      propertyTitle: properties.title,
+      guestName: users.name,
+    })
     .from(notifications)
+    .leftJoin(bookings, eq(notifications.bookingId, bookings.id))
+    .leftJoin(properties, eq(bookings.propertyId, properties.id))
+    .leftJoin(users, eq(bookings.userId, users.id))
     .where(eq(notifications.userId, userId))
     .orderBy(notifications.createdAt);
 

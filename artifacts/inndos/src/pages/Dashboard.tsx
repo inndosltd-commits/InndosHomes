@@ -65,6 +65,10 @@ export default function Dashboard() {
   // Unread booking notifications count (for owners/hosts)
   const [unreadBookingCount, setUnreadBookingCount] = useState(0);
 
+  // Notifications inbox (for owners/hosts)
+  const [ownerNotifications, setOwnerNotifications] = useState<any[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+
   // Keep pending properties from localStorage (local only, not yet persisted to API)
   const [pendingProperties] = useState<any[]>([]);
 
@@ -285,6 +289,58 @@ export default function Dashboard() {
     }
   }, [user, token, unreadBookingCount]);
 
+  const fetchNotifications = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    setIsLoadingNotifications(true);
+    try {
+      const res = await fetch("/api/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOwnerNotifications(data);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [user, token]);
+
+  const markOneNotificationRead = useCallback(async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setOwnerNotifications(prev =>
+          prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+        );
+        setUnreadBookingCount(prev => Math.max(0, prev - 1));
+      }
+    } catch {
+      // non-critical
+    }
+  }, [token]);
+
+  const clearAllNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setOwnerNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadBookingCount(0);
+      }
+    } catch {
+      // non-critical
+    }
+  }, [token]);
+
   const fetchAdminSubscriptions = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
     setIsLoadingAdminSubs(true);
@@ -391,7 +447,10 @@ export default function Dashboard() {
     if (tab === "reservations") {
       markNotificationsRead();
     }
-  }, [markNotificationsRead]);
+    if (tab === "notifications") {
+      fetchNotifications();
+    }
+  }, [markNotificationsRead, fetchNotifications]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -762,6 +821,16 @@ export default function Dashboard() {
               )}
             </TabsTrigger>
           )}
+          {(user.role === 'owner' || user.role === 'host') && (
+            <TabsTrigger value="notifications" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Notifications
+              {unreadBookingCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
           {user.role === 'admin' && (
             <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Properties
@@ -829,6 +898,16 @@ export default function Dashboard() {
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="reservations" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Users className="w-5 h-5 mr-3" /> Reservations
+                {unreadBookingCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                  </span>
+                )}
+                </TabsTrigger>
+            )}
+            {(user.role === 'owner' || user.role === 'host') && (
+                <TabsTrigger value="notifications" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Bell className="w-5 h-5 mr-3" /> Notifications
                 {unreadBookingCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1379,6 +1458,101 @@ export default function Dashboard() {
                             </div>
                           </div>
                         );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="notifications" className="space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
+                    <p className="text-sm text-gray-500">Alerts for bookings on your properties</p>
+                  </div>
+                  {ownerNotifications.some(n => !n.isRead) && (
+                    <Button variant="outline" size="sm" onClick={clearAllNotifications} className="gap-2 text-gray-600">
+                      <Check className="h-4 w-4" /> Mark all as read
+                    </Button>
+                  )}
+                </div>
+                <Card>
+                  <CardContent className="pt-6">
+                    {isLoadingNotifications ? (
+                      <div className="flex items-center justify-center py-12 text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading notifications...
+                      </div>
+                    ) : ownerNotifications.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                        <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <h3 className="text-lg font-medium text-gray-900">No notifications yet</h3>
+                        <p className="mb-4">You'll be notified here whenever a guest books one of your properties.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {[...ownerNotifications].reverse().map((n: any) => {
+                          const timeAgo = (() => {
+                            const diff = Date.now() - new Date(n.createdAt).getTime();
+                            const mins = Math.floor(diff / 60000);
+                            if (mins < 1) return "just now";
+                            if (mins < 60) return `${mins}m ago`;
+                            const hrs = Math.floor(mins / 60);
+                            if (hrs < 24) return `${hrs}h ago`;
+                            const days = Math.floor(hrs / 24);
+                            if (days < 7) return `${days}d ago`;
+                            return new Date(n.createdAt).toLocaleDateString();
+                          })();
+                          const startLabel = n.bookingStartDate
+                            ? new Date(n.bookingStartDate).toLocaleDateString()
+                            : null;
+                          const endLabel = n.bookingEndDate
+                            ? new Date(n.bookingEndDate).toLocaleDateString()
+                            : null;
+                          return (
+                            <div
+                              key={n.id}
+                              className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${n.isRead ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+                            >
+                              <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-500" : "bg-blue-100 text-blue-600"}`}>
+                                <Bell className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {n.propertyTitle && (
+                                  <p className="text-sm font-semibold text-gray-900 truncate">{n.propertyTitle}</p>
+                                )}
+                                {n.guestName && (
+                                  <p className="text-sm text-gray-700">
+                                    Guest: <span className="font-medium">{n.guestName}</span>
+                                  </p>
+                                )}
+                                {startLabel && endLabel && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {startLabel} – {endLabel}
+                                  </p>
+                                )}
+                                {!n.propertyTitle && (
+                                  <p className="text-sm text-gray-700">{n.message}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">{timeAgo}</p>
+                              </div>
+                              {!n.isRead && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 h-7 px-2 text-xs"
+                                  onClick={() => markOneNotificationRead(n.id)}
+                                >
+                                  Mark read
+                                </Button>
+                              )}
+                              {n.isRead && (
+                                <span className="shrink-0 text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <Check className="h-3 w-3" /> Read
+                                </span>
+                              )}
+                            </div>
+                          );
                         })}
                       </div>
                     )}
