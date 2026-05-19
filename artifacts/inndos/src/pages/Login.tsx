@@ -39,6 +39,7 @@ export default function Login() {
   const [isLoading, setIsLoading]           = useState(false);
   const [isSignUp, setIsSignUp]             = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted]   = useState(false);
   const { login, signup, user, token: authToken } = useAuth();
   const { toast } = useToast();
   const linkedinPopup = useRef<Window | null>(null);
@@ -72,6 +73,10 @@ export default function Login() {
 
   /* ── email/password sign-up ── */
   const handleSignUp = async (role: Role) => {
+    if (!termsAccepted) {
+      toast({ title: "Terms required", description: "Please agree to the Terms and Conditions before signing up.", variant: "destructive" });
+      return;
+    }
     setIsLoading(true);
     try {
       const nameEl     = document.getElementById(`name-${role}`)     as HTMLInputElement | null;
@@ -336,9 +341,14 @@ export default function Login() {
                       )}
 
                       {isSignUp && (
-                        <div className="flex items-start space-x-2 mt-4 pt-2">
-                          <Checkbox id={`terms-${role}`} className="mt-1" />
-                          <label htmlFor={`terms-${role}`} className="text-sm text-gray-500 leading-tight">
+                        <div className={`flex items-start space-x-2 mt-4 pt-2 rounded-md p-2 transition-colors ${!termsAccepted ? "bg-transparent" : ""}`}>
+                          <Checkbox
+                            id={`terms-${role}`}
+                            className="mt-1"
+                            checked={termsAccepted}
+                            onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                          />
+                          <label htmlFor={`terms-${role}`} className="text-sm text-gray-500 leading-tight cursor-pointer select-none">
                             I agree to the <Link href="/terms" className="text-primary hover:underline font-medium">Terms and Conditions</Link> and acknowledge that I have read the privacy policy.
                           </label>
                         </div>
@@ -367,7 +377,7 @@ export default function Login() {
               {isSignUp ? "Already have an account? " : "Don't have an account? "}
               <span
                 className="text-primary font-semibold cursor-pointer hover:underline"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => { setIsSignUp(!isSignUp); setTermsAccepted(false); }}
               >
                 {isSignUp ? "Sign in" : "Sign up"}
               </span>
