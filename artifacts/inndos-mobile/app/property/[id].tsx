@@ -39,6 +39,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { BookingCalendar } from "@/components/BookingCalendar";
+import { PropertyLocationMap } from "@/components/PropertyLocationMap";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -579,6 +580,14 @@ export default function PropertyDetailScreen() {
                 ))}
               </View>
             </View>
+          )}
+
+          {property.lat && property.lng && property.lat !== "" && property.lng !== "" && (
+            <PropertyLocationMap
+              lat={property.lat}
+              lng={property.lng}
+              title={property.title}
+            />
           )}
 
           {showBooking && isNightly && (
