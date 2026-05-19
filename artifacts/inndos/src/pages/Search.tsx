@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search as SearchIcon, LocateFixed, Loader2 } from "lucide-react";
+import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/lib/language";
@@ -21,6 +21,9 @@ const RENT_CATEGORIES = [
   { label: "Stalls",           type: "rent-stall",    filter: null },
   { label: "Shops",            type: "rent-shop",     filter: null },
 ];
+
+const formatKES = (n: number) =>
+  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 
 export default function Search() {
   const [location] = useLocation();
@@ -42,17 +45,22 @@ export default function Search() {
 
   const isRentPage = queryType.startsWith("rent");
 
-  const [allProperties, setAllProperties]     = useState<ApiProperty[]>([]);
-  const [isLoadingProps, setIsLoadingProps]   = useState(true);
-  const [searchQuery, setSearchQuery]         = useState("");
-  const [priceRange, setPriceRange]           = useState([0, 200000000]);
+  const maxPrice = queryType === "rent" ? 500000 : 200000000;
+  const priceStep = queryType === "rent" ? 5000 : 1000000;
+
+  const [allProperties, setAllProperties]       = useState<ApiProperty[]>([]);
+  const [isLoadingProps, setIsLoadingProps]     = useState(true);
+  const [searchQuery, setSearchQuery]           = useState("");
+  const [priceRange, setPriceRange]             = useState([0, maxPrice]);
   const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [isGeofencingActive, setIsGeofencingActive] = useState(false);
-  const [sortBy, setSortBy]                   = useState("featured");
+  const [sortBy, setSortBy]                     = useState("featured");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     setIsLoadingProps(true);
+    setPriceRange([0, queryType === "rent" ? 500000 : 200000000]);
     const params = new URLSearchParams();
     if (queryType && queryType !== "all") params.set("type", queryType);
 
@@ -79,6 +87,14 @@ export default function Search() {
     );
   };
 
+  const resetAllFilters = () => {
+    setSearchQuery("");
+    setSelectedBedrooms(null);
+    setSelectedAmenities([]);
+    setIsGeofencingActive(false);
+    setPriceRange([0, maxPrice]);
+  };
+
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
     if (!filter) return true;
     const tags = p.tags.map((t) => t.toLowerCase());
@@ -100,6 +116,8 @@ export default function Search() {
     }
   };
 
+  const isPriceFiltered = priceRange[0] > 0 || priceRange[1] < maxPrice;
+
   const filteredProperties = useMemo(() => {
     let result = allProperties.filter((p) => {
       if (searchQuery) {
@@ -117,8 +135,7 @@ export default function Search() {
         if (!hasAll) return false;
       }
       if (p.price < priceRange[0]) return false;
-      const maxSlider = queryType === "rent" ? 500000 : 200000000;
-      if (priceRange[1] < maxSlider && p.price > priceRange[1]) return false;
+      if (priceRange[1] < maxPrice && p.price > priceRange[1]) return false;
       if (isRentPage && !matchesRentFilter(p, queryFilter)) return false;
       return true;
     });
@@ -128,7 +145,7 @@ export default function Search() {
     else if (sortBy === "newest") result.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
     return result;
-  }, [allProperties, searchQuery, selectedBedrooms, selectedAmenities, priceRange, sortBy, queryType, queryFilter, isRentPage]);
+  }, [allProperties, searchQuery, selectedBedrooms, selectedAmenities, priceRange, sortBy, queryType, queryFilter, isRentPage, maxPrice]);
 
   const activeCatIndex = useMemo(() => {
     if (!isRentPage) return -1;
@@ -160,6 +177,73 @@ export default function Search() {
     return "Properties";
   };
 
+  const FilterPanel = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-bold mb-3">Price Range</h3>
+        <Slider
+          value={priceRange}
+          onValueChange={setPriceRange}
+          max={maxPrice}
+          step={priceStep}
+          className="mb-4 touch-none"
+        />
+        <div className="flex justify-between text-sm font-medium">
+          <span>{formatKES(priceRange[0])}</span>
+          <span>
+            {formatKES(priceRange[1])}
+            {priceRange[1] >= maxPrice ? "+" : ""}
+          </span>
+        </div>
+        {isPriceFiltered && (
+          <button
+            onClick={() => setPriceRange([0, maxPrice])}
+            className="mt-2 text-xs text-primary hover:underline"
+          >
+            Reset price
+          </button>
+        )}
+      </div>
+
+      <div>
+        <h3 className="font-bold mb-3">Bedrooms</h3>
+        <div className="flex gap-2 flex-wrap">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              onClick={() => setSelectedBedrooms(selectedBedrooms === n ? null : n)}
+              className={`h-8 w-8 rounded border flex items-center justify-center text-sm transition-colors ${
+                selectedBedrooms === n
+                  ? "bg-primary text-white border-primary"
+                  : "hover:border-primary hover:text-primary bg-white"
+              }`}
+            >
+              {n}{n === 5 ? "+" : ""}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold mb-3">Amenities</h3>
+        <div className="space-y-2">
+          {["Parking", "Pool", "Gym", "Pet Friendly", "WiFi", "Balcony", "Garden", "Security"].map((a) => (
+            <div key={a} className="flex items-center space-x-2">
+              <Checkbox
+                id={`filter-${a}`}
+                checked={selectedAmenities.includes(a)}
+                onCheckedChange={() => toggleAmenity(a)}
+              />
+              <label htmlFor={`filter-${a}`} className="text-sm font-medium leading-none cursor-pointer">
+                {a}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -189,6 +273,20 @@ export default function Search() {
                 <LocateFixed className="h-4 w-4" />
                 {isGeofencingActive ? "Near Me" : "Use Location"}
               </Button>
+              {/* Mobile-only filter toggle */}
+              <Button
+                variant={showMobileFilters || isPriceFiltered || selectedBedrooms !== null || selectedAmenities.length > 0 ? "default" : "outline"}
+                className="gap-2 md:hidden"
+                onClick={() => setShowMobileFilters((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {(isPriceFiltered || selectedBedrooms !== null || selectedAmenities.length > 0) && (
+                  <span className="ml-1 bg-white text-primary rounded-full text-xs w-4 h-4 flex items-center justify-center font-bold">
+                    {[isPriceFiltered, selectedBedrooms !== null, selectedAmenities.length > 0].filter(Boolean).length}
+                  </span>
+                )}
+              </Button>
               <Button className="flex-1 md:flex-none bg-primary">Search</Button>
             </div>
           </div>
@@ -216,82 +314,55 @@ export default function Search() {
             </div>
           </div>
         )}
+
+        {/* Mobile filter panel */}
+        {showMobileFilters && (
+          <div className="md:hidden border-t border-gray-100 bg-white">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold">Filters</h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={resetAllFilters}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Reset All
+                  </button>
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <FilterPanel />
+              <Button
+                className="w-full mt-6 bg-primary"
+                onClick={() => setShowMobileFilters(false)}
+              >
+                Show {filteredProperties.length} properties
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
-        {/* Sidebar Filters */}
+        {/* Desktop Sidebar Filters */}
         <div className="hidden md:block w-64 shrink-0 space-y-8">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold">Filters</h3>
               <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedBedrooms(null);
-                  setSelectedAmenities([]);
-                  setIsGeofencingActive(false);
-                }}
+                onClick={resetAllFilters}
                 className="text-xs text-primary hover:underline"
               >
                 Reset All
               </button>
             </div>
           </div>
-
-          <div>
-            <h3 className="font-bold mb-3">Price Range</h3>
-            <Slider
-              value={priceRange}
-              onValueChange={setPriceRange}
-              max={queryType === "rent" ? 500000 : 200000000}
-              step={queryType === "rent" ? 5000 : 1000000}
-              className="mb-4 touch-none"
-            />
-            <div className="flex justify-between text-sm font-medium mb-4">
-              <span>{new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(priceRange[0])}</span>
-              <span>
-                {new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(priceRange[1])}
-                {priceRange[1] >= (queryType === "rent" ? 500000 : 200000000) ? "+" : ""}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold mb-3">Bedrooms</h3>
-            <div className="flex gap-2 flex-wrap">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setSelectedBedrooms(selectedBedrooms === n ? null : n)}
-                  className={`h-8 w-8 rounded border flex items-center justify-center text-sm transition-colors ${
-                    selectedBedrooms === n
-                      ? "bg-primary text-white border-primary"
-                      : "hover:border-primary hover:text-primary bg-white"
-                  }`}
-                >
-                  {n}{n === 5 ? "+" : ""}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-bold mb-3">Amenities</h3>
-            <div className="space-y-2">
-              {["Parking", "Pool", "Gym", "Pet Friendly", "WiFi", "Balcony", "Garden", "Security"].map((a) => (
-                <div key={a} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={a}
-                    checked={selectedAmenities.includes(a)}
-                    onCheckedChange={() => toggleAmenity(a)}
-                  />
-                  <label htmlFor={a} className="text-sm font-medium leading-none cursor-pointer">
-                    {a}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
+          <FilterPanel />
         </div>
 
         {/* Results Grid */}
@@ -304,6 +375,9 @@ export default function Search() {
               <p className="text-sm text-muted-foreground">
                 Showing <strong>{pageTitle()}</strong>
                 {searchQuery && <span> matching &ldquo;<strong>{searchQuery}</strong>&rdquo;</span>}
+                {isPriceFiltered && (
+                  <span> &middot; price {formatKES(priceRange[0])} – {formatKES(priceRange[1])}{priceRange[1] >= maxPrice ? "+" : ""}</span>
+                )}
               </p>
             </div>
             <select
@@ -335,11 +409,7 @@ export default function Search() {
               <p className="text-muted-foreground">Try adjusting your filters or search query.</p>
               <Button
                 variant="link"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedBedrooms(null);
-                  setSelectedAmenities([]);
-                }}
+                onClick={resetAllFilters}
                 className="mt-2"
               >
                 Clear Filters
