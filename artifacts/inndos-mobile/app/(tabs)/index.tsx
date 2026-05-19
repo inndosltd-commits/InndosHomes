@@ -3,7 +3,8 @@ import type { ListPropertiesParams, Property } from "@workspace/api-client-react
 import type { MapBBox } from "@/components/PropertyMapView";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
-import React, { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +22,8 @@ import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyMapView } from "@/components/PropertyMapView";
 import { PriceRangeSlider } from "@/components/PriceRangeSlider";
 import { Feather } from "@expo/vector-icons";
+
+const PRICE_FILTER_KEY = "@inndos/price_filter";
 
 const FILTER_TYPES = [
   { label: "All", value: undefined },
@@ -67,6 +70,7 @@ export default function BrowseScreen() {
 
   const [priceLow, setPriceLow] = useState<number | undefined>(undefined);
   const [priceHigh, setPriceHigh] = useState<number | undefined>(undefined);
+  const hasCustomPrice = useRef(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -94,7 +98,24 @@ export default function BrowseScreen() {
   }, [properties]);
 
   useEffect(() => {
+    AsyncStorage.getItem(PRICE_FILTER_KEY).then((val) => {
+      if (!val) return;
+      try {
+        const { low, high } = JSON.parse(val) as { low: number; high: number };
+        if (typeof low === "number" && typeof high === "number") {
+          setPriceLow(low);
+          setPriceHigh(high);
+          hasCustomPrice.current = true;
+        }
+      } catch {
+        // ignore corrupt stored value
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     if (priceBounds.min === 0 && priceBounds.max === 0) return;
+    if (hasCustomPrice.current) return;
     setPriceLow(priceBounds.min);
     setPriceHigh(priceBounds.max);
   }, [priceBounds.min, priceBounds.max]);
@@ -156,6 +177,8 @@ export default function BrowseScreen() {
     setActiveType(type);
     setPriceLow(undefined);
     setPriceHigh(undefined);
+    hasCustomPrice.current = false;
+    AsyncStorage.removeItem(PRICE_FILTER_KEY);
   };
 
   const handleSortChange = async (option: SortOption) => {
@@ -315,11 +338,21 @@ export default function BrowseScreen() {
           max={priceBounds.max}
           low={priceLow!}
           high={priceHigh!}
-          onLowChange={setPriceLow}
-          onHighChange={setPriceHigh}
+          onLowChange={(val) => {
+            setPriceLow(val);
+            hasCustomPrice.current = true;
+            AsyncStorage.setItem(PRICE_FILTER_KEY, JSON.stringify({ low: val, high: priceHigh }));
+          }}
+          onHighChange={(val) => {
+            setPriceHigh(val);
+            hasCustomPrice.current = true;
+            AsyncStorage.setItem(PRICE_FILTER_KEY, JSON.stringify({ low: priceLow, high: val }));
+          }}
           onReset={() => {
             setPriceLow(priceBounds.min);
             setPriceHigh(priceBounds.max);
+            hasCustomPrice.current = false;
+            AsyncStorage.removeItem(PRICE_FILTER_KEY);
           }}
         />
       )}
