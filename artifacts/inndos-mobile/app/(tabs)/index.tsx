@@ -1,6 +1,7 @@
 import { useListProperties } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -29,6 +30,30 @@ const FILTER_TYPES = [
   { label: "Hostel", value: "hostel" as const },
 ];
 
+type SortOption = "price-asc" | "price-desc" | "newest" | "distance";
+
+const SORT_OPTIONS: { label: string; value: SortOption; icon: string }[] = [
+  { label: "Price ↑", value: "price-asc", icon: "trending-up" },
+  { label: "Price ↓", value: "price-desc", icon: "trending-down" },
+  { label: "Newest", value: "newest", icon: "clock" },
+  { label: "Nearest", value: "distance", icon: "navigation" },
+];
+
+function haversineKm(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -41,6 +66,9 @@ export default function BrowseScreen() {
 
   const [priceLow, setPriceLow] = useState<number | undefined>(undefined);
   const [priceHigh, setPriceHigh] = useState<number | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const { data: properties, isLoading, error, refetch } = useListProperties({
     type: activeType,
@@ -63,9 +91,40 @@ export default function BrowseScreen() {
     if (!properties) return [];
     const lo = priceLow ?? priceBounds.min;
     const hi = priceHigh ?? priceBounds.max;
-    if (lo <= priceBounds.min && hi >= priceBounds.max) return properties;
-    return properties.filter((p: Property) => p.price >= lo && p.price <= hi);
-  }, [properties, priceLow, priceHigh, priceBounds]);
+    const filtered =
+      lo <= priceBounds.min && hi >= priceBounds.max
+        ? [...properties]
+        : properties.filter((p: Property) => p.price >= lo && p.price <= hi);
+
+    if (sortBy === "price-asc") {
+      filtered.sort((a, b) => a.price - b.price);
+    } else if (sortBy === "price-desc") {
+      filtered.sort((a, b) => b.price - a.price);
+    } else if (sortBy === "distance" && userLocation) {
+      filtered.sort((a, b) => {
+        const aLat = parseFloat(a.lat ?? "");
+        const aLng = parseFloat(a.lng ?? "");
+        const bLat = parseFloat(b.lat ?? "");
+        const bLng = parseFloat(b.lng ?? "");
+        const aDist =
+          isNaN(aLat) || isNaN(aLng)
+            ? Infinity
+            : haversineKm(userLocation.lat, userLocation.lng, aLat, aLng);
+        const bDist =
+          isNaN(bLat) || isNaN(bLng)
+            ? Infinity
+            : haversineKm(userLocation.lat, userLocation.lng, bLat, bLng);
+        return aDist - bDist;
+      });
+    } else {
+      filtered.sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+    }
+    return filtered;
+  }, [properties, priceLow, priceHigh, priceBounds, sortBy, userLocation]);
 
   const handleSearch = (text: string) => {
     setSearch(text);
@@ -85,6 +144,32 @@ export default function BrowseScreen() {
     setActiveType(type);
     setPriceLow(undefined);
     setPriceHigh(undefined);
+  };
+
+  const handleSortChange = async (option: SortOption) => {
+    if (option === "distance") {
+      if (userLocation) {
+        setSortBy("distance");
+        return;
+      }
+      setLocationLoading(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setLocationLoading(false);
+          return;
+        }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setSortBy("distance");
+      } catch {
+        // silently fall back — keep previous sort
+      } finally {
+        setLocationLoading(false);
+      }
+    } else {
+      setSortBy(option);
+    }
   };
 
   const isWeb = Platform.OS === "web";
@@ -165,6 +250,46 @@ export default function BrowseScreen() {
             );
           }}
         />
+      </View>
+
+      <View style={styles.sortRow}>
+        {SORT_OPTIONS.map((opt) => {
+          const isActive = sortBy === opt.value;
+          const isDistanceLoading = opt.value === "distance" && locationLoading;
+          return (
+            <Pressable
+              key={opt.value}
+              style={[
+                styles.sortChip,
+                {
+                  backgroundColor: isActive ? colors.primary : colors.muted,
+                  borderColor: isActive ? colors.primary : colors.border,
+                  opacity: isDistanceLoading ? 0.6 : 1,
+                },
+              ]}
+              onPress={() => handleSortChange(opt.value)}
+              disabled={isDistanceLoading}
+            >
+              {isDistanceLoading ? (
+                <ActivityIndicator size={12} color={colors.mutedForeground} />
+              ) : (
+                <Feather
+                  name={opt.icon as React.ComponentProps<typeof Feather>["name"]}
+                  size={12}
+                  color={isActive ? colors.primaryForeground : colors.mutedForeground}
+                />
+              )}
+              <Text
+                style={[
+                  styles.sortChipText,
+                  { color: isActive ? colors.primaryForeground : colors.foreground },
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {showPriceSlider && (
@@ -277,6 +402,24 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     filterChipText: {
       fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    sortRow: {
+      flexDirection: "row",
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      gap: 8,
+    },
+    sortChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderWidth: 1,
+    },
+    sortChipText: {
+      fontSize: 12,
       fontFamily: "Outfit_600SemiBold",
     },
     listContent: {
