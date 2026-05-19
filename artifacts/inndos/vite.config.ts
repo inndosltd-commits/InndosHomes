@@ -32,6 +32,8 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_GOOGLE_API_KEY": JSON.stringify(process.env.GOOGLE_API_KEY ?? ""),
     "import.meta.env.VITE_GOOGLE_CLIENT_ID": JSON.stringify(process.env.GOOGLE_CLIENT_ID ?? ""),
+    "import.meta.env.VITE_FACEBOOK_APP_ID": JSON.stringify(process.env.FACEBOOK_APP_ID ?? ""),
+    "import.meta.env.VITE_LINKEDIN_CLIENT_ID": JSON.stringify(process.env.LINKEDIN_CLIENT_ID ?? ""),
   },
   plugins: [
     react(),

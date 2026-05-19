@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation, Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,19 @@ const DEMO_CREDS: Record<Role, { email: string; password: string }> = {
   admin: { email: "admin@inndos.com", password: "admin123" },
 };
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
+const GOOGLE_CLIENT_ID   = import.meta.env.VITE_GOOGLE_CLIENT_ID   as string;
+const FACEBOOK_APP_ID    = import.meta.env.VITE_FACEBOOK_APP_ID    as string;
+const LINKEDIN_CLIENT_ID = import.meta.env.VITE_LINKEDIN_CLIENT_ID as string;
+
+declare global {
+  interface Window {
+    FB?: {
+      init: (opts: Record<string, unknown>) => void;
+      login: (cb: (r: { authResponse?: { accessToken: string } }) => void, opts?: Record<string, unknown>) => void;
+    };
+    fbAsyncInit?: () => void;
+  }
+}
 
 export default function Login() {
   const [location, setLocation] = useLocation();
@@ -29,6 +41,7 @@ export default function Login() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const { login, signup, user, token: authToken } = useAuth();
   const { toast } = useToast();
+  const linkedinPopup = useRef<Window | null>(null);
 
   useEffect(() => {
     if (window.location.search.includes("signup=true") || window.location.hash.includes("signup=true")) {
@@ -106,6 +119,72 @@ export default function Login() {
     toast({ title: "Google sign-in cancelled", description: "The sign-in window was closed or blocked.", variant: "destructive" });
   };
 
+  /* ── Facebook OAuth ── */
+  const handleFacebookLogin = (role: Role) => {
+    if (!FACEBOOK_APP_ID || FACEBOOK_APP_ID === "placeholder") return;
+    setIsLoading(true);
+    const doLogin = () => {
+      window.FB!.login((response) => {
+        if (!response.authResponse?.accessToken) {
+          setIsLoading(false);
+          toast({ title: "Facebook sign-in cancelled", description: "The sign-in window was closed.", variant: "destructive" });
+          return;
+        }
+        fetch("/api/auth/facebook", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: response.authResponse.accessToken, role }),
+        })
+          .then(async (res) => {
+            if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as { error?: string }).error || "Facebook sign-in failed"); }
+            const { token, user: fbUser } = await res.json() as { token: string; user: { email: string } };
+            await login(fbUser.email, "", token);
+          })
+          .catch((err) => toast({ title: "Facebook sign-in failed", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" }))
+          .finally(() => setIsLoading(false));
+      }, { scope: "public_profile,email" });
+    };
+
+    if (window.FB) { doLogin(); return; }
+    window.fbAsyncInit = () => {
+      window.FB!.init({ appId: FACEBOOK_APP_ID, cookie: true, xfbml: false, version: "v19.0" });
+      doLogin();
+    };
+    if (!document.getElementById("facebook-jssdk")) {
+      const s = document.createElement("script");
+      s.id = "facebook-jssdk";
+      s.src = "https://connect.facebook.net/en_US/sdk.js";
+      document.head.appendChild(s);
+    }
+  };
+
+  /* ── LinkedIn OAuth (popup flow) ── */
+  const handleLinkedInLogin = (role: Role) => {
+    if (!LINKEDIN_CLIENT_ID || LINKEDIN_CLIENT_ID === "placeholder") return;
+    const redirectUri = encodeURIComponent(`${window.location.origin}/api/auth/linkedin/callback`);
+    const scope = encodeURIComponent("openid profile email");
+    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scope}&state=${role}`;
+
+    linkedinPopup.current?.close();
+    linkedinPopup.current = window.open(url, "linkedin_login", "width=600,height=700,left=200,top=100");
+    setIsLoading(true);
+
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === "linkedin_success") {
+        window.removeEventListener("message", onMessage);
+        const { token, user: liUser } = e.data as { token: string; user: { email: string } };
+        login(liUser.email, "", token)
+          .catch((err) => toast({ title: "LinkedIn sign-in failed", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" }))
+          .finally(() => setIsLoading(false));
+      } else if (e.data?.type === "linkedin_error") {
+        window.removeEventListener("message", onMessage);
+        setIsLoading(false);
+        toast({ title: "LinkedIn sign-in failed", description: e.data.error || "Please try again.", variant: "destructive" });
+      }
+    };
+    window.addEventListener("message", onMessage);
+  };
+
   /* ── forgot password (placeholder until email service is wired) ── */
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +196,9 @@ export default function Login() {
     }, 800);
   };
 
-  const googleConfigured = Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "placeholder");
+  const googleConfigured   = Boolean(GOOGLE_CLIENT_ID   && GOOGLE_CLIENT_ID   !== "placeholder");
+  const facebookConfigured = Boolean(FACEBOOK_APP_ID    && FACEBOOK_APP_ID    !== "placeholder");
+  const linkedinConfigured = Boolean(LINKEDIN_CLIENT_ID && LINKEDIN_CLIENT_ID !== "placeholder");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -199,8 +280,8 @@ export default function Login() {
                             : `Sign in as ${role.charAt(0).toUpperCase() + role.slice(1)}`)}
                       </Button>
 
-                      {/* ── Google Sign-In ── */}
-                      {googleConfigured && (
+                      {/* ── Social Sign-In ── */}
+                      {(googleConfigured || facebookConfigured || linkedinConfigured) && (
                         <>
                           <div className="relative my-4">
                             <div className="absolute inset-0 flex items-center">
@@ -211,15 +292,45 @@ export default function Login() {
                             </div>
                           </div>
 
-                          <div className="flex justify-center">
-                            <GoogleLogin
-                              onSuccess={(cr) => handleGoogleSuccess(cr, role)}
-                              onError={handleGoogleError}
-                              useOneTap={false}
-                              text={isSignUp ? "signup_with" : "signin_with"}
-                              shape="rectangular"
-                              width="360"
-                            />
+                          <div className="flex flex-col gap-2">
+                            {googleConfigured && (
+                              <div className="flex justify-center">
+                                <GoogleLogin
+                                  onSuccess={(cr) => handleGoogleSuccess(cr, role)}
+                                  onError={handleGoogleError}
+                                  useOneTap={false}
+                                  text={isSignUp ? "signup_with" : "signin_with"}
+                                  shape="rectangular"
+                                  width="360"
+                                />
+                              </div>
+                            )}
+                            {facebookConfigured && (
+                              <button
+                                type="button"
+                                onClick={() => handleFacebookLogin(role)}
+                                disabled={isLoading}
+                                className="flex items-center justify-center gap-3 w-full h-10 rounded border border-gray-300 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 disabled:opacity-50"
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
+                                  <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+                                </svg>
+                                Continue with Facebook
+                              </button>
+                            )}
+                            {linkedinConfigured && (
+                              <button
+                                type="button"
+                                onClick={() => handleLinkedInLogin(role)}
+                                disabled={isLoading}
+                                className="flex items-center justify-center gap-3 w-full h-10 rounded border border-gray-300 bg-white hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 disabled:opacity-50"
+                              >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="#0A66C2">
+                                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                </svg>
+                                Continue with LinkedIn
+                              </button>
+                            )}
                           </div>
                         </>
                       )}

@@ -110,6 +110,92 @@ router.get("/me", async (req, res) => {
   res.json(safeUser);
 });
 
+router.post("/facebook", async (req, res) => {
+  const { accessToken, role } = req.body as { accessToken?: string; role?: string };
+  if (!accessToken) { res.status(400).json({ error: "accessToken required" }); return; }
+
+  const appId = process.env["FACEBOOK_APP_ID"];
+  const appSecret = process.env["FACEBOOK_APP_SECRET"];
+  if (!appId || !appSecret) { res.status(503).json({ error: "Facebook OAuth not configured" }); return; }
+
+  try {
+    const verifyUrl = `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`;
+    const verifyRes = await fetch(verifyUrl);
+    const verifyData = await verifyRes.json() as { data?: { is_valid?: boolean; app_id?: string } };
+    if (!verifyData.data?.is_valid || verifyData.data?.app_id !== appId) {
+      res.status(401).json({ error: "Invalid Facebook token" }); return;
+    }
+
+    const profileRes = await fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`);
+    const profile = await profileRes.json() as { id?: string; name?: string; email?: string };
+    if (!profile.email) { res.status(400).json({ error: "Facebook account has no email address" }); return; }
+
+    const allowedRole = role === "owner" || role === "host" ? role : "tenant";
+    let [user] = await db.select().from(users).where(eq(users.email, profile.email));
+    if (!user) {
+      const randomPassword = await bcrypt.hash((profile.id ?? "") + JWT_SECRET, 10);
+      [user] = await db.insert(users).values({
+        name: profile.name || profile.email.split("@")[0],
+        email: profile.email,
+        password: randomPassword,
+        role: allowedRole,
+      }).returning();
+    }
+
+    const token = signToken(user.id);
+    const { password: _pw, ...safeUser } = user;
+    res.json({ token, user: safeUser });
+  } catch (err) {
+    req.log.error({ err }, "Facebook auth failed");
+    res.status(401).json({ error: "Facebook authentication failed" });
+  }
+});
+
+router.get("/linkedin/callback", async (req, res) => {
+  const { code, state, error: oauthError } = req.query as Record<string, string>;
+  const closeWithError = (msg: string) =>
+    res.send(`<!DOCTYPE html><html><body><script>window.opener&&window.opener.postMessage({type:"linkedin_error",error:${JSON.stringify(msg)}},"*");window.close();</script></body></html>`);
+
+  if (oauthError || !code) { closeWithError(oauthError || "No code returned"); return; }
+
+  const clientId = process.env["LINKEDIN_CLIENT_ID"];
+  const clientSecret = process.env["LINKEDIN_CLIENT_SECRET"];
+  if (!clientId || !clientSecret) { closeWithError("LinkedIn OAuth not configured"); return; }
+
+  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/linkedin/callback`;
+
+  try {
+    const tokenRes = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri, client_id: clientId, client_secret: clientSecret }).toString(),
+    });
+    const tokenData = await tokenRes.json() as { access_token?: string };
+    if (!tokenData.access_token) { closeWithError("Token exchange failed"); return; }
+
+    const profileRes = await fetch("https://api.linkedin.com/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const profile = await profileRes.json() as { sub?: string; name?: string; given_name?: string; family_name?: string; email?: string };
+    if (!profile.email) { closeWithError("LinkedIn account has no email address"); return; }
+
+    const allowedRole = state === "owner" || state === "host" ? state : "tenant";
+    let [user] = await db.select().from(users).where(eq(users.email, profile.email));
+    if (!user) {
+      const name = profile.name || `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim() || profile.email.split("@")[0];
+      const randomPassword = await bcrypt.hash((profile.sub ?? "") + JWT_SECRET, 10);
+      [user] = await db.insert(users).values({ name, email: profile.email, password: randomPassword, role: allowedRole }).returning();
+    }
+
+    const jwt = signToken(user.id);
+    const { password: _pw, ...safeUser } = user;
+    res.send(`<!DOCTYPE html><html><body><script>window.opener&&window.opener.postMessage({type:"linkedin_success",token:${JSON.stringify(jwt)},user:${JSON.stringify(safeUser)}},"*");window.close();</script></body></html>`);
+  } catch (err) {
+    req.log.error({ err }, "LinkedIn auth failed");
+    closeWithError("LinkedIn authentication failed");
+  }
+});
+
 router.post("/google", async (req, res) => {
   const { credential, role } = req.body as { credential?: string; role?: string };
   if (!credential) {
