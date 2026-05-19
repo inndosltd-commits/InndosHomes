@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Linking,
   Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -19,6 +20,7 @@ interface PropertyLocationMapProps {
 
 export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProps) {
   const colors = useColors();
+  const [sharing, setSharing] = useState(false);
   const latitude = parseFloat(lat);
   const longitude = parseFloat(lng);
 
@@ -29,6 +31,8 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     longitudeDelta: 0.01,
   };
 
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
   const handleOpenMaps = () => {
     const label = encodeURIComponent(title);
     const url =
@@ -36,10 +40,23 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         ? `maps:0,0?q=${label}@${latitude},${longitude}`
         : `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
     Linking.openURL(url).catch(() => {
-      Linking.openURL(
-        `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
-      );
+      Linking.openURL(mapsUrl);
     });
+  };
+
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await Share.share({
+        title,
+        message: `${title}\n${mapsUrl}`,
+        url: mapsUrl,
+      });
+    } catch {
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -57,11 +74,25 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         >
           <Marker coordinate={{ latitude, longitude }} title={title} />
         </MapView>
-        <View style={[styles.directionsBtn, { backgroundColor: colors.primary }]}>
-          <Feather name="navigation" size={13} color={colors.primaryForeground} />
-          <Text style={[styles.directionsBtnText, { color: colors.primaryForeground }]}>
-            Get Directions
-          </Text>
+        <View style={styles.buttonsRow}>
+          <Pressable
+            onPress={handleShare}
+            style={[styles.actionBtn, { backgroundColor: colors.card }]}
+          >
+            <Feather name="share-2" size={13} color={colors.foreground} />
+            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>
+              Share
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleOpenMaps}
+            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+          >
+            <Feather name="navigation" size={13} color={colors.primaryForeground} />
+            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>
+              Get Directions
+            </Text>
+          </Pressable>
         </View>
       </Pressable>
     </View>
@@ -86,10 +117,15 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  directionsBtn: {
+  buttonsRow: {
     position: "absolute",
     bottom: 10,
     right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -102,7 +138,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  directionsBtnText: {
+  actionBtnText: {
     fontSize: 12,
     fontFamily: "Outfit_600SemiBold",
   },
