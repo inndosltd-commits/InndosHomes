@@ -9,22 +9,25 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const ROLES = ["owner", "host", "admin"] as const;
 type Role = typeof ROLES[number];
 
 const DEMO_CREDS: Record<Role, { email: string; password: string }> = {
   owner: { email: "owner@inndos.com", password: "owner123" },
-  host: { email: "host@inndos.com", password: "host123" },
+  host:  { email: "host@inndos.com",  password: "host123"  },
   admin: { email: "admin@inndos.com", password: "admin123" },
 };
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
+
 export default function Login() {
   const [location, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading]           = useState(false);
+  const [isSignUp, setIsSignUp]             = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const { login, signup, user } = useAuth();
+  const { login, signup, user, token: authToken } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,69 +41,72 @@ export default function Login() {
     return null;
   }
 
+  /* ── email/password sign-in ── */
   const handleLogin = async (role: Role) => {
     setIsLoading(true);
-    const emailInput = document.getElementById(`email-${role}`) as HTMLInputElement;
-    const passwordInput = document.getElementById(`password-${role}`) as HTMLInputElement;
-    const email = emailInput?.value || DEMO_CREDS[role].email;
-    const password = passwordInput?.value || DEMO_CREDS[role].password;
     try {
+      const emailEl    = document.getElementById(`email-${role}`)    as HTMLInputElement | null;
+      const passwordEl = document.getElementById(`password-${role}`) as HTMLInputElement | null;
+      const email      = emailEl?.value    || DEMO_CREDS[role].email;
+      const password   = passwordEl?.value || DEMO_CREDS[role].password;
       await login(email, password);
     } catch (err) {
-      toast({
-        title: "Login failed",
-        description: err instanceof Error ? err.message : "Please check your credentials.",
-        variant: "destructive",
-      });
+      toast({ title: "Sign in failed", description: err instanceof Error ? err.message : "Invalid credentials.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ── email/password sign-up ── */
   const handleSignUp = async (role: Role) => {
     setIsLoading(true);
-    const nameInput = document.getElementById(`name-${role}`) as HTMLInputElement;
-    const emailInput = document.getElementById(`email-${role}`) as HTMLInputElement;
-    const passwordInput = document.getElementById(`password-${role}`) as HTMLInputElement;
-
-    const name = nameInput?.value || "";
-    const email = emailInput?.value || "";
-    const password = passwordInput?.value || "";
-
-    if (!name || !email || !password) {
-      toast({ title: "Missing fields", description: "Please fill in all fields.", variant: "destructive" });
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      const nameEl     = document.getElementById(`name-${role}`)     as HTMLInputElement | null;
+      const emailEl    = document.getElementById(`email-${role}`)    as HTMLInputElement | null;
+      const passwordEl = document.getElementById(`password-${role}`) as HTMLInputElement | null;
+      const name       = nameEl?.value    || "";
+      const email      = emailEl?.value   || "";
+      const password   = passwordEl?.value || "";
+      if (!name || !email || !password) {
+        toast({ title: "Missing fields", description: "Please fill in name, email, and password.", variant: "destructive" });
+        return;
+      }
       await signup(role, name, email, password);
     } catch (err) {
-      toast({
-        title: "Sign up failed",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-        variant: "destructive",
-      });
+      toast({ title: "Sign up failed", description: err instanceof Error ? err.message : "Something went wrong.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSocialAuth = async (provider: string, role: Role) => {
+  /* ── real Google OAuth ── */
+  const handleGoogleSuccess = async (response: CredentialResponse, role: Role) => {
+    if (!response.credential) return;
     setIsLoading(true);
     try {
-      if (isSignUp) {
-        await signup(role, `New ${provider} User`, `user_${Date.now()}@${provider.toLowerCase()}.social`, "socialpass123");
-      } else {
-        await login(DEMO_CREDS[role].email, DEMO_CREDS[role].password);
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential, role }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || "Google sign-in failed");
       }
+      const { token, user: googleUser } = await res.json() as { token: string; user: { name: string; email: string; role: string } };
+      await login(googleUser.email, "", token);
     } catch (err) {
-      toast({ title: "Auth failed", description: err instanceof Error ? err.message : "Authentication failed.", variant: "destructive" });
+      toast({ title: "Google sign-in failed", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGoogleError = () => {
+    toast({ title: "Google sign-in cancelled", description: "The sign-in window was closed or blocked.", variant: "destructive" });
+  };
+
+  /* ── forgot password (placeholder until email service is wired) ── */
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -110,6 +116,8 @@ export default function Login() {
       toast({ title: "Email sent", description: "Password reset instructions sent to your email." });
     }, 800);
   };
+
+  const googleConfigured = Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== "placeholder");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,10 +131,10 @@ export default function Login() {
             <CardDescription>
               {isForgotPassword
                 ? "Enter your email and we'll send reset instructions."
-                : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")
-              }
+                : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")}
             </CardDescription>
           </CardHeader>
+
           <CardContent>
             {isForgotPassword ? (
               <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -186,29 +194,35 @@ export default function Login() {
                       >
                         {isLoading
                           ? (isSignUp ? "Signing up..." : "Signing in...")
-                          : (isSignUp ? `Sign up as ${role.charAt(0).toUpperCase() + role.slice(1)}` : `Sign in as ${role.charAt(0).toUpperCase() + role.slice(1)}`)}
+                          : (isSignUp
+                            ? `Sign up as ${role.charAt(0).toUpperCase() + role.slice(1)}`
+                            : `Sign in as ${role.charAt(0).toUpperCase() + role.slice(1)}`)}
                       </Button>
 
-                      <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
-                        </div>
-                      </div>
+                      {/* ── Google Sign-In ── */}
+                      {googleConfigured && (
+                        <>
+                          <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+                            </div>
+                          </div>
 
-                      <div className="flex gap-2 justify-center">
-                        <Button variant="outline" className="w-full" onClick={() => handleSocialAuth("Google", role)} disabled={isLoading}>
-                          <svg className="h-5 w-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
-                        </Button>
-                        <Button variant="outline" className="w-full" onClick={() => handleSocialAuth("Facebook", role)} disabled={isLoading}>
-                          <svg className="h-5 w-5 text-[#1877F2]" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M504 256C504 119 393 8 256 8S8 119 8 256c0 123.78 90.69 226.38 209.25 245V327.69h-63V256h63v-54.64c0-62.15 37-96.48 93.67-96.48 27.14 0 55.52 4.84 55.52 4.84v61h-31.28c-30.8 0-40.41 19.12-40.41 38.73V256h68.78l-11 71.69h-57.78V501C413.31 482.38 504 379.78 504 256z"></path></svg>
-                        </Button>
-                        <Button variant="outline" className="w-full" onClick={() => handleSocialAuth("LinkedIn", role)} disabled={isLoading}>
-                          <svg className="h-5 w-5 text-[#0A66C2]" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentColor" d="M100.28 448H7.4V148.9h92.88zM53.79 108.1C24.09 108.1 0 83.5 0 53.8a53.79 53.79 0 0 1 107.58 0c0 29.7-24.1 54.3-53.79 54.3zM447.9 448h-92.68V302.4c0-34.7-.7-79.2-48.29-79.2-48.29 0-55.69 37.7-55.69 76.7V448h-92.78V148.9h89.08v40.8h1.3c12.4-23.5 42.69-48.3 87.88-48.3 94 0 111.28 61.9 111.28 142.3V448z"></path></svg>
-                        </Button>
-                      </div>
+                          <div className="flex justify-center">
+                            <GoogleLogin
+                              onSuccess={(cr) => handleGoogleSuccess(cr, role)}
+                              onError={handleGoogleError}
+                              useOneTap={false}
+                              text={isSignUp ? "signup_with" : "signin_with"}
+                              shape="rectangular"
+                              width="360"
+                            />
+                          </div>
+                        </>
+                      )}
 
                       {isSignUp && (
                         <div className="flex items-start space-x-2 mt-4 pt-2">
@@ -236,6 +250,7 @@ export default function Login() {
               </Tabs>
             )}
           </CardContent>
+
           <CardFooter className="flex justify-center border-t p-4">
             <p className="text-xs text-muted-foreground">
               {isSignUp ? "Already have an account? " : "Don't have an account? "}

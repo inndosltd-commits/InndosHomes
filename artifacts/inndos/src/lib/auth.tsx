@@ -16,7 +16,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, preexistingToken?: string) => Promise<void>;
   signup: (role: UserRole, name: string, email: string, password?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -70,8 +70,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, preexistingToken?: string) => {
     setError(null);
+    if (preexistingToken) {
+      // Google OAuth path: token already verified by backend, just fetch the user profile
+      const res = await apiFetch("/auth/me", undefined, preexistingToken);
+      if (!res.ok) throw new Error("Failed to load user profile");
+      const newUser = await res.json();
+      setToken(preexistingToken);
+      setUser(newUser);
+      localStorage.setItem("inndos_token", preexistingToken);
+      setLocation("/dashboard");
+      return;
+    }
     const res = await apiFetch("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),

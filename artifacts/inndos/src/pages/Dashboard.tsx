@@ -54,6 +54,10 @@ export default function Dashboard() {
 
   const [deactivatedProperties, setDeactivatedProperties] = useState<string[]>([]);
 
+  // Favorites & messages (for tenants/guests overview cards)
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+
   // Bookings state (for tenants/guests)
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
@@ -224,6 +228,18 @@ export default function Dashboard() {
       setIsLoadingProperties(false);
     }
   }, [user, token, toast]);
+
+  const fetchFavoritesAndMessages = useCallback(async () => {
+    if (!user || !token || (user.role !== 'tenant' && user.role !== 'guest')) return;
+    try {
+      const [favRes, msgRes] = await Promise.all([
+        fetch("/api/favorites", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/messages", { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (favRes.ok) setFavorites(await favRes.json());
+      if (msgRes.ok) setMessages(await msgRes.json());
+    } catch { /* silent — stats are non-critical */ }
+  }, [user, token]);
 
   const fetchBookings = useCallback(async () => {
     if (!user || !token) return;
@@ -480,6 +496,7 @@ export default function Dashboard() {
       fetchReceivedBookings();
       fetchUnreadBookingCount();
       fetchSubscription();
+      fetchFavoritesAndMessages();
       if (user.role === 'admin') {
         fetchAdminStats();
         fetchModerationQueue();
@@ -491,7 +508,7 @@ export default function Dashboard() {
         fetchAdminPlans();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans]);
 
   // Handle return from PesaPal payment
   useEffect(() => {
@@ -1598,7 +1615,7 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-muted-foreground">Favorites</p>
                       <Heart className="h-4 w-4 text-red-500" />
                     </div>
-                    <div className="text-2xl font-bold">15</div>
+                    <div className="text-2xl font-bold">{favorites.length}</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-blue-500 shadow-sm">
@@ -1607,8 +1624,7 @@ export default function Dashboard() {
                        <p className="text-sm font-medium text-muted-foreground">Messages</p>
                        <MessageSquare className="h-4 w-4 text-blue-500" />
                     </div>
-                    <div className="text-2xl font-bold">3</div>
-                    <p className="text-xs text-muted-foreground">2 unread</p>
+                    <div className="text-2xl font-bold">{messages.length}</div>
                   </CardContent>
                 </Card>
                 <Card className="bg-white border-l-4 border-l-purple-500 shadow-sm">
@@ -1617,8 +1633,8 @@ export default function Dashboard() {
                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'guest' ? 'Upcoming Trips' : 'Scheduled Visits'}</p>
                        <Clock className="h-4 w-4 text-purple-500" />
                     </div>
-                    <div className="text-2xl font-bold">2</div>
-                    <p className="text-xs text-muted-foreground">Upcoming this week</p>
+                    <div className="text-2xl font-bold">{bookings.length}</div>
+                    <p className="text-xs text-muted-foreground">Active bookings</p>
                   </CardContent>
                 </Card>
               </div>

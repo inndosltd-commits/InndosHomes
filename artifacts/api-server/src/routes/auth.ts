@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import { db } from "@workspace/db";
 import { users, insertUserSchema } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -107,6 +108,57 @@ router.get("/me", async (req, res) => {
 
   const { password: _pw, ...safeUser } = user;
   res.json(safeUser);
+});
+
+router.post("/google", async (req, res) => {
+  const { credential, role } = req.body as { credential?: string; role?: string };
+  if (!credential) {
+    res.status(400).json({ error: "Missing Google credential" });
+    return;
+  }
+
+  const clientId = process.env["GOOGLE_CLIENT_ID"];
+  if (!clientId) {
+    res.status(503).json({ error: "Google OAuth is not configured on this server" });
+    return;
+  }
+
+  try {
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      res.status(401).json({ error: "Invalid Google token" });
+      return;
+    }
+
+    const { email, name, sub: googleId } = payload;
+
+    let [user] = await db.select().from(users).where(eq(users.email, email));
+
+    if (!user) {
+      const allowedRole =
+        role === "owner" || role === "host" ? role : "tenant";
+      const randomPassword = await bcrypt.hash(googleId + JWT_SECRET, 10);
+      [user] = await db
+        .insert(users)
+        .values({
+          name: name || email.split("@")[0],
+          email,
+          password: randomPassword,
+          role: allowedRole,
+        })
+        .returning();
+    }
+
+    const token = signToken(user.id);
+    const { password: _pw, ...safeUser } = user;
+    res.json({ token, user: safeUser });
+  } catch (err) {
+    req.log.error({ err }, "Google auth failed");
+    res.status(401).json({ error: "Google authentication failed" });
+  }
 });
 
 export default router;
