@@ -12,9 +12,10 @@ import { Upload, Image as ImageIcon, Check, ChevronRight, ChevronLeft, Home, Map
 import { useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 
 const BNB_AMENITIES = [
@@ -42,7 +43,23 @@ export default function AddBNB() {
   const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftAddress, setDraftAddress] = useState("");
 
-  const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY });
+  const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
+
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+
+  const handlePlacesChanged = () => {
+    const places = searchBoxRef.current?.getPlaces();
+    if (!places || places.length === 0) return;
+    const place = places[0];
+    const loc = place.geometry?.location;
+    if (!loc) return;
+    const pos = { lat: loc.lat(), lng: loc.lng() };
+    setDraftPin(pos);
+    setDraftAddress(place.formatted_address ?? place.name ?? "");
+    mapRef.current?.panTo(pos);
+    mapRef.current?.setZoom(15);
+  };
 
   const reverseGeocodeDraft = (pos: google.maps.LatLngLiteral) => {
     if (!window.google) return;
@@ -421,33 +438,51 @@ export default function AddBNB() {
           </DialogHeader>
           <div className="relative h-[400px] w-full overflow-hidden">
             {mapsLoaded ? (
-              <GoogleMap
-                mapContainerClassName="w-full h-full"
-                center={draftPin ?? NAIROBI_CENTER}
-                zoom={13}
-                options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
-                onClick={(e) => {
-                  if (e.latLng) {
-                    const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-                    setDraftPin(pos);
-                    reverseGeocodeDraft(pos);
-                  }
-                }}
-              >
-                {draftPin && (
-                  <Marker
-                    position={draftPin}
-                    draggable
-                    onDragEnd={(e) => {
-                      if (e.latLng) {
-                        const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-                        setDraftPin(pos);
-                        reverseGeocodeDraft(pos);
-                      }
-                    }}
-                  />
-                )}
-              </GoogleMap>
+              <>
+                <StandaloneSearchBox
+                  onLoad={(ref) => { searchBoxRef.current = ref; }}
+                  onPlacesChanged={handlePlacesChanged}
+                >
+                  <div className="absolute top-3 left-3 right-3 z-10">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search for a neighbourhood or address…"
+                        className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </StandaloneSearchBox>
+                <GoogleMap
+                  mapContainerClassName="w-full h-full"
+                  center={draftPin ?? NAIROBI_CENTER}
+                  zoom={13}
+                  options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                  onLoad={(map) => { mapRef.current = map; }}
+                  onClick={(e) => {
+                    if (e.latLng) {
+                      const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                      setDraftPin(pos);
+                      reverseGeocodeDraft(pos);
+                    }
+                  }}
+                >
+                  {draftPin && (
+                    <Marker
+                      position={draftPin}
+                      draggable
+                      onDragEnd={(e) => {
+                        if (e.latLng) {
+                          const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                          setDraftPin(pos);
+                          reverseGeocodeDraft(pos);
+                        }
+                      }}
+                    />
+                  )}
+                </GoogleMap>
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-100">
                 <div className="text-gray-400 text-sm">Loading map…</div>
