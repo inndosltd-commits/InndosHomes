@@ -1,8 +1,9 @@
 import type { Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
 import MapView, { Marker, type Region } from "react-native-maps";
 import Supercluster from "supercluster";
 import { useColors } from "@/hooks/useColors";
+import { getImageUrl } from "@/utils/imageUrl";
 import { Feather } from "@expo/vector-icons";
 
 export interface MapBBox {
@@ -89,6 +91,11 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [thumbError, setThumbError] = useState(false);
+
+  useEffect(() => {
+    setThumbError(false);
+  }, [selectedId]);
 
   const mappableProperties = useMemo(
     () =>
@@ -299,6 +306,20 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
             })
           }
         >
+          {selectedProperty.image && !thumbError ? (
+            <Image
+              source={{ uri: getImageUrl(selectedProperty.image) }}
+              style={styles.calloutThumb}
+              resizeMode="cover"
+              onError={() => setThumbError(true)}
+            />
+          ) : (
+            <View
+              style={[styles.calloutThumbFallback, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="map-pin" size={22} color={colors.mutedForeground} />
+            </View>
+          )}
           <View style={styles.calloutContent}>
             <Text
               style={[styles.calloutTitle, { color: colors.foreground }]}
@@ -427,6 +448,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 6,
+  },
+  calloutThumb: {
+    width: 80,
+    alignSelf: "stretch",
+  },
+  calloutThumbFallback: {
+    width: 80,
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
   },
   calloutContent: {
     flex: 1,
