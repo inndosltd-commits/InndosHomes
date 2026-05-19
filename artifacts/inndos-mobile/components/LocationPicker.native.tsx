@@ -18,6 +18,7 @@ interface LocationPickerProps {
   lat: string;
   lng: string;
   onLocationChange: (lat: string, lng: string) => void;
+  onAddressResolved?: (address: string) => void;
   latError?: string;
   lngError?: string;
 }
@@ -31,7 +32,7 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.4,
 };
 
-export function LocationPicker({ lat, lng, onLocationChange, latError, lngError }: LocationPickerProps) {
+export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, latError, lngError }: LocationPickerProps) {
   const colors = useColors();
   const [locating, setLocating] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
@@ -61,7 +62,9 @@ export function LocationPicker({ lat, lng, onLocationChange, latError, lngError 
         else if (r.street) parts.push(r.street);
         if (r.city) parts.push(r.city);
         else if (r.subregion) parts.push(r.subregion);
-        setAddress(parts.length > 0 ? parts.join(", ") : null);
+        const resolved = parts.length > 0 ? parts.join(", ") : null;
+        setAddress(resolved);
+        if (resolved) onAddressResolved?.(resolved);
       })
       .catch(() => { if (!cancelled) setAddress(null); })
       .finally(() => { if (!cancelled) setGeocoding(false); });

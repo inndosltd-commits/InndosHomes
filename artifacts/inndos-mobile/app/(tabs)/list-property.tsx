@@ -177,6 +177,14 @@ export default function ListPropertyScreen() {
     setErrors((prev) => ({ ...prev, lat: undefined, lng: undefined }));
   }
 
+  function handleAddressResolved(resolved: string) {
+    setForm((prev) => {
+      if (prev.address.trim() !== "") return prev;
+      return { ...prev, address: resolved };
+    });
+    setErrors((prev) => ({ ...prev, address: undefined }));
+  }
+
   function validate(): boolean {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
 
@@ -321,7 +329,7 @@ export default function ListPropertyScreen() {
             />
           </Field>
 
-          <Field label="Address *" error={errors.address} colors={colors}>
+          <Field label="Address * (auto-filled when you pin a location)" error={errors.address} colors={colors}>
             <TextInput
               style={[styles.input, { color: colors.foreground, borderColor: errors.address ? colors.destructive : colors.border, backgroundColor: colors.card }]}
               placeholder="e.g. 14 Lenana Road, Nairobi"
@@ -415,6 +423,7 @@ export default function ListPropertyScreen() {
             lat={form.lat}
             lng={form.lng}
             onLocationChange={handleLocationChange}
+            onAddressResolved={handleAddressResolved}
             latError={errors.lat}
             lngError={errors.lng}
           />

@@ -12,6 +12,7 @@ interface LocationPickerProps {
   lat: string;
   lng: string;
   onLocationChange: (lat: string, lng: string) => void;
+  onAddressResolved?: (address: string) => void;
   latError?: string;
   lngError?: string;
 }
