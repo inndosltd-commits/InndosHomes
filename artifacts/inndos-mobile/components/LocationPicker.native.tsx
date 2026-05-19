@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -33,12 +33,38 @@ const DEFAULT_REGION = {
 export function LocationPicker({ lat, lng, onLocationChange, latError, lngError }: LocationPickerProps) {
   const colors = useColors();
   const [locating, setLocating] = useState(false);
+  const [address, setAddress] = useState<string | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
   const mapRef = useRef<MapView>(null);
 
   const hasPinned = lat !== "" && lng !== "";
   const pinCoord = hasPinned
     ? { latitude: parseFloat(lat), longitude: parseFloat(lng) }
     : null;
+
+  useEffect(() => {
+    if (!hasPinned) {
+      setAddress(null);
+      return;
+    }
+    let cancelled = false;
+    setGeocoding(true);
+    Location.reverseGeocodeAsync({ latitude: parseFloat(lat), longitude: parseFloat(lng) })
+      .then((results) => {
+        if (cancelled) return;
+        const r = results[0];
+        if (!r) { setAddress(null); return; }
+        const parts: string[] = [];
+        if (r.streetNumber && r.street) parts.push(`${r.streetNumber} ${r.street}`);
+        else if (r.street) parts.push(r.street);
+        if (r.city) parts.push(r.city);
+        else if (r.subregion) parts.push(r.subregion);
+        setAddress(parts.length > 0 ? parts.join(", ") : null);
+      })
+      .catch(() => { if (!cancelled) setAddress(null); })
+      .finally(() => { if (!cancelled) setGeocoding(false); });
+    return () => { cancelled = true; };
+  }, [lat, lng, hasPinned]);
 
   const initialRegion = pinCoord
     ? { ...pinCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
@@ -132,16 +158,31 @@ export function LocationPicker({ lat, lng, onLocationChange, latError, lngError 
       </View>
 
       {hasPinned && (
-        <View style={styles.coordRow}>
-          <View style={[styles.coordBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="map-pin" size={13} color={colors.primary} />
-            <Text style={[styles.coordText, { color: colors.foreground }]}>
-              {parseFloat(lat).toFixed(5)}, {parseFloat(lng).toFixed(5)}
-            </Text>
+        <View style={styles.pinInfoColumn}>
+          <View style={styles.coordRow}>
+            <View style={[styles.coordBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="map-pin" size={13} color={colors.primary} />
+              <Text style={[styles.coordText, { color: colors.foreground }]}>
+                {parseFloat(lat).toFixed(5)}, {parseFloat(lng).toFixed(5)}
+              </Text>
+            </View>
+            <Pressable onPress={handleClear} style={styles.clearBtn} hitSlop={8}>
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
           </View>
-          <Pressable onPress={handleClear} style={styles.clearBtn} hitSlop={8}>
-            <Feather name="x" size={16} color={colors.mutedForeground} />
-          </Pressable>
+          {geocoding ? (
+            <View style={styles.addressRow}>
+              <ActivityIndicator size="small" color={colors.mutedForeground} />
+              <Text style={[styles.addressText, { color: colors.mutedForeground }]}>Looking up address…</Text>
+            </View>
+          ) : address ? (
+            <View style={styles.addressRow}>
+              <Feather name="navigation" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.addressText, { color: colors.mutedForeground }]} numberOfLines={2}>
+                {address}
+              </Text>
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -199,10 +240,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Outfit_400Regular",
   },
+  pinInfoColumn: {
+    gap: 6,
+  },
   coordRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  addressText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    flex: 1,
   },
   coordBadge: {
     flex: 1,
