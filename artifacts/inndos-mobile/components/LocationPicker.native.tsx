@@ -25,6 +25,12 @@ interface LocationPickerProps {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
+const geocodeCache = new Map<string, string | null>();
+
+function geocodeCacheKey(lat: string, lng: string): string {
+  return `${parseFloat(lat).toFixed(4)},${parseFloat(lng).toFixed(4)}`;
+}
+
 const DEFAULT_REGION = {
   latitude: -1.2921,
   longitude: 36.8219,
@@ -50,23 +56,37 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
       setAddress(null);
       return;
     }
+    const cacheKey = geocodeCacheKey(lat, lng);
+    if (geocodeCache.has(cacheKey)) {
+      const cached = geocodeCache.get(cacheKey) ?? null;
+      setAddress(cached);
+      if (cached) onAddressResolved?.(cached);
+      return;
+    }
     let cancelled = false;
     setGeocoding(true);
     Location.reverseGeocodeAsync({ latitude: parseFloat(lat), longitude: parseFloat(lng) })
       .then((results) => {
         if (cancelled) return;
         const r = results[0];
-        if (!r) { setAddress(null); return; }
+        if (!r) {
+          geocodeCache.set(cacheKey, null);
+          setAddress(null);
+          return;
+        }
         const parts: string[] = [];
         if (r.streetNumber && r.street) parts.push(`${r.streetNumber} ${r.street}`);
         else if (r.street) parts.push(r.street);
         if (r.city) parts.push(r.city);
         else if (r.subregion) parts.push(r.subregion);
         const resolved = parts.length > 0 ? parts.join(", ") : null;
+        geocodeCache.set(cacheKey, resolved);
         setAddress(resolved);
         if (resolved) onAddressResolved?.(resolved);
       })
-      .catch(() => { if (!cancelled) setAddress(null); })
+      .catch(() => {
+        if (!cancelled) setAddress(null);
+      })
       .finally(() => { if (!cancelled) setGeocoding(false); });
     return () => { cancelled = true; };
   }, [lat, lng, hasPinned]);
