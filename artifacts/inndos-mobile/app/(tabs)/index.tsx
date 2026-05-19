@@ -93,7 +93,6 @@ export default function BrowseScreen() {
   const styles = getStyles(colors);
 
   const showPriceSlider =
-    showMap &&
     priceBounds.min < priceBounds.max &&
     priceLow !== undefined &&
     priceHigh !== undefined;
@@ -201,7 +200,7 @@ export default function BrowseScreen() {
         <PropertyMapView properties={filteredProperties} />
       ) : (
         <FlatList
-          data={properties ?? []}
+          data={filteredProperties}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <PropertyCard property={item} />}
           contentContainerStyle={[
@@ -215,7 +214,7 @@ export default function BrowseScreen() {
               tintColor={colors.primary}
             />
           }
-          scrollEnabled={!!filteredProperties && filteredProperties.length > 0}
+          scrollEnabled={filteredProperties.length > 0}
           ListEmptyComponent={
             <View style={styles.center}>
               <Feather name="home" size={40} color={colors.mutedForeground} />
