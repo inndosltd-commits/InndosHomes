@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, InfoWindow } from "@react-google-maps/api";
+import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
@@ -8,14 +9,11 @@ import type { ApiProperty } from "@/components/property/PropertyCard";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
+const GOOGLE_MAPS_LIBRARIES: ["marker"] = ["marker"];
 
-const HOUSE_SVG = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`
-);
+const HOUSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="black" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
 
-const LOCATION_SVG = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="black" stroke="white" stroke-width="4"/><circle cx="32" cy="32" r="8" fill="white"/></svg>`
-);
+const LOCATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="black" stroke="white" stroke-width="4"/><circle cx="32" cy="32" r="8" fill="white"/></svg>`;
 
 interface PropertyMapProps {
   properties: ApiProperty[];
@@ -46,6 +44,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const mappable = parseMappableProperties(properties);
@@ -79,6 +78,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         onLoad={onLoad}
         onClick={() => setSelectedProperty(null)}
         options={{
+          mapId: "DEMO_MAP_ID",
           zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
           mapTypeControl: false,
           streetViewControl: false,
@@ -86,16 +86,13 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         }}
       >
         {mappable.map(({ property, lat, lng }) => (
-          <Marker
+          <AdvancedMarker
             key={property.id}
             position={{ lat, lng }}
-            icon={{
-              url: `data:image/svg+xml;charset=UTF-8,${HOUSE_SVG}`,
-              scaledSize: new google.maps.Size(32, 32),
-              anchor: new google.maps.Point(16, 16),
-            }}
             onClick={() => setSelectedProperty({ property, lat, lng })}
-          />
+          >
+            <div dangerouslySetInnerHTML={{ __html: HOUSE_SVG }} />
+          </AdvancedMarker>
         ))}
 
         {selectedProperty && (
@@ -128,14 +125,9 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         )}
 
         {userLocation && (
-          <Marker
-            position={userLocation}
-            icon={{
-              url: `data:image/svg+xml;charset=UTF-8,${LOCATION_SVG}`,
-              scaledSize: new google.maps.Size(64, 64),
-              anchor: new google.maps.Point(32, 32),
-            }}
-          />
+          <AdvancedMarker position={userLocation}>
+            <div dangerouslySetInnerHTML={{ __html: LOCATION_SVG }} />
+          </AdvancedMarker>
         )}
       </GoogleMap>
 

@@ -13,10 +13,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
 import { useUpload } from "@workspace/object-storage-web";
-import { GoogleMap, Marker, StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
+import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
-const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
+const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 
 function getImageDisplayUrl(objectPath: string): string {
@@ -858,7 +859,7 @@ export default function AddListing() {
                   mapContainerClassName="w-full h-full"
                   center={draftPin ?? NAIROBI_CENTER}
                   zoom={13}
-                  options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                  options={{ mapId: "DEMO_MAP_ID", mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
                   onLoad={(map) => { mapRef.current = map; }}
                   onClick={(e) => {
                     if (e.latLng) {
@@ -869,7 +870,7 @@ export default function AddListing() {
                   }}
                 >
                   {draftPin && (
-                    <Marker
+                    <AdvancedMarker
                       position={draftPin}
                       draggable
                       onDragEnd={(e) => {

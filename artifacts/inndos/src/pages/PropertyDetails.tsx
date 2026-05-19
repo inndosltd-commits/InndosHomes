@@ -14,12 +14,14 @@ import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
 import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+const GOOGLE_MAPS_LIBRARIES: ["marker"] = ["marker"];
 
 function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY });
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   if (!isLoaded) {
     return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">Loading map…</div>;
   }
@@ -29,13 +31,14 @@ function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
       center={{ lat, lng }}
       zoom={15}
       options={{
+        mapId: "DEMO_MAP_ID",
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: true,
       }}
     >
-      <Marker position={{ lat, lng }} />
+      <AdvancedMarker position={{ lat, lng }} />
     </GoogleMap>
   );
 }
