@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "@uppy/aws-s3": "^5.0.0",
     "@uppy/core": "^5.0.0",
     "@uppy/dashboard": "^5.0.0",
@@ -82,8 +83,6 @@
     "@workspace/object-storage-web": "workspace:*",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
-    "leaflet": "^1.9.4",
-    "react-leaflet": "^5.0.0",
     "xlsx": "^0.18.5"
   }
 }

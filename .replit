@@ -47,5 +47,7 @@ externalPort = 3003
 
 [userenv.development]
 
+[userenv.shared]
+
 [nix]
 channel = "stable-25_05"

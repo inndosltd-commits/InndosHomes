@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X } from "lucide-react";
+import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X, Map, LayoutList } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/lib/language";
+import PropertyMap from "@/components/ui/PropertyMap";
 
 const RENT_CATEGORIES = [
   { label: "All Rentals",      type: "rent",          filter: null },
@@ -48,6 +49,7 @@ export default function Search() {
   const maxPrice = queryType === "rent" ? 500000 : 200000000;
   const priceStep = queryType === "rent" ? 5000 : 1000000;
 
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [allProperties, setAllProperties]       = useState<ApiProperty[]>([]);
   const [isLoadingProps, setIsLoadingProps]     = useState(true);
   const [searchQuery, setSearchQuery]           = useState("");
@@ -365,10 +367,10 @@ export default function Search() {
           <FilterPanel />
         </div>
 
-        {/* Results Grid */}
+        {/* Results Grid / Map */}
         <div className="flex-1">
-          <div className="mb-6 flex justify-between items-center">
-            <div>
+          <div className="mb-6 flex justify-between items-center gap-4">
+            <div className="min-w-0">
               <h1 className="font-bold text-xl">
                 {isLoadingProps ? "Loading..." : `${filteredProperties.length} properties found`}
               </h1>
@@ -380,19 +382,39 @@ export default function Search() {
                 )}
               </p>
             </div>
-            <select
-              className="text-sm border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="featured">Featured</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="newest">Newest</option>
-            </select>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex border rounded overflow-hidden text-sm">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${viewMode === "list" ? "bg-primary text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+                >
+                  <LayoutList className="h-4 w-4" /> List
+                </button>
+                <button
+                  onClick={() => setViewMode("map")}
+                  className={`px-3 py-1.5 flex items-center gap-1.5 border-l transition-colors ${viewMode === "map" ? "bg-primary text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+                >
+                  <Map className="h-4 w-4" /> Map
+                </button>
+              </div>
+              <select
+                className="text-sm border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="featured">Featured</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
           </div>
 
-          {isLoadingProps ? (
+          {viewMode === "map" ? (
+            <div className="h-[70vh] rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+              <PropertyMap properties={filteredProperties} />
+            </div>
+          ) : isLoadingProps ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

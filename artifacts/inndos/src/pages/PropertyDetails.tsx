@@ -14,6 +14,31 @@ import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
 import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+
+function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY });
+  if (!isLoaded) {
+    return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">Loading map…</div>;
+  }
+  return (
+    <GoogleMap
+      mapContainerClassName="w-full h-full"
+      center={{ lat, lng }}
+      zoom={15}
+      options={{
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true,
+      }}
+    >
+      <Marker position={{ lat, lng }} />
+    </GoogleMap>
+  );
+}
 
 interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
@@ -501,12 +526,7 @@ export default function PropertyDetails() {
                 <h2 className="text-xl font-bold mb-4">{t("prop.location")}</h2>
                 <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
                   <div className="relative h-72">
-                    <iframe
-                      title="Property Location"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.012},${lat - 0.01},${lng + 0.012},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`}
-                      className="w-full h-full border-0"
-                      loading="lazy"
-                    />
+                    <PropertyLocationMap lat={lat} lng={lng} />
                   </div>
                   <div className="bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 border-t border-gray-100">
                     <div className="flex items-center gap-2 flex-1 min-w-0">

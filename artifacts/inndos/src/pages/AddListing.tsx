@@ -13,6 +13,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
 import { useUpload } from "@workspace/object-storage-web";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 
 function getImageDisplayUrl(objectPath: string): string {
   if (objectPath.startsWith("/objects/")) {
@@ -97,6 +101,28 @@ export default function AddListing() {
   const [images, setImages] = useState<string[]>([]);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
+  const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
+  const [draftAddress, setDraftAddress] = useState("");
+
+  const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY });
+
+  const reverseGeocodeDraft = useCallback((pos: google.maps.LatLngLiteral) => {
+    if (!window.google) return;
+    new google.maps.Geocoder().geocode({ location: pos }, (results, status) => {
+      if (status === "OK" && results && results[0]) {
+        setDraftAddress(results[0].formatted_address);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isMapModalOpen) {
+      setDraftPin(pinPosition);
+      setDraftAddress(address || searchQuery);
+    }
+  }, [isMapModalOpen]);
+
   const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -286,6 +312,8 @@ export default function AddListing() {
         tags: selectedAmenities,
         subtype: subtype || undefined,
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
+        lat: pinPosition?.lat ?? undefined,
+        lng: pinPosition?.lng ?? undefined,
       };
 
       const url = isEditing ? `/api/properties/${editId}` : "/api/properties";
@@ -788,45 +816,68 @@ export default function AddListing() {
           <DialogHeader className="p-4 bg-white border-b">
             <DialogTitle>Pin Property Location</DialogTitle>
             <DialogDescription>
-              Drag the map to pinpoint the exact location of your property.
+              Click the map to drop a pin. Drag the pin to fine-tune the position.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative h-[400px] w-full bg-[#e5e3df] overflow-hidden">
-            {/* Real Interactive Map Iframe */}
-            <iframe 
-              width="100%" 
-              height="100%" 
-              style={{ border: 0 }} 
-              loading="lazy" 
-              allowFullScreen 
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(searchQuery || 'Nairobi, Kenya')}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
-              className="absolute inset-0 z-0"
-            ></iframe>
-            
-            {/* Search Input - Must be above map */}
-            <div className="absolute top-4 left-4 right-4 z-30">
-              <div className="relative shadow-lg rounded-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                </div>
-                <Input 
-                  placeholder="Search for area or street..." 
-                  className="bg-white border-0 relative z-50 h-12 pl-10 text-base" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  autoComplete="off"
-                  name="location-search"
-                  spellCheck="false"
-                />
+          <div className="relative h-[400px] w-full overflow-hidden">
+            {mapsLoaded ? (
+              <GoogleMap
+                mapContainerClassName="w-full h-full"
+                center={draftPin ?? NAIROBI_CENTER}
+                zoom={13}
+                options={{ mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                onClick={(e) => {
+                  if (e.latLng) {
+                    const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                    setDraftPin(pos);
+                    reverseGeocodeDraft(pos);
+                  }
+                }}
+              >
+                {draftPin && (
+                  <Marker
+                    position={draftPin}
+                    draggable
+                    onDragEnd={(e) => {
+                      if (e.latLng) {
+                        const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                        setDraftPin(pos);
+                        reverseGeocodeDraft(pos);
+                      }
+                    }}
+                  />
+                )}
+              </GoogleMap>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
               </div>
-            </div>
+            )}
+            {draftPin && draftAddress && (
+              <div className="absolute bottom-4 left-4 right-4 z-30 bg-white rounded-md shadow-lg px-3 py-2 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-gray-700 truncate">{draftAddress}</span>
+              </div>
+            )}
+            {!draftPin && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none text-center">
+                <div className="bg-white/90 rounded-lg shadow px-4 py-2 text-sm text-gray-600">
+                  Click anywhere on the map to pin your property
+                </div>
+              </div>
+            )}
           </div>
           <div className="p-4 bg-white border-t flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsMapModalOpen(false)}>Cancel</Button>
-            <Button 
-              className="bg-primary" 
+            <Button
+              className="bg-primary"
+              disabled={!draftPin}
               onClick={() => {
+                setPinPosition(draftPin);
+                if (draftAddress) {
+                  setAddress(draftAddress);
+                  setSearchQuery(draftAddress);
+                }
                 setIsLocationPinned(true);
                 setIsMapModalOpen(false);
                 toast({
