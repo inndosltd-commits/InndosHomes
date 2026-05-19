@@ -13,8 +13,16 @@ import Supercluster from "supercluster";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
 
+export interface MapBBox {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
+
 interface PropertyMapViewProps {
   properties: Property[];
+  onSearchArea?: (bbox: MapBBox) => void;
 }
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -53,12 +61,30 @@ function regionToBBox(
   ];
 }
 
+function regionToMapBBox(region: Region): MapBBox {
+  return {
+    minLat: region.latitude - region.latitudeDelta / 2,
+    maxLat: region.latitude + region.latitudeDelta / 2,
+    minLng: region.longitude - region.longitudeDelta / 2,
+    maxLng: region.longitude + region.longitudeDelta / 2,
+  };
+}
+
+function regionsAreSimilar(a: Region, b: Region, threshold = 0.01): boolean {
+  return (
+    Math.abs(a.latitude - b.latitude) < threshold &&
+    Math.abs(a.longitude - b.longitude) < threshold &&
+    Math.abs(a.latitudeDelta - b.latitudeDelta) < threshold * 5 &&
+    Math.abs(a.longitudeDelta - b.longitudeDelta) < threshold * 5
+  );
+}
+
 type PropertyFeature = GeoJSON.Feature<
   GeoJSON.Point,
   { propertyId: string }
 >;
 
-export function PropertyMapView({ properties }: PropertyMapViewProps) {
+export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewProps) {
   const colors = useColors();
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -90,6 +116,8 @@ export function PropertyMapView({ properties }: PropertyMapViewProps) {
   }, [mappableProperties]);
 
   const [region, setRegion] = useState<Region>(initialRegion);
+  const [showSearchButton, setShowSearchButton] = useState(false);
+  const committedRegionRef = useRef<Region>(initialRegion);
 
   const supercluster = useMemo(() => {
     const sc = new Supercluster<{ propertyId: string }>({ radius: 60, maxZoom: 18 });
@@ -114,7 +142,16 @@ export function PropertyMapView({ properties }: PropertyMapViewProps) {
   const handleRegionChangeComplete = useCallback((newRegion: Region) => {
     setRegion(newRegion);
     setSelectedId(null);
+    if (!regionsAreSimilar(newRegion, committedRegionRef.current)) {
+      setShowSearchButton(true);
+    }
   }, []);
+
+  const handleSearchArea = useCallback(() => {
+    setShowSearchButton(false);
+    committedRegionRef.current = region;
+    onSearchArea?.(regionToMapBBox(region));
+  }, [region, onSearchArea]);
 
   const handleClusterPress = useCallback(
     (clusterId: number, coordinate: { latitude: number; longitude: number }) => {
@@ -220,6 +257,23 @@ export function PropertyMapView({ properties }: PropertyMapViewProps) {
         })}
       </MapView>
 
+      {showSearchButton && onSearchArea && (
+        <View style={styles.searchButtonContainer}>
+          <Pressable
+            style={[
+              styles.searchButton,
+              { backgroundColor: colors.primary, shadowColor: colors.primary },
+            ]}
+            onPress={handleSearchArea}
+          >
+            <Feather name="search" size={14} color={colors.primaryForeground} />
+            <Text style={[styles.searchButtonText, { color: colors.primaryForeground }]}>
+              Search this area
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       {mappableProperties.length === 0 && (
         <View style={[styles.emptyOverlay, { backgroundColor: colors.muted }]}>
           <Feather name="map-pin" size={32} color={colors.mutedForeground} />
@@ -278,6 +332,30 @@ const styles = StyleSheet.create({
   map: {
     width: SCREEN_WIDTH,
     height: "100%",
+  },
+  searchButtonContainer: {
+    position: "absolute",
+    top: 16,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    pointerEvents: "box-none",
+  },
+  searchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  searchButtonText: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
   },
   clusterOuter: {
     width: 52,

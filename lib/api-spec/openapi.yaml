@@ -114,6 +114,22 @@ paths:
           in: query
           schema:
             type: string
+        - name: minLat
+          in: query
+          schema:
+            type: number
+        - name: maxLat
+          in: query
+          schema:
+            type: number
+        - name: minLng
+          in: query
+          schema:
+            type: number
+        - name: maxLng
+          in: query
+          schema:
+            type: number
       responses:
         "200":
           description: List of properties

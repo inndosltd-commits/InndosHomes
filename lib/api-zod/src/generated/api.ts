@@ -66,6 +66,10 @@ export const ListPropertiesQueryParams = zod.object({
   type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]).optional(),
   search: zod.coerce.string().optional(),
   ownerId: zod.coerce.string().optional(),
+  minLat: zod.coerce.number().optional(),
+  maxLat: zod.coerce.number().optional(),
+  minLng: zod.coerce.number().optional(),
+  maxLng: zod.coerce.number().optional(),
 });
 
 export const ListPropertiesResponseItem = zod.object({

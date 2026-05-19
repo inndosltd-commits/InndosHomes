@@ -1,5 +1,6 @@
 import { useListProperties } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
+import type { MapBBox } from "@/components/PropertyMapView";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useState } from "react";
@@ -69,11 +70,22 @@ export default function BrowseScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [mapBBox, setMapBBox] = useState<MapBBox | undefined>(undefined);
 
-  const { data: properties, isLoading, error, refetch } = useListProperties({
+  const listParams: ListPropertiesParams = {
     type: activeType,
     search: debouncedSearch || undefined,
-  });
+    ...(mapBBox && showMap
+      ? {
+          minLat: mapBBox.minLat,
+          maxLat: mapBBox.maxLat,
+          minLng: mapBBox.minLng,
+          maxLng: mapBBox.maxLng,
+        }
+      : {}),
+  };
+
+  const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
 
   const priceBounds = useMemo<{ min: number; max: number }>(() => {
     if (!properties || properties.length === 0) return { min: 0, max: 0 };
@@ -187,7 +199,12 @@ export default function BrowseScreen() {
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>INNDOS</Text>
         <Pressable
-          onPress={() => setShowMap((v) => !v)}
+          onPress={() => {
+            setShowMap((v) => {
+              if (v) setMapBBox(undefined);
+              return !v;
+            });
+          }}
           style={[
             styles.headerIcon,
             showMap && { backgroundColor: colors.primary, borderRadius: 8 },
@@ -322,7 +339,10 @@ export default function BrowseScreen() {
           </Pressable>
         </View>
       ) : showMap ? (
-        <PropertyMapView properties={filteredProperties} />
+        <PropertyMapView
+          properties={filteredProperties}
+          onSearchArea={(bbox) => setMapBBox(bbox)}
+        />
       ) : (
         <FlatList
           data={filteredProperties}

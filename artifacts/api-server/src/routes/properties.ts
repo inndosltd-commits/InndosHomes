@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, bookings, insertPropertySchema } from "@workspace/db";
-import { eq, and, ilike, or, inArray, count } from "drizzle-orm";
+import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
 import { getActiveSubscription, getPlanLimit } from "./subscriptions";
@@ -52,7 +52,7 @@ async function getCallerInfo(req: Parameters<typeof requireAuth>[0]): Promise<{ 
 }
 
 router.get("/", async (req, res) => {
-  const { type, search, ownerId } = req.query as Record<string, string>;
+  const { type, search, ownerId, minLat, maxLat, minLng, maxLng } = req.query as Record<string, string>;
   const caller = await getCallerInfo(req);
 
   const baseQuery = db
@@ -68,6 +68,24 @@ router.get("/", async (req, res) => {
       or(
         ilike(properties.title, `%${search}%`),
         ilike(properties.address, `%${search}%`)
+      )!
+    );
+  }
+
+  const bboxRaw = [minLat, maxLat, minLng, maxLng];
+  const bboxValues = bboxRaw.map(Number);
+  const hasBBox = bboxRaw.every((v) => v !== undefined && v !== "") &&
+    bboxValues.every((v) => !isNaN(v));
+  if (hasBBox) {
+    const [minLatN, maxLatN, minLngN, maxLngN] = bboxValues;
+    conditions.push(
+      and(
+        isNotNull(properties.lat),
+        isNotNull(properties.lng),
+        gte(drizzleSql`CAST(${properties.lat} AS DOUBLE PRECISION)`, minLatN),
+        lte(drizzleSql`CAST(${properties.lat} AS DOUBLE PRECISION)`, maxLatN),
+        gte(drizzleSql`CAST(${properties.lng} AS DOUBLE PRECISION)`, minLngN),
+        lte(drizzleSql`CAST(${properties.lng} AS DOUBLE PRECISION)`, maxLngN),
       )!
     );
   }

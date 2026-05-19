@@ -11,4 +11,8 @@ export type ListPropertiesParams = {
   type?: ListPropertiesType;
   search?: string;
   ownerId?: string;
+  minLat?: number;
+  maxLat?: number;
+  minLng?: number;
+  maxLng?: number;
 };

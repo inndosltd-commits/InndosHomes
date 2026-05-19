@@ -4,8 +4,16 @@ import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
 
+export interface MapBBox {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
+
 interface PropertyMapViewProps {
   properties: Property[];
+  onSearchArea?: (bbox: MapBBox) => void;
 }
 
 export function PropertyMapView({ properties: _ }: PropertyMapViewProps) {
