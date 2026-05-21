@@ -11,13 +11,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
-const ROLES = ["owner", "host", "admin"] as const;
-type Role = typeof ROLES[number];
+const LOGIN_ROLES  = ["owner", "host", "admin"]          as const;
+const SIGNUP_ROLES = ["owner", "host", "tenant", "admin"] as const;
+type Role = typeof SIGNUP_ROLES[number];
 
-const DEMO_CREDS: Record<Role, { email: string; password: string }> = {
-  owner: { email: "owner@inndos.com", password: "owner123" },
-  host:  { email: "host@inndos.com",  password: "host123"  },
-  admin: { email: "admin@inndos.com", password: "admin123" },
+const DEMO_CREDS: Record<typeof LOGIN_ROLES[number], { email: string; password: string }> = {
+  owner: { email: "owner@inndos.com",  password: "owner123"  },
+  host:  { email: "host@inndos.com",   password: "host123"   },
+  admin: { email: "admin@inndos.com",  password: "admin123"  },
 };
 
 const GOOGLE_CLIENT_ID   = import.meta.env.VITE_GOOGLE_CLIENT_ID   as string;
@@ -61,8 +62,9 @@ export default function Login() {
     try {
       const emailEl    = document.getElementById(`email-${role}`)    as HTMLInputElement | null;
       const passwordEl = document.getElementById(`password-${role}`) as HTMLInputElement | null;
-      const email      = emailEl?.value    || DEMO_CREDS[role].email;
-      const password   = passwordEl?.value || DEMO_CREDS[role].password;
+      const creds = DEMO_CREDS[role as typeof LOGIN_ROLES[number]];
+      const email      = emailEl?.value    || creds?.email    || "";
+      const password   = passwordEl?.value || creds?.password || "";
       await login(email, password);
     } catch (err) {
       toast({ title: "Sign in failed", description: err instanceof Error ? err.message : "Invalid credentials.", variant: "destructive" });
@@ -238,16 +240,16 @@ export default function Login() {
                 </div>
               </form>
             ) : (
-              <Tabs defaultValue="owner" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-8">
-                  {ROLES.map((role) => (
+              <Tabs key={isSignUp ? "signup" : "login"} defaultValue="owner" className="w-full">
+                <TabsList className={`grid w-full mb-8 ${isSignUp ? "grid-cols-4" : "grid-cols-3"}`}>
+                  {(isSignUp ? SIGNUP_ROLES : LOGIN_ROLES).map((role) => (
                     <TabsTrigger key={role} value={role} className="text-xs px-1">
                       {role.charAt(0).toUpperCase() + role.slice(1)}
                     </TabsTrigger>
                   ))}
                 </TabsList>
 
-                {ROLES.map((role) => (
+                {(isSignUp ? SIGNUP_ROLES : LOGIN_ROLES).map((role) => (
                   <TabsContent key={role} value={role}>
                     <div className="space-y-4" key={isSignUp ? "signup" : "login"}>
                       {isSignUp && (
@@ -262,7 +264,7 @@ export default function Login() {
                           id={`email-${role}`}
                           type="email"
                           placeholder={`${role}@example.com`}
-                          defaultValue={isSignUp ? "" : DEMO_CREDS[role].email}
+                          defaultValue={isSignUp ? "" : (DEMO_CREDS[role as typeof LOGIN_ROLES[number]]?.email ?? "")}
                         />
                       </div>
                       <div className="space-y-2">
@@ -270,7 +272,7 @@ export default function Login() {
                         <Input
                           id={`password-${role}`}
                           type="password"
-                          defaultValue={isSignUp ? "" : DEMO_CREDS[role].password}
+                          defaultValue={isSignUp ? "" : (DEMO_CREDS[role as typeof LOGIN_ROLES[number]]?.password ?? "")}
                         />
                       </div>
                       <Button
@@ -360,9 +362,11 @@ export default function Login() {
                               Forgot Password?
                             </Button>
                           </div>
-                          <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
-                            <span className="font-semibold">Demo Creds:</span> {DEMO_CREDS[role].email} / {DEMO_CREDS[role].password}
-                          </div>
+                          {DEMO_CREDS[role as typeof LOGIN_ROLES[number]] && (
+                            <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
+                              <span className="font-semibold">Demo Creds:</span> {DEMO_CREDS[role as typeof LOGIN_ROLES[number]].email} / {DEMO_CREDS[role as typeof LOGIN_ROLES[number]].password}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
