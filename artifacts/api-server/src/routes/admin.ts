@@ -471,15 +471,57 @@ router.get("/plans", async (req, res) => {
   res.json(rows);
 });
 
+router.post("/plans", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { name, displayName, pricePerMonth, listingLimit, features, isActive } = req.body as {
+    name?: string;
+    displayName?: string;
+    pricePerMonth?: number;
+    listingLimit?: number;
+    features?: string[];
+    isActive?: boolean;
+  };
+
+  if (!name || !/^[a-z0-9_-]+$/.test(name)) {
+    res.status(400).json({ error: "Plan name must be lowercase alphanumeric (hyphens/underscores allowed)" });
+    return;
+  }
+  if (!displayName?.trim()) {
+    res.status(400).json({ error: "displayName is required" });
+    return;
+  }
+
+  try {
+    const [created] = await db
+      .insert(subscriptionPlans)
+      .values({
+        name,
+        displayName: displayName.trim(),
+        pricePerMonth: Math.max(0, Math.floor(pricePerMonth ?? 0)),
+        listingLimit: Math.max(1, Math.floor(listingLimit ?? 3)),
+        features: Array.isArray(features) ? features.filter(f => f.trim()) : [],
+        isActive: isActive !== false,
+        updatedAt: new Date(),
+      })
+      .returning();
+    res.status(201).json(created);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("unique") || msg.includes("duplicate")) {
+      res.status(409).json({ error: "A plan with that name already exists" });
+    } else {
+      res.status(500).json({ error: "Failed to create plan" });
+    }
+  }
+});
+
 router.put("/plans/:name", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
   const { name } = req.params;
-  if (!["standard", "silver", "gold"].includes(name)) {
-    res.status(400).json({ error: "Invalid plan name" });
-    return;
-  }
 
   const { displayName, pricePerMonth, listingLimit, features, isActive } = req.body as {
     displayName?: string;
@@ -512,6 +554,28 @@ router.put("/plans/:name", async (req, res) => {
   invalidatePlanCache();
 
   res.json(updated);
+});
+
+router.delete("/plans/:name", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { name } = req.params;
+
+  const [deleted] = await db
+    .delete(subscriptionPlans)
+    .where(eq(subscriptionPlans.name, name))
+    .returning();
+
+  if (!deleted) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+
+  const { invalidatePlanCache } = await import("./subscriptions");
+  invalidatePlanCache();
+
+  res.json({ success: true });
 });
 
 router.post("/settings/register-ipn", async (req, res) => {

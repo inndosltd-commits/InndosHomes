@@ -115,6 +115,12 @@ export default function Dashboard() {
   const [planForm, setPlanForm] = useState({ displayName: "", pricePerMonth: 0, listingLimit: 3, features: [] as string[], isActive: true });
   const [newFeature, setNewFeature] = useState("");
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false);
+  const [createPlanDialog, setCreatePlanDialog] = useState(false);
+  const [createPlanForm, setCreatePlanForm] = useState({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, features: [] as string[], isActive: true });
+  const [createPlanFeature, setCreatePlanFeature] = useState("");
+  const [deletingPlanName, setDeletingPlanName] = useState<string | null>(null);
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
 
   // Admin payment settings state
   const [paymentSettings, setPaymentSettings] = useState<{
@@ -2329,9 +2335,18 @@ export default function Dashboard() {
                     <h2 className="text-lg font-bold text-gray-900">Subscription Packages</h2>
                     <p className="text-sm text-gray-500">Edit plan prices, listing limits, and features</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={fetchAdminPlans} className="gap-2">
-                    <RefreshCw className="h-4 w-4" /> Refresh
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={fetchAdminPlans} className="gap-2">
+                      <RefreshCw className="h-4 w-4" /> Refresh
+                    </Button>
+                    <Button size="sm" className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2" onClick={() => {
+                      setCreatePlanForm({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, features: [], isActive: true });
+                      setCreatePlanFeature("");
+                      setCreatePlanDialog(true);
+                    }}>
+                      <Plus className="h-4 w-4" /> Create Package
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {adminPlans.map((plan: any) => (
@@ -2342,6 +2357,7 @@ export default function Dashboard() {
                             {plan.name === 'gold' && <Crown className="h-5 w-5 text-yellow-500" />}
                             {plan.name === 'silver' && <Zap className="h-5 w-5 text-zinc-500" />}
                             {plan.name === 'standard' && <Gift className="h-5 w-5 text-gray-400" />}
+                            {!['gold','silver','standard'].includes(plan.name) && <Settings className="h-5 w-5 text-gray-400" />}
                             <span className="font-bold text-base capitalize">{plan.displayName}</span>
                           </div>
                           {!plan.isActive && <Badge className="bg-red-100 text-red-700 text-xs">Disabled</Badge>}
@@ -2360,23 +2376,33 @@ export default function Dashboard() {
                             </div>
                           ))}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2"
-                          onClick={() => {
-                            setEditingPlan(plan);
-                            setPlanForm({
-                              displayName: plan.displayName,
-                              pricePerMonth: plan.pricePerMonth,
-                              listingLimit: plan.listingLimit >= 2147483646 ? 999999 : plan.listingLimit,
-                              features: plan.features ?? [],
-                              isActive: plan.isActive,
-                            });
-                          }}
-                        >
-                          <Edit className="h-3.5 w-3.5" /> Edit Package
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 gap-2"
+                            onClick={() => {
+                              setEditingPlan(plan);
+                              setPlanForm({
+                                displayName: plan.displayName,
+                                pricePerMonth: plan.pricePerMonth,
+                                listingLimit: plan.listingLimit >= 2147483646 ? 999999 : plan.listingLimit,
+                                features: plan.features ?? [],
+                                isActive: plan.isActive,
+                              });
+                            }}
+                          >
+                            <Edit className="h-3.5 w-3.5" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200 px-2"
+                            onClick={() => setDeletingPlanName(plan.name)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -2540,6 +2566,206 @@ export default function Dashboard() {
                     >
                       {isSavingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                       Save Package
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Create Package dialog */}
+              <Dialog open={createPlanDialog} onOpenChange={(open) => { if (!open) { setCreatePlanDialog(false); setCreatePlanFeature(""); } }}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5" /> Create New Package
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">Plan ID <span className="text-gray-400 font-normal">(lowercase, no spaces)</span></label>
+                      <input
+                        type="text"
+                        value={createPlanForm.name}
+                        onChange={e => setCreatePlanForm(f => ({ ...f, name: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") }))}
+                        placeholder="e.g. premium"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">Display Name</label>
+                      <input
+                        type="text"
+                        value={createPlanForm.displayName}
+                        onChange={e => setCreatePlanForm(f => ({ ...f, displayName: e.target.value }))}
+                        placeholder="e.g. Premium"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">Price per Month (KES)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={createPlanForm.pricePerMonth}
+                        onChange={e => setCreatePlanForm(f => ({ ...f, pricePerMonth: Number(e.target.value) }))}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-semibold">
+                        Listing Limit
+                        {createPlanForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-green-600">(Unlimited)</span>}
+                      </label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min={1}
+                          max={999999}
+                          value={createPlanForm.listingLimit}
+                          onChange={e => setCreatePlanForm(f => ({ ...f, listingLimit: Number(e.target.value) }))}
+                          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                        />
+                        <Button type="button" size="sm" variant="outline" onClick={() => setCreatePlanForm(f => ({ ...f, listingLimit: 999999 }))} className="text-xs whitespace-nowrap">
+                          Set Unlimited
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold">Features</label>
+                      <div className="space-y-1.5">
+                        {createPlanForm.features.map((feat: string, i: number) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={feat}
+                              onChange={e => setCreatePlanForm(f => {
+                                const feats = [...f.features];
+                                feats[i] = e.target.value;
+                                return { ...f, features: feats };
+                              })}
+                              className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                            />
+                            <button onClick={() => setCreatePlanForm(f => ({ ...f, features: f.features.filter((_: string, j: number) => j !== i) }))} className="text-red-400 hover:text-red-600 shrink-0">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={createPlanFeature}
+                            onChange={e => setCreatePlanFeature(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && createPlanFeature.trim()) {
+                                setCreatePlanForm(f => ({ ...f, features: [...f.features, createPlanFeature.trim()] }));
+                                setCreatePlanFeature("");
+                              }
+                            }}
+                            placeholder="Add a feature… (press Enter)"
+                            className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800 border-dashed"
+                          />
+                          <Button size="sm" variant="outline" onClick={() => {
+                            if (createPlanFeature.trim()) {
+                              setCreatePlanForm(f => ({ ...f, features: [...f.features, createPlanFeature.trim()] }));
+                              setCreatePlanFeature("");
+                            }
+                          }}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setCreatePlanForm(f => ({ ...f, isActive: !f.isActive }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${createPlanForm.isActive ? 'bg-zinc-900' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${createPlanForm.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                      <label className="text-sm font-medium">{createPlanForm.isActive ? 'Active (visible to users)' : 'Disabled (hidden from users)'}</label>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => { setCreatePlanDialog(false); setCreatePlanFeature(""); }}>Cancel</Button>
+                    <Button
+                      className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2"
+                      disabled={isCreatingPlan || !createPlanForm.name.trim() || !createPlanForm.displayName.trim()}
+                      onClick={async () => {
+                        if (!token) return;
+                        setIsCreatingPlan(true);
+                        try {
+                          const payload = {
+                            name: createPlanForm.name,
+                            displayName: createPlanForm.displayName,
+                            pricePerMonth: createPlanForm.pricePerMonth,
+                            listingLimit: createPlanForm.listingLimit >= 999999 ? 2147483647 : createPlanForm.listingLimit,
+                            features: createPlanForm.features.filter((f: string) => f.trim()),
+                            isActive: createPlanForm.isActive,
+                          };
+                          const r = await fetch("/api/admin/plans", {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                          });
+                          if (r.ok) {
+                            await fetchAdminPlans();
+                            setCreatePlanDialog(false);
+                            setCreatePlanFeature("");
+                            toast({ title: "Package created", description: `${createPlanForm.displayName} plan created successfully.`, className: "bg-green-50 border-green-200 text-green-800" });
+                          } else {
+                            const d = await r.json();
+                            toast({ title: "Create failed", description: d.error, variant: "destructive" });
+                          }
+                        } finally { setIsCreatingPlan(false); }
+                      }}
+                    >
+                      {isCreatingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      Create Package
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Delete plan confirmation dialog */}
+              <Dialog open={!!deletingPlanName} onOpenChange={(open) => { if (!open) setDeletingPlanName(null); }}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-red-600">
+                      <Trash2 className="h-5 w-5" /> Delete Package
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="py-2">
+                    <p className="text-sm text-gray-700">
+                      Are you sure you want to delete the <span className="font-semibold capitalize">{adminPlans.find(p => p.name === deletingPlanName)?.displayName ?? deletingPlanName}</span> package?
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">This action cannot be undone. Existing user subscriptions will not be automatically updated.</p>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setDeletingPlanName(null)}>Cancel</Button>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white gap-2"
+                      disabled={isDeletingPlan}
+                      onClick={async () => {
+                        if (!deletingPlanName || !token) return;
+                        setIsDeletingPlan(true);
+                        try {
+                          const r = await fetch(`/api/admin/plans/${deletingPlanName}`, {
+                            method: "DELETE",
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          if (r.ok) {
+                            await fetchAdminPlans();
+                            setDeletingPlanName(null);
+                            toast({ title: "Package deleted", description: "The plan has been removed.", className: "bg-green-50 border-green-200 text-green-800" });
+                          } else {
+                            const d = await r.json();
+                            toast({ title: "Delete failed", description: d.error, variant: "destructive" });
+                          }
+                        } finally { setIsDeletingPlan(false); }
+                      }}
+                    >
+                      {isDeletingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Delete
                     </Button>
                   </DialogFooter>
                 </DialogContent>
