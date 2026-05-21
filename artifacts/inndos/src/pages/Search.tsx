@@ -191,12 +191,36 @@ export default function Search() {
           step={priceStep}
           className="mb-4 touch-none"
         />
-        <div className="flex justify-between text-sm font-medium">
-          <span>{formatKES(priceRange[0])}</span>
-          <span>
-            {formatKES(priceRange[1])}
-            {priceRange[1] >= maxPrice ? "+" : ""}
-          </span>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground mb-1 block">Min</label>
+            <input
+              type="number"
+              min={0}
+              max={priceRange[1]}
+              value={priceRange[0]}
+              onChange={e => {
+                const v = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
+                setPriceRange([v, priceRange[1]]);
+              }}
+              className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <span className="text-muted-foreground mt-5">–</span>
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground mb-1 block">Max</label>
+            <input
+              type="number"
+              min={priceRange[0]}
+              max={maxPrice}
+              value={priceRange[1]}
+              onChange={e => {
+                const v = Math.max(priceRange[0], Math.min(Number(e.target.value), maxPrice));
+                setPriceRange([priceRange[0], v]);
+              }}
+              className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
         </div>
         {isPriceFiltered && (
           <button

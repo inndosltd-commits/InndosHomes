@@ -88,21 +88,44 @@ export default function BNB() {
                   Reset
                 </button>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600 w-28 shrink-0">
-                  KES {priceRange[0].toLocaleString()}
-                </span>
-                <Slider
-                  min={0}
-                  max={MAX_PRICE}
-                  step={500}
-                  value={priceRange}
-                  onValueChange={(v) => setPriceRange(v as [number, number])}
-                  className="flex-1"
-                />
-                <span className="text-sm text-gray-600 w-28 shrink-0 text-right">
-                  KES {priceRange[1].toLocaleString()}{priceRange[1] >= MAX_PRICE ? "+" : ""}
-                </span>
+              <Slider
+                min={0}
+                max={MAX_PRICE}
+                step={500}
+                value={priceRange}
+                onValueChange={(v) => setPriceRange(v as [number, number])}
+                className="mb-3"
+              />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Min (KES)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={priceRange[1]}
+                    value={priceRange[0]}
+                    onChange={e => {
+                      const v = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
+                      setPriceRange([v, priceRange[1]]);
+                    }}
+                    className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <span className="text-gray-400 mt-5">–</span>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Max (KES)</label>
+                  <input
+                    type="number"
+                    min={priceRange[0]}
+                    max={MAX_PRICE}
+                    value={priceRange[1]}
+                    onChange={e => {
+                      const v = Math.max(priceRange[0], Math.min(Number(e.target.value), MAX_PRICE));
+                      setPriceRange([priceRange[0], v]);
+                    }}
+                    className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
             </div>
           )}
