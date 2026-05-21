@@ -23,6 +23,7 @@ import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
 import { CookieBanner } from "@/components/layout/CookieBanner";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 function useHashLocationWithQuery(): [string, (to: string) => void] {
   const getPath = () => {
@@ -77,8 +78,11 @@ function App() {
             <AuthProvider>
               <TooltipProvider>
                 <Toaster />
-                <Router />
+                <div className="pb-16 lg:pb-0">
+                  <Router />
+                </div>
                 <CookieBanner />
+                <MobileBottomNav />
               </TooltipProvider>
             </AuthProvider>
           </WouterRouter>

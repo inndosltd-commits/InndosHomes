@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { MobileTopNav } from "./MobileTopNav";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -31,6 +32,7 @@ export function Navbar() {
   
   
   return (
+    <>
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
@@ -375,5 +377,7 @@ export function Navbar() {
         </div>
       </div>
     </nav>
+    <MobileTopNav />
+    </>
   );
 }
