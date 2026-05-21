@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { UserCircle, Menu, PlusCircle, LogOut, ChevronDown } from "lucide-react";
+import { UserCircle, Menu, PlusCircle, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
@@ -15,9 +15,6 @@ export function Navbar() {
   const { user, logout } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
-  const [isRentExpanded, setIsRentExpanded] = useState(false);
-  const [isBuyExpanded, setIsBuyExpanded] = useState(false);
-
   const [navHash, setNavHash] = useState(window.location.hash);
   useEffect(() => {
     const handler = () => setNavHash(window.location.hash);
@@ -212,91 +209,6 @@ export function Navbar() {
                 <img src="/logo.png" alt="INNDOS" className="h-8 w-auto object-contain" />
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                <Link href="/bnb">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'bnb') || location === '/bnb' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {t('nav.bnb')}
-                  </span>
-                </Link>
-                <div className="border-b border-gray-50 pb-2">
-                  <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsRentExpanded(!isRentExpanded)}>
-                    <span className={`block text-lg font-medium transition-colors hover:text-primary ${(location === '/search' && new URLSearchParams(window.location.search).get('type')?.includes('rent')) ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {t('nav.rent')}
-                    </span>
-                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isRentExpanded ? 'rotate-180' : ''}`} />
-                  </div>
-                  
-                  {isRentExpanded && (
-                    <div className="pl-4 mt-3 flex flex-col gap-3 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200">
-                      <Link href="/search?type=rent">
-                        <span className="block text-base font-medium text-gray-700 hover:text-primary">All Rentals</span>
-                      </Link>
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Apartments</div>
-                      <Link href="/search?type=rent&filter=studio">
-                        <span className="block text-base text-gray-600 hover:text-primary">Studio / Bedsitter</span>
-                      </Link>
-                      <Link href="/search?type=rent&filter=bedrooms">
-                        <span className="block text-base text-gray-600 hover:text-primary">By Bedrooms</span>
-                      </Link>
-                      <Link href="/search?type=rent&filter=penthouse">
-                        <span className="block text-base text-gray-600 hover:text-primary">Penthouse</span>
-                      </Link>
-                      <Link href="/search?type=rent&filter=own-compound">
-                        <span className="block text-base text-gray-600 hover:text-primary">Own Compound</span>
-                      </Link>
-                      <Link href="/search?type=rent&filter=condominium">
-                        <span className="block text-base text-gray-600 hover:text-primary">Condominiums</span>
-                      </Link>
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Commercial</div>
-                      <Link href="/search?type=rent-business">
-                        <span className="block text-base text-gray-600 hover:text-primary">Business Spaces</span>
-                      </Link>
-                      <Link href="/search?type=rent-godown">
-                        <span className="block text-base text-gray-600 hover:text-primary">Godowns</span>
-                      </Link>
-                      <Link href="/search?type=rent-stall">
-                        <span className="block text-base text-gray-600 hover:text-primary">Stalls</span>
-                      </Link>
-                      <Link href="/search?type=rent-shop">
-                        <span className="block text-base text-gray-600 hover:text-primary">Shops</span>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-                <Link href="/search?type=hostel">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hostel') || location === '/hostel' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {t('nav.hostels')}
-                  </span>
-                </Link>
-                <Link href="/search?type=hotel">
-                  <span className={`block text-lg font-medium transition-colors hover:text-primary cursor-pointer ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'hotel') || location === '/hotel' ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {t('nav.hotels')}
-                  </span>
-                </Link>
-                <div className="border-b border-gray-50 pb-2">
-                  <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setIsBuyExpanded(!isBuyExpanded)}>
-                    <span className={`block text-lg font-medium transition-colors hover:text-primary ${(location === '/search' && new URLSearchParams(window.location.search).get('type') === 'sale') ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {t('nav.buy')}
-                    </span>
-                    <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isBuyExpanded ? 'rotate-180' : ''}`} />
-                  </div>
-                  {isBuyExpanded && (
-                    <div className="pl-4 mt-3 flex flex-col gap-3 border-l-2 border-primary/20 ml-2 animate-in slide-in-from-top-2 duration-200">
-                      <Link href="/search?type=sale">
-                        <span className="block text-base font-medium text-gray-700 hover:text-primary">All Properties</span>
-                      </Link>
-                      <Link href="/search?type=sale&category=apartments">
-                        <span className="block text-base text-gray-600 hover:text-primary">Apartments</span>
-                      </Link>
-                      <Link href="/search?type=sale&category=homes">
-                        <span className="block text-base text-gray-600 hover:text-primary">Homes</span>
-                      </Link>
-                      <Link href="/search?type=sale&category=lands">
-                        <span className="block text-base text-gray-600 hover:text-primary">Lands</span>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-                
                 <div className="h-px bg-gray-100 my-2" />
                 
                 <div className="flex items-center justify-between mb-2">
