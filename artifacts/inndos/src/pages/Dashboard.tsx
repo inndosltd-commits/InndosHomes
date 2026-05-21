@@ -3303,6 +3303,7 @@ export default function Dashboard() {
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Property videos</li>
                 </ul>
                 <Button variant="outline" disabled className="w-full mt-auto">
                   {subscription?.plan === 'standard' ? 'Active Plan' : 'Free Tier'}
@@ -3330,6 +3331,7 @@ export default function Dashboard() {
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 property video (max 30s)</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-zinc-800 hover:bg-zinc-700 text-white"
@@ -3362,6 +3364,7 @@ export default function Dashboard() {
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 2 property videos (max 30s each)</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"

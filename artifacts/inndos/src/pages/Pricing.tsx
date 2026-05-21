@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Check, Info } from "lucide-react";
+import { Check, X, Info } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/lib/language";
 
@@ -20,22 +20,22 @@ export default function Pricing() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* Basic Plan */}
+          {/* Standard Plan */}
           <Card className="flex flex-col relative overflow-hidden bg-white">
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">Basic</CardTitle>
-              <CardDescription>For individual property owners</CardDescription>
+              <CardTitle className="text-2xl font-bold">Standard</CardTitle>
+              <CardDescription>Free tier for individual owners</CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold">KES 999</span>
-                <span className="text-gray-500">/mo</span>
+                <span className="text-4xl font-bold">Free</span>
               </div>
             </CardHeader>
             <CardContent className="flex-1">
               <ul className="space-y-4">
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Up to 5 listings</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Up to 3 listings</li>
                 <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Basic property analytics</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Direct tenant messaging</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Standard support</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Booking management</li>
+                <li className="flex items-center gap-3 text-sm text-gray-400"><X className="h-5 w-5" /> Property videos</li>
+                <li className="flex items-center gap-3 text-sm text-gray-400"><X className="h-5 w-5" /> Priority support</li>
               </ul>
             </CardContent>
             <CardFooter>
@@ -45,52 +45,57 @@ export default function Pricing() {
             </CardFooter>
           </Card>
 
-          {/* Pro Plan */}
+          {/* Silver Plan */}
           <Card className="flex flex-col relative overflow-hidden bg-zinc-900 text-white border-none shadow-xl scale-105 z-10">
-            <div className="absolute top-0 right-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg">RECOMMENDED</div>
+            <div className="absolute top-0 right-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg">POPULAR</div>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-white">Professional</CardTitle>
+              <CardTitle className="text-2xl font-bold text-white">Silver</CardTitle>
               <CardDescription className="text-gray-400">For active hosts and agencies</CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold">KES 2,499</span>
+                <span className="text-4xl font-bold">KES 200</span>
                 <span className="text-gray-400">/mo</span>
               </div>
             </CardHeader>
             <CardContent className="flex-1">
               <ul className="space-y-4">
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Up to 25 listings</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Up to 7 listings</li>
                 <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Advanced analytics & reporting</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Featured listing placement</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Booking calendar sync</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Booking management</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> 1 property video (max 30s)</li>
                 <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-primary" /> Priority support</li>
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full h-12 bg-white text-zinc-900 hover:bg-gray-100">Subscribe via Pesapal</Button>
+              <Link href="/dashboard#/dashboard?tab=subscription" className="w-full">
+                <Button className="w-full h-12 bg-white text-zinc-900 hover:bg-gray-100">Subscribe via Pesapal</Button>
+              </Link>
             </CardFooter>
           </Card>
 
-          {/* Enterprise Plan */}
-          <Card className="flex flex-col relative overflow-hidden bg-white">
+          {/* Gold Plan */}
+          <Card className="flex flex-col relative overflow-hidden border-yellow-300 bg-yellow-50">
+            <div className="absolute top-0 right-0 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">BEST VALUE</div>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">Enterprise</CardTitle>
+              <CardTitle className="text-2xl font-bold">Gold</CardTitle>
               <CardDescription>For large scale operations</CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold">KES 9,999</span>
+                <span className="text-4xl font-bold">KES 300</span>
                 <span className="text-gray-500">/mo</span>
               </div>
             </CardHeader>
             <CardContent className="flex-1">
               <ul className="space-y-4">
                 <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Unlimited listings</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Multi-user team access</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> API access</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Custom branding</li>
-                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Dedicated account manager</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Advanced analytics & reporting</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Booking management</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> 2 property videos (max 30s each)</li>
+                <li className="flex items-center gap-3 text-sm"><Check className="h-5 w-5 text-green-500" /> Featured listings + priority support</li>
               </ul>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full h-12">Contact Sales</Button>
+              <Link href="/dashboard#/dashboard?tab=subscription" className="w-full">
+                <Button className="w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-white">Upgrade to Gold</Button>
+              </Link>
             </CardFooter>
           </Card>
         </div>

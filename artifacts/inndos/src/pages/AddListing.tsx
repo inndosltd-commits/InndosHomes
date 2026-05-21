@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical } from "lucide-react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
@@ -101,6 +101,10 @@ export default function AddListing() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
+  const [videoLimit, setVideoLimit] = useState(0);
+  const [uploadingVideoCount, setUploadingVideoCount] = useState(0);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
@@ -175,6 +179,17 @@ export default function AddListing() {
   const editId = getEditId();
   const isEditing = editId !== null;
 
+  // Fetch subscription to determine video limit
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/subscriptions/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((data: { videoLimit?: number }) => {
+        setVideoLimit(typeof data.videoLimit === "number" ? data.videoLimit : 0);
+      })
+      .catch(() => {});
+  }, [token]);
+
   // Fetch existing property data when in edit mode
   useEffect(() => {
     if (!editId || !token) return;
@@ -186,7 +201,7 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; videos?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
         setTitle(prop.title ?? "");
         setListingType(prop.type ?? "");
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -200,6 +215,7 @@ export default function AddListing() {
         } else if (prop.image) {
           setImages([prop.image]);
         }
+        if (prop.videos && prop.videos.length > 0) setVideos(prop.videos);
         if (prop.tags) setSelectedAmenities(prop.tags);
         if (prop.subtype) setSubtype(prop.subtype);
         if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
@@ -248,6 +264,56 @@ export default function AddListing() {
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
+
+  const removeVideo = (index: number) => {
+    setVideos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVideoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    e.target.value = "";
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+
+    const remaining = videoLimit - videos.length;
+    if (remaining <= 0) {
+      toast({ title: "Video limit reached", description: `Your plan allows ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing.`, variant: "destructive" });
+      return;
+    }
+    const toUpload = fileArray.slice(0, remaining);
+    if (toUpload.length < fileArray.length) {
+      toast({ title: "Too many videos", description: `Only ${remaining} slot${remaining === 1 ? "" : "s"} remaining. Extra files skipped.`, variant: "destructive" });
+    }
+
+    // Validate each video is ≤30 seconds
+    const validFiles: File[] = [];
+    for (const file of toUpload) {
+      const duration = await new Promise<number>((resolve) => {
+        const vid = document.createElement("video");
+        vid.preload = "metadata";
+        vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration); };
+        vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(Infinity); };
+        vid.src = URL.createObjectURL(file);
+      });
+      if (duration > 30) {
+        toast({ title: "Video too long", description: `"${file.name}" is longer than 30 seconds and was skipped.`, variant: "destructive" });
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) return;
+    setUploadingVideoCount(prev => prev + validFiles.length);
+    const results = await Promise.all(validFiles.map(f => uploadFile(f).catch(() => null)));
+    const uploaded = (results as (string | null)[]).filter((p): p is string => p !== null);
+    if (uploaded.length < validFiles.length) {
+      toast({ title: "Some uploads failed", description: "One or more videos could not be uploaded.", variant: "destructive" });
+    }
+    if (uploaded.length > 0) {
+      setVideos(prev => [...prev, ...uploaded]);
+    }
+    setUploadingVideoCount(prev => prev - validFiles.length);
+  }, [uploadFile, toast, videoLimit, videos.length]);
 
   const handleDragStart = (index: number) => {
     dragSrcRef.current = index;
@@ -327,6 +393,7 @@ export default function AddListing() {
         sqft: isNaN(parsedSqft) ? 0 : parsedSqft,
         description: description || null,
         images,
+        videos,
         tags: selectedAmenities,
         subtype: subtype || undefined,
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
@@ -810,13 +877,91 @@ export default function AddListing() {
                 </CardContent>
               </Card>
 
+              {/* Videos */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle>Property Videos</CardTitle>
+                      <CardDescription>
+                        {videoLimit === 0
+                          ? "Video upload requires a Silver or Gold plan"
+                          : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 30 seconds each`}
+                      </CardDescription>
+                    </div>
+                    {videoLimit === 0 && (
+                      <a href="#/pricing" className="text-xs text-primary underline underline-offset-2 shrink-0 mt-1">Upgrade plan</a>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {videoLimit === 0 ? (
+                    <div className="flex items-center gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      Your Standard plan does not include property videos. Upgrade to Silver (1 video) or Gold (2 videos) to unlock this feature.
+                    </div>
+                  ) : (
+                    <>
+                      {videos.length < videoLimit && (
+                        <div
+                          className={`border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${uploadingVideoCount > 0 ? "opacity-50 pointer-events-none" : ""}`}
+                          onClick={() => videoInputRef.current?.click()}
+                        >
+                          <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                            <Video className="h-5 w-5" />
+                          </div>
+                          <h3 className="font-semibold text-sm">Upload Video</h3>
+                          <p className="text-xs text-muted-foreground">{videos.length}/{videoLimit} used · max 30 seconds</p>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            className="hidden"
+                            ref={videoInputRef}
+                            onChange={handleVideoUpload}
+                          />
+                        </div>
+                      )}
+
+                      {(videos.length > 0 || uploadingVideoCount > 0) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          {videos.map((url, i) => (
+                            <div key={url} className="relative rounded-lg overflow-hidden bg-black group">
+                              <video
+                                src={url.startsWith("/objects/") ? `/api/storage${url}` : url}
+                                className="w-full aspect-video object-cover"
+                                controls
+                                preload="metadata"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeVideo(i)}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                              <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Video {i + 1}</span>
+                            </div>
+                          ))}
+                          {Array.from({ length: uploadingVideoCount }).map((_, i) => (
+                            <div key={`uploading-video-${i}`} className="relative aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                              <span className="sr-only">Uploading…</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="flex gap-4 justify-end">
                 <Button variant="outline" type="button" onClick={() => setLocation("/dashboard")}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-primary" disabled={isSubmitting || uploadingCount > 0}>
-                  {uploadingCount > 0 ? (
-                    <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Uploading photos…</span>
+                <Button type="submit" className="bg-primary" disabled={isSubmitting || uploadingCount > 0 || uploadingVideoCount > 0}>
+                  {uploadingCount > 0 || uploadingVideoCount > 0 ? (
+                    <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Uploading media…</span>
                   ) : isSubmitting ? (
                     isEditing ? "Updating..." : "Submitting..."
                   ) : (

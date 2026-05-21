@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, bookings, propertyBlocks, insertPropertySchema } from "@workspace/db";
+import { getVideoLimit } from "./subscriptions";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
@@ -23,6 +24,7 @@ const PROPERTY_COLUMNS = {
   guests: properties.guests,
   image: properties.image,
   images: properties.images,
+  videos: properties.videos,
   description: properties.description,
   isVerified: properties.isVerified,
   propertyStatus: properties.propertyStatus,
@@ -288,8 +290,25 @@ router.post("/", async (req, res) => {
 
   const { isVerified: _ignored, ...body } = req.body;
   const imageList: string[] = Array.isArray(body.images) ? body.images : [];
+  const videoList: string[] = Array.isArray(body.videos) ? body.videos : [];
   const primaryImage = imageList[0] || body.image || "/images/modern_apartment_exterior.png";
-  const result = insertPropertySchema.safeParse({ ...body, images: imageList, image: primaryImage, ownerId: userId });
+
+  if (caller.role !== "admin") {
+    const sub = await getActiveSubscription(userId);
+    const plan = sub?.plan ?? "standard";
+    const videoLimit = getVideoLimit(plan);
+    if (videoList.length > videoLimit) {
+      res.status(403).json({
+        error: `Your ${plan} plan allows a maximum of ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing. Please upgrade your subscription.`,
+        code: "VIDEO_LIMIT",
+        plan,
+        videoLimit,
+      });
+      return;
+    }
+  }
+
+  const result = insertPropertySchema.safeParse({ ...body, images: imageList, videos: videoList, image: primaryImage, ownerId: userId });
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
@@ -319,9 +338,30 @@ router.patch("/:id", async (req, res) => {
   const sentKeys = new Set(Object.keys(req.body));
   const { isVerified: _ignored, ...body } = req.body;
   const imageList: string[] | undefined = Array.isArray(body.images) ? body.images : undefined;
+  const videoList: string[] | undefined = Array.isArray(body.videos) ? body.videos : undefined;
+
+  if (videoList !== undefined) {
+    const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (caller?.role !== "admin") {
+      const sub = await getActiveSubscription(userId);
+      const plan = sub?.plan ?? "standard";
+      const videoLimit = getVideoLimit(plan);
+      if (videoList.length > videoLimit) {
+        res.status(403).json({
+          error: `Your ${plan} plan allows a maximum of ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing. Please upgrade your subscription.`,
+          code: "VIDEO_LIMIT",
+          plan,
+          videoLimit,
+        });
+        return;
+      }
+    }
+  }
+
   const patchBody = {
     ...body,
     ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
+    ...(videoList !== undefined ? { videos: videoList } : {}),
   };
   const updateSchema = insertPropertySchema.omit({ ownerId: true, isVerified: true }).partial();
   const result = updateSchema.safeParse(patchBody);

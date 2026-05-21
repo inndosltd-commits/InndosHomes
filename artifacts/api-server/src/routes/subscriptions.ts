@@ -15,6 +15,10 @@ const router = Router();
 // Fallback hardcoded values (used if DB is unavailable)
 const DEFAULT_PLAN_LIMITS: Record<string, number> = { standard: 3, silver: 7, gold: 2147483647 };
 const DEFAULT_PLAN_PRICES: Record<string, number> = { standard: 0, silver: 200, gold: 300 };
+export const VIDEO_LIMITS: Record<string, number> = { standard: 0, silver: 1, gold: 2 };
+export function getVideoLimit(plan: string): number {
+  return VIDEO_LIMITS[plan] ?? 0;
+}
 
 // Load plan config from DB (cached per request via module-level cache with short TTL)
 let planCache: { data: Record<string, { price: number; limit: number }>; ts: number } | null = null;
@@ -116,6 +120,7 @@ router.get("/me", async (req, res) => {
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
       listingLimit: plans["standard"]?.limit ?? 3,
+      videoLimit: getVideoLimit("standard"),
     });
     return;
   }
@@ -124,6 +129,7 @@ router.get("/me", async (req, res) => {
     ...sub,
     listingCount: Number(listingCount),
     listingLimit: plans[sub.plan]?.limit ?? getPlanLimit(sub.plan),
+    videoLimit: getVideoLimit(sub.plan),
   });
 });
 
