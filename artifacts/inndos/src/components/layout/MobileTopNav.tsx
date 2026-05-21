@@ -46,9 +46,9 @@ function DropdownMenu({ items, anchorRef, onClose }: DropdownMenuProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[140]" onClick={onClose} />
+      <div className="fixed inset-0 z-[490]" onClick={onClose} />
       <div
-        className="fixed z-[150] bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[168px] overflow-hidden"
+        className="fixed z-[500] bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[168px] overflow-hidden"
         style={{ top: coords.top, left: coords.left }}
       >
         {items.map(item => (

@@ -42,7 +42,7 @@ export default function Home() {
           <div className="relative w-full pointer-events-auto">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full shadow-[0_0_0_2px_white,0_0_0_4px_black]"></div>
             <Input
-              placeholder={t("search.placeholder_location") || "Where to?"}
+              placeholder="Where to?"
               className="w-full pl-12 pr-6 h-14 bg-white shadow-[0_4px_20px_rgb(0,0,0,0.1)] rounded-full border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-medium text-gray-900 placeholder:text-gray-500"
               value={searchQuery}
               onChange={(e) => {
