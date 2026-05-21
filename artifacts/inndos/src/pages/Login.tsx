@@ -51,8 +51,13 @@ export default function Login() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (user) {
+      setLocation("/dashboard");
+    }
+  }, [user, setLocation]);
+
   if (user) {
-    setLocation("/dashboard");
     return null;
   }
 
