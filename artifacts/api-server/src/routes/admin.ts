@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans } from "@workspace/db";
-import { eq, count, sum, ne, asc, desc } from "drizzle-orm";
+import { eq, count, sum, ne, asc, desc, and } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
@@ -290,19 +290,34 @@ router.post("/subscriptions/assign", async (req, res) => {
     return;
   }
 
-  // Cancel existing active subscriptions
+  // Cancel only currently active subscriptions for this user
   await db
     .update(subscriptions)
     .set({ status: "cancelled" })
-    .where(eq(subscriptions.userId, userId));
+    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
+
+  const now = new Date();
 
   if (plan === "standard") {
-    res.json({ message: "User downgraded to Standard (Free)" });
+    // Standard is free/unlimited — create a no-expiry active record
+    const [newSub] = await db
+      .insert(subscriptions)
+      .values({
+        userId,
+        plan: "standard",
+        status: "active",
+        billingCycle: "custom",
+        billingMonths: 0,
+        amountPaid: 0,
+        startDate: now.toISOString().slice(0, 10),
+        endDate: "9999-12-31",
+      })
+      .returning();
+    res.status(201).json(newSub);
     return;
   }
 
   const months = billingMonths && billingMonths >= 1 ? Math.floor(billingMonths) : 1;
-  const now = new Date();
   const endDate = new Date(now);
   endDate.setMonth(endDate.getMonth() + months);
 
