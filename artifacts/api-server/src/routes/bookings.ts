@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { bookings, properties, users, notifications, insertBookingSchema } from "@workspace/db";
 import { and, eq, lt, gt, inArray } from "drizzle-orm";
+import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
 import { sendNewBookingEmail } from "../lib/email";
@@ -112,13 +113,20 @@ router.post("/", async (req, res) => {
   const guestName = guest?.name ?? "A guest";
 
   try {
+    const ownerMsg = `${guestName} booked "${prop.title}" from ${startDate} to ${endDate}.`;
     await db.insert(notifications).values({
       userId: prop.ownerId,
       type: "new_booking",
-      message: `${guestName} booked "${prop.title}" from ${startDate} to ${endDate}.`,
+      message: ownerMsg,
       bookingId: booking.id,
       isRead: false,
     });
+    const [ownerUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, prop.ownerId));
+    if (ownerUser?.phone) {
+      sendSms(ownerUser.phone, `INNDOS: ${ownerMsg}`).catch((e: unknown) =>
+        req.log.error({ e }, "Owner booking SMS failed")
+      );
+    }
   } catch (err) {
     req.log.error({ err, bookingId: booking.id }, "Failed to create owner notification for booking");
   }
@@ -226,6 +234,12 @@ router.patch("/:id/status", async (req, res) => {
       bookingId: booking.id,
       isRead: false,
     });
+    const [guestUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, booking.guestId));
+    if (guestUser?.phone) {
+      sendSms(guestUser.phone, `INNDOS: ${notificationMessage}`).catch((e: unknown) =>
+        req.log.error({ e }, "Guest booking SMS failed")
+      );
+    }
   } catch (err) {
     req.log.error({ err, bookingId: booking.id }, "Failed to create guest notification for booking status update");
   }

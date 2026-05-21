@@ -27,6 +27,7 @@ export const users = pgTable("users", {
     .default("active"),
   joinDate: text("join_date").notNull().default(sql`NOW()::date::text`),
   avatar: text("avatar"),
+  phone: text("phone"),
 });
 
 export const properties = pgTable("properties", {
@@ -204,6 +205,16 @@ export const propertyBlocks = pgTable("property_blocks", {
 
 export type PropertyBlock = typeof propertyBlocks.$inferSelect;
 export type InsertPropertyBlock = typeof propertyBlocks.$inferInsert;
+
+export const otpCodes = pgTable("otp_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: varchar("phone").notNull(),
+  code: varchar("code", { length: 6 }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type OtpCode = typeof otpCodes.$inferSelect;
 
 export const insertUserSchema = createInsertSchema(users)
   .pick({ name: true, email: true, password: true, role: true })

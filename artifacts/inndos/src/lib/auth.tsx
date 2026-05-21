@@ -17,7 +17,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string, preexistingToken?: string) => Promise<void>;
-  signup: (role: UserRole, name: string, email: string, password?: string) => Promise<void>;
+  signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   error: string | null;
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLocation("/dashboard");
   };
 
-  const signup = async (role: UserRole, name: string, email: string, password?: string) => {
+  const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string) => {
     setError(null);
     if (!role) return;
     const res = await apiFetch("/auth/signup", {
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email || `${role}_${Date.now()}@inndos.com`,
         password: password || "password123",
         role,
+        ...(phoneToken ? { phoneToken } : {}),
       }),
     });
     if (!res.ok) {

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans } from "@workspace/db";
-import { eq, count, sum, ne, asc, desc, and } from "drizzle-orm";
+import { eq, count, sum, ne, asc, desc, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
@@ -589,6 +589,50 @@ router.delete("/plans/:name", async (req, res) => {
 
   const { invalidatePlanCache } = await import("./subscriptions");
   invalidatePlanCache();
+
+  res.json({ success: true });
+});
+
+router.get("/sms-settings", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const SMS_KEYS = ["sms_api_key", "sms_sender_id", "sms_provider", "sms_username"];
+  const rows = await db.select({ key: settings.key, value: settings.value }).from(settings)
+    .where(inArray(settings.key, SMS_KEYS));
+
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+
+  res.json({
+    apiKey:   map["sms_api_key"]   ? "****" + map["sms_api_key"].slice(-4) : "",
+    apiKeySet: !!map["sms_api_key"],
+    senderId: map["sms_sender_id"] ?? "CAPS",
+    provider: map["sms_provider"]  ?? "africastalking",
+    username: map["sms_username"]  ?? "",
+  });
+});
+
+router.put("/sms-settings", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { apiKey, senderId, provider, username } = req.body as {
+    apiKey?: string; senderId?: string; provider?: string; username?: string;
+  };
+
+  const updates: { key: string; value: string }[] = [];
+  if (senderId !== undefined) updates.push({ key: "sms_sender_id", value: senderId });
+  if (provider  !== undefined) updates.push({ key: "sms_provider",  value: provider  });
+  if (username  !== undefined) updates.push({ key: "sms_username",  value: username  });
+  if (apiKey    !== undefined && !apiKey.includes("****")) {
+    updates.push({ key: "sms_api_key", value: apiKey });
+  }
+
+  for (const u of updates) {
+    await db.insert(settings).values({ key: u.key, value: u.value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: settings.key, set: { value: u.value, updatedAt: new Date() } });
+  }
 
   res.json({ success: true });
 });

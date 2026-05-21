@@ -3,9 +3,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@workspace/db";
-import { users, insertUserSchema } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { users, insertUserSchema, otpCodes } from "@workspace/db";
+import { eq, and, gt, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { sendSms, normalizePhone } from "../lib/sms";
 
 const router = Router();
 
@@ -31,6 +32,77 @@ export function verifyToken(token: string): { userId: string } | null {
   }
 }
 
+router.post("/send-otp", async (req, res) => {
+  const { phone } = req.body as { phone?: string };
+  if (!phone) {
+    res.status(400).json({ error: "Phone number is required" });
+    return;
+  }
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    res.status(400).json({ error: "Invalid phone number. Use format: 07XXXXXXXX or +254XXXXXXXXX" });
+    return;
+  }
+
+  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+  const recent = await db
+    .select({ id: otpCodes.id })
+    .from(otpCodes)
+    .where(and(eq(otpCodes.phone, normalized), gt(otpCodes.createdAt, tenMinAgo)));
+  if (recent.length >= 3) {
+    res.status(429).json({ error: "Too many OTP requests. Please wait 10 minutes before trying again." });
+    return;
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await db.insert(otpCodes).values({ phone: normalized, code, expiresAt });
+
+  try {
+    await sendSms(normalized, `Your INNDOS verification code is: ${code}. Valid for 10 minutes. Do not share this code.`);
+    res.json({ success: true, message: "OTP sent successfully" });
+  } catch (err) {
+    logger.error({ err }, "Failed to send OTP SMS");
+    res.status(502).json({ error: "Failed to send OTP. Please check your number and try again." });
+  }
+});
+
+router.post("/verify-otp", async (req, res) => {
+  const { phone, code } = req.body as { phone?: string; code?: string };
+  if (!phone || !code) {
+    res.status(400).json({ error: "Phone and code are required" });
+    return;
+  }
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    res.status(400).json({ error: "Invalid phone number" });
+    return;
+  }
+
+  const [otp] = await db
+    .select()
+    .from(otpCodes)
+    .where(and(eq(otpCodes.phone, normalized), eq(otpCodes.code, code), eq(otpCodes.used, false)))
+    .orderBy(desc(otpCodes.createdAt))
+    .limit(1);
+
+  if (!otp || new Date() > otp.expiresAt) {
+    res.status(400).json({ error: "Invalid or expired verification code" });
+    return;
+  }
+
+  await db.update(otpCodes).set({ used: true }).where(eq(otpCodes.id, otp.id));
+
+  const phoneToken = jwt.sign(
+    { phone: normalized, purpose: "phone_verification" },
+    JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+  res.json({ success: true, phoneToken });
+});
+
 router.post("/signup", async (req, res) => {
   const result = insertUserSchema.safeParse(req.body);
   if (!result.success) {
@@ -39,6 +111,22 @@ router.post("/signup", async (req, res) => {
   }
 
   const { name, email, password, role } = result.data;
+  const { phoneToken } = req.body as { phoneToken?: string };
+
+  if (!phoneToken) {
+    res.status(400).json({ error: "Phone verification is required to create an account" });
+    return;
+  }
+
+  let verifiedPhone: string;
+  try {
+    const decoded = jwt.verify(phoneToken, JWT_SECRET) as { phone?: string; purpose?: string };
+    if (decoded.purpose !== "phone_verification" || !decoded.phone) throw new Error("Invalid token");
+    verifiedPhone = decoded.phone;
+  } catch {
+    res.status(400).json({ error: "Phone verification token is invalid or expired. Please verify your phone again." });
+    return;
+  }
 
   const SELF_SIGNUP_ROLES = ["tenant", "guest"] as const;
   type SelfSignupRole = typeof SELF_SIGNUP_ROLES[number];
@@ -54,7 +142,7 @@ router.post("/signup", async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
   const [user] = await db
     .insert(users)
-    .values({ name, email, password: hashed, role: allowedRole })
+    .values({ name, email, password: hashed, role: allowedRole, phone: verifiedPhone })
     .returning();
 
   const token = signToken(user.id);
@@ -187,9 +275,9 @@ router.get("/linkedin/callback", async (req, res) => {
       [user] = await db.insert(users).values({ name, email: profile.email, password: randomPassword, role: allowedRole }).returning();
     }
 
-    const jwt = signToken(user.id);
+    const jwt2 = signToken(user.id);
     const { password: _pw, ...safeUser } = user;
-    res.send(`<!DOCTYPE html><html><body><script>window.opener&&window.opener.postMessage({type:"linkedin_success",token:${JSON.stringify(jwt)},user:${JSON.stringify(safeUser)}},"*");window.close();</script></body></html>`);
+    res.send(`<!DOCTYPE html><html><body><script>window.opener&&window.opener.postMessage({type:"linkedin_success",token:${JSON.stringify(jwt2)},user:${JSON.stringify(safeUser)}},"*");window.close();</script></body></html>`);
   } catch (err) {
     req.log.error({ err }, "LinkedIn auth failed");
     closeWithError("LinkedIn authentication failed");

@@ -45,11 +45,21 @@ export default function Login() {
   const { toast } = useToast();
   const linkedinPopup = useRef<Window | null>(null);
 
+  const [otpSent, setOtpSent]           = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneToken, setPhoneToken]       = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp]   = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
+
   useEffect(() => {
     if (window.location.search.includes("signup=true") || window.location.hash.includes("signup=true")) {
       setIsSignUp(true);
     }
   }, [location]);
+
+  useEffect(() => { resetOtpState(); }, [isSignUp]);
 
   useEffect(() => {
     if (user) {
@@ -78,10 +88,69 @@ export default function Login() {
     }
   };
 
+  /* ── OTP: send ── */
+  const handleSendOtp = async (role: Role) => {
+    const phoneEl = document.getElementById(`phone-${role}`) as HTMLInputElement | null;
+    const phone = phoneEl?.value?.trim() || "";
+    if (!phone) {
+      toast({ title: "Phone required", description: "Please enter your phone number.", variant: "destructive" });
+      return;
+    }
+    setIsSendingOtp(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed to send OTP");
+      setOtpSent(true);
+      toast({ title: "OTP sent", description: "Check your phone for the 6-digit code." });
+    } catch (err) {
+      toast({ title: "Failed to send OTP", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  /* ── OTP: verify ── */
+  const handleVerifyOtp = async (role: Role) => {
+    const phoneEl = document.getElementById(`phone-${role}`) as HTMLInputElement | null;
+    const otpEl   = document.getElementById(`otp-${role}`)   as HTMLInputElement | null;
+    const phone = phoneEl?.value?.trim() || "";
+    const code  = otpEl?.value?.trim()   || "";
+    if (!phone || !code) {
+      toast({ title: "Missing fields", description: "Please enter your phone and OTP code.", variant: "destructive" });
+      return;
+    }
+    setIsVerifyingOtp(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "OTP verification failed");
+      setPhoneToken((data as { phoneToken?: string }).phoneToken ?? null);
+      setPhoneVerified(true);
+      toast({ title: "Phone verified", description: "Your phone number has been verified." });
+    } catch (err) {
+      toast({ title: "Verification failed", description: err instanceof Error ? err.message : "Invalid code.", variant: "destructive" });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
   /* ── email/password sign-up ── */
   const handleSignUp = async (role: Role) => {
     if (!termsAccepted) {
       toast({ title: "Terms required", description: "Please agree to the Terms and Conditions before signing up.", variant: "destructive" });
+      return;
+    }
+    if (!phoneVerified || !phoneToken) {
+      toast({ title: "Phone verification required", description: "Please verify your phone number before creating an account.", variant: "destructive" });
       return;
     }
     setIsLoading(true);
@@ -96,7 +165,7 @@ export default function Login() {
         toast({ title: "Missing fields", description: "Please fill in name, email, and password.", variant: "destructive" });
         return;
       }
-      await signup(role, name, email, password);
+      await signup(role, name, email, password, phoneToken);
     } catch (err) {
       toast({ title: "Sign up failed", description: err instanceof Error ? err.message : "Something went wrong.", variant: "destructive" });
     } finally {
@@ -261,6 +330,57 @@ export default function Login() {
                         <div className="space-y-2">
                           <Label htmlFor={`name-${role}`}>Full Name</Label>
                           <Input id={`name-${role}`} placeholder="John Doe" />
+                        </div>
+                      )}
+                      {isSignUp && (
+                        <div className="space-y-2">
+                          <Label htmlFor={`phone-${role}`}>Phone Number</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id={`phone-${role}`}
+                              type="tel"
+                              placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                              disabled={phoneVerified}
+                              className={phoneVerified ? "border-green-500 bg-green-50" : ""}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSendOtp(role)}
+                              disabled={isSendingOtp || phoneVerified}
+                              className="shrink-0 px-3 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            >
+                              {isSendingOtp ? "Sending…" : otpSent && !phoneVerified ? "Resend" : "Send OTP"}
+                            </button>
+                          </div>
+                          {phoneVerified && (
+                            <p className="text-sm text-green-600 flex items-center gap-1 font-medium">
+                              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                              Phone verified
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {isSignUp && otpSent && !phoneVerified && (
+                        <div className="space-y-2">
+                          <Label htmlFor={`otp-${role}`}>Verification Code</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id={`otp-${role}`}
+                              placeholder="Enter 6-digit code"
+                              maxLength={6}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyOtp(role)}
+                              disabled={isVerifyingOtp}
+                              className="shrink-0 px-3 py-2 text-sm font-medium rounded-md bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            >
+                              {isVerifyingOtp ? "Verifying…" : "Verify"}
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400">Enter the code sent to your phone. Valid for 10 minutes.</p>
                         </div>
                       )}
                       <div className="space-y-2">

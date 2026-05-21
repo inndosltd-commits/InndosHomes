@@ -132,6 +132,10 @@ export default function Dashboard() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ pesapalConsumerKey: "", pesapalConsumerSecret: "", pesapalMode: "live" });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [smsSettings, setSmsSettings] = useState<{ apiKey: string; apiKeySet: boolean; senderId: string; provider: string; username: string } | null>(null);
+  const [smsForm, setSmsForm] = useState({ apiKey: "", senderId: "CAPS", username: "inndos" });
+  const [isLoadingSmsSettings, setIsLoadingSmsSettings] = useState(false);
+  const [isSavingSmsSettings, setIsSavingSmsSettings] = useState(false);
   const [isRegisteringIpn, setIsRegisteringIpn] = useState(false);
 
   const fetchAdminStats = useCallback(async () => {
@@ -411,6 +415,19 @@ export default function Dashboard() {
     } catch { /* non-critical */ } finally { setIsLoadingSettings(false); }
   }, [user, token]);
 
+  const fetchSmsSettings = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingSmsSettings(true);
+    try {
+      const res = await fetch("/api/admin/sms-settings", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setSmsSettings(data);
+        setSmsForm(f => ({ ...f, senderId: data.senderId ?? "CAPS", username: data.username ?? "inndos" }));
+      }
+    } catch { /* non-critical */ } finally { setIsLoadingSmsSettings(false); }
+  }, [user, token]);
+
   const fetchSubscription = useCallback(async () => {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
     setIsLoadingSubscription(true);
@@ -514,9 +531,10 @@ export default function Dashboard() {
         fetchAdminPayments();
         fetchPaymentSettings();
         fetchAdminPlans();
+        fetchSmsSettings();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans, fetchSmsSettings]);
 
   // Handle return from PesaPal payment
   useEffect(() => {
@@ -905,6 +923,11 @@ export default function Dashboard() {
               Payments
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="sms-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              SMS
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -992,6 +1015,11 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="payment-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <CreditCard className="w-5 h-5 mr-3" /> Payments
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="sms-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <MessageSquare className="w-5 h-5 mr-3" /> SMS Settings
                 </TabsTrigger>
             )}
             </TabsList>
@@ -3081,6 +3109,103 @@ export default function Dashboard() {
                       </table>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ── Admin: SMS Settings Tab ─────────────────────────── */}
+          {user.role === 'admin' && (
+            <TabsContent value="sms-settings" className="space-y-6 mt-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">SMS Settings</h1>
+                  <p className="text-gray-500 text-sm">Configure Africa's Talking SMS integration for OTP and notifications</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchSmsSettings} disabled={isLoadingSmsSettings} className="gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isLoadingSmsSettings ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+
+              <Card className={`border-2 ${smsSettings?.apiKeySet ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
+                <CardContent className="py-4 px-6 flex items-center gap-3">
+                  <MessageSquare className={`h-6 w-6 ${smsSettings?.apiKeySet ? 'text-green-600' : 'text-yellow-600'}`} />
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      {smsSettings?.apiKeySet ? 'API key configured' : 'API key not set'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Provider: {smsSettings?.provider ?? 'africastalking'} · Sender: {smsSettings?.senderId ?? 'CAPS'}
+                    </div>
+                  </div>
+                  <Badge className={`ml-auto ${smsSettings?.apiKeySet ? 'bg-green-100 text-green-800 border-green-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'} text-sm`}>
+                    {smsSettings?.apiKeySet ? '● Active' : '◌ Unconfigured'}
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-zinc-500" /> Africa's Talking Configuration
+                  </CardTitle>
+                  <CardDescription>Update your SMS API credentials. Changes take effect immediately.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">API Key</label>
+                    <input
+                      type="password"
+                      value={smsForm.apiKey}
+                      onChange={e => setSmsForm(f => ({ ...f, apiKey: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder={smsSettings?.apiKeySet ? `Current: ${smsSettings.apiKey}` : "Enter Africa's Talking API key"}
+                    />
+                    <p className="text-xs text-gray-400">Leave blank to keep the existing key unchanged.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">AT Username</label>
+                    <input
+                      type="text"
+                      value={smsForm.username}
+                      onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder="Africa's Talking account username"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Sender ID</label>
+                    <input
+                      type="text"
+                      value={smsForm.senderId}
+                      onChange={e => setSmsForm(f => ({ ...f, senderId: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder="e.g. CAPS"
+                    />
+                    <p className="text-xs text-gray-400">Alphanumeric sender ID registered with Africa's Talking.</p>
+                  </div>
+                  <Button
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white w-full sm:w-auto gap-2"
+                    disabled={isSavingSmsSettings}
+                    onClick={async () => {
+                      setIsSavingSmsSettings(true);
+                      try {
+                        const res = await fetch("/api/admin/sms-settings", {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ apiKey: smsForm.apiKey || undefined, senderId: smsForm.senderId, username: smsForm.username }),
+                        });
+                        if (!res.ok) throw new Error("Failed to save");
+                        toast({ title: "SMS settings saved", description: "Your SMS configuration has been updated." });
+                        setSmsForm(f => ({ ...f, apiKey: "" }));
+                        fetchSmsSettings();
+                      } catch {
+                        toast({ title: "Save failed", description: "Could not update SMS settings.", variant: "destructive" });
+                      } finally { setIsSavingSmsSettings(false); }
+                    }}
+                  >
+                    {isSavingSmsSettings ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Check className="h-4 w-4" /> Save SMS Settings</>}
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
