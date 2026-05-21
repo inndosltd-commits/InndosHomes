@@ -86,7 +86,11 @@ export default function Dashboard() {
     .filter((b: any) => b.startDate && new Date(b.startDate) >= new Date())
     .sort((a: any, z: any) => new Date(a.startDate).getTime() - new Date(z.startDate).getTime())[0];
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const hash = window.location.hash;
+    const query = hash.split("?")[1] ?? "";
+    return new URLSearchParams(query).get("tab") || "overview";
+  });
 
   // Subscription state
   const [subscription, setSubscription] = useState<{
@@ -550,6 +554,7 @@ export default function Dashboard() {
 
     if (paymentResult === "success") {
       fetchSubscription();
+      setActiveTab("subscription");
       toast({
         title: "Payment successful!",
         description: "Your subscription has been activated. Thank you!",
@@ -578,7 +583,11 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
   }
 
   // Handlers for interactions
