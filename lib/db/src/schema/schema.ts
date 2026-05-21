@@ -191,6 +191,20 @@ export const payments = pgTable("payments", {
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
 
+export const propertyBlocks = pgTable("property_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type PropertyBlock = typeof propertyBlocks.$inferSelect;
+export type InsertPropertyBlock = typeof propertyBlocks.$inferInsert;
+
 export const insertUserSchema = createInsertSchema(users)
   .pick({ name: true, email: true, password: true, role: true })
   .extend({

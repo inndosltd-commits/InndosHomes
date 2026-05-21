@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
+import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function resolvePropertyImageUrl(path: string | null | undefined): string {
@@ -105,6 +106,7 @@ export default function Dashboard() {
   const [adminPayments, setAdminPayments] = useState<any[]>([]);
   const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
   const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [calendarProperty, setCalendarProperty] = useState<{ id: string; title: string } | null>(null);
   const [assignPlan, setAssignPlan] = useState<"standard" | "silver" | "gold">("silver");
   const [assignMonths, setAssignMonths] = useState(1);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -1378,6 +1380,15 @@ export default function Dashboard() {
                                 {p.isVerified && (
                                   <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
                                     {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                                  </Button>
+                                )}
+                                {p.isVerified && (
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                    onClick={() => setCalendarProperty({ id: p.id, title: p.title })}
+                                  >
+                                    <Calendar className="h-3 w-3" /> Calendar
                                   </Button>
                                 )}
                                 {!isFlagged && (
@@ -2776,6 +2787,27 @@ export default function Dashboard() {
                       Delete
                     </Button>
                   </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Property Calendar dialog */}
+              <Dialog open={!!calendarProperty} onOpenChange={(open) => { if (!open) setCalendarProperty(null); }}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      Availability Calendar
+                    </DialogTitle>
+                    {calendarProperty && (
+                      <p className="text-sm text-muted-foreground">{calendarProperty.title}</p>
+                    )}
+                  </DialogHeader>
+                  {calendarProperty && (
+                    <PropertyCalendar
+                      propertyId={calendarProperty.id}
+                      propertyTitle={calendarProperty.title}
+                    />
+                  )}
                 </DialogContent>
               </Dialog>
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { properties, users, bookings, insertPropertySchema } from "@workspace/db";
+import { properties, users, bookings, propertyBlocks, insertPropertySchema } from "@workspace/db";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
@@ -138,21 +138,122 @@ router.get("/:id/availability", async (req, res) => {
     return;
   }
 
-  const rows = await db
-    .select({
-      startDate: bookings.startDate,
-      endDate: bookings.endDate,
-      status: bookings.status,
-    })
-    .from(bookings)
+  const [bookingRows, blockRows] = await Promise.all([
+    db
+      .select({
+        startDate: bookings.startDate,
+        endDate: bookings.endDate,
+        status: bookings.status,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, req.params.id),
+          inArray(bookings.status, ["pending", "confirmed"])
+        )
+      ),
+    db
+      .select({
+        startDate: propertyBlocks.startDate,
+        endDate: propertyBlocks.endDate,
+      })
+      .from(propertyBlocks)
+      .where(eq(propertyBlocks.propertyId, req.params.id)),
+  ]);
+
+  const blocks = blockRows.map(b => ({ ...b, status: "blocked" as const }));
+  res.json([...bookingRows, ...blocks]);
+});
+
+router.get("/:id/blocks", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [prop] = await db
+    .select({ ownerId: properties.ownerId })
+    .from(properties)
+    .where(eq(properties.id, req.params.id));
+
+  if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (prop.ownerId !== userId && caller?.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const blocks = await db
+    .select()
+    .from(propertyBlocks)
+    .where(eq(propertyBlocks.propertyId, req.params.id))
+    .orderBy(propertyBlocks.startDate);
+
+  res.json(blocks);
+});
+
+router.post("/:id/blocks", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { startDate, endDate, reason } = req.body as {
+    startDate?: string;
+    endDate?: string;
+    reason?: string;
+  };
+
+  if (!startDate || !endDate || startDate > endDate) {
+    res.status(400).json({ error: "Valid startDate and endDate are required" });
+    return;
+  }
+
+  const [prop] = await db
+    .select({ ownerId: properties.ownerId })
+    .from(properties)
+    .where(eq(properties.id, req.params.id));
+
+  if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (prop.ownerId !== userId && caller?.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const [block] = await db
+    .insert(propertyBlocks)
+    .values({ propertyId: req.params.id, startDate, endDate, reason: reason ?? null })
+    .returning();
+
+  res.status(201).json(block);
+});
+
+router.delete("/:id/blocks/:blockId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [prop] = await db
+    .select({ ownerId: properties.ownerId })
+    .from(properties)
+    .where(eq(properties.id, req.params.id));
+
+  if (!prop) { res.status(404).json({ error: "Property not found" }); return; }
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (prop.ownerId !== userId && caller?.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  await db
+    .delete(propertyBlocks)
     .where(
       and(
-        eq(bookings.propertyId, req.params.id),
-        inArray(bookings.status, ["pending", "confirmed"])
+        eq(propertyBlocks.id, req.params.blockId),
+        eq(propertyBlocks.propertyId, req.params.id)
       )
     );
 
-  res.json(rows);
+  res.json({ success: true });
 });
 
 router.post("/", async (req, res) => {
