@@ -9,13 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
-function getHashParam(param: string): string | null {
-  const hash = window.location.hash;
-  const qIdx = hash.indexOf("?");
-  if (qIdx === -1) return null;
-  return new URLSearchParams(hash.slice(qIdx + 1)).get(param);
-}
-
 export function Navbar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
@@ -24,7 +17,17 @@ export function Navbar() {
   const [isRentExpanded, setIsRentExpanded] = useState(false);
   const [isBuyExpanded, setIsBuyExpanded] = useState(false);
 
-  const navType = getHashParam("type");
+  const [navHash, setNavHash] = useState(window.location.hash);
+  useEffect(() => {
+    const handler = () => setNavHash(window.location.hash);
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+
+  const navHashParts = navHash.split("?");
+  const navType = navHashParts.length > 1
+    ? new URLSearchParams(navHashParts[1]).get("type")
+    : null;
   
   
   return (

@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X, Map, LayoutList } from "lucide-react";
-import { useLocation } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/lib/language";
 import PropertyMap from "@/components/ui/PropertyMap";
@@ -26,22 +25,24 @@ const RENT_CATEGORIES = [
 const formatKES = (n: number) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 
+function getHashQueryParam(param: string): string | null {
+  const hashParts = window.location.hash.split("?");
+  if (hashParts.length > 1) return new URLSearchParams(hashParts[1]).get(param);
+  return null;
+}
+
 export default function Search() {
-  const [location] = useLocation();
+  // Track the full hash so query-param changes trigger re-renders even when
+  // the wouter path ("/search") stays the same.
+  const [hashQuery, setHashQuery] = useState(window.location.hash);
+  useEffect(() => {
+    const handler = () => setHashQuery(window.location.hash);
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
 
-  const getQueryParam = (param: string) => {
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.has(param)) return searchParams.get(param);
-    const hashParts = window.location.hash.split("?");
-    if (hashParts.length > 1) {
-      const hashParams = new URLSearchParams(hashParts[1]);
-      return hashParams.get(param);
-    }
-    return null;
-  };
-
-  const queryType   = getQueryParam("type")   || "rent";
-  const queryFilter = getQueryParam("filter") || null;
+  const queryType   = getHashQueryParam("type")   || "rent";
+  const queryFilter = getHashQueryParam("filter") || null;
   const { t } = useLanguage();
 
   const isRentPage = queryType.startsWith("rent");
