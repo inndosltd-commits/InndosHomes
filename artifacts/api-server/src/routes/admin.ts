@@ -597,7 +597,7 @@ router.get("/sms-settings", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const SMS_KEYS = ["sms_api_key", "sms_sender_id", "sms_provider", "sms_username"];
+  const SMS_KEYS = ["sms_api_key", "sms_sender_id", "sms_provider", "sms_username", "sms_password"];
   const rows = await db.select({ key: settings.key, value: settings.value }).from(settings)
     .where(inArray(settings.key, SMS_KEYS));
 
@@ -605,11 +605,11 @@ router.get("/sms-settings", async (req, res) => {
   for (const r of rows) map[r.key] = r.value;
 
   res.json({
-    apiKey:   map["sms_api_key"]   ? "****" + map["sms_api_key"].slice(-4) : "",
-    apiKeySet: !!map["sms_api_key"],
-    senderId: map["sms_sender_id"] ?? "CAPS",
-    provider: map["sms_provider"]  ?? "africastalking",
-    username: map["sms_username"]  ?? "",
+    senderId:    map["sms_sender_id"] ?? "",
+    provider:    map["sms_provider"]  ?? "airtouch",
+    username:    map["sms_username"]  ?? "",
+    passwordSet: !!map["sms_password"],
+    configured:  !!(map["sms_username"] && map["sms_password"]),
   });
 });
 
@@ -617,17 +617,17 @@ router.put("/sms-settings", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { apiKey, senderId, provider, username } = req.body as {
-    apiKey?: string; senderId?: string; provider?: string; username?: string;
+  const { senderId, username, password } = req.body as {
+    senderId?: string; username?: string; password?: string;
   };
 
   const updates: { key: string; value: string }[] = [];
   if (senderId !== undefined) updates.push({ key: "sms_sender_id", value: senderId });
-  if (provider  !== undefined) updates.push({ key: "sms_provider",  value: provider  });
-  if (username  !== undefined) updates.push({ key: "sms_username",  value: username  });
-  if (apiKey    !== undefined && !apiKey.includes("****")) {
-    updates.push({ key: "sms_api_key", value: apiKey });
+  if (username !== undefined) updates.push({ key: "sms_username",  value: username });
+  if (password !== undefined && password !== "") {
+    updates.push({ key: "sms_password", value: password });
   }
+  updates.push({ key: "sms_provider", value: "airtouch" });
 
   for (const u of updates) {
     await db.insert(settings).values({ key: u.key, value: u.value, updatedAt: new Date() })
@@ -635,6 +635,32 @@ router.put("/sms-settings", async (req, res) => {
   }
 
   res.json({ success: true });
+});
+
+router.post("/sms-test", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { phone } = req.body as { phone?: string };
+  if (!phone) {
+    res.status(400).json({ error: "phone is required" });
+    return;
+  }
+
+  const { sendSms, normalizePhone } = await import("../lib/sms");
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    res.status(400).json({ error: "Invalid phone number. Use format: 07XXXXXXXX or +254XXXXXXXXX" });
+    return;
+  }
+
+  try {
+    await sendSms(normalized, "INNDOS SMS test message. Your Airtouch integration is working correctly!");
+    res.json({ success: true, message: `Test SMS sent to ${normalized}` });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "SMS send failed";
+    res.status(502).json({ error: msg });
+  }
 });
 
 router.post("/settings/register-ipn", async (req, res) => {

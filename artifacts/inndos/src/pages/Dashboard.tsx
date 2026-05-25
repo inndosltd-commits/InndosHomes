@@ -136,10 +136,12 @@ export default function Dashboard() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ pesapalConsumerKey: "", pesapalConsumerSecret: "", pesapalMode: "live" });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [smsSettings, setSmsSettings] = useState<{ apiKey: string; apiKeySet: boolean; senderId: string; provider: string; username: string } | null>(null);
-  const [smsForm, setSmsForm] = useState({ apiKey: "", senderId: "CAPS", username: "inndos" });
+  const [smsSettings, setSmsSettings] = useState<{ senderId: string; provider: string; username: string; passwordSet: boolean; configured: boolean } | null>(null);
+  const [smsForm, setSmsForm] = useState({ senderId: "", username: "", password: "" });
   const [isLoadingSmsSettings, setIsLoadingSmsSettings] = useState(false);
   const [isSavingSmsSettings, setIsSavingSmsSettings] = useState(false);
+  const [smsTestPhone, setSmsTestPhone] = useState("");
+  const [isSendingTestSms, setIsSendingTestSms] = useState(false);
   const [isRegisteringIpn, setIsRegisteringIpn] = useState(false);
 
   const fetchAdminStats = useCallback(async () => {
@@ -427,7 +429,7 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setSmsSettings(data);
-        setSmsForm(f => ({ ...f, senderId: data.senderId ?? "CAPS", username: data.username ?? "inndos" }));
+        setSmsForm(f => ({ ...f, senderId: data.senderId ?? "", username: data.username ?? "" }));
       }
     } catch { /* non-critical */ } finally { setIsLoadingSmsSettings(false); }
   }, [user, token]);
@@ -3129,58 +3131,60 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-1">SMS Settings</h1>
-                  <p className="text-gray-500 text-sm">Configure Africa's Talking SMS integration for OTP and notifications</p>
+                  <p className="text-gray-500 text-sm">Configure Airtouch SMS integration for OTP verification and notifications</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchSmsSettings} disabled={isLoadingSmsSettings} className="gap-2">
                   <RefreshCw className={`h-4 w-4 ${isLoadingSmsSettings ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
               </div>
 
-              <Card className={`border-2 ${smsSettings?.apiKeySet ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
+              {/* Status banner */}
+              <Card className={`border-2 ${smsSettings?.configured ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
                 <CardContent className="py-4 px-6 flex items-center gap-3">
-                  <MessageSquare className={`h-6 w-6 ${smsSettings?.apiKeySet ? 'text-green-600' : 'text-yellow-600'}`} />
+                  <MessageSquare className={`h-6 w-6 ${smsSettings?.configured ? 'text-green-600' : 'text-yellow-600'}`} />
                   <div>
                     <div className="font-semibold text-gray-900">
-                      {smsSettings?.apiKeySet ? 'API key configured' : 'API key not set'}
+                      {smsSettings?.configured ? 'Airtouch SMS configured' : 'SMS not configured'}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Provider: {smsSettings?.provider ?? 'africastalking'} · Sender: {smsSettings?.senderId ?? 'CAPS'}
+                      Provider: Airtouch · Sender ID: {smsSettings?.senderId || '—'} · Username: {smsSettings?.username || '—'}
                     </div>
                   </div>
-                  <Badge className={`ml-auto ${smsSettings?.apiKeySet ? 'bg-green-100 text-green-800 border-green-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'} text-sm`}>
-                    {smsSettings?.apiKeySet ? '● Active' : '◌ Unconfigured'}
+                  <Badge className={`ml-auto ${smsSettings?.configured ? 'bg-green-100 text-green-800 border-green-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'} text-sm`}>
+                    {smsSettings?.configured ? '● Active' : '◌ Unconfigured'}
                   </Badge>
                 </CardContent>
               </Card>
 
+              {/* Credentials form */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-zinc-500" /> Africa's Talking Configuration
+                    <MessageSquare className="h-5 w-5 text-zinc-500" /> Airtouch Configuration
                   </CardTitle>
-                  <CardDescription>Update your SMS API credentials. Changes take effect immediately.</CardDescription>
+                  <CardDescription>Update your Airtouch SMS credentials. Changes take effect immediately.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold">API Key</label>
-                    <input
-                      type="password"
-                      value={smsForm.apiKey}
-                      onChange={e => setSmsForm(f => ({ ...f, apiKey: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder={smsSettings?.apiKeySet ? `Current: ${smsSettings.apiKey}` : "Enter Africa's Talking API key"}
-                    />
-                    <p className="text-xs text-gray-400">Leave blank to keep the existing key unchanged.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">AT Username</label>
+                    <label className="text-sm font-semibold">Username</label>
                     <input
                       type="text"
                       value={smsForm.username}
                       onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder="Africa's Talking account username"
+                      placeholder="Your Airtouch account username"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Password</label>
+                    <input
+                      type="password"
+                      value={smsForm.password}
+                      onChange={e => setSmsForm(f => ({ ...f, password: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                      placeholder={smsSettings?.passwordSet ? "Leave blank to keep current password" : "Enter your Airtouch password"}
+                    />
+                    {smsSettings?.passwordSet && <p className="text-xs text-gray-400">Password is set. Leave blank to keep it unchanged.</p>}
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold">Sender ID</label>
@@ -3189,9 +3193,9 @@ export default function Dashboard() {
                       value={smsForm.senderId}
                       onChange={e => setSmsForm(f => ({ ...f, senderId: e.target.value }))}
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder="e.g. CAPS"
+                      placeholder="e.g. WebExpert"
                     />
-                    <p className="text-xs text-gray-400">Alphanumeric sender ID registered with Africa's Talking.</p>
+                    <p className="text-xs text-gray-400">Alphanumeric sender ID registered with Airtouch.</p>
                   </div>
                   <Button
                     className="bg-zinc-900 hover:bg-zinc-800 text-white w-full sm:w-auto gap-2"
@@ -3202,19 +3206,64 @@ export default function Dashboard() {
                         const res = await fetch("/api/admin/sms-settings", {
                           method: "PUT",
                           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ apiKey: smsForm.apiKey || undefined, senderId: smsForm.senderId, username: smsForm.username }),
+                          body: JSON.stringify({ senderId: smsForm.senderId, username: smsForm.username, password: smsForm.password || undefined }),
                         });
                         if (!res.ok) throw new Error("Failed to save");
-                        toast({ title: "SMS settings saved", description: "Your SMS configuration has been updated." });
-                        setSmsForm(f => ({ ...f, apiKey: "" }));
+                        toast({ title: "SMS settings saved", description: "Your Airtouch configuration has been updated." });
+                        setSmsForm(f => ({ ...f, password: "" }));
                         fetchSmsSettings();
                       } catch {
                         toast({ title: "Save failed", description: "Could not update SMS settings.", variant: "destructive" });
                       } finally { setIsSavingSmsSettings(false); }
                     }}
                   >
-                    {isSavingSmsSettings ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Check className="h-4 w-4" /> Save SMS Settings</>}
+                    {isSavingSmsSettings ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Check className="h-4 w-4" /> Save Settings</>}
                   </Button>
+                </CardContent>
+              </Card>
+
+              {/* Test SMS */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-zinc-500" /> Send Test SMS
+                  </CardTitle>
+                  <CardDescription>Send a test message to verify your Airtouch integration is working.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Phone Number</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={smsTestPhone}
+                        onChange={e => setSmsTestPhone(e.target.value)}
+                        className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                        placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                      />
+                      <Button
+                        className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shrink-0"
+                        disabled={isSendingTestSms || !smsTestPhone.trim()}
+                        onClick={async () => {
+                          setIsSendingTestSms(true);
+                          try {
+                            const res = await fetch("/api/admin/sms-test", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ phone: smsTestPhone.trim() }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error((data as { error?: string }).error || "Send failed");
+                            toast({ title: "Test SMS sent!", description: (data as { message?: string }).message ?? `Message sent to ${smsTestPhone}` });
+                          } catch (err) {
+                            toast({ title: "Test failed", description: err instanceof Error ? err.message : "Could not send test SMS.", variant: "destructive" });
+                          } finally { setIsSendingTestSms(false); }
+                        }}
+                      >
+                        {isSendingTestSms ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : "Send Test"}
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
