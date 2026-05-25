@@ -14,7 +14,14 @@ export default function Home() {
   const [filteredProperties, setFilteredProperties] = useState<ApiProperty[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    const handler = (e: Event) => setIsNavMenuOpen((e as CustomEvent<boolean>).detail);
+    window.addEventListener("nav-menu-change", handler);
+    return () => window.removeEventListener("nav-menu-change", handler);
+  }, []);
 
   useEffect(() => {
     fetch("/api/properties")
@@ -38,7 +45,7 @@ export default function Home() {
       {/* Map Section */}
       <section className="relative h-[70vh] w-full bg-gray-100 border-t">
         {/* Floating Search Bar */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-xl pointer-events-none">
+        <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-xl pointer-events-none transition-opacity duration-150 ${isNavMenuOpen ? "opacity-0 pointer-events-none" : ""}`}>
           <div className="relative w-full pointer-events-auto">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full shadow-[0_0_0_2px_white,0_0_0_4px_black]"></div>
             <Input

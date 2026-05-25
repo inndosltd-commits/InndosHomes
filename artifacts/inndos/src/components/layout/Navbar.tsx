@@ -16,6 +16,11 @@ export function Navbar() {
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage, t } = useLanguage();
   const [navHash, setNavHash] = useState(window.location.hash);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("nav-menu-change", { detail: isMenuOpen }));
+  }, [isMenuOpen]);
   useEffect(() => {
     const handler = () => setNavHash(window.location.hash);
     window.addEventListener("hashchange", handler);
@@ -192,7 +197,7 @@ export function Navbar() {
               </Link>
             </div>
           )}
-          <Sheet>
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild>
               <Button 
                 variant="outline" 
