@@ -12,8 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const LOGIN_ROLES  = ["owner", "host", "admin"]          as const;
-const SIGNUP_ROLES = ["owner", "host", "tenant", "admin"] as const;
-type Role = typeof SIGNUP_ROLES[number];
+const SIGNUP_ROLES = ["owner", "host", "tenant"] as const;
+type Role = "owner" | "host" | "tenant" | "admin";
 
 const DEMO_CREDS: Record<typeof LOGIN_ROLES[number], { email: string; password: string }> = {
   owner: { email: "owner@inndos.com",  password: "owner123"  },
@@ -54,9 +54,8 @@ export default function Login() {
   const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
 
   useEffect(() => {
-    if (window.location.search.includes("signup=true") || window.location.hash.includes("signup=true")) {
-      setIsSignUp(true);
-    }
+    const isSignupUrl = window.location.search.includes("signup=true") || window.location.hash.includes("signup=true");
+    setIsSignUp(isSignupUrl);
   }, [location]);
 
   useEffect(() => { resetOtpState(); }, [isSignUp]);
@@ -315,7 +314,7 @@ export default function Login() {
               </form>
             ) : (
               <Tabs key={isSignUp ? "signup" : "login"} defaultValue="owner" className="w-full">
-                <TabsList className={`grid w-full mb-8 ${isSignUp ? "grid-cols-4" : "grid-cols-3"}`}>
+                <TabsList className={`grid w-full mb-8 ${isSignUp ? "grid-cols-3" : "grid-cols-3"}`}>
                   {(isSignUp ? SIGNUP_ROLES : LOGIN_ROLES).map((role) => (
                     <TabsTrigger key={role} value={role} className="text-xs px-1">
                       {role.charAt(0).toUpperCase() + role.slice(1)}
@@ -487,11 +486,6 @@ export default function Login() {
                               Forgot Password?
                             </Button>
                           </div>
-                          {DEMO_CREDS[role as typeof LOGIN_ROLES[number]] && (
-                            <div className="text-center text-xs text-muted-foreground mt-4 bg-gray-100 p-2 rounded">
-                              <span className="font-semibold">Demo Creds:</span> {DEMO_CREDS[role as typeof LOGIN_ROLES[number]].email} / {DEMO_CREDS[role as typeof LOGIN_ROLES[number]].password}
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
