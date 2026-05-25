@@ -3,7 +3,7 @@ import { settings } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { logger } from "./logger";
 
-const SMS_KEYS = ["sms_api_key", "sms_sender_id", "sms_provider", "sms_username"] as const;
+const SMS_KEYS = ["sms_api_key", "sms_sender_id", "sms_provider", "sms_username", "sms_password"] as const;
 
 async function getSmsSettings() {
   const rows = await db
@@ -16,9 +16,10 @@ async function getSmsSettings() {
 
   return {
     apiKey:   map["sms_api_key"]   ?? "",
-    senderId: map["sms_sender_id"] ?? "CAPS",
+    senderId: map["sms_sender_id"] ?? "INNDOS",
     provider: map["sms_provider"]  ?? "africastalking",
     username: map["sms_username"]  ?? "",
+    password: map["sms_password"]  ?? "",
   };
 }
 
@@ -32,13 +33,46 @@ export function normalizePhone(raw: string): string | null {
 }
 
 export async function sendSms(to: string, message: string): Promise<void> {
-  const { apiKey, senderId, provider, username } = await getSmsSettings();
+  const { apiKey, senderId, provider, username, password } = await getSmsSettings();
 
-  if (!apiKey) {
-    throw new Error("SMS API key is not configured. Please set it in admin settings.");
+  if (provider === "airtouch") {
+    if (!username || !password) {
+      throw new Error("Airtouch SMS credentials (username/password) are not configured.");
+    }
+
+    // Airtouch expects the number without the leading +, e.g. 254712345678
+    const msisdn = to.replace(/^\+/, "");
+
+    const url = new URL("https://client.airtouch.co.ke:9012/sms/api/");
+    url.searchParams.set("issn",     senderId);
+    url.searchParams.set("msisdn",   msisdn);
+    url.searchParams.set("text",     message);
+    url.searchParams.set("username", username);
+    url.searchParams.set("password", password);
+
+    const res = await fetch(url.toString());
+    const text = await res.text().catch(() => "");
+
+    if (!res.ok) {
+      throw new Error(`Airtouch SMS error ${res.status}: ${text}`);
+    }
+
+    // Airtouch returns a plain-text response — treat anything non-empty as success
+    // unless it contains a known failure keyword
+    const lower = text.toLowerCase();
+    if (lower.includes("error") || lower.includes("invalid") || lower.includes("fail")) {
+      throw new Error(`Airtouch SMS rejected: ${text}`);
+    }
+
+    logger.info({ to, provider: "airtouch", response: text }, "SMS sent");
+    return;
   }
 
   if (provider === "africastalking") {
+    if (!apiKey) {
+      throw new Error("SMS API key is not configured. Please set it in admin settings.");
+    }
+
     const body = new URLSearchParams({ username: username || "inndos", to, message, from: senderId });
 
     const res = await fetch("https://api.africastalking.com/version1/messaging", {
@@ -66,7 +100,8 @@ export async function sendSms(to: string, message: string): Promise<void> {
     }
 
     logger.info({ to, provider }, "SMS sent");
-  } else {
-    throw new Error(`Unsupported SMS provider: ${provider}`);
+    return;
   }
+
+  throw new Error(`Unsupported SMS provider: ${provider}`);
 }
