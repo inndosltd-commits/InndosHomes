@@ -28,6 +28,8 @@ export const users = pgTable("users", {
   joinDate: text("join_date").notNull().default(sql`NOW()::date::text`),
   avatar: text("avatar"),
   phone: text("phone"),
+  phoneVerified: boolean("phone_verified").notNull().default(false),
+  idDocument: text("id_document"),
 });
 
 export const properties = pgTable("properties", {

@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe } from "lucide-react";
 import { useLocation, Link } from "wouter";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/auth";
+import { useAuth, type User } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,171 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+function ProfileCard({ user, token, refreshUser }: { user: User; token: string | null; refreshUser: () => Promise<void> }) {
+  const { toast } = useToast();
+  const [profileName, setProfileName] = useState(user.name);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingId, setIsUploadingId] = useState(false);
+  const [idFileName, setIdFileName] = useState<string | null>(user.idDocument ? "Document on file" : null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const idInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadFile = async (file: File): Promise<string> => {
+    const urlRes = await fetch("/api/storage/uploads/request-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+    });
+    if (!urlRes.ok) throw new Error("Failed to get upload URL");
+    const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+    const putRes = await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+    if (!putRes.ok) throw new Error("Failed to upload file");
+    return objectPath as string;
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const objectPath = await uploadFile(file);
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avatar: objectPath }),
+      });
+      if (!res.ok) throw new Error("Failed to save avatar");
+      await refreshUser();
+      toast({ title: "Profile picture updated" });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally { setIsUploadingAvatar(false); e.target.value = ""; }
+  };
+
+  const handleIdChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast({ title: "File too large", description: "Maximum 10 MB.", variant: "destructive" }); return; }
+    setIsUploadingId(true);
+    try {
+      const objectPath = await uploadFile(file);
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ idDocument: objectPath }),
+      });
+      if (!res.ok) throw new Error("Failed to save document");
+      setIdFileName(file.name);
+      await refreshUser();
+      toast({ title: "ID document uploaded" });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally { setIsUploadingId(false); e.target.value = ""; }
+  };
+
+  const avatarSrc = user.avatar?.startsWith("/objects/")
+    ? `/api/storage${user.avatar}`
+    : user.avatar ?? null;
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="border-b bg-gray-50/50 rounded-t-xl pb-4">
+        <div className="flex items-center gap-2">
+          <UserCircle className="w-5 h-5 text-gray-500" />
+          <CardTitle className="text-lg">Personal Information</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-8 pt-6">
+        {/* Profile Picture */}
+        <div className="flex flex-col gap-2">
+          <Label>Profile Picture (Strictly face photo)</Label>
+          <div className="flex items-center gap-4">
+            <div className="h-24 w-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden shrink-0">
+              {avatarSrc
+                ? <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
+                : <UserCircle className="h-12 w-12 text-gray-400" />}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Button variant="outline" size="sm" className="gap-2" disabled={isUploadingAvatar}
+                onClick={() => avatarInputRef.current?.click()}>
+                {isUploadingAvatar
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                  : <><UploadCloud className="h-4 w-4" /> Upload Picture</>}
+              </Button>
+              <p className="text-xs text-muted-foreground">JPG or PNG, max 5MB</p>
+            </div>
+            <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="profile-name">Full Name</Label>
+            <Input id="profile-name" value={profileName} onChange={e => setProfileName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="profile-email">Email Address</Label>
+            <Input id="profile-email" defaultValue={user.email} readOnly className="bg-gray-50 cursor-not-allowed" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="profile-phone">Phone Number</Label>
+            <div className="relative">
+              <Input id="profile-phone" value={user.phone ?? ""} readOnly className="bg-gray-50 cursor-not-allowed pr-32" />
+              {user.phoneVerified && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                  <Check className="h-3 w-3" /> Verified
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Verified during registration. Contact support to change.</p>
+          </div>
+        </div>
+
+        {/* Document Upload */}
+        <div className="space-y-2">
+          <Label>National ID or Passport</Label>
+          <p className="text-xs text-muted-foreground mb-2">Upload a clear copy of your National ID or Passport for verification.</p>
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer flex flex-col items-center justify-center
+              ${idFileName ? "border-green-300 bg-green-50/50" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
+            onClick={() => !isUploadingId && idInputRef.current?.click()}
+          >
+            {isUploadingId
+              ? <><Loader2 className="h-8 w-8 text-gray-400 mb-3 animate-spin" /><p className="text-sm font-medium text-gray-700">Uploading…</p></>
+              : idFileName
+                ? <><Check className="h-8 w-8 text-green-500 mb-3" /><p className="text-sm font-medium text-green-700">{idFileName}</p><p className="text-xs text-muted-foreground mt-1">Click to replace</p></>
+                : <><UploadCloud className="h-8 w-8 text-gray-400 mb-3" /><p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p><p className="text-xs text-muted-foreground mt-1">PDF, JPG or PNG (max. 10MB)</p></>}
+          </div>
+          <input ref={idInputRef} type="file" accept="image/jpeg,image/png,application/pdf" className="hidden" onChange={handleIdChange} />
+        </div>
+
+        <Button
+          className="w-full md:w-auto"
+          disabled={isSavingProfile}
+          onClick={async () => {
+            setIsSavingProfile(true);
+            try {
+              const res = await fetch("/api/auth/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ name: profileName }),
+              });
+              if (!res.ok) throw new Error("Save failed");
+              await refreshUser();
+              toast({ title: "Profile updated", description: "Your details have been saved." });
+            } catch {
+              toast({ title: "Save failed", variant: "destructive" });
+            } finally { setIsSavingProfile(false); }
+          }}
+        >
+          {isSavingProfile ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save Changes"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 function resolvePropertyImageUrl(path: string | null | undefined): string {
   if (!path) return "/images/modern_apartment_exterior.png";
@@ -24,7 +189,7 @@ function resolvePropertyImageUrl(path: string | null | undefined): string {
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { user, token, isLoading, logout } = useAuth();
+  const { user, token, isLoading, logout, refreshUser } = useAuth();
   const { toast } = useToast();
 
   // --- REAL-TIME STATE ---
@@ -2173,58 +2338,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <Card className="border-none shadow-sm">
-              <CardHeader className="border-b bg-gray-50/50 rounded-t-xl pb-4">
-                <div className="flex items-center gap-2">
-                  <UserCircle className="w-5 h-5 text-gray-500" />
-                  <CardTitle className="text-lg">Personal Information</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-8 pt-6">
-                {/* Profile Picture */}
-
-                {/* Profile Picture */}
-                <div className="flex flex-col gap-2">
-                  <Label>Profile Picture (Strictly face passport)</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="h-24 w-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                      <UserCircle className="h-12 w-12 text-gray-400" />
-                    </div>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <UploadCloud className="h-4 w-4" /> Upload Picture
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" defaultValue={user.name} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" defaultValue={user.email} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone No</Label>
-                    <Input id="phone" placeholder="+254 700 000000" />
-                  </div>
-                </div>
-
-                {/* Document Upload */}
-                <div className="space-y-2">
-                  <Label>National ID or Passport</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Please upload a clean, clear copy of your National ID or Passport for verification.</p>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center bg-gray-50/50">
-                    <UploadCloud className="h-8 w-8 text-gray-400 mb-3" />
-                    <p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p>
-                    <p className="text-xs text-muted-foreground mt-1">PDF, JPG or PNG (max. 10MB)</p>
-                  </div>
-                </div>
-
-                <Button className="w-full md:w-auto" onClick={() => toast({ title: "Profile Updated", description: "Your profile details have been saved." })}>Save Changes</Button>
-              </CardContent>
-            </Card>
+            <ProfileCard user={user} token={token} refreshUser={refreshUser} />
 
             <Card>
               <CardHeader className="bg-gray-50/50 border-b pb-4 mb-4">

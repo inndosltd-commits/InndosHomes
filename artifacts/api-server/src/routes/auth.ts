@@ -142,7 +142,7 @@ router.post("/signup", async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
   const [user] = await db
     .insert(users)
-    .values({ name, email, password: hashed, role: allowedRole, phone: verifiedPhone })
+    .values({ name, email, password: hashed, role: allowedRole, phone: verifiedPhone, phoneVerified: true })
     .returning();
 
   const token = signToken(user.id);
@@ -195,6 +195,27 @@ router.get("/me", async (req, res) => {
   }
 
   const { password: _pw, ...safeUser } = user;
+  res.json(safeUser);
+});
+
+router.patch("/profile", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const payload = verifyToken(authHeader.slice(7));
+  if (!payload) { res.status(401).json({ error: "Invalid or expired token" }); return; }
+
+  const { name, avatar, idDocument } = req.body as { name?: string; avatar?: string; idDocument?: string };
+  const updates: Partial<{ name: string; avatar: string; idDocument: string }> = {};
+  if (typeof name === "string" && name.trim()) updates.name = name.trim();
+  if (typeof avatar === "string") updates.avatar = avatar;
+  if (typeof idDocument === "string") updates.idDocument = idDocument;
+
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
+
+  const [updated] = await db.update(users).set(updates).where(eq(users.id, payload.userId)).returning();
+  if (!updated) { res.status(404).json({ error: "User not found" }); return; }
+
+  const { password: _pw, ...safeUser } = updated;
   res.json(safeUser);
 });
 

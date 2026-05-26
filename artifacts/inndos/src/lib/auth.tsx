@@ -11,6 +11,9 @@ export interface User {
   status: "active" | "pending" | "suspended";
   joinDate: string;
   avatar?: string | null;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  idDocument?: string | null;
 }
 
 interface AuthContextType {
@@ -19,6 +22,7 @@ interface AuthContextType {
   login: (email: string, password: string, preexistingToken?: string) => Promise<void>;
   signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -122,6 +126,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLocation("/dashboard");
   };
 
+  const refreshUser = async () => {
+    const t = token ?? localStorage.getItem("inndos_token");
+    if (!t) return;
+    try {
+      const res = await apiFetch("/auth/me", undefined, t);
+      if (res.ok) setUser(await res.json());
+    } catch { /* non-critical */ }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -130,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading, error }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, refreshUser, isLoading, error }}>
       {children}
     </AuthContext.Provider>
   );
