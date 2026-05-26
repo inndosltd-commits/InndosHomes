@@ -2522,15 +2522,37 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="text-gray-600">Profile completion:</span>
-                  <span className="text-[#2E5C8A]">78%</span>
-                </div>
-                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-zinc-900 rounded-full" style={{ width: '78%' }}></div>
-                </div>
-              </div>
+              {(() => {
+                const steps = [
+                  { label: "Name",       done: !!user.name },
+                  { label: "Email",      done: !!user.email },
+                  { label: "Phone",      done: !!user.phone },
+                  { label: "Photo",      done: !!user.avatar },
+                  { label: "ID front",   done: !!user.idFront },
+                  { label: "ID back",    done: !!user.idBack },
+                ];
+                const pct = Math.round((steps.filter(s => s.done).length / steps.length) * 100);
+                const missing = steps.filter(s => !s.done).map(s => s.label);
+                return (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-gray-600">Profile completion:</span>
+                      <span className={pct === 100 ? "text-green-600" : "text-[#2E5C8A]"}>{pct}%</span>
+                    </div>
+                    <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${pct === 100 ? "bg-green-500" : "bg-zinc-900"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    {pct < 100 && missing.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Missing: {missing.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <ProfileCard user={user} token={token} refreshUser={refreshUser} />
