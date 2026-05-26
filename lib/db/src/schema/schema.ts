@@ -30,6 +30,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   phoneVerified: boolean("phone_verified").notNull().default(false),
   idDocument: text("id_document"),
+  idFront: text("id_front"),
+  idBack: text("id_back"),
 });
 
 export const properties = pgTable("properties", {

@@ -151,6 +151,11 @@ router.get("/users", async (req, res) => {
       status: users.status,
       joinDate: users.joinDate,
       avatar: users.avatar,
+      phone: users.phone,
+      phoneVerified: users.phoneVerified,
+      idDocument: users.idDocument,
+      idFront: users.idFront,
+      idBack: users.idBack,
     })
     .from(users)
     .orderBy(asc(users.joinDate));

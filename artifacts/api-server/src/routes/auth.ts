@@ -204,11 +204,13 @@ router.patch("/profile", async (req, res) => {
   const payload = verifyToken(authHeader.slice(7));
   if (!payload) { res.status(401).json({ error: "Invalid or expired token" }); return; }
 
-  const { name, avatar, idDocument } = req.body as { name?: string; avatar?: string; idDocument?: string };
-  const updates: Partial<{ name: string; avatar: string; idDocument: string }> = {};
+  const { name, avatar, idDocument, idFront, idBack } = req.body as { name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string };
+  const updates: Partial<{ name: string; avatar: string; idDocument: string; idFront: string; idBack: string }> = {};
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
   if (typeof avatar === "string") updates.avatar = avatar;
   if (typeof idDocument === "string") updates.idDocument = idDocument;
+  if (typeof idFront === "string") updates.idFront = idFront;
+  if (typeof idBack === "string") updates.idBack = idBack;
 
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
 

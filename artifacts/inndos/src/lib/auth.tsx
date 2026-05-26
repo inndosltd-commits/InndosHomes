@@ -14,6 +14,8 @@ export interface User {
   phone?: string | null;
   phoneVerified?: boolean;
   idDocument?: string | null;
+  idFront?: string | null;
+  idBack?: string | null;
 }
 
 interface AuthContextType {

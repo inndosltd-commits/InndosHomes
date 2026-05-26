@@ -15,15 +15,63 @@ import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function IdSideUpload({
+  label, hint, currentPath, isUploading, inputRef, onChange
+}: {
+  label: string; hint: string; currentPath: string | null | undefined;
+  isUploading: boolean; inputRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const imgSrc = currentPath?.startsWith("/objects/") ? `/api/storage${currentPath}` : currentPath ?? null;
+  return (
+    <div className="flex flex-col gap-2 flex-1 min-w-0">
+      <span className="text-sm font-medium">{label}</span>
+      <div
+        className={`border-2 border-dashed rounded-xl overflow-hidden transition-colors cursor-pointer
+          ${imgSrc ? "border-green-300 bg-green-50/30" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
+        style={{ minHeight: 160 }}
+        onClick={() => !isUploading && inputRef.current?.click()}
+      >
+        {isUploading ? (
+          <div className="flex flex-col items-center justify-center h-40 gap-2">
+            <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+            <p className="text-sm text-gray-500">Uploading…</p>
+          </div>
+        ) : imgSrc ? (
+          <div className="relative group">
+            <img src={imgSrc} alt={label} className="w-full object-cover rounded-xl" style={{ maxHeight: 200 }} />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+              <span className="text-white text-xs font-medium">Click to replace</span>
+            </div>
+            <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5">
+              <Check className="h-2.5 w-2.5" /> Uploaded
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
+            <UploadCloud className="h-8 w-8 text-gray-300" />
+            <p className="text-sm font-medium text-gray-600">{hint}</p>
+            <p className="text-xs text-muted-foreground">JPG or PNG (max. 10MB)</p>
+          </div>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={onChange} />
+    </div>
+  );
+}
+
 function ProfileCard({ user, token, refreshUser }: { user: User; token: string | null; refreshUser: () => Promise<void> }) {
   const { toast } = useToast();
   const [profileName, setProfileName] = useState(user.name);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [isUploadingId, setIsUploadingId] = useState(false);
-  const [idFileName, setIdFileName] = useState<string | null>(user.idDocument ? "Document on file" : null);
+  const [isUploadingIdFront, setIsUploadingIdFront] = useState(false);
+  const [isUploadingIdBack, setIsUploadingIdBack] = useState(false);
+  const [idFrontPath, setIdFrontPath] = useState<string | null>(user.idFront ?? null);
+  const [idBackPath, setIdBackPath] = useState<string | null>(user.idBack ?? null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const idInputRef = useRef<HTMLInputElement>(null);
+  const idFrontInputRef = useRef<HTMLInputElement>(null);
+  const idBackInputRef = useRef<HTMLInputElement>(null);
 
   const uploadFile = async (file: File): Promise<string> => {
     const urlRes = await fetch("/api/storage/uploads/request-url", {
@@ -57,25 +105,30 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
     } finally { setIsUploadingAvatar(false); e.target.value = ""; }
   };
 
-  const handleIdChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const makeIdHandler = (
+    side: "idFront" | "idBack",
+    setUploading: (v: boolean) => void,
+    setPath: (v: string) => void,
+    inputEl: React.RefObject<HTMLInputElement | null>
+  ) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { toast({ title: "File too large", description: "Maximum 10 MB.", variant: "destructive" }); return; }
-    setIsUploadingId(true);
+    setUploading(true);
     try {
       const objectPath = await uploadFile(file);
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ idDocument: objectPath }),
+        body: JSON.stringify({ [side]: objectPath }),
       });
       if (!res.ok) throw new Error("Failed to save document");
-      setIdFileName(file.name);
+      setPath(objectPath);
       await refreshUser();
-      toast({ title: "ID document uploaded" });
+      toast({ title: side === "idFront" ? "ID front uploaded" : "ID back uploaded" });
     } catch (err) {
       toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
-    } finally { setIsUploadingId(false); e.target.value = ""; }
+    } finally { setUploading(false); if (inputEl.current) inputEl.current.value = ""; }
   };
 
   const avatarSrc = user.avatar?.startsWith("/objects/")
@@ -136,22 +189,47 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           </div>
         </div>
 
-        {/* Document Upload */}
-        <div className="space-y-2">
-          <Label>National ID or Passport</Label>
-          <p className="text-xs text-muted-foreground mb-2">Upload a clear copy of your National ID or Passport for verification.</p>
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer flex flex-col items-center justify-center
-              ${idFileName ? "border-green-300 bg-green-50/50" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
-            onClick={() => !isUploadingId && idInputRef.current?.click()}
-          >
-            {isUploadingId
-              ? <><Loader2 className="h-8 w-8 text-gray-400 mb-3 animate-spin" /><p className="text-sm font-medium text-gray-700">Uploading…</p></>
-              : idFileName
-                ? <><Check className="h-8 w-8 text-green-500 mb-3" /><p className="text-sm font-medium text-green-700">{idFileName}</p><p className="text-xs text-muted-foreground mt-1">Click to replace</p></>
-                : <><UploadCloud className="h-8 w-8 text-gray-400 mb-3" /><p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p><p className="text-xs text-muted-foreground mt-1">PDF, JPG or PNG (max. 10MB)</p></>}
+        {/* ID Document Upload — Front & Back */}
+        <div className="space-y-3">
+          <div>
+            <Label>National ID or Passport</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Upload clear photos of <span className="font-semibold text-gray-700">both sides</span> of your National ID or Passport for identity verification.
+            </p>
           </div>
-          <input ref={idInputRef} type="file" accept="image/jpeg,image/png,application/pdf" className="hidden" onChange={handleIdChange} />
+          <div className="flex gap-4 flex-col sm:flex-row">
+            <IdSideUpload
+              label="Front Side"
+              hint="Upload the front of your ID / Passport"
+              currentPath={idFrontPath}
+              isUploading={isUploadingIdFront}
+              inputRef={idFrontInputRef}
+              onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIdFrontPath, idFrontInputRef)}
+            />
+            <IdSideUpload
+              label="Back Side"
+              hint="Upload the back of your ID / Passport"
+              currentPath={idBackPath}
+              isUploading={isUploadingIdBack}
+              inputRef={idBackInputRef}
+              onChange={makeIdHandler("idBack", setIsUploadingIdBack, setIdBackPath, idBackInputRef)}
+            />
+          </div>
+          {(idFrontPath && idBackPath) && (
+            <p className="text-xs text-green-700 flex items-center gap-1">
+              <Check className="h-3 w-3" /> Both sides uploaded — your identity is pending review.
+            </p>
+          )}
+          {(idFrontPath && !idBackPath) && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              ⚠ Please also upload the <span className="font-semibold">back side</span> to complete verification.
+            </p>
+          )}
+          {(!idFrontPath && idBackPath) && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              ⚠ Please also upload the <span className="font-semibold">front side</span> to complete verification.
+            </p>
+          )}
         </div>
 
         <Button
@@ -202,6 +280,7 @@ export default function Dashboard() {
   const [totalProperties, setTotalProperties] = useState(0);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
@@ -2215,6 +2294,107 @@ export default function Dashboard() {
           {/* ADMIN USERS TAB */}
           {user.role === 'admin' && (
             <TabsContent value="users" className="space-y-6">
+              {/* User Profile Detail Dialog */}
+              <Dialog open={!!selectedProfileUser} onOpenChange={(open) => { if (!open) setSelectedProfileUser(null); }}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <UserCircle className="h-5 w-5" /> User Profile
+                    </DialogTitle>
+                  </DialogHeader>
+                  {selectedProfileUser && (() => {
+                    const pu = selectedProfileUser;
+                    const puAvatar = pu.avatar?.startsWith("/objects/") ? `/api/storage${pu.avatar}` : pu.avatar ?? null;
+                    const puIdFront = pu.idFront?.startsWith("/objects/") ? `/api/storage${pu.idFront}` : pu.idFront ?? null;
+                    const puIdBack = pu.idBack?.startsWith("/objects/") ? `/api/storage${pu.idBack}` : pu.idBack ?? null;
+                    const puInitials = pu.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                    const statusColor =
+                      pu.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                      pu.status === 'suspended' ? 'bg-red-50 text-red-700 border-red-200' :
+                      'bg-amber-50 text-amber-700 border-amber-200';
+                    return (
+                      <div className="space-y-5 pt-2">
+                        {/* Avatar + Basic Info */}
+                        <div className="flex items-center gap-4">
+                          <div className="h-16 w-16 rounded-full bg-zinc-800 flex items-center justify-center text-white font-semibold text-lg shrink-0 overflow-hidden">
+                            {puAvatar
+                              ? <img src={puAvatar} alt={pu.name} className="h-full w-full object-cover" />
+                              : puInitials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base">{pu.name}</p>
+                            <p className="text-sm text-muted-foreground truncate">{pu.email}</p>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              <Badge variant="secondary" className="text-[10px] px-1.5 h-4 capitalize">{pu.role}</Badge>
+                              <Badge variant="outline" className={`text-[10px] px-1.5 h-4 capitalize ${statusColor}`}>{pu.status}</Badge>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Details grid */}
+                        <div className="grid grid-cols-2 gap-3 text-sm border rounded-lg p-3 bg-gray-50">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="font-medium mt-0.5 flex items-center gap-1">
+                              {pu.phone || <span className="text-muted-foreground italic">Not set</span>}
+                              {pu.phone && pu.phoneVerified && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-green-600 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">
+                                  <Check className="h-2.5 w-2.5" /> Verified
+                                </span>
+                              )}
+                              {pu.phone && !pu.phoneVerified && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
+                                  Unverified
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Joined</p>
+                            <p className="font-medium mt-0.5">
+                              {pu.joinDate ? new Date(pu.joinDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* ID Documents */}
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-gray-500" /> Identity Documents
+                          </p>
+                          {!puIdFront && !puIdBack ? (
+                            <div className="text-center py-6 border rounded-lg bg-gray-50 text-muted-foreground text-sm">
+                              No ID documents uploaded yet
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-600">Front Side</p>
+                                {puIdFront
+                                  ? <img src={puIdFront} alt="ID Front" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
+                                  : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-600">Back Side</p>
+                                {puIdBack
+                                  ? <img src={puIdBack} alt="ID Back" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
+                                  : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                              </div>
+                            </div>
+                          )}
+                          {(puIdFront || puIdBack) && !(puIdFront && puIdBack) && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">⚠ Only one side uploaded — verification incomplete</p>
+                          )}
+                          {puIdFront && puIdBack && (
+                            <p className="text-xs text-green-600 flex items-center gap-1"><Check className="h-3 w-3" /> Both sides submitted</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
+
               {/* Pending users alert banner */}
               {pendingUsers.length > 0 && (
                 <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -2254,17 +2434,24 @@ export default function Dashboard() {
                           'bg-amber-50 text-amber-700 border-amber-200';
                         const isBusy = !!userActionLoading[u.id];
                         const isSelf = u.id === user.id;
+                        const avatarSrc = u.avatar?.startsWith("/objects/") ? `/api/storage${u.avatar}` : u.avatar ?? null;
+                        const hasId = u.idFront || u.idBack;
                         return (
                           <div key={u.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
-                            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold text-sm shrink-0">
-                              {u.avatar
-                                ? <img src={u.avatar} alt={u.name} className="h-full w-full object-cover rounded-full" />
+                            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold text-sm shrink-0 overflow-hidden">
+                              {avatarSrc
+                                ? <img src={avatarSrc} alt={u.name} className="h-full w-full object-cover rounded-full" />
                                 : initials}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-semibold text-sm truncate">{u.name}</span>
                                 {isSelf && <Badge variant="outline" className="text-[10px] px-1.5 h-4">You</Badge>}
+                                {hasId && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5">
+                                    <ShieldCheck className="h-2.5 w-2.5" /> ID on file
+                                  </span>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                               <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -2277,7 +2464,15 @@ export default function Dashboard() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex gap-2 shrink-0">
+                            <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1"
+                                onClick={() => setSelectedProfileUser(u)}
+                              >
+                                <Eye className="h-3 w-3" /> View Profile
+                              </Button>
                               {!isSelf && u.status !== 'suspended' ? (
                                 <Button
                                   size="sm"
