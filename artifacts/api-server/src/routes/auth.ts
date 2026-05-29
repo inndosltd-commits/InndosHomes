@@ -128,10 +128,10 @@ router.post("/signup", async (req, res) => {
     return;
   }
 
-  const SELF_SIGNUP_ROLES = ["tenant", "guest"] as const;
+  const SELF_SIGNUP_ROLES = ["owner", "host", "tenant", "guest"] as const;
   type SelfSignupRole = typeof SELF_SIGNUP_ROLES[number];
   const allowedRole: SelfSignupRole =
-    role === "tenant" || role === "guest" ? role : "tenant";
+    SELF_SIGNUP_ROLES.includes(role as SelfSignupRole) ? (role as SelfSignupRole) : "tenant";
 
   const existing = await db.select().from(users).where(eq(users.email, email));
   if (existing.length > 0) {
