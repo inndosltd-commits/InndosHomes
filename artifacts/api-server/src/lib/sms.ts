@@ -42,13 +42,15 @@ export async function sendSms(to: string, message: string): Promise<void> {
 
     // Airtouch expects the number without the leading +, e.g. 254712345678
     const msisdn = to.replace(/^\+/, "");
+    const atUser = username.trim();
+    const atPass = password.trim();
 
     const url = new URL("https://client.airtouch.co.ke:9012/sms/api/");
-    url.searchParams.set("issn",     senderId);
+    url.searchParams.set("issn",     senderId.trim());
     url.searchParams.set("msisdn",   msisdn);
     url.searchParams.set("text",     message);
-    url.searchParams.set("username", username);
-    url.searchParams.set("password", password);
+    url.searchParams.set("username", atUser);
+    url.searchParams.set("password", atPass);
 
     const res = await fetch(url.toString());
     const text = await res.text().catch(() => "");
