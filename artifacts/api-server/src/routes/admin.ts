@@ -609,12 +609,17 @@ router.get("/sms-settings", async (req, res) => {
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
 
+  const provider = map["sms_provider"] ?? "airtouch";
+  const configuredAirtouch = !!(map["sms_username"] && map["sms_password"]);
+  const configuredAt = !!(map["sms_api_key"]);
+
   res.json({
     senderId:    map["sms_sender_id"] ?? "",
-    provider:    map["sms_provider"]  ?? "airtouch",
+    provider,
     username:    map["sms_username"]  ?? "",
     passwordSet: !!map["sms_password"],
-    configured:  !!(map["sms_username"] && map["sms_password"]),
+    apiKeySet:   !!map["sms_api_key"],
+    configured:  provider === "africastalking" ? configuredAt : configuredAirtouch,
   });
 });
 
@@ -622,17 +627,17 @@ router.put("/sms-settings", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { senderId, username, password } = req.body as {
+  const { senderId, username, password, provider, apiKey } = req.body as {
     senderId?: string; username?: string; password?: string;
+    provider?: string; apiKey?: string;
   };
 
   const updates: { key: string; value: string }[] = [];
-  if (senderId !== undefined) updates.push({ key: "sms_sender_id", value: senderId });
-  if (username !== undefined) updates.push({ key: "sms_username",  value: username });
-  if (password !== undefined && password !== "") {
-    updates.push({ key: "sms_password", value: password });
-  }
-  updates.push({ key: "sms_provider", value: "airtouch" });
+  if (senderId  !== undefined) updates.push({ key: "sms_sender_id", value: senderId });
+  if (username  !== undefined) updates.push({ key: "sms_username",  value: username });
+  if (password  !== undefined && password  !== "") updates.push({ key: "sms_password", value: password });
+  if (apiKey    !== undefined && apiKey    !== "") updates.push({ key: "sms_api_key",  value: apiKey });
+  if (provider  !== undefined) updates.push({ key: "sms_provider",  value: provider });
 
   for (const u of updates) {
     await db.insert(settings).values({ key: u.key, value: u.value, updatedAt: new Date() })

@@ -380,8 +380,8 @@ export default function Dashboard() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ pesapalConsumerKey: "", pesapalConsumerSecret: "", pesapalMode: "live" });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [smsSettings, setSmsSettings] = useState<{ senderId: string; provider: string; username: string; passwordSet: boolean; configured: boolean } | null>(null);
-  const [smsForm, setSmsForm] = useState({ senderId: "", username: "", password: "" });
+  const [smsSettings, setSmsSettings] = useState<{ senderId: string; provider: string; username: string; passwordSet: boolean; apiKeySet: boolean; configured: boolean } | null>(null);
+  const [smsForm, setSmsForm] = useState({ provider: "airtouch", senderId: "", username: "", password: "", apiKey: "" });
   const [isLoadingSmsSettings, setIsLoadingSmsSettings] = useState(false);
   const [isSavingSmsSettings, setIsSavingSmsSettings] = useState(false);
   const [smsTestPhone, setSmsTestPhone] = useState("");
@@ -673,7 +673,7 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setSmsSettings(data);
-        setSmsForm(f => ({ ...f, senderId: data.senderId ?? "", username: data.username ?? "" }));
+        setSmsForm(f => ({ ...f, provider: data.provider ?? "airtouch", senderId: data.senderId ?? "", username: data.username ?? "" }));
       }
     } catch { /* non-critical */ } finally { setIsLoadingSmsSettings(false); }
   }, [user, token]);
@@ -3462,7 +3462,7 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-1">SMS Settings</h1>
-                  <p className="text-gray-500 text-sm">Configure Airtouch SMS integration for OTP verification and notifications</p>
+                  <p className="text-gray-500 text-sm">Configure your SMS provider for OTP verification and notifications</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchSmsSettings} disabled={isLoadingSmsSettings} className="gap-2">
                   <RefreshCw className={`h-4 w-4 ${isLoadingSmsSettings ? 'animate-spin' : ''}`} /> Refresh
@@ -3475,10 +3475,14 @@ export default function Dashboard() {
                   <MessageSquare className={`h-6 w-6 ${smsSettings?.configured ? 'text-green-600' : 'text-yellow-600'}`} />
                   <div>
                     <div className="font-semibold text-gray-900">
-                      {smsSettings?.configured ? 'Airtouch SMS configured' : 'SMS not configured'}
+                      {smsSettings?.configured
+                        ? `${smsSettings.provider === 'africastalking' ? "Africa's Talking" : "Airtouch"} SMS configured`
+                        : 'SMS not configured'}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Provider: Airtouch · Sender ID: {smsSettings?.senderId || '—'} · Username: {smsSettings?.username || '—'}
+                      Provider: {smsSettings?.provider === 'africastalking' ? "Africa's Talking" : "Airtouch"}
+                      {' · '}Sender ID: {smsSettings?.senderId || '—'}
+                      {smsSettings?.provider !== 'africastalking' && ` · Username: ${smsSettings?.username || '—'}`}
                     </div>
                   </div>
                   <Badge className={`ml-auto ${smsSettings?.configured ? 'bg-green-100 text-green-800 border-green-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'} text-sm`}>
@@ -3487,61 +3491,138 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Credentials form */}
+              {/* Configuration form */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-zinc-500" /> Airtouch Configuration
+                    <MessageSquare className="h-5 w-5 text-zinc-500" /> SMS Configuration
                   </CardTitle>
-                  <CardDescription>Update your Airtouch SMS credentials. Changes take effect immediately.</CardDescription>
+                  <CardDescription>Select your SMS provider and enter credentials. Changes take effect immediately.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
+
+                  {/* Provider selector */}
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold">Username</label>
-                    <input
-                      type="text"
-                      value={smsForm.username}
-                      onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder="Your Airtouch account username"
-                    />
+                    <label className="text-sm font-semibold">Provider</label>
+                    <div className="flex gap-3">
+                      {[
+                        { value: "airtouch",      label: "Airtouch",          hint: "Username + Password" },
+                        { value: "africastalking", label: "Africa's Talking",  hint: "API Key" },
+                      ].map(p => (
+                        <button
+                          key={p.value}
+                          type="button"
+                          onClick={() => setSmsForm(f => ({ ...f, provider: p.value }))}
+                          className={`flex-1 border-2 rounded-lg px-4 py-3 text-left transition-all
+                            ${smsForm.provider === p.value
+                              ? 'border-zinc-900 bg-zinc-50'
+                              : 'border-gray-200 hover:border-gray-300'}`}
+                        >
+                          <p className="text-sm font-semibold">{p.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{p.hint}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Sender ID — always shown */}
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold">Password</label>
-                    <input
-                      type="password"
-                      value={smsForm.password}
-                      onChange={e => setSmsForm(f => ({ ...f, password: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder={smsSettings?.passwordSet ? "Leave blank to keep current password" : "Enter your Airtouch password"}
-                    />
-                    {smsSettings?.passwordSet && <p className="text-xs text-gray-400">Password is set. Leave blank to keep it unchanged.</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Sender ID</label>
+                    <label className="text-sm font-semibold">Sender Name / ID</label>
                     <input
                       type="text"
                       value={smsForm.senderId}
                       onChange={e => setSmsForm(f => ({ ...f, senderId: e.target.value }))}
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                      placeholder="e.g. WebExpert"
+                      placeholder="e.g. inndos"
                     />
-                    <p className="text-xs text-gray-400">Alphanumeric sender ID registered with Airtouch.</p>
+                    <p className="text-xs text-gray-400">
+                      {smsForm.provider === 'africastalking'
+                        ? "Alphanumeric sender ID registered with Africa's Talking (or leave blank to use default shortcode)."
+                        : "Alphanumeric sender ID registered with Airtouch."}
+                    </p>
                   </div>
+
+                  {/* Africa's Talking fields */}
+                  {smsForm.provider === 'africastalking' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">API Key</label>
+                        <input
+                          type="password"
+                          value={smsForm.apiKey}
+                          onChange={e => setSmsForm(f => ({ ...f, apiKey: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                          placeholder={smsSettings?.apiKeySet ? "Leave blank to keep current API key" : "Enter your Africa's Talking API key"}
+                        />
+                        {smsSettings?.apiKeySet && <p className="text-xs text-gray-400">API key is set. Leave blank to keep it unchanged.</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">Username</label>
+                        <input
+                          type="text"
+                          value={smsForm.username}
+                          onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                          placeholder="Your Africa's Talking username (e.g. inndos)"
+                        />
+                        <p className="text-xs text-gray-400">Your registered Africa's Talking account username.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Airtouch fields */}
+                  {smsForm.provider === 'airtouch' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">Username</label>
+                        <input
+                          type="text"
+                          value={smsForm.username}
+                          onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                          placeholder="Your Airtouch account username"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">Password</label>
+                        <input
+                          type="password"
+                          value={smsForm.password}
+                          onChange={e => setSmsForm(f => ({ ...f, password: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                          placeholder={smsSettings?.passwordSet ? "Leave blank to keep current password" : "Enter your Airtouch password"}
+                        />
+                        {smsSettings?.passwordSet && <p className="text-xs text-gray-400">Password is set. Leave blank to keep it unchanged.</p>}
+                      </div>
+                    </div>
+                  )}
+
                   <Button
                     className="bg-zinc-900 hover:bg-zinc-800 text-white w-full sm:w-auto gap-2"
                     disabled={isSavingSmsSettings}
                     onClick={async () => {
                       setIsSavingSmsSettings(true);
                       try {
+                        const body: Record<string, string | undefined> = {
+                          provider: smsForm.provider,
+                          senderId: smsForm.senderId,
+                        };
+                        if (smsForm.provider === 'airtouch') {
+                          body.username = smsForm.username;
+                          if (smsForm.password) body.password = smsForm.password;
+                        } else {
+                          body.username = smsForm.username;
+                          if (smsForm.apiKey) body.apiKey = smsForm.apiKey;
+                        }
                         const res = await fetch("/api/admin/sms-settings", {
                           method: "PUT",
                           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ senderId: smsForm.senderId, username: smsForm.username, password: smsForm.password || undefined }),
+                          body: JSON.stringify(body),
                         });
                         if (!res.ok) throw new Error("Failed to save");
-                        toast({ title: "SMS settings saved", description: "Your Airtouch configuration has been updated." });
-                        setSmsForm(f => ({ ...f, password: "" }));
+                        const providerLabel = smsForm.provider === 'africastalking' ? "Africa's Talking" : "Airtouch";
+                        toast({ title: "SMS settings saved", description: `${providerLabel} configuration updated.` });
+                        setSmsForm(f => ({ ...f, password: "", apiKey: "" }));
                         fetchSmsSettings();
                       } catch {
                         toast({ title: "Save failed", description: "Could not update SMS settings.", variant: "destructive" });
@@ -3559,7 +3640,7 @@ export default function Dashboard() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-zinc-500" /> Send Test SMS
                   </CardTitle>
-                  <CardDescription>Send a test message to verify your Airtouch integration is working.</CardDescription>
+                  <CardDescription>Send a test message to verify your SMS integration is working.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
