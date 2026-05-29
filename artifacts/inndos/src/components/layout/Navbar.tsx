@@ -211,7 +211,9 @@ export function Navbar() {
             <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0 flex flex-col bg-white">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-                <img src="/logo.png" alt="INNDOS" className="h-8 w-auto object-contain" />
+                <Link href="/" onClick={() => setIsMenuOpen(false)}>
+                  <img src="/logo.png" alt="INNDOS" className="h-8 w-auto object-contain cursor-pointer" />
+                </Link>
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                 <div className="h-px bg-gray-100 my-2" />
