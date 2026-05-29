@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -68,8 +69,34 @@ function Router() {
   );
 }
 
+class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; message: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, message: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, message: error?.message || "Unknown error" };
+  }
+  componentDidCatch(_error: Error, _info: ErrorInfo) {}
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: "2rem", background: "#fff" }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.5rem" }}>Something went wrong</h1>
+          <p style={{ color: "#666", marginBottom: "1.5rem", maxWidth: 400, textAlign: "center" }}>{this.state.message}</p>
+          <button onClick={() => { this.setState({ hasError: false, message: "" }); window.location.hash = "/"; }} style={{ padding: "0.5rem 1.5rem", background: "#000", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: "1rem" }}>
+            Go Home
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
+    <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <CurrencyProvider>
@@ -88,6 +115,7 @@ function App() {
         </CurrencyProvider>
       </LanguageProvider>
     </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }
 

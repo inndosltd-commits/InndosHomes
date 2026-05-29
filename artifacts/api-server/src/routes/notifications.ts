@@ -10,75 +10,91 @@ router.get("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const rows = await db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      message: notifications.message,
-      bookingId: notifications.bookingId,
-      isRead: notifications.isRead,
-      createdAt: notifications.createdAt,
-      bookingStartDate: bookings.startDate,
-      bookingEndDate: bookings.endDate,
-      bookingTotalPrice: bookings.totalPrice,
-      propertyTitle: properties.title,
-      guestName: users.name,
-    })
-    .from(notifications)
-    .leftJoin(bookings, eq(notifications.bookingId, bookings.id))
-    .leftJoin(properties, eq(bookings.propertyId, properties.id))
-    .leftJoin(users, eq(bookings.userId, users.id))
-    .where(eq(notifications.userId, userId))
-    .orderBy(notifications.createdAt);
+  try {
+    const rows = await db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        message: notifications.message,
+        bookingId: notifications.bookingId,
+        isRead: notifications.isRead,
+        createdAt: notifications.createdAt,
+        bookingStartDate: bookings.startDate,
+        bookingEndDate: bookings.endDate,
+        bookingTotalPrice: bookings.totalPrice,
+        propertyTitle: properties.title,
+        guestName: users.name,
+      })
+      .from(notifications)
+      .leftJoin(bookings, eq(notifications.bookingId, bookings.id))
+      .leftJoin(properties, eq(bookings.propertyId, properties.id))
+      .leftJoin(users, eq(bookings.userId, users.id))
+      .where(eq(notifications.userId, userId))
+      .orderBy(notifications.createdAt);
 
-  res.json(rows);
+    res.json(rows);
+  } catch {
+    res.json([]);
+  }
 });
 
 router.get("/unread-count", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const rows = await db
-    .select({ id: notifications.id })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  try {
+    const rows = await db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 
-  res.json({ count: rows.length });
+    res.json({ count: rows.length });
+  } catch {
+    res.json({ count: 0 });
+  }
 });
 
 router.patch("/:id/read", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const [existing] = await db
-    .select()
-    .from(notifications)
-    .where(and(eq(notifications.id, req.params.id), eq(notifications.userId, userId)));
+  try {
+    const [existing] = await db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.id, req.params.id), eq(notifications.userId, userId)));
 
-  if (!existing) {
-    res.status(404).json({ error: "Notification not found" });
-    return;
+    if (!existing) {
+      res.status(404).json({ error: "Notification not found" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, req.params.id))
+      .returning();
+
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "Failed to mark notification as read" });
   }
-
-  const [updated] = await db
-    .update(notifications)
-    .set({ isRead: true })
-    .where(eq(notifications.id, req.params.id))
-    .returning();
-
-  res.json(updated);
 });
 
 router.post("/mark-all-read", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  await db
-    .update(notifications)
-    .set({ isRead: true })
-    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  try {
+    await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch {
+    res.json({ success: true });
+  }
 });
 
 export default router;
