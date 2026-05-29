@@ -1718,7 +1718,7 @@ export default function Dashboard() {
                           <Home className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                           <h3 className="text-lg font-medium text-gray-900">No properties listed</h3>
                           <p className="mb-4">Get started by adding your first property.</p>
-                          <Link href={user.role === 'host' ? "/add-bnb" : "/add-listing"}>
+                          <Link href="/add-listing">
                             <Button>Add Listing</Button>
                           </Link>
                         </div>

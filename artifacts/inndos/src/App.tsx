@@ -15,7 +15,6 @@ import Contact from "@/pages/Contact";
 import Legal from "@/pages/Legal";
 import Pricing from "@/pages/Pricing";
 import AddListing from "@/pages/AddListing";
-import AddBNB from "@/pages/AddBNB";
 import BNB from "@/pages/BNB";
 import Terms from "@/pages/Terms";
 import AdminAnalytics from "@/pages/AdminAnalytics";
@@ -57,7 +56,7 @@ function Router() {
       <Route path="/contact" component={Contact}/>
       <Route path="/pricing" component={Pricing}/>
       <Route path="/add-listing" component={AddListing}/>
-      <Route path="/add-bnb" component={AddBNB}/>
+      <Route path="/add-bnb">{() => { window.location.hash = "/add-listing"; return null; }}</Route>
       <Route path="/bnb" component={BNB}/>
       <Route path="/terms" component={Terms}/>
       <Route path="/privacy" component={Legal}/>
