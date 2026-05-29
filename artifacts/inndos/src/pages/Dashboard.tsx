@@ -3580,8 +3580,9 @@ export default function Dashboard() {
                           value={smsForm.username}
                           onChange={e => setSmsForm(f => ({ ...f, username: e.target.value }))}
                           className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
-                          placeholder="Your Airtouch account username"
+                          placeholder="Parent account username (e.g. webexpert)"
                         />
+                        <p className="text-xs text-amber-600 font-medium">⚠ Use the parent/master account credentials, not your sub-account username.</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-semibold">Password</label>
