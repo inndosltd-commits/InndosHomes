@@ -79,7 +79,6 @@ export default function BNB() {
                         : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50"}
                     `}
                   >
-                    <span className="text-base leading-none">{cat.icon}</span>
                     {cat.label}
                   </button>
                 );
