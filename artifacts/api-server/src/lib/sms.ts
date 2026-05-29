@@ -73,12 +73,17 @@ export async function sendSms(to: string, message: string): Promise<void> {
       throw new Error("SMS API key is not configured. Please set it in admin settings.");
     }
 
-    const body = new URLSearchParams({ username: username || "inndos", to, message, from: senderId });
+    const atUsername = (username || "inndos").trim().toLowerCase();
+    const params: Record<string, string> = { username: atUsername, to, message };
+    if (senderId) params.from = senderId;
+    const body = new URLSearchParams(params);
+
+    logger.info({ to, username: atUsername, senderId, apiKeyPrefix: apiKey.slice(0, 4) + "***" }, "Sending AT SMS");
 
     const res = await fetch("https://api.africastalking.com/version1/messaging", {
       method: "POST",
       headers: {
-        "apiKey": apiKey,
+        "apiKey": apiKey.trim(),
         "Accept": "application/json",
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -87,6 +92,7 @@ export async function sendSms(to: string, message: string): Promise<void> {
 
     const text = await res.text().catch(() => "");
     if (!res.ok) {
+      logger.error({ status: res.status, body: text, username: atUsername }, "Africa's Talking SMS failed");
       throw new Error(`SMS API error ${res.status}: ${text}`);
     }
 
