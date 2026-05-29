@@ -284,6 +284,7 @@ export default function Dashboard() {
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
@@ -1086,8 +1087,6 @@ export default function Dashboard() {
       return p;
     }));
   };
-
-  const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
 
   const handleBookingStatusUpdate = async (bookingId: string, status: "confirmed" | "cancelled") => {
     if (!token) return;
