@@ -1097,7 +1097,7 @@ export default function Dashboard() {
     <Tabs value={activeTab} onValueChange={handleTabChange} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => { window.location.hash = "/"; }}>
           <img src="/logo.png" alt="inndos" className="h-8 w-auto brightness-0 invert" />
         </div>
         <div className="flex items-center gap-2">
