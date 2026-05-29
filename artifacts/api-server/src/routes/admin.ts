@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans } from "@workspace/db";
+import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans, notifications, favorites } from "@workspace/db";
 import { eq, count, sum, ne, asc, desc, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
@@ -192,6 +192,48 @@ router.patch("/users/:id/status", async (req, res) => {
   }
 
   res.json(updated);
+});
+
+router.delete("/users/:id", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const targetId = req.params.id;
+
+  if (targetId === adminId) {
+    res.status(400).json({ error: "You cannot delete your own account" });
+    return;
+  }
+
+  const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, targetId));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (target.role === "admin") {
+    res.status(400).json({ error: "Cannot delete another admin account" });
+    return;
+  }
+
+  // Cascade: notifications → favorites → bookings on user's properties → user's properties → bookings by user → subscriptions → user
+  const userProperties = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, targetId));
+  const propIds = userProperties.map(p => p.id);
+
+  if (propIds.length > 0) {
+    await db.delete(notifications).where(inArray(notifications.bookingId,
+      db.select({ id: bookings.id }).from(bookings).where(inArray(bookings.propertyId, propIds)) as unknown as string[]
+    )).catch(() => {});
+    await db.delete(bookings).where(inArray(bookings.propertyId, propIds));
+    await db.delete(properties).where(inArray(properties.id, propIds));
+  }
+
+  try { await db.delete(notifications).where(eq(notifications.userId, targetId)); } catch { /* table may not exist */ }
+  try { await db.delete(favorites).where(eq(favorites.userId, targetId)); } catch { /* table may not exist */ }
+  await db.delete(bookings).where(eq(bookings.userId, targetId));
+  await db.delete(subscriptions).where(eq(subscriptions.userId, targetId));
+  await db.delete(users).where(eq(users.id, targetId));
+
+  res.json({ success: true });
 });
 
 router.patch("/properties/:id", async (req, res) => {

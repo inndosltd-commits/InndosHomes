@@ -282,6 +282,8 @@ export default function Dashboard() {
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
@@ -1019,6 +1021,29 @@ export default function Dashboard() {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
     } finally {
       setUserActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!token || !deleteUserId) return;
+    setIsDeletingUser(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteUserId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Delete failed", description: (data as { error?: string }).error || "Could not delete user.", variant: "destructive" });
+        return;
+      }
+      setAdminUsers(prev => prev.filter(u => u.id !== deleteUserId));
+      toast({ title: "User deleted", description: "The user and all their data have been permanently removed." });
+      setDeleteUserId(null);
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -2496,6 +2521,17 @@ export default function Dashboard() {
                                   Reactivate
                                 </Button>
                               )}
+                              {!isSelf && u.role !== 'admin' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-700 hover:text-red-800 hover:bg-red-50 border-red-300"
+                                  disabled={isBusy}
+                                  onClick={() => setDeleteUserId(u.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" /> Delete
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -2506,6 +2542,41 @@ export default function Dashboard() {
               </Card>
             </TabsContent>
           )}
+
+          {/* Delete User Confirmation Dialog */}
+          <Dialog open={!!deleteUserId} onOpenChange={open => { if (!open) setDeleteUserId(null); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-700">
+                  <Trash2 className="h-5 w-5" /> Permanently Delete User
+                </DialogTitle>
+              </DialogHeader>
+              <div className="py-2 text-sm text-muted-foreground space-y-2">
+                <p>This will <span className="font-semibold text-gray-900">permanently delete</span> this user along with all their:</p>
+                <ul className="list-disc list-inside space-y-0.5 text-xs pl-1">
+                  <li>Properties and listings</li>
+                  <li>Bookings and reservations</li>
+                  <li>Subscriptions</li>
+                  <li>Notifications and saved properties</li>
+                </ul>
+                <p className="text-red-600 font-medium pt-1">This action cannot be undone.</p>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setDeleteUserId(null)} disabled={isDeletingUser}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteUser}
+                  disabled={isDeletingUser}
+                  className="gap-1"
+                >
+                  {isDeletingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Delete Permanently
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* SETTINGS TAB (Shared) */}
           <TabsContent value="settings" className="space-y-6">
