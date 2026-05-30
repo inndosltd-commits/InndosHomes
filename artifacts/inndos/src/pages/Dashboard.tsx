@@ -1654,60 +1654,58 @@ export default function Dashboard() {
                         const isPending = !p.isVerified && !isFlagged;
                         return (
                         <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
-                          <div className="flex items-start gap-4">
-                            <img src={p.image} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
+                          <div className="flex items-start gap-3">
+                            <img src={p.image} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
                             <div className="flex-1 min-w-0">
                               {p.isVerified ? (
                                 <Link href={`/property/${p.id}`}>
-                                  <h4 className="font-semibold text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
+                                  <h4 className="font-semibold text-base sm:text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
                                 </Link>
                               ) : (
-                                <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
+                                <h4 className="font-semibold text-base sm:text-lg truncate text-gray-700">{p.title}</h4>
                               )}
                               <p className="text-sm text-muted-foreground truncate">{p.address}</p>
-                              <div className="flex gap-2 mt-2 flex-wrap">
+                              <div className="flex gap-2 mt-1.5 flex-wrap">
                                 {isFlagged ? (
-                                  <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">Flagged — Action Required</Badge>
+                                  <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 text-xs">Flagged</Badge>
                                 ) : isPending ? (
-                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pending Approval</Badge>
+                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">Pending</Badge>
                                 ) : p.isVerified ? (
-                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Verified & Live</Badge>
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">Verified & Live</Badge>
                                 ) : null}
-                                <Badge variant="secondary">{p.type}</Badge>
+                                <Badge variant="secondary" className="text-xs">{p.type}</Badge>
                               </div>
+                              <div className="font-bold text-base sm:text-xl text-primary mt-1.5">KES {p.price.toLocaleString()}</div>
                             </div>
-                            <div className="text-right flex flex-col items-end gap-2 shrink-0">
-                              <div className="font-bold text-xl text-primary">KES {p.price.toLocaleString()}</div>
-                              <div className="flex gap-2 flex-wrap justify-end">
-                                {isFlagged && (
-                                  <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleOwnerResubmit(p.id)}>
-                                    <ArrowUpRight className="h-3 w-3" /> Resubmit
-                                  </Button>
-                                )}
-                                {p.isVerified && (
-                                  <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
-                                    {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
-                                  </Button>
-                                )}
-                                {p.isVerified && (
-                                  <Button
-                                    size="sm" variant="outline"
-                                    className="gap-1 text-primary border-primary/30 hover:bg-primary/5"
-                                    onClick={() => setCalendarProperty({ id: p.id, title: p.title })}
-                                  >
-                                    <Calendar className="h-3 w-3" /> Calendar
-                                  </Button>
-                                )}
-                                {!isFlagged && (
-                                  <Link href={`/add-listing?edit=${p.id}`}>
-                                    <Button size="sm" variant="outline">Edit</Button>
-                                  </Link>
-                                )}
-                                <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleDeleteProperty(p.id)}>
-                                  <Trash2 className="h-3 w-3" /> Delete
-                                </Button>
-                              </div>
-                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            {isFlagged && (
+                              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleOwnerResubmit(p.id)}>
+                                <ArrowUpRight className="h-3 w-3" /> Resubmit
+                              </Button>
+                            )}
+                            {p.isVerified && (
+                              <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
+                                {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                              </Button>
+                            )}
+                            {p.isVerified && (
+                              <Button
+                                size="sm" variant="outline"
+                                className="gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                onClick={() => setCalendarProperty({ id: p.id, title: p.title })}
+                              >
+                                <Calendar className="h-3 w-3" /> Calendar
+                              </Button>
+                            )}
+                            {!isFlagged && (
+                              <Link href={`/add-listing?edit=${p.id}`}>
+                                <Button size="sm" variant="outline">Edit</Button>
+                              </Link>
+                            )}
+                            <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleDeleteProperty(p.id)}>
+                              <Trash2 className="h-3 w-3" /> Delete
+                            </Button>
                           </div>
                           {isFlagged && p.adminComment && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">

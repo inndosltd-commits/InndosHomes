@@ -226,40 +226,48 @@ export default function AddListing() {
       .finally(() => setIsLoadingProperty(false));
   }, [editId, token]);
 
-  const handleCameraClick = () => {
-    if (cameraInputRef.current) {
-      cameraInputRef.current.click();
-      toast({
-        title: "Camera Access",
-        description: "On mobile devices, this opens the camera. On desktop, it opens the file browser.",
-      });
-    }
-  };
-
-  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    e.target.value = "";
-
-    const fileArray = Array.from(files);
-    setUploadingCount(prev => prev + fileArray.length);
-
+  const uploadImageFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    setUploadingCount(prev => prev + files.length);
     const results = await Promise.all(
-      fileArray.map(async (file) => {
+      files.map(async (file) => {
         const result = await uploadFile(file);
         return result?.objectPath ?? null;
       })
     );
-
     const uploaded = (results as (string | null)[]).filter((p): p is string => p !== null);
-    if (uploaded.length < fileArray.length) {
+    if (uploaded.length < files.length) {
       toast({ title: "Some uploads failed", description: "One or more photos could not be uploaded.", variant: "destructive" });
     }
     if (uploaded.length > 0) {
       setImages(prev => [...prev, ...uploaded]);
     }
-    setUploadingCount(prev => prev - fileArray.length);
+    setUploadingCount(prev => prev - files.length);
   }, [uploadFile, toast]);
+
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    e.target.value = "";
+    await uploadImageFiles(Array.from(files));
+  }, [uploadImageFiles]);
+
+  const handleUploadZoneDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    await uploadImageFiles(files);
+  }, [uploadImageFiles]);
+
+  const moveImage = useCallback((from: number, direction: -1 | 1) => {
+    const to = from + direction;
+    setImages(prev => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  }, []);
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -784,53 +792,57 @@ export default function AddListing() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-4 mb-4">
-                    <div 
-                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
-                      onClick={() => fileInputRef.current?.click()}
+                    <label
+                      htmlFor="photo-upload"
+                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={handleUploadZoneDrop}
                     >
                       <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                         <Upload className="h-5 w-5" />
                       </div>
                       <h3 className="font-semibold text-sm">Upload Photos</h3>
-                      <p className="text-xs text-muted-foreground">Browse files</p>
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        className="hidden" 
+                      <p className="text-xs text-muted-foreground">Tap to browse or drag files here</p>
+                      <input
+                        id="photo-upload"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
                         ref={fileInputRef}
                         onChange={handleImageUpload}
                       />
-                    </div>
+                    </label>
 
-                    <div 
-                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
-                      onClick={handleCameraClick}
+                    <label
+                      htmlFor="camera-upload"
+                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
                     >
                       <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
                         <Camera className="h-5 w-5" />
                       </div>
                       <h3 className="font-semibold text-sm">Take Photo</h3>
-                      <p className="text-xs text-muted-foreground">Use camera</p>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
+                      <p className="text-xs text-muted-foreground">Open camera</p>
+                      <input
+                        id="camera-upload"
+                        type="file"
+                        accept="image/*"
                         capture="environment"
-                        className="hidden" 
+                        className="hidden"
                         ref={cameraInputRef}
                         onChange={handleImageUpload}
                       />
-                    </div>
+                    </label>
                   </div>
                   
                   {(images.length > 0 || uploadingCount > 0) ? (
                     <>
                       {images.length > 1 && (
                         <p className="text-xs text-muted-foreground mb-2 mt-4 flex items-center gap-1">
-                          <GripVertical className="h-3 w-3" /> Drag photos to reorder. The first photo is the cover image.
+                          <GripVertical className="h-3 w-3" /> Drag to reorder on desktop · use arrows on mobile. First photo is the cover.
                         </p>
                       )}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
                       {images.map((img, i) => (
                         <div
                           key={img}
@@ -842,19 +854,36 @@ export default function AddListing() {
                           className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden group cursor-grab active:cursor-grabbing transition-all ${dragOverIndex === i && dragSrcRef.current !== i ? "ring-2 ring-primary scale-105" : ""}`}
                         >
                           <img src={getImageDisplayUrl(img)} alt={`Photo ${i + 1}`} className="w-full h-full object-cover pointer-events-none" />
-                          {i === 0 ? (
+                          {i === 0 && (
                             <span className="absolute bottom-1 left-1 bg-primary text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">Cover</span>
-                          ) : null}
-                          <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded p-0.5">
-                            <GripVertical className="h-3 w-3 text-white" />
-                          </div>
-                          <button 
+                          )}
+                          <button
                             type="button"
                             onClick={() => removeImage(i)}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-md"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           </button>
+                          {images.length > 1 && (
+                            <div className="absolute bottom-1 right-1 flex gap-0.5">
+                              {i > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(i, -1)}
+                                  className="bg-black/60 text-white rounded px-1 py-0.5 text-[10px] font-bold leading-none hover:bg-black/80"
+                                  title="Move left"
+                                >←</button>
+                              )}
+                              {i < images.length - 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(i, 1)}
+                                  className="bg-black/60 text-white rounded px-1 py-0.5 text-[10px] font-bold leading-none hover:bg-black/80"
+                                  title="Move right"
+                                >→</button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {Array.from({ length: uploadingCount }).map((_, i) => (
@@ -866,7 +895,7 @@ export default function AddListing() {
                     </div>
                     </>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 opacity-50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 opacity-50">
                       {[1, 2, 3, 4].map(i => (
                         <div key={i} className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
                           <ImageIcon className="h-6 w-6" />
