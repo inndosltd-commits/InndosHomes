@@ -248,8 +248,9 @@ export default function AddListing() {
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
     e.target.value = "";
-    await uploadImageFiles(Array.from(files));
+    await uploadImageFiles(fileArray);
   }, [uploadImageFiles]);
 
   const handleUploadZoneDrop = useCallback(async (e: React.DragEvent) => {
@@ -279,9 +280,9 @@ export default function AddListing() {
 
   const handleVideoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    e.target.value = "";
     if (!files || files.length === 0) return;
     const fileArray = Array.from(files);
+    e.target.value = "";
 
     const remaining = videoLimit - videos.length;
     if (remaining <= 0) {
@@ -313,7 +314,9 @@ export default function AddListing() {
     if (validFiles.length === 0) return;
     setUploadingVideoCount(prev => prev + validFiles.length);
     const results = await Promise.all(validFiles.map(f => uploadFile(f).catch(() => null)));
-    const uploaded = (results as (string | null)[]).filter((p): p is string => p !== null);
+    const uploaded = results
+      .map(r => (r && typeof r === "object" && "objectPath" in r ? r.objectPath : null))
+      .filter((p): p is string => p !== null);
     if (uploaded.length < validFiles.length) {
       toast({ title: "Some uploads failed", description: "One or more videos could not be uploaded.", variant: "destructive" });
     }
@@ -792,47 +795,43 @@ export default function AddListing() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-4 mb-4">
-                    <label
-                      htmlFor="photo-upload"
-                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                    <div
+                      className="relative flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
                       onDragOver={e => e.preventDefault()}
                       onDrop={handleUploadZoneDrop}
                     >
-                      <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                      <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary pointer-events-none">
                         <Upload className="h-5 w-5" />
                       </div>
-                      <h3 className="font-semibold text-sm">Upload Photos</h3>
-                      <p className="text-xs text-muted-foreground">Tap to browse or drag files here</p>
+                      <h3 className="font-semibold text-sm pointer-events-none">Upload Photos</h3>
+                      <p className="text-xs text-muted-foreground pointer-events-none">Tap to browse or drag files here</p>
                       <input
-                        id="photo-upload"
                         type="file"
                         multiple
                         accept="image/*"
-                        className="hidden"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         ref={fileInputRef}
                         onChange={handleImageUpload}
                       />
-                    </label>
+                    </div>
 
-                    <label
-                      htmlFor="camera-upload"
-                      className="flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
+                    <div
+                      className="relative flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
                     >
-                      <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+                      <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 pointer-events-none">
                         <Camera className="h-5 w-5" />
                       </div>
-                      <h3 className="font-semibold text-sm">Take Photo</h3>
-                      <p className="text-xs text-muted-foreground">Open camera</p>
+                      <h3 className="font-semibold text-sm pointer-events-none">Take Photo</h3>
+                      <p className="text-xs text-muted-foreground pointer-events-none">Open camera</p>
                       <input
-                        id="camera-upload"
                         type="file"
                         accept="image/*"
                         capture="environment"
-                        className="hidden"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         ref={cameraInputRef}
                         onChange={handleImageUpload}
                       />
-                    </label>
+                    </div>
                   </div>
                   
                   {(images.length > 0 || uploadingCount > 0) ? (
@@ -933,18 +932,17 @@ export default function AddListing() {
                     <>
                       {videos.length < videoLimit && (
                         <div
-                          className={`border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${uploadingVideoCount > 0 ? "opacity-50 pointer-events-none" : ""}`}
-                          onClick={() => videoInputRef.current?.click()}
+                          className={`relative border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 ${uploadingVideoCount > 0 ? "opacity-50 pointer-events-none" : ""}`}
                         >
-                          <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                          <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary pointer-events-none">
                             <Video className="h-5 w-5" />
                           </div>
-                          <h3 className="font-semibold text-sm">Upload Video</h3>
-                          <p className="text-xs text-muted-foreground">{videos.length}/{videoLimit} used · max 30 seconds</p>
+                          <h3 className="font-semibold text-sm pointer-events-none">Upload Video</h3>
+                          <p className="text-xs text-muted-foreground pointer-events-none">{videos.length}/{videoLimit} used · max 30 seconds</p>
                           <input
                             type="file"
                             accept="video/*"
-                            className="hidden"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             ref={videoInputRef}
                             onChange={handleVideoUpload}
                           />
