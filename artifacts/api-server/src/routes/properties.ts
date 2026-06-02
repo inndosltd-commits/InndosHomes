@@ -330,7 +330,10 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  if (prop.ownerId !== userId) {
+  const [callerUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  const isCallerAdmin = callerUser?.role === "admin";
+
+  if (prop.ownerId !== userId && !isCallerAdmin) {
     res.status(403).json({ error: "Not your property" });
     return;
   }
@@ -341,8 +344,7 @@ router.patch("/:id", async (req, res) => {
   const videoList: string[] | undefined = Array.isArray(body.videos) ? body.videos : undefined;
 
   if (videoList !== undefined) {
-    const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
-    if (caller?.role !== "admin") {
+    if (!isCallerAdmin) {
       const sub = await getActiveSubscription(userId);
       const plan = sub?.plan ?? "standard";
       const videoLimit = getVideoLimit(plan);

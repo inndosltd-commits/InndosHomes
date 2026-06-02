@@ -60,6 +60,12 @@ function IdSideUpload({
   );
 }
 
+function getImageUrl(path: string | null | undefined): string {
+  if (!path) return "/images/modern_apartment_exterior.png";
+  if (path.startsWith("/objects/")) return `/api/storage${path}`;
+  return path;
+}
+
 function ProfileCard({ user, token, refreshUser }: { user: User; token: string | null; refreshUser: () => Promise<void> }) {
   const { toast } = useToast();
   const [profileName, setProfileName] = useState(user.name);
@@ -1655,7 +1661,7 @@ export default function Dashboard() {
                         return (
                         <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
                           <div className="flex items-start gap-3">
-                            <img src={p.image} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
+                            <img src={getImageUrl(p.image)} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
                             <div className="flex-1 min-w-0">
                               {p.isVerified ? (
                                 <Link href={`/property/${p.id}`}>
@@ -1698,6 +1704,11 @@ export default function Dashboard() {
                                 <Calendar className="h-3 w-3" /> Calendar
                               </Button>
                             )}
+                            <Link href={`/property/${p.id}`}>
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <Eye className="h-3 w-3" /> View
+                              </Button>
+                            </Link>
                             {!isFlagged && (
                               <Link href={`/add-listing?edit=${p.id}`}>
                                 <Button size="sm" variant="outline">Edit</Button>
@@ -1719,7 +1730,7 @@ export default function Dashboard() {
                       })}
                       {pendingProperties.length > 0 && pendingProperties.map((p: any) => (
                         <div key={`pending-${p.id}`} className="flex items-center gap-4 p-4 border border-yellow-200 rounded-lg hover:bg-yellow-50 transition-colors group bg-yellow-50/30 shadow-sm">
-                          <img src={p.image} className="h-20 w-20 object-cover rounded-md opacity-70 grayscale-[30%]" alt={p.title} />
+                          <img src={getImageUrl(p.image)} className="h-20 w-20 object-cover rounded-md opacity-70 grayscale-[30%]" alt={p.title} />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
                             <p className="text-sm text-muted-foreground truncate">Awaiting Approval</p>
@@ -2063,7 +2074,7 @@ export default function Dashboard() {
                            <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                              <div className="flex items-center gap-4">
                                <div className="h-12 w-12 bg-gray-200 rounded-md overflow-hidden">
-                                  <img src={item.image} className="h-full w-full object-cover" />
+                                  <img src={getImageUrl(item.image)} className="h-full w-full object-cover" />
                                </div>
                                <div>
                                  <p className="font-bold text-sm">{item.title}</p>
@@ -2086,7 +2097,7 @@ export default function Dashboard() {
                                    </DialogHeader>
                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                      <div>
-                                        <img src={item.image} className="w-full h-64 object-cover rounded-lg border" alt={item.title} />
+                                        <img src={getImageUrl(item.image)} className="w-full h-64 object-cover rounded-lg border" alt={item.title} />
                                      </div>
                                      <div className="space-y-4">
                                        <div>
@@ -2182,7 +2193,7 @@ export default function Dashboard() {
                       const isActioning = !!adminPropertyActionLoading[p.id];
                       return (
                       <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
-                        <img src={p.image} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
+                        <img src={getImageUrl(p.image)} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
                         <div className="flex-1 min-w-0 w-full">
                           <div className="flex justify-between items-start">
                              <div>
@@ -2216,7 +2227,7 @@ export default function Dashboard() {
                                   </DialogHeader>
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                                     <div>
-                                       <img src={p.image} className="w-full h-64 object-cover rounded-lg border" alt={p.title} />
+                                       <img src={getImageUrl(p.image)} className="w-full h-64 object-cover rounded-lg border" alt={p.title} />
                                     </div>
                                     <div className="space-y-4">
                                       <div>
@@ -2259,7 +2270,12 @@ export default function Dashboard() {
                                       )}
                                     </div>
                                   </div>
-                                  <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
+                                  <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4 flex-wrap">
+                                     <Link href={`/property/${p.id}`}>
+                                       <Button variant="outline" className="gap-1">
+                                         <Eye className="h-4 w-4" /> Preview Listing
+                                       </Button>
+                                     </Link>
                                      <Button
                                        variant="outline"
                                        disabled={isActioning}
@@ -2282,6 +2298,16 @@ export default function Dashboard() {
                                 </DialogContent>
                               </Dialog>
 
+                              <Link href={`/property/${p.id}`}>
+                                <Button size="sm" variant="outline" className="gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
+                                  <ExternalLink className="h-3 w-3" /> Preview
+                                </Button>
+                              </Link>
+                              <Link href={`/add-listing?edit=${p.id}`}>
+                                <Button size="sm" variant="outline" className="gap-1">
+                                  <Edit className="h-3 w-3" /> Edit
+                                </Button>
+                              </Link>
                               <Button
                                 size="sm"
                                 variant="outline"
