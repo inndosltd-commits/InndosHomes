@@ -408,8 +408,8 @@ export default function AddListing() {
         tags: selectedAmenities,
         subtype: subtype || undefined,
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
-        lat: pinPosition?.lat ?? undefined,
-        lng: pinPosition?.lng ?? undefined,
+        lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
+        lng: pinPosition?.lng != null ? String(pinPosition.lng) : undefined,
       };
 
       const url = isEditing ? `/api/properties/${editId}` : "/api/properties";

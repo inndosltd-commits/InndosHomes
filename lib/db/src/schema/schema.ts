@@ -227,6 +227,11 @@ export const insertUserSchema = createInsertSchema(users)
     role: z.enum(["owner", "tenant", "admin", "host", "guest"]).optional(),
   });
 
+const latLngField = z.preprocess(
+  v => (v != null && v !== "" ? String(v) : undefined),
+  z.string().optional()
+);
+
 export const insertPropertySchema = createInsertSchema(properties)
   .omit({ id: true, createdAt: true })
   .extend({
@@ -237,6 +242,8 @@ export const insertPropertySchema = createInsertSchema(properties)
     beds: z.number().int().min(0, "Bedrooms cannot be negative"),
     baths: z.number().int().min(0, "Bathrooms cannot be negative"),
     sqft: z.number().int().min(0, "Square footage cannot be negative"),
+    lat: latLngField,
+    lng: latLngField,
   });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({
