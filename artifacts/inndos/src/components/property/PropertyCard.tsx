@@ -63,7 +63,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
       <Card className="group overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col">
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
-            src={property.image}
+            src={property.image?.startsWith("/objects/") ? `/api/storage${property.image}` : property.image}
             alt={property.title}
             className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
           />

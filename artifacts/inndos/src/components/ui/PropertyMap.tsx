@@ -102,7 +102,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
           >
             <div className="w-48">
               <img
-                src={selectedProperty.property.image}
+                src={selectedProperty.property.image?.startsWith("/objects/") ? `/api/storage${selectedProperty.property.image}` : selectedProperty.property.image}
                 alt={selectedProperty.property.title}
                 className="w-full h-24 object-cover rounded-t-md"
               />
