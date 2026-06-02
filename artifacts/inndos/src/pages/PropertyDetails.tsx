@@ -302,6 +302,12 @@ export default function PropertyDetails() {
     return amount;
   };
 
+  const getImageUrl = (path: string | null | undefined): string => {
+    if (!path) return "";
+    if (path.startsWith("/objects/")) return `/api/storage${path}`;
+    return path;
+  };
+
   const allPhotos = (property.images && property.images.length > 0)
     ? property.images
     : [property.image];
@@ -313,13 +319,13 @@ export default function PropertyDetails() {
       {/* Image Gallery */}
       {allPhotos.length === 1 ? (
         <div className="h-[250px] sm:h-[400px] md:h-[500px] bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
-          <img src={allPhotos[0]} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
+          <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 h-[250px] sm:h-[400px] md:h-[500px] gap-1">
           {/* Main/hero image */}
           <div className="h-full bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
-            <img src={allPhotos[0]} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
+            <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
           </div>
           {/* Thumbnail grid — show up to 4 secondary images */}
           <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-1 h-full">
@@ -327,7 +333,7 @@ export default function PropertyDetails() {
               const isLast = idx === 3 && allPhotos.length > 5;
               return (
                 <div key={photo} className="bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(idx + 1)}>
-                  <img src={photo} className="w-full h-full object-cover hover:brightness-110 transition-all" alt="" />
+                  <img src={getImageUrl(photo)} className="w-full h-full object-cover hover:brightness-110 transition-all" alt="" />
                   {isLast && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white font-bold gap-1 hover:bg-black/60 transition-colors">
                       <Images className="h-5 w-5" />
@@ -346,7 +352,7 @@ export default function PropertyDetails() {
             )}
             {allPhotos.length < 5 && allPhotos.length >= 4 && (
               <div className="bg-gray-100 relative cursor-pointer" onClick={() => openLightbox(0)}>
-                <img src={allPhotos[0]} className="w-full h-full object-cover opacity-60 hover:opacity-80 transition-all" alt="" />
+                <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover opacity-60 hover:opacity-80 transition-all" alt="" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-white font-bold text-sm bg-black/40 px-3 py-1 rounded-full">{t("prop.view_all_photos")}</span>
                 </div>
@@ -394,7 +400,7 @@ export default function PropertyDetails() {
             </>
           )}
           <img
-            src={allPhotos[lightboxIndex]}
+            src={getImageUrl(allPhotos[lightboxIndex])}
             alt={`Photo ${lightboxIndex + 1}`}
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
@@ -408,7 +414,7 @@ export default function PropertyDetails() {
                   className={`shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-all ${idx === lightboxIndex ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-90"}`}
                   onClick={(e) => { e.stopPropagation(); setLightboxIndex(idx); }}
                 >
-                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

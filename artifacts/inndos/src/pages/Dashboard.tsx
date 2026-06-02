@@ -3254,26 +3254,6 @@ export default function Dashboard() {
                 </DialogContent>
               </Dialog>
 
-              {/* Property Calendar dialog */}
-              <Dialog open={!!calendarProperty} onOpenChange={(open) => { if (!open) setCalendarProperty(null); }}>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-primary" />
-                      Availability Calendar
-                    </DialogTitle>
-                    {calendarProperty && (
-                      <p className="text-sm text-muted-foreground">{calendarProperty.title}</p>
-                    )}
-                  </DialogHeader>
-                  {calendarProperty && (
-                    <PropertyCalendar
-                      propertyId={calendarProperty.id}
-                      propertyTitle={calendarProperty.title}
-                    />
-                  )}
-                </DialogContent>
-              </Dialog>
 
               {/* Assign plan dialog */}
               <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
@@ -4071,6 +4051,27 @@ export default function Dashboard() {
       )}
         </div>
       </div>
+
+      {/* Property Calendar dialog */}
+      <Dialog open={!!calendarProperty} onOpenChange={(open) => { if (!open) setCalendarProperty(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Availability Calendar
+            </DialogTitle>
+            {calendarProperty && (
+              <p className="text-sm text-muted-foreground">{calendarProperty.title}</p>
+            )}
+          </DialogHeader>
+          {calendarProperty && (
+            <PropertyCalendar
+              propertyId={calendarProperty.id}
+              propertyTitle={calendarProperty.title}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Flag Dialog */}
       <Dialog open={!!flagDialogId} onOpenChange={(open) => { if (!open) { setFlagDialogId(null); setFlagComment(""); } }}>

@@ -1,0 +1,1 @@
+- [Dialog-in-TabsContent trap](dialog-tabscontent.md) — Dialogs inside inactive TabsContent are unmounted; always place global dialogs at Tabs root level.
