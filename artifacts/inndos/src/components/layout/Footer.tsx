@@ -49,7 +49,7 @@ export function Footer() {
         </div>
          <div>
           <h4 className="font-bold mb-4">{t("footer.follow")}</h4>
-          <p className="text-sm text-gray-300 mb-4">Nairobi, Kenya<br/>support@inndos.com<br/>+254 713 361799</p>
+          <p className="text-sm text-gray-300 mb-4">Nairobi, Kenya<br/>support@inndos.com<br/>+254 143 361799</p>
           
           <div className="flex items-center gap-4 mt-4">
             <a href="https://www.instagram.com/inndos_global?igsh=OThzbHkydmh5ZHYw&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
@@ -71,7 +71,7 @@ export function Footer() {
         </div>
       </div>
       <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-gray-400">
-        © 2025 INNDOS. All rights reserved. Developed & Designed By Web Expert Solutions
+        © 2025 INNDOS. All rights reserved.
       </div>
     </footer>
   );
