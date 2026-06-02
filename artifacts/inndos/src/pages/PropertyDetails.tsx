@@ -373,7 +373,7 @@ export default function PropertyDetails() {
 
       {/* Lightbox */}
       {lightboxOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={closeLightbox}>
+        <div className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center" onClick={closeLightbox}>
           <button
             className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full p-2 z-10 transition-colors"
             onClick={closeLightbox}
