@@ -20,6 +20,11 @@ export function getVideoLimit(plan: string): number {
   return VIDEO_LIMITS[plan] ?? 0;
 }
 
+export const IMAGE_LIMITS: Record<string, number> = { standard: 5, silver: 10, gold: 15 };
+export function getImageLimit(plan: string): number {
+  return IMAGE_LIMITS[plan] ?? 5;
+}
+
 // Load plan config from DB (cached per request via module-level cache with short TTL)
 let planCache: { data: Record<string, { price: number; limit: number }>; ts: number } | null = null;
 

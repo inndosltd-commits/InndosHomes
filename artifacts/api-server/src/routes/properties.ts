@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, bookings, propertyBlocks, insertPropertySchema } from "@workspace/db";
-import { getVideoLimit } from "./subscriptions";
+import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit } from "./subscriptions";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
-import { getActiveSubscription, getPlanLimit } from "./subscriptions";
 
 const router = Router();
 
@@ -296,6 +295,18 @@ router.post("/", async (req, res) => {
   if (caller.role !== "admin") {
     const sub = await getActiveSubscription(userId);
     const plan = sub?.plan ?? "standard";
+
+    const imageLimit = getImageLimit(plan);
+    if (imageList.length > imageLimit) {
+      res.status(403).json({
+        error: `Your ${plan} plan allows a maximum of ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing. Please remove some images or upgrade your subscription.`,
+        code: "IMAGE_LIMIT",
+        plan,
+        imageLimit,
+      });
+      return;
+    }
+
     const videoLimit = getVideoLimit(plan);
     if (videoList.length > videoLimit) {
       res.status(403).json({
@@ -343,10 +354,24 @@ router.patch("/:id", async (req, res) => {
   const imageList: string[] | undefined = Array.isArray(body.images) ? body.images : undefined;
   const videoList: string[] | undefined = Array.isArray(body.videos) ? body.videos : undefined;
 
-  if (videoList !== undefined) {
-    if (!isCallerAdmin) {
-      const sub = await getActiveSubscription(userId);
-      const plan = sub?.plan ?? "standard";
+  if ((imageList !== undefined || videoList !== undefined) && !isCallerAdmin) {
+    const sub = await getActiveSubscription(userId);
+    const plan = sub?.plan ?? "standard";
+
+    if (imageList !== undefined) {
+      const imageLimit = getImageLimit(plan);
+      if (imageList.length > imageLimit) {
+        res.status(403).json({
+          error: `Your ${plan} plan allows a maximum of ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing. Please remove some images or upgrade your subscription.`,
+          code: "IMAGE_LIMIT",
+          plan,
+          imageLimit,
+        });
+        return;
+      }
+    }
+
+    if (videoList !== undefined) {
       const videoLimit = getVideoLimit(plan);
       if (videoList.length > videoLimit) {
         res.status(403).json({

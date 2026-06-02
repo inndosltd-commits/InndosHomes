@@ -3835,11 +3835,12 @@ export default function Dashboard() {
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 3 property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>5 photos</strong> per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Basic analytics</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Property videos</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No videos allowed</li>
                 </ul>
                 <Button variant="outline" disabled className="w-full mt-auto">
                   {subscription?.plan === 'standard' ? 'Active Plan' : 'Free Tier'}
@@ -3863,11 +3864,12 @@ export default function Dashboard() {
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 7 property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>10 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> per listing (max 30s)</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 property video (max 30s)</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-zinc-800 hover:bg-zinc-700 text-white"
@@ -3896,11 +3898,12 @@ export default function Dashboard() {
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited property listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>15 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>2 videos</strong> per listing (max 30s each)</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Featured listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 2 property videos (max 30s each)</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"
