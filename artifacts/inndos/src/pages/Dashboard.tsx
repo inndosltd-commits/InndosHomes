@@ -256,16 +256,18 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
               hint="Upload the front of your ID / Passport"
               currentPath={idFrontPath}
               isUploading={isUploadingIdFront}
+              isVerifying={isVerifyingIdFront}
               inputRef={idFrontInputRef}
-              onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIdFrontPath, idFrontInputRef)}
+              onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIsVerifyingIdFront, setIdFrontPath, idFrontInputRef)}
             />
             <IdSideUpload
               label="Back Side"
               hint="Upload the back of your ID / Passport"
               currentPath={idBackPath}
               isUploading={isUploadingIdBack}
+              isVerifying={isVerifyingIdBack}
               inputRef={idBackInputRef}
-              onChange={makeIdHandler("idBack", setIsUploadingIdBack, setIdBackPath, idBackInputRef)}
+              onChange={makeIdHandler("idBack", setIsUploadingIdBack, setIsVerifyingIdBack, setIdBackPath, idBackInputRef)}
             />
           </div>
           {(idFrontPath && idBackPath) && (
