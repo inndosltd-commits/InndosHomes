@@ -290,6 +290,9 @@ export default function Dashboard() {
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [createUserDialog, setCreateUserDialog] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({ name: "", email: "", password: "", role: "tenant" });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
@@ -1028,6 +1031,32 @@ export default function Dashboard() {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
     } finally {
       setUserActionLoading(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!token) return;
+    const { name, email, password, role } = createUserForm;
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      toast({ title: "All fields are required", variant: "destructive" }); return;
+    }
+    setIsCreatingUser(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast({ title: "Failed to create user", description: (data as { error?: string }).error, variant: "destructive" }); return; }
+      setAdminUsers(prev => [data, ...prev]);
+      setCreateUserDialog(false);
+      setCreateUserForm({ name: "", email: "", password: "", role: "tenant" });
+      toast({ title: "User created", description: `${name} (${role}) has been added to the platform.`, className: "bg-green-50 border-green-200 text-green-800" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -2454,13 +2483,24 @@ export default function Dashboard() {
               )}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" /> All Users
-                    {!isLoadingAdminUsers && (
-                      <Badge variant="secondary" className="ml-2">{adminUsers.length}</Badge>
-                    )}
-                  </CardTitle>
-                  <CardDescription>Browse and manage user accounts across the platform</CardDescription>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" /> All Users
+                        {!isLoadingAdminUsers && (
+                          <Badge variant="secondary" className="ml-2">{adminUsers.length}</Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="mt-1">Browse and manage user accounts across the platform</CardDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="gap-1.5 shrink-0"
+                      onClick={() => { setCreateUserForm({ name: "", email: "", password: "", role: "tenant" }); setCreateUserDialog(true); }}
+                    >
+                      <Plus className="h-4 w-4" /> Create User
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {isLoadingAdminUsers ? (
@@ -2565,6 +2605,70 @@ export default function Dashboard() {
               </Card>
             </TabsContent>
           )}
+
+          {/* Create User Dialog */}
+          <Dialog open={createUserDialog} onOpenChange={open => { if (!open) setCreateUserDialog(false); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" /> Create User
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Full Name</label>
+                  <input
+                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    placeholder="e.g. Jane Mwangi"
+                    value={createUserForm.name}
+                    onChange={e => setCreateUserForm(f => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Email Address</label>
+                  <input
+                    type="email"
+                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    placeholder="jane@example.com"
+                    value={createUserForm.email}
+                    onChange={e => setCreateUserForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Password</label>
+                  <input
+                    type="password"
+                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    placeholder="Minimum 6 characters"
+                    value={createUserForm.password}
+                    onChange={e => setCreateUserForm(f => ({ ...f, password: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Role</label>
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black bg-white capitalize"
+                    value={createUserForm.role}
+                    onChange={e => setCreateUserForm(f => ({ ...f, role: e.target.value }))}
+                  >
+                    <option value="tenant">Tenant</option>
+                    <option value="owner">Owner</option>
+                    <option value="host">Host</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setCreateUserDialog(false)} disabled={isCreatingUser}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateUser} disabled={isCreatingUser} className="gap-1">
+                  {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Create User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Delete User Confirmation Dialog */}
           <Dialog open={!!deleteUserId} onOpenChange={open => { if (!open) setDeleteUserId(null); }}>

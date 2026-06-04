@@ -5,6 +5,7 @@ import { eq, count, sum, ne, asc, desc, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
+import bcrypt from "bcryptjs";
 
 function getDashboardUrl(req: import("express").Request): string {
   const host = (process.env.REPLIT_DOMAINS ?? "").split(",")[0]?.trim();
@@ -192,6 +193,38 @@ router.patch("/users/:id/status", async (req, res) => {
   }
 
   res.json(updated);
+});
+
+router.post("/users", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { name, email, password, role } = req.body as { name?: string; email?: string; password?: string; role?: string };
+  if (!name?.trim() || !email?.trim() || !password?.trim() || !role?.trim()) {
+    res.status(400).json({ error: "Name, email, password, and role are required" });
+    return;
+  }
+
+  const VALID_ROLES = ["owner", "host", "tenant", "admin"];
+  if (!VALID_ROLES.includes(role)) {
+    res.status(400).json({ error: "Invalid role. Must be one of: owner, host, tenant, admin" });
+    return;
+  }
+
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase().trim()));
+  if (existing) {
+    res.status(409).json({ error: "A user with this email already exists" });
+    return;
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  const [newUser] = await db
+    .insert(users)
+    .values({ name: name.trim(), email: email.toLowerCase().trim(), password: hashed, role: role as "owner" | "host" | "tenant" | "admin", status: "active" })
+    .returning();
+
+  const { password: _pw, ...safeUser } = newUser;
+  res.status(201).json(safeUser);
 });
 
 router.delete("/users/:id", async (req, res) => {
