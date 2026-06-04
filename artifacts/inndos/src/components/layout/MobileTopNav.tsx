@@ -90,15 +90,15 @@ export function MobileTopNav() {
   const isBnbActive = location === "/bnb";
 
   const pill = (active: boolean) =>
-    `flex items-center gap-1 whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-all shrink-0 select-none ${
+    `flex items-center justify-center gap-0.5 whitespace-nowrap px-1 py-1.5 rounded-full text-xs font-medium border transition-all select-none w-full ${
       active ? "bg-black text-white border-black" : "bg-white text-gray-700 border-gray-200"
     }`;
 
   return (
     <>
       <div className="lg:hidden sticky top-[80px] z-40 bg-white border-b border-gray-100 shadow-sm">
-        <div className="flex overflow-x-auto gap-2 px-3 py-2.5 scrollbar-hide">
-          <Link href="/bnb">
+        <div className="grid grid-cols-5 gap-1.5 px-2 py-2">
+          <Link href="/bnb" className="contents">
             <button className={pill(isBnbActive)}>B&amp;B</button>
           </Link>
 
@@ -108,14 +108,14 @@ export function MobileTopNav() {
             onClick={() => setOpenDropdown(openDropdown === "rent" ? null : "rent")}
           >
             Rent
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openDropdown === "rent" ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${openDropdown === "rent" ? "rotate-180" : ""}`} />
           </button>
 
-          <Link href="/search?type=hostel">
+          <Link href="/search?type=hostel" className="contents">
             <button className={pill(isHostelActive)}>Hostels</button>
           </Link>
 
-          <Link href="/search?type=hotel">
+          <Link href="/search?type=hotel" className="contents">
             <button className={pill(isHotelActive)}>Hotels</button>
           </Link>
 
@@ -125,7 +125,7 @@ export function MobileTopNav() {
             onClick={() => setOpenDropdown(openDropdown === "buy" ? null : "buy")}
           >
             Buy
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openDropdown === "buy" ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${openDropdown === "buy" ? "rotate-180" : ""}`} />
           </button>
         </div>
       </div>
