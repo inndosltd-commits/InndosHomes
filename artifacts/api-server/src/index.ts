@@ -22,19 +22,92 @@ if (!process.env["JWT_SECRET"]) {
 }
 
 async function seedDefaultPlans() {
+  // Migrate old plan names in subscriptions and payments tables
+  await db.execute(sql`UPDATE subscriptions SET plan = 'free' WHERE plan = 'standard'`);
+  await db.execute(sql`UPDATE subscriptions SET plan = 'basic' WHERE plan = 'silver'`);
+  await db.execute(sql`UPDATE subscriptions SET plan = 'pro' WHERE plan = 'gold'`);
+  await db.execute(sql`UPDATE payments SET plan = 'basic' WHERE plan = 'silver'`);
+  await db.execute(sql`UPDATE payments SET plan = 'pro' WHERE plan = 'gold'`);
+
+  // Remove old plan records
+  await db.execute(sql`DELETE FROM subscription_plans WHERE name IN ('standard', 'silver', 'gold')`);
+
   const defaults = [
-    { name: "standard", displayName: "Standard", pricePerMonth: 0, listingLimit: 3, features: ["Up to 3 listings", "Basic support", "Standard visibility"] },
-    { name: "silver", displayName: "Silver", pricePerMonth: 2000, listingLimit: 10, features: ["Up to 10 listings", "Priority support", "Enhanced visibility", "Analytics dashboard"] },
-    { name: "gold", displayName: "Gold", pricePerMonth: 5000, listingLimit: 2147483647, features: ["Unlimited listings", "Dedicated support", "Maximum visibility", "Advanced analytics", "Featured placement"] },
+    {
+      name: "free",
+      displayName: "Free",
+      pricePerMonth: 0,
+      listingLimit: 3,
+      features: [
+        "Up to 3 listings",
+        "5 photos per listing",
+        "No video / virtual tour",
+        "0 featured listings per month",
+        "No search boost",
+        "No phone support",
+      ],
+    },
+    {
+      name: "basic",
+      displayName: "Basic",
+      pricePerMonth: 199,
+      listingLimit: 10,
+      features: [
+        "Up to 10 listings",
+        "15 photos per listing",
+        "No video / virtual tour",
+        "1 featured listing per month",
+        "Low search boost",
+        "No phone support",
+      ],
+    },
+    {
+      name: "pro",
+      displayName: "Pro",
+      pricePerMonth: 249,
+      listingLimit: 50,
+      features: [
+        "Up to 50 listings",
+        "30 photos per listing",
+        "1 video / virtual tour per listing",
+        "3 featured listings per month",
+        "High search boost",
+        "Phone support",
+        "Export leads",
+      ],
+    },
+    {
+      name: "enterprise",
+      displayName: "Enterprise",
+      pricePerMonth: 0,
+      listingLimit: 2147483647,
+      features: [
+        "Unlimited listings",
+        "Unlimited photos per listing",
+        "5 videos / virtual tours per listing",
+        "Negotiable featured listings",
+        "Highest search boost",
+        "24/7 phone support",
+        "Dedicated account manager",
+        "API access",
+        "Export leads",
+      ],
+    },
   ];
+
   for (const plan of defaults) {
     await db.execute(
       sql`INSERT INTO subscription_plans (name, display_name, price_per_month, listing_limit, features, is_active, updated_at)
           VALUES (${plan.name}, ${plan.displayName}, ${plan.pricePerMonth}, ${plan.listingLimit}, ${sql.raw(`ARRAY[${plan.features.map(f => `'${f.replace(/'/g, "''")}'`).join(",")}]::text[]`)}, true, now())
-          ON CONFLICT (name) DO NOTHING`
+          ON CONFLICT (name) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            price_per_month = EXCLUDED.price_per_month,
+            listing_limit = EXCLUDED.listing_limit,
+            features = EXCLUDED.features,
+            updated_at = now()`
     );
   }
-  logger.info("Default subscription plans seeded");
+  logger.info("Default subscription plans seeded (Free/Basic/Pro/Enterprise)");
 }
 
 app.listen(port, async (err) => {

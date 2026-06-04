@@ -270,7 +270,7 @@ router.post("/", async (req, res) => {
 
   if (caller.role !== "admin") {
     const sub = await getActiveSubscription(userId);
-    const plan = sub?.plan ?? "standard";
+    const plan = sub?.plan ?? "free";
     const limit = getPlanLimit(plan);
     const [{ listingCount }] = await db
       .select({ listingCount: count() })
@@ -294,7 +294,7 @@ router.post("/", async (req, res) => {
 
   if (caller.role !== "admin") {
     const sub = await getActiveSubscription(userId);
-    const plan = sub?.plan ?? "standard";
+    const plan = sub?.plan ?? "free";
 
     const imageLimit = getImageLimit(plan);
     if (imageList.length > imageLimit) {
@@ -356,7 +356,7 @@ router.patch("/:id", async (req, res) => {
 
   if ((imageList !== undefined || videoList !== undefined) && !isCallerAdmin) {
     const sub = await getActiveSubscription(userId);
-    const plan = sub?.plan ?? "standard";
+    const plan = sub?.plan ?? "free";
 
     if (imageList !== undefined) {
       const imageLimit = getImageLimit(plan);

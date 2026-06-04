@@ -13,14 +13,14 @@ import {
 const router = Router();
 
 // Fallback hardcoded values (used if DB is unavailable)
-const DEFAULT_PLAN_LIMITS: Record<string, number> = { standard: 3, silver: 7, gold: 2147483647 };
-const DEFAULT_PLAN_PRICES: Record<string, number> = { standard: 0, silver: 200, gold: 300 };
-export const VIDEO_LIMITS: Record<string, number> = { standard: 0, silver: 1, gold: 2 };
+const DEFAULT_PLAN_LIMITS: Record<string, number> = { free: 3, basic: 10, pro: 50, enterprise: 2147483647 };
+const DEFAULT_PLAN_PRICES: Record<string, number> = { free: 0, basic: 199, pro: 249, enterprise: 0 };
+export const VIDEO_LIMITS: Record<string, number> = { free: 0, basic: 0, pro: 1, enterprise: 5 };
 export function getVideoLimit(plan: string): number {
   return VIDEO_LIMITS[plan] ?? 0;
 }
 
-export const IMAGE_LIMITS: Record<string, number> = { standard: 5, silver: 10, gold: 15 };
+export const IMAGE_LIMITS: Record<string, number> = { free: 5, basic: 15, pro: 30, enterprise: 999999 };
 export function getImageLimit(plan: string): number {
   return IMAGE_LIMITS[plan] ?? 5;
 }
@@ -116,7 +116,7 @@ router.get("/me", async (req, res) => {
 
   if (!sub) {
     res.json({
-      plan: "standard",
+      plan: "free",
       status: "active",
       billingCycle: "monthly",
       billingMonths: 0,
@@ -124,8 +124,8 @@ router.get("/me", async (req, res) => {
       startDate: toDateStr(new Date()),
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
-      listingLimit: plans["standard"]?.limit ?? 3,
-      videoLimit: getVideoLimit("standard"),
+      listingLimit: plans["free"]?.limit ?? 3,
+      videoLimit: getVideoLimit("free"),
     });
     return;
   }
@@ -149,18 +149,18 @@ router.post("/upgrade", async (req, res) => {
     months?: number;
   };
 
-  if (!plan || !["standard", "silver", "gold"].includes(plan)) {
-    res.status(400).json({ error: "plan must be standard, silver, or gold" });
+  if (!plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
+    res.status(400).json({ error: "plan must be free, basic, pro, or enterprise" });
     return;
   }
 
-  if (plan === "standard") {
+  if (plan === "free") {
     await db
       .update(subscriptions)
       .set({ status: "cancelled" })
       .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
 
-    res.json({ plan: "standard", status: "active", message: "Downgraded to Standard (Free)" });
+    res.json({ plan: "free", status: "active", message: "Downgraded to Free Plan" });
     return;
   }
 
@@ -185,7 +185,7 @@ router.post("/upgrade", async (req, res) => {
     .insert(subscriptions)
     .values({
       userId,
-      plan: plan as "silver" | "gold",
+      plan: plan as "basic" | "pro" | "enterprise",
       status: "active",
       billingCycle: cycle,
       billingMonths,
@@ -213,8 +213,8 @@ router.post("/checkout", async (req, res) => {
     months?: number;
   };
 
-  if (!plan || !["silver", "gold"].includes(plan)) {
-    res.status(400).json({ error: "plan must be silver or gold" });
+  if (!plan || !["basic", "pro", "enterprise"].includes(plan)) {
+    res.status(400).json({ error: "plan must be basic, pro, or enterprise" });
     return;
   }
 
@@ -248,7 +248,7 @@ router.post("/checkout", async (req, res) => {
       pesapalOrderId: merchantReference,
       merchantReference,
       amount,
-      plan: plan as "silver" | "gold",
+      plan: plan as "basic" | "pro" | "enterprise",
       billingMonths,
       status: "pending",
       description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan - ${billingMonths} month${billingMonths > 1 ? "s" : ""}`,

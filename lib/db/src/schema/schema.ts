@@ -132,9 +132,9 @@ export const subscriptions = pgTable("subscriptions", {
     .notNull()
     .references(() => users.id),
   plan: text("plan")
-    .$type<"standard" | "silver" | "gold">()
+    .$type<"free" | "basic" | "pro" | "enterprise">()
     .notNull()
-    .default("standard"),
+    .default("free"),
   status: text("status")
     .$type<"active" | "expired" | "cancelled">()
     .notNull()
@@ -182,7 +182,7 @@ export const payments = pgTable("payments", {
   merchantReference: varchar("merchant_reference"),
   amount: integer("amount").notNull(),
   currency: text("currency").notNull().default("KES"),
-  plan: text("plan").$type<"silver" | "gold">().notNull(),
+  plan: text("plan").$type<"basic" | "pro" | "enterprise">().notNull(),
   billingMonths: integer("billing_months").notNull().default(1),
   status: text("status")
     .$type<"pending" | "completed" | "failed" | "cancelled">()

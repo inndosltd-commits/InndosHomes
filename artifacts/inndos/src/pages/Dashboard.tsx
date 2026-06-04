@@ -355,7 +355,7 @@ export default function Dashboard() {
     listingCount: number; listingLimit: number;
   } | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
-  const [upgradeDialogPlan, setUpgradeDialogPlan] = useState<"silver" | "gold" | null>(null);
+  const [upgradeDialogPlan, setUpgradeDialogPlan] = useState<"basic" | "pro" | "enterprise" | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [customMonths, setCustomMonths] = useState(3);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -367,7 +367,7 @@ export default function Dashboard() {
   const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
   const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
   const [calendarProperty, setCalendarProperty] = useState<{ id: string; title: string } | null>(null);
-  const [assignPlan, setAssignPlan] = useState<"standard" | "silver" | "gold">("silver");
+  const [assignPlan, setAssignPlan] = useState<"free" | "basic" | "pro" | "enterprise">("basic");
   const [assignMonths, setAssignMonths] = useState(1);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -747,11 +747,11 @@ export default function Dashboard() {
       const res = await fetch("/api/subscriptions/upgrade", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: "standard" }),
+        body: JSON.stringify({ plan: "free" }),
       });
       if (res.ok) {
         await fetchSubscription();
-        toast({ title: "Downgraded to Standard", description: "Your plan has been set back to Free." });
+        toast({ title: "Downgraded to Free", description: "Your plan has been set back to Free." });
       }
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -2823,8 +2823,8 @@ export default function Dashboard() {
                 {[
                   { label: "Total", value: adminSubscriptions.length, color: "text-gray-900" },
                   { label: "Active", value: adminSubscriptions.filter(s => s.status === 'active').length, color: "text-green-600" },
-                  { label: "Silver", value: adminSubscriptions.filter(s => s.plan === 'silver' && s.status === 'active').length, color: "text-zinc-500" },
-                  { label: "Gold", value: adminSubscriptions.filter(s => s.plan === 'gold' && s.status === 'active').length, color: "text-yellow-500" },
+                  { label: "Basic", value: adminSubscriptions.filter(s => s.plan === 'basic' && s.status === 'active').length, color: "text-zinc-500" },
+                  { label: "Pro", value: adminSubscriptions.filter(s => s.plan === 'pro' && s.status === 'active').length, color: "text-yellow-500" },
                 ].map(stat => (
                   <Card key={stat.label}>
                     <CardContent className="py-4 text-center">
@@ -2866,7 +2866,7 @@ export default function Dashboard() {
                                 <div className="text-xs text-gray-400">{sub.userEmail ?? ""}</div>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge className={sub.plan === 'gold' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : sub.plan === 'silver' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
+                                <Badge className={sub.plan === 'enterprise' ? 'bg-purple-100 text-purple-800 border-purple-300' : sub.plan === 'pro' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : sub.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>
                                   {sub.plan}
                                 </Badge>
                               </td>
@@ -2937,14 +2937,15 @@ export default function Dashboard() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {adminPlans.map((plan: any) => (
-                    <Card key={plan.name} className={`relative border-2 ${plan.name === 'gold' ? 'border-yellow-300' : plan.name === 'silver' ? 'border-zinc-300' : 'border-gray-200'}`}>
+                    <Card key={plan.name} className={`relative border-2 ${plan.name === 'enterprise' ? 'border-purple-300' : plan.name === 'pro' ? 'border-yellow-300' : plan.name === 'basic' ? 'border-zinc-300' : 'border-gray-200'}`}>
                       <CardContent className="py-5 px-5">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            {plan.name === 'gold' && <Crown className="h-5 w-5 text-yellow-500" />}
-                            {plan.name === 'silver' && <Zap className="h-5 w-5 text-zinc-500" />}
-                            {plan.name === 'standard' && <Gift className="h-5 w-5 text-gray-400" />}
-                            {!['gold','silver','standard'].includes(plan.name) && <Settings className="h-5 w-5 text-gray-400" />}
+                            {plan.name === 'enterprise' && <Crown className="h-5 w-5 text-purple-500" />}
+                            {plan.name === 'pro' && <Crown className="h-5 w-5 text-yellow-500" />}
+                            {plan.name === 'basic' && <Zap className="h-5 w-5 text-zinc-500" />}
+                            {plan.name === 'free' && <Gift className="h-5 w-5 text-gray-400" />}
+                            {!['enterprise','pro','basic','free'].includes(plan.name) && <Settings className="h-5 w-5 text-gray-400" />}
                             <span className="font-bold text-base capitalize">{plan.displayName}</span>
                           </div>
                           {!plan.isActive && <Badge className="bg-red-100 text-red-700 text-xs">Disabled</Badge>}
@@ -3001,9 +3002,10 @@ export default function Dashboard() {
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 capitalize">
-                      {editingPlan?.name === 'gold' && <Crown className="h-5 w-5 text-yellow-500" />}
-                      {editingPlan?.name === 'silver' && <Zap className="h-5 w-5 text-zinc-500" />}
-                      {editingPlan?.name === 'standard' && <Gift className="h-5 w-5 text-gray-400" />}
+                      {editingPlan?.name === 'enterprise' && <Crown className="h-5 w-5 text-purple-500" />}
+                      {editingPlan?.name === 'pro' && <Crown className="h-5 w-5 text-yellow-500" />}
+                      {editingPlan?.name === 'basic' && <Zap className="h-5 w-5 text-zinc-500" />}
+                      {editingPlan?.name === 'free' && <Gift className="h-5 w-5 text-gray-400" />}
                       Edit {editingPlan?.name} Package
                     </DialogTitle>
                   </DialogHeader>
@@ -3017,7 +3019,7 @@ export default function Dashboard() {
                         className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
                       />
                     </div>
-                    {editingPlan?.name !== 'standard' && (
+                    {editingPlan?.name !== 'free' && (
                       <div className="space-y-1.5">
                         <label className="text-sm font-semibold">Price per Month (KES)</label>
                         <input
@@ -3044,7 +3046,7 @@ export default function Dashboard() {
                           onChange={e => setPlanForm(f => ({ ...f, listingLimit: Number(e.target.value) }))}
                           className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
                         />
-                        {editingPlan?.name === 'gold' && (
+                        {(editingPlan?.name === 'pro' || editingPlan?.name === 'enterprise') && (
                           <Button
                             type="button"
                             size="sm"
@@ -3369,13 +3371,13 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground">Assigning to: <span className="font-semibold">{assignSubDialog?.userName}</span></p>
                     <div className="space-y-2">
                       <label className="text-sm font-semibold">Plan</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(['standard', 'silver', 'gold'] as const).map(p => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['free', 'basic', 'pro', 'enterprise'] as const).map(p => (
                           <button key={p} onClick={() => setAssignPlan(p)} className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${assignPlan === p ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}>{p}</button>
                         ))}
                       </div>
                     </div>
-                    {assignPlan !== 'standard' && (
+                    {assignPlan !== 'free' && (
                       <div className="space-y-2">
                         <label className="text-sm font-semibold">Duration (months)</label>
                         <div className="flex items-center gap-3">
@@ -3612,7 +3614,7 @@ export default function Dashboard() {
                                 <div className="text-xs text-gray-400">{p.userEmail}</div>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge className={p.plan === 'gold' ? 'bg-yellow-100 text-yellow-800' : 'bg-zinc-200 text-zinc-700'}>{p.plan}</Badge>
+                                <Badge className={p.plan === 'enterprise' ? 'bg-purple-100 text-purple-800' : p.plan === 'pro' ? 'bg-yellow-100 text-yellow-800' : p.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>{p.plan}</Badge>
                               </td>
                               <td className="px-4 py-3 font-semibold">KES {p.amount?.toLocaleString()}</td>
                               <td className="px-4 py-3">
@@ -3878,19 +3880,19 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ) : subscription && (
-            <Card className={`border-2 ${subscription.plan === 'gold' ? 'border-yellow-400 bg-yellow-50' : subscription.plan === 'silver' ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
+            <Card className={`border-2 ${subscription.plan === 'enterprise' ? 'border-purple-400 bg-purple-50' : subscription.plan === 'pro' ? 'border-yellow-400 bg-yellow-50' : subscription.plan === 'basic' ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
               <CardContent className="py-5 px-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    {subscription.plan === 'gold' ? <Crown className="h-7 w-7 text-yellow-500" /> : subscription.plan === 'silver' ? <Zap className="h-7 w-7 text-zinc-500" /> : <Gift className="h-7 w-7 text-zinc-400" />}
+                    {subscription.plan === 'enterprise' ? <Crown className="h-7 w-7 text-purple-500" /> : subscription.plan === 'pro' ? <Crown className="h-7 w-7 text-yellow-500" /> : subscription.plan === 'basic' ? <Zap className="h-7 w-7 text-zinc-500" /> : <Gift className="h-7 w-7 text-zinc-400" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold capitalize">{subscription.plan} Plan</span>
-                        <Badge className={subscription.plan === 'gold' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : subscription.plan === 'silver' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
+                        <Badge className={subscription.plan === 'enterprise' ? 'bg-purple-100 text-purple-800 border-purple-300' : subscription.plan === 'pro' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : subscription.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
                           {subscription.status}
                         </Badge>
                       </div>
-                      {subscription.plan !== 'standard' && (
+                      {subscription.plan !== 'free' && (
                         <p className="text-xs text-gray-500 mt-0.5">
                           Valid until {subscription.endDate} · {subscription.billingCycle === 'custom' ? `${subscription.billingMonths} months` : subscription.billingCycle}
                         </p>
@@ -3899,24 +3901,24 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-gray-700">
-                      {subscription.listingCount} / {subscription.listingLimit === Infinity ? '∞' : subscription.listingLimit} listings used
+                      {subscription.listingCount} / {subscription.listingLimit >= 2147483647 ? '∞' : subscription.listingLimit} listings used
                     </div>
                     <div className="w-40 bg-gray-200 rounded-full h-2 mt-1.5">
                       <div
-                        className={`h-2 rounded-full ${subscription.plan === 'gold' ? 'bg-yellow-400' : subscription.plan === 'silver' ? 'bg-zinc-500' : 'bg-zinc-800'}`}
-                        style={{ width: subscription.listingLimit === Infinity ? `${Math.min((subscription.listingCount / 10) * 100, 100)}%` : `${Math.min((subscription.listingCount / subscription.listingLimit) * 100, 100)}%` }}
+                        className={`h-2 rounded-full ${subscription.plan === 'enterprise' ? 'bg-purple-500' : subscription.plan === 'pro' ? 'bg-yellow-400' : subscription.plan === 'basic' ? 'bg-zinc-500' : 'bg-zinc-800'}`}
+                        style={{ width: subscription.listingLimit >= 2147483647 ? `${Math.min((subscription.listingCount / 10) * 100, 100)}%` : `${Math.min((subscription.listingCount / subscription.listingLimit) * 100, 100)}%` }}
                       />
                     </div>
                   </div>
                 </div>
-                {subscription.plan !== 'standard' && (
+                {subscription.plan !== 'free' && (
                   <div className="mt-4 pt-3 border-t border-black/10">
                     <button
                       onClick={handleDowngradeToFree}
                       disabled={isUpgrading}
                       className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
                     >
-                      Downgrade to Standard (Free)
+                      Downgrade to Free
                     </button>
                   </div>
                 )}
@@ -3925,97 +3927,130 @@ export default function Dashboard() {
           )}
 
           {/* Plan Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Standard */}
-            <Card className={`border-2 flex flex-col ${subscription?.plan === 'standard' ? 'border-zinc-800 ring-2 ring-zinc-800 ring-offset-2' : 'border-zinc-200'}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Free */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'free' ? 'border-zinc-800 ring-2 ring-zinc-800 ring-offset-2' : 'border-zinc-200'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Gift className="h-5 w-5 text-zinc-400" />
-                  <CardTitle className="text-base font-bold">Standard</CardTitle>
-                  {subscription?.plan === 'standard' && <Badge className="ml-auto text-[10px] bg-zinc-800 text-white">Current</Badge>}
+                  <CardTitle className="text-base font-bold">Free</CardTitle>
+                  {subscription?.plan === 'free' && <Badge className="ml-auto text-[10px] bg-zinc-800 text-white">Current</Badge>}
                 </div>
-                <CardDescription className="text-2xl font-black text-zinc-900">Free</CardDescription>
+                <CardDescription className="text-2xl font-black text-zinc-900">KES 0<span className="text-gray-400 text-sm font-normal"> / month</span></CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 3 property listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>5 photos</strong> per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Basic analytics</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Priority support</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No videos allowed</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No search boost</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
                 </ul>
                 <Button variant="outline" disabled className="w-full mt-auto">
-                  {subscription?.plan === 'standard' ? 'Active Plan' : 'Free Tier'}
+                  {subscription?.plan === 'free' ? 'Active Plan' : 'Free Tier'}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Silver */}
-            <Card className={`border-2 flex flex-col ${subscription?.plan === 'silver' ? 'border-zinc-500 ring-2 ring-zinc-500 ring-offset-2' : 'border-zinc-200'}`}>
+            {/* Basic */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'basic' ? 'border-zinc-500 ring-2 ring-zinc-500 ring-offset-2' : 'border-zinc-200'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Zap className="h-5 w-5 text-zinc-500" />
-                  <CardTitle className="text-base font-bold">Silver</CardTitle>
-                  {subscription?.plan === 'silver' && <Badge className="ml-auto text-[10px] bg-zinc-500 text-white">Current</Badge>}
+                  <CardTitle className="text-base font-bold">Basic</CardTitle>
+                  {subscription?.plan === 'basic' && <Badge className="ml-auto text-[10px] bg-zinc-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 200</span>
+                  <span className="text-2xl font-black text-zinc-900">KES 199</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to 7 property listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>10 photos</strong> per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> per listing (max 30s)</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> Featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 10 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>15 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 featured listing / mo</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Low search boost</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-zinc-800 hover:bg-zinc-700 text-white"
-                  onClick={() => { setUpgradeDialogPlan("silver"); setBillingCycle("monthly"); setCustomMonths(3); }}
-                  disabled={subscription?.plan === 'silver'}
+                  onClick={() => { setUpgradeDialogPlan("basic"); setBillingCycle("monthly"); setCustomMonths(3); }}
+                  disabled={subscription?.plan === 'basic'}
                 >
-                  {subscription?.plan === 'silver' ? 'Active Plan' : subscription?.plan === 'gold' ? 'Downgrade to Silver' : 'Upgrade to Silver'}
+                  {subscription?.plan === 'basic' ? 'Active Plan' : subscription?.plan === 'pro' || subscription?.plan === 'enterprise' ? 'Downgrade to Basic' : 'Upgrade to Basic'}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Gold */}
-            <Card className={`border-2 flex flex-col ${subscription?.plan === 'gold' ? 'border-yellow-400 ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50' : 'border-yellow-300'}`}>
+            {/* Pro */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'pro' ? 'border-yellow-400 ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50' : 'border-yellow-300'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Crown className="h-5 w-5 text-yellow-500" />
-                  <CardTitle className="text-base font-bold">Gold</CardTitle>
-                  <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-300">Best Value</Badge>
-                  {subscription?.plan === 'gold' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
+                  <CardTitle className="text-base font-bold">Pro</CardTitle>
+                  <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-300">Popular</Badge>
+                  {subscription?.plan === 'pro' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 300</span>
+                  <span className="text-2xl font-black text-zinc-900">KES 249</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited property listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Up to <strong>15 photos</strong> per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>2 videos</strong> per listing (max 30s each)</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Advanced analytics</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Booking management</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Priority support</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 50 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>30 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 featured listings / mo</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> High search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Phone support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Export leads</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"
-                  onClick={() => { setUpgradeDialogPlan("gold"); setBillingCycle("monthly"); setCustomMonths(3); }}
-                  disabled={subscription?.plan === 'gold'}
+                  onClick={() => { setUpgradeDialogPlan("pro"); setBillingCycle("monthly"); setCustomMonths(3); }}
+                  disabled={subscription?.plan === 'pro'}
                 >
-                  {subscription?.plan === 'gold' ? 'Active Plan' : 'Upgrade to Gold'}
+                  {subscription?.plan === 'pro' ? 'Active Plan' : subscription?.plan === 'enterprise' ? 'Downgrade to Pro' : 'Upgrade to Pro'}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Enterprise */}
+            <Card className={`border-2 flex flex-col ${subscription?.plan === 'enterprise' ? 'border-purple-400 ring-2 ring-purple-400 ring-offset-2 bg-purple-50' : 'border-purple-300'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Crown className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-base font-bold">Enterprise</CardTitle>
+                  {subscription?.plan === 'enterprise' && <Badge className="ml-auto text-[10px] bg-purple-500 text-white">Current</Badge>}
+                </div>
+                <CardDescription className="text-2xl font-black text-zinc-900">Custom<span className="text-gray-400 text-sm font-normal"> pricing</span></CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-1 gap-4">
+                <ul className="space-y-2 text-sm text-gray-600 flex-1">
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Negotiable featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Highest search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 24/7 phone support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Dedicated account manager</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> API access + Export leads</li>
+                </ul>
+                {subscription?.plan === 'enterprise' ? (
+                  <Button variant="outline" disabled className="w-full mt-auto">Active Plan</Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full mt-auto border-purple-300 text-purple-700 hover:bg-purple-50"
+                    onClick={() => { setUpgradeDialogPlan("enterprise"); setBillingCycle("monthly"); setCustomMonths(3); }}
+                  >
+                    Contact Admin
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -4025,13 +4060,30 @@ export default function Dashboard() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  {upgradeDialogPlan === 'gold' ? <Crown className="h-5 w-5 text-yellow-500" /> : <Zap className="h-5 w-5 text-zinc-500" />}
-                  Activate {upgradeDialogPlan === 'gold' ? 'Gold' : 'Silver'} Plan
+                  {upgradeDialogPlan === 'enterprise' ? <Crown className="h-5 w-5 text-purple-500" /> : upgradeDialogPlan === 'pro' ? <Crown className="h-5 w-5 text-yellow-500" /> : <Zap className="h-5 w-5 text-zinc-500" />}
+                  Activate {upgradeDialogPlan === 'enterprise' ? 'Enterprise' : upgradeDialogPlan === 'pro' ? 'Pro' : 'Basic'} Plan
                 </DialogTitle>
               </DialogHeader>
+              {upgradeDialogPlan === 'enterprise' ? (
+                <div className="space-y-4 py-2">
+                  <p className="text-sm text-muted-foreground">Enterprise pricing is custom and requires admin approval. Contact the INNDOS team to get started.</p>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2 text-sm text-purple-800">
+                    <p className="font-semibold">Enterprise includes:</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Unlimited listings + unlimited photos</li>
+                      <li>• 5 video / virtual tours per listing</li>
+                      <li>• Dedicated account manager</li>
+                      <li>• 24/7 phone support + API access</li>
+                    </ul>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setUpgradeDialogPlan(null)}>Close</Button>
+                  </DialogFooter>
+                </div>
+              ) : (
               <div className="space-y-5 py-2">
                 <p className="text-sm text-muted-foreground">
-                  {upgradeDialogPlan === 'gold' ? 'KES 300/month · Unlimited listings · All features' : 'KES 200/month · Up to 7 listings · Priority support'}
+                  {upgradeDialogPlan === 'pro' ? 'KES 249/month · 50 listings · 30 photos · 1 video · Phone support' : 'KES 199/month · 10 listings · 15 photos · 1 featured listing'}
                 </p>
 
                 {/* Billing cycle selector */}
@@ -4049,7 +4101,9 @@ export default function Dashboard() {
                     ))}
                   </div>
                   {billingCycle === 'yearly' && (
-                    <p className="text-xs text-green-600 font-medium">Save KES {upgradeDialogPlan === 'gold' ? '24' : '16'} with yearly billing!</p>
+                    <p className="text-xs text-green-600 font-medium">
+                      Save KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)} with yearly billing!
+                    </p>
                   )}
                 </div>
 
@@ -4076,7 +4130,7 @@ export default function Dashboard() {
                 <div className="bg-gray-50 rounded-lg p-4 border space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Rate</span>
-                    <span className="font-medium">KES {upgradeDialogPlan === 'gold' ? 300 : 200}/month</span>
+                    <span className="font-medium">KES {upgradeDialogPlan === 'pro' ? 249 : 199}/month</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Duration</span>
@@ -4086,25 +4140,26 @@ export default function Dashboard() {
                   </div>
                   {billingCycle === 'yearly' && (
                     <div className="flex justify-between text-sm text-green-600">
-                      <span>Yearly discount</span>
-                      <span>− KES {upgradeDialogPlan === 'gold' ? 24 : 16}</span>
+                      <span>Yearly discount (10%)</span>
+                      <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-base pt-1 border-t">
                     <span>Total</span>
                     <span>
                       KES {(() => {
-                        const base = upgradeDialogPlan === 'gold' ? 300 : 200;
+                        const base = upgradeDialogPlan === 'pro' ? 249 : 199;
                         const months = billingCycle === 'monthly' ? 1 : billingCycle === 'yearly' ? 12 : customMonths;
-                        const discount = billingCycle === 'yearly' ? (upgradeDialogPlan === 'gold' ? 24 : 16) : 0;
+                        const discount = billingCycle === 'yearly' ? Math.round(base * 0.1 * 12) : 0;
                         return (base * months - discount).toLocaleString();
                       })()}
                     </span>
                   </div>
                 </div>
               </div>
+              )}
+              {upgradeDialogPlan !== 'enterprise' && (
               <DialogFooter className="flex-col gap-2 sm:flex-col">
-                {/* PesaPal — primary payment method */}
                 <Button
                   className="w-full bg-zinc-900 hover:bg-zinc-800 text-white gap-2"
                   disabled={isUpgrading}
@@ -4122,7 +4177,6 @@ export default function Dashboard() {
                         toast({ title: "Checkout failed", description: data.error || "Could not initiate payment.", variant: "destructive" });
                         return;
                       }
-                      // Redirect to PesaPal payment page
                       window.location.href = data.redirectUrl;
                     } catch {
                       toast({ title: "Error", description: "Could not connect to payment gateway.", variant: "destructive" });
@@ -4152,6 +4206,7 @@ export default function Dashboard() {
                   </Button>
                 </div>
               </DialogFooter>
+              )}
             </DialogContent>
           </Dialog>
         </TabsContent>

@@ -359,8 +359,8 @@ router.post("/subscriptions/assign", async (req, res) => {
     billingMonths?: number;
   };
 
-  if (!userId || !plan || !["standard", "silver", "gold"].includes(plan)) {
-    res.status(400).json({ error: "userId and plan (standard/silver/gold) are required" });
+  if (!userId || !plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
+    res.status(400).json({ error: "userId and plan (free/basic/pro/enterprise) are required" });
     return;
   }
 
@@ -378,13 +378,13 @@ router.post("/subscriptions/assign", async (req, res) => {
 
   const now = new Date();
 
-  if (plan === "standard") {
-    // Standard is free/unlimited — create a no-expiry active record
+  if (plan === "free") {
+    // Free plan — create a no-expiry active record
     const [newSub] = await db
       .insert(subscriptions)
       .values({
         userId,
-        plan: "standard",
+        plan: "free",
         status: "active",
         billingCycle: "custom",
         billingMonths: 0,
@@ -405,7 +405,7 @@ router.post("/subscriptions/assign", async (req, res) => {
     .insert(subscriptions)
     .values({
       userId,
-      plan: plan as "silver" | "gold",
+      plan: plan as "basic" | "pro" | "enterprise",
       status: "active",
       billingCycle: "custom",
       billingMonths: months,
@@ -430,7 +430,7 @@ router.patch("/subscriptions/:id", async (req, res) => {
   };
 
   const updates: Record<string, unknown> = {};
-  if (plan && ["standard", "silver", "gold"].includes(plan)) updates.plan = plan;
+  if (plan && ["free", "basic", "pro", "enterprise"].includes(plan)) updates.plan = plan;
   if (status && ["active", "expired", "cancelled"].includes(status)) updates.status = status;
   if (endDate) updates.endDate = endDate;
   if (billingMonths && billingMonths >= 1) updates.billingMonths = Math.floor(billingMonths);
