@@ -35,6 +35,8 @@ const PROPERTY_COLUMNS = {
   lng: properties.lng,
   createdAt: properties.createdAt,
   ownerName: users.name,
+  ownerPhone: users.phone,
+  ownerEmail: users.email,
 } as const;
 
 const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];

@@ -627,13 +627,17 @@ export default function PropertyDetails() {
                         </div>
                       </div>
                       <div className="space-y-4 mb-6">
-                        <a href="tel:+254713361799" className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md" onClick={(e) => !isBooked && e.preventDefault()}>
+                        <a
+                          href={isBooked && property.ownerPhone ? `tel:${property.ownerPhone}` : undefined}
+                          className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md"
+                          onClick={(e) => !isBooked && e.preventDefault()}
+                        >
                           <PhoneCall className="h-4 w-4" />
-                          <span>+254 713 361 799</span>
+                          <span>{isBooked ? (property.ownerPhone || "No phone listed") : "••• ••• •••"}</span>
                         </a>
                         <div className="flex items-center gap-3 text-sm text-gray-600 p-2">
                           <Mail className="h-4 w-4" />
-                          <span>{isBooked ? `${property.ownerName?.toLowerCase().replace(" ", ".")}@inndos.com` : "••••@•••••.com"}</span>
+                          <span>{isBooked ? (property.ownerEmail || "No email listed") : "••••@•••••.com"}</span>
                         </div>
                       </div>
                     </div>
