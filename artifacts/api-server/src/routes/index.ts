@@ -8,6 +8,7 @@ import storageRouter from "./storage";
 import notificationsRouter from "./notifications";
 import favoritesRouter from "./favorites";
 import subscriptionsRouter from "./subscriptions";
+import verifyIdRouter from "./verifyId";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(storageRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/favorites", favoritesRouter);
 router.use("/subscriptions", subscriptionsRouter);
+router.use(verifyIdRouter);
 
 export default router;

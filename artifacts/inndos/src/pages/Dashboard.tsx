@@ -16,13 +16,14 @@ import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function IdSideUpload({
-  label, hint, currentPath, isUploading, inputRef, onChange
+  label, hint, currentPath, isUploading, isVerifying, inputRef, onChange
 }: {
   label: string; hint: string; currentPath: string | null | undefined;
-  isUploading: boolean; inputRef: React.RefObject<HTMLInputElement | null>;
+  isUploading: boolean; isVerifying?: boolean; inputRef: React.RefObject<HTMLInputElement | null>;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const imgSrc = currentPath?.startsWith("/objects/") ? `/api/storage${currentPath}` : currentPath ?? null;
+  const busy = isUploading || isVerifying;
   return (
     <div className="flex flex-col gap-2 flex-1 min-w-0">
       <span className="text-sm font-medium">{label}</span>
@@ -30,12 +31,18 @@ function IdSideUpload({
         className={`border-2 border-dashed rounded-xl overflow-hidden transition-colors cursor-pointer
           ${imgSrc ? "border-green-300 bg-green-50/30" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
         style={{ minHeight: 160 }}
-        onClick={() => !isUploading && inputRef.current?.click()}
+        onClick={() => !busy && inputRef.current?.click()}
       >
         {isUploading ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">
             <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
             <p className="text-sm text-gray-500">Uploading…</p>
+          </div>
+        ) : isVerifying ? (
+          <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
+            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+            <p className="text-sm text-blue-700 font-medium">Verifying ID with AI…</p>
+            <p className="text-xs text-gray-500">Checking Kenyan ID format & name match</p>
           </div>
         ) : imgSrc ? (
           <div className="relative group">
@@ -44,14 +51,14 @@ function IdSideUpload({
               <span className="text-white text-xs font-medium">Click to replace</span>
             </div>
             <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5">
-              <Check className="h-2.5 w-2.5" /> Uploaded
+              <Check className="h-2.5 w-2.5" /> Verified
             </span>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <UploadCloud className="h-8 w-8 text-gray-300" />
             <p className="text-sm font-medium text-gray-600">{hint}</p>
-            <p className="text-xs text-muted-foreground">JPG or PNG (max. 10MB)</p>
+            <p className="text-xs text-muted-foreground">JPG or PNG · Kenyan National ID only · max. 10MB</p>
           </div>
         )}
       </div>
@@ -73,6 +80,8 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingIdFront, setIsUploadingIdFront] = useState(false);
   const [isUploadingIdBack, setIsUploadingIdBack] = useState(false);
+  const [isVerifyingIdFront, setIsVerifyingIdFront] = useState(false);
+  const [isVerifyingIdBack, setIsVerifyingIdBack] = useState(false);
   const [idFrontPath, setIdFrontPath] = useState<string | null>(user.idFront ?? null);
   const [idBackPath, setIdBackPath] = useState<string | null>(user.idBack ?? null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -114,27 +123,65 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
   const makeIdHandler = (
     side: "idFront" | "idBack",
     setUploading: (v: boolean) => void,
-    setPath: (v: string) => void,
+    setVerifying: (v: boolean) => void,
+    setPath: (v: string | null) => void,
     inputEl: React.RefObject<HTMLInputElement | null>
   ) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { toast({ title: "File too large", description: "Maximum 10 MB.", variant: "destructive" }); return; }
     setUploading(true);
+    let objectPath: string;
     try {
-      const objectPath = await uploadFile(file);
-      const res = await fetch("/api/auth/profile", {
+      objectPath = await uploadFile(file);
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+      setUploading(false);
+      if (inputEl.current) inputEl.current.value = "";
+      return;
+    }
+    setUploading(false);
+
+    setVerifying(true);
+    try {
+      const verifyRes = await fetch("/api/auth/verify-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ objectPath }),
+      });
+      const verifyData = await verifyRes.json() as { ok: boolean; message: string; extractedName?: string };
+
+      if (!verifyData.ok) {
+        toast({
+          title: "ID Rejected",
+          description: verifyData.message,
+          variant: "destructive",
+          duration: 8000,
+        });
+        setPath(null);
+        if (inputEl.current) inputEl.current.value = "";
+        return;
+      }
+
+      const saveRes = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ [side]: objectPath }),
       });
-      if (!res.ok) throw new Error("Failed to save document");
+      if (!saveRes.ok) throw new Error("Failed to save document");
       setPath(objectPath);
       await refreshUser();
-      toast({ title: side === "idFront" ? "ID front uploaded" : "ID back uploaded" });
+      toast({
+        title: side === "idFront" ? "✓ ID Front Verified" : "✓ ID Back Verified",
+        description: verifyData.extractedName ? `Name matched: ${verifyData.extractedName}` : "Document accepted.",
+      });
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
-    } finally { setUploading(false); if (inputEl.current) inputEl.current.value = ""; }
+      toast({ title: "Verification failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+      setPath(null);
+    } finally {
+      setVerifying(false);
+      if (inputEl.current) inputEl.current.value = "";
+    }
   };
 
   const avatarSrc = user.avatar?.startsWith("/objects/")
