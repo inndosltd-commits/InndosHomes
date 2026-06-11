@@ -2,7 +2,6 @@ import { Router } from "express";
 import sharp from "sharp";
 import { requireAuth } from "../lib/requireAuth";
 import { ObjectStorageService } from "../lib/objectStorage";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { db } from "@workspace/db";
 import { users } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -10,7 +9,7 @@ import { eq } from "drizzle-orm";
 const router = Router();
 const objectStorageService = new ObjectStorageService();
 
-const AI_TIMEOUT_MS = 20_000;
+const AI_TIMEOUT_MS = 35_000;
 
 function namesOverlap(registeredName: string, idName: string): boolean {
   if (!idName.trim()) return true; // model confirmed ID but declined to print name — trust it
@@ -45,7 +44,6 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     const file = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(file);
     const arrayBuffer = await response.arrayBuffer();
-    // Resize to max 512px — minimises base64 payload to ~30-80KB
     const resized = await sharp(Buffer.from(arrayBuffer))
       .resize({ width: 512, height: 512, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 75 })
@@ -61,26 +59,37 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
   let aiResult: { isKenyanId: boolean; extractedName: string; reason: string };
 
   try {
-    // Pass timeout + maxRetries=0 directly to the SDK so it aborts at the
-    // HTTP level — Promise.race alone cannot cancel an in-flight SDK request.
-    const completion = await openai.chat.completions.create(
-      {
+    // Use native fetch with AbortSignal.timeout() — the OpenAI SDK's timeout option
+    // does not reliably abort TCP connections that are established but non-responsive
+    // in the production environment.
+    const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+    const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
         model: "gpt-5-mini",
         max_completion_tokens: 2048,
         messages: [
           {
             role: "system",
             content:
-              'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
-              'isKenyanId is true if the image shows either side of a Kenyan National ID card. ' +
+              'You are an automated ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
+              'isKenyanId is true if the image shows a Kenyan National ID card (front or back). ' +
               'Front side: "JAMHURI YA KENYA"/"REPUBLIC OF KENYA" header with ID number, date of birth, holder photo. ' +
-              'Back side: MRZ lines starting with "IDKYA" and/or district/division/location fields. Either qualifies. ' +
-              'extractedName is the full name (front: FULL NAMES field; back: third MRZ line after removing < chars), or empty string if not visible. reason is one sentence.',
+              'Back side: MRZ lines starting with "IDKYA" and/or district/division/location fields. ' +
+              'extractedName: the printed full name from the FULL NAMES field, or MRZ line 3 with < replaced by spaces. ' +
+              'If the name is not clearly readable, return empty string. reason is one sentence. ' +
+              'Accept any photo quality — blurry, angled, or low-resolution images of genuine IDs are acceptable.',
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
+              { type: "text", text: "Is this a valid Kenyan National ID? Extract the name if visible." },
               {
                 type: "image_url",
                 image_url: { url: `data:${mimeType};base64,${imageBase64}` },
@@ -88,27 +97,29 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
             ],
           },
         ],
-      },
-      {
-        timeout: AI_TIMEOUT_MS,
-        maxRetries: 0,
-      }
-    );
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+      }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+    });
+
+    if (!aiResponse.ok) {
+      throw new Error(`AI service returned ${aiResponse.status}`);
+    }
+
+    const aiData = await aiResponse.json() as { choices: Array<{ message: { content: string } }> };
+    const raw = aiData.choices[0]?.message?.content ?? "{}";
     aiResult = JSON.parse(raw.replace(/```json|```/g, "").trim());
   } catch (err: unknown) {
-    req.log.error({ err }, "OpenAI vision call failed or timed out");
-    // OpenAI SDK throws APIConnectionTimeoutError on timeout; also handle legacy AbortError name
+    req.log.error({ err }, "AI vision call failed or timed out");
     const isTimeout =
       err instanceof Error &&
-      (err.name === "APIConnectionTimeoutError" ||
+      (err.name === "TimeoutError" ||
         err.name === "AbortError" ||
-        err.constructor?.name === "APIConnectionTimeoutError" ||
+        err.name === "APIConnectionTimeoutError" ||
         (err as any).code === "ETIMEDOUT");
     res.status(500).json({
       ok: false,
       message: isTimeout
-        ? "Verification timed out. Please try again with a clear, well-lit photo."
+        ? "Verification timed out. Please try again — it usually takes 10–30 seconds."
         : "AI verification service is temporarily unavailable. Please try again.",
     });
     return;

@@ -149,7 +149,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
       // Only run AI verification on the front side
       if (side === "idFront") {
         const verifyController = new AbortController();
-        const verifyTimer = setTimeout(() => verifyController.abort(), 30_000);
+        const verifyTimer = setTimeout(() => verifyController.abort(), 45_000);
         let verifyRes: Response;
         try {
           verifyRes = await fetch("/api/auth/verify-id", {
