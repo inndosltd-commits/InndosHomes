@@ -9,32 +9,13 @@ import { eq } from "drizzle-orm";
 const router = Router();
 const objectStorageService = new ObjectStorageService();
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .sort()
-    .join(" ");
-}
+const AI_TIMEOUT_MS = 25_000;
 
 function namesOverlap(registeredName: string, idName: string): boolean {
-  const regParts = registeredName
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(w => w.length > 1);
-
-  const idParts = idName
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .trim()
-    .split(/\s+/)
-    .filter(w => w.length > 1);
-
+  const clean = (s: string) =>
+    s.toLowerCase().replace(/[^a-z\s]/g, "").trim().split(/\s+/).filter(w => w.length > 1);
+  const regParts = clean(registeredName);
+  const idParts = clean(idName);
   const matches = regParts.filter(w => idParts.includes(w));
   return matches.length >= Math.min(2, Math.min(regParts.length, idParts.length));
 }
@@ -62,7 +43,6 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     const response = await objectStorageService.downloadObject(file);
     const ct = response.headers.get("content-type");
     if (ct) mimeType = ct.split(";")[0].trim();
-
     const arrayBuffer = await response.arrayBuffer();
     imageBase64 = Buffer.from(arrayBuffer).toString("base64");
   } catch (err) {
@@ -71,65 +51,59 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     return;
   }
 
-  let aiResult: {
-    isKenyanId: boolean;
-    confidence: string;
-    extractedName: string;
-    reason: string;
-  };
+  let aiResult: { isKenyanId: boolean; extractedName: string; reason: string };
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5",
-      max_completion_tokens: 512,
-      messages: [
-        {
-          role: "system",
-          content: `You are an identity document verification system for Kenya. 
-Your job is to analyse an uploaded image and determine:
-1. Whether the image is a genuine Kenyan National Identity Card (issued by the Government of Kenya).
-2. The full name printed on the card.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
-A genuine Kenyan National ID typically has:
-- The words "REPUBLIC OF KENYA" or "JAMHURI YA KENYA" 
-- The words "NATIONAL IDENTITY CARD" or "KITAMBULISHO CHA TAIFA"
-- Fields for: ID Number, Full Name, Date of Birth, Date of Issue, District of Birth/Issuance
-- A photo of the holder
-- Greenish or beige background with security patterns
-
-Respond ONLY with valid JSON in this exact shape — no markdown, no extra text:
-{
-  "isKenyanId": true | false,
-  "confidence": "high" | "medium" | "low",
-  "extractedName": "<full name from card or empty string>",
-  "reason": "<one sentence explaining your decision>"
-}`,
-        },
+    let completion;
+    try {
+      completion = await openai.chat.completions.create(
         {
-          role: "user",
-          content: [
+          model: "gpt-5.1",
+          max_completion_tokens: 256,
+          messages: [
             {
-              type: "text",
-              text: "Analyse this image and tell me if it is a valid Kenyan National Identity Card. If yes, extract the full name printed on it.",
+              role: "system",
+              content:
+                'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
+                'isKenyanId is true only if the image shows a Kenyan National ID card (has "REPUBLIC OF KENYA" or "JAMHURI YA KENYA" and "NATIONAL IDENTITY CARD" text, ID number field, date of birth field, and holder photo). ' +
+                "extractedName is the full name printed on the card, or empty string. reason is one sentence.",
             },
             {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`,
-                detail: "high",
-              },
+              role: "user",
+              content: [
+                { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`,
+                    detail: "low",
+                  },
+                },
+              ],
             },
           ],
         },
-      ],
-    });
+        { signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
-    const cleaned = raw.replace(/```json|```/g, "").trim();
-    aiResult = JSON.parse(cleaned);
-  } catch (err) {
-    req.log.error({ err }, "OpenAI vision call failed");
-    res.status(500).json({ ok: false, message: "AI verification service is temporarily unavailable. Please try again." });
+    aiResult = JSON.parse(raw.replace(/```json|```/g, "").trim());
+  } catch (err: unknown) {
+    req.log.error({ err }, "OpenAI vision call failed or timed out");
+    const isTimeout =
+      (err instanceof Error && (err.name === "AbortError" || err.message?.includes("abort")));
+    res.status(500).json({
+      ok: false,
+      message: isTimeout
+        ? "Verification timed out. Please try again with a clear, well-lit photo."
+        : "AI verification service is temporarily unavailable. Please try again.",
+    });
     return;
   }
 
@@ -139,7 +113,7 @@ Respond ONLY with valid JSON in this exact shape — no markdown, no extra text:
       isKenyanId: false,
       namesMatch: false,
       extractedName: "",
-      message: `This does not appear to be a valid Kenyan National ID. ${aiResult.reason} Please upload only your official Kenyan National Identity Card.`,
+      message: `Not a valid Kenyan National ID. ${aiResult.reason ?? ""} Please upload only your official Kenyan National Identity Card.`,
     });
     return;
   }
@@ -152,7 +126,7 @@ Respond ONLY with valid JSON in this exact shape — no markdown, no extra text:
       isKenyanId: true,
       namesMatch: false,
       extractedName: aiResult.extractedName,
-      message: `The name on the ID ("${aiResult.extractedName}") does not match your registered account name ("${user.name}"). Please upload an ID that matches your account name.`,
+      message: `Name on ID ("${aiResult.extractedName}") does not match your account name ("${user.name}"). Upload an ID that matches your account name.`,
     });
     return;
   }
@@ -162,7 +136,7 @@ Respond ONLY with valid JSON in this exact shape — no markdown, no extra text:
     isKenyanId: true,
     namesMatch: true,
     extractedName: aiResult.extractedName,
-    message: `Identity verified successfully. Name on ID: ${aiResult.extractedName}`,
+    message: `Verified. Name on ID: ${aiResult.extractedName}`,
   });
 });
 

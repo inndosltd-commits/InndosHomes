@@ -144,16 +144,24 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
 
     setVerifying(true);
     try {
-      const verifyRes = await fetch("/api/auth/verify-id", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ objectPath }),
-      });
+      const verifyController = new AbortController();
+      const verifyTimer = setTimeout(() => verifyController.abort(), 30_000);
+      let verifyRes: Response;
+      try {
+        verifyRes = await fetch("/api/auth/verify-id", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ objectPath }),
+          signal: verifyController.signal,
+        });
+      } finally {
+        clearTimeout(verifyTimer);
+      }
       const verifyData = await verifyRes.json() as { ok: boolean; message: string; extractedName?: string };
 
       if (!verifyData.ok) {
         toast({
-          title: "ID Rejected",
+          title: "ID Not Verified",
           description: verifyData.message,
           variant: "destructive",
           duration: 8000,
@@ -172,11 +180,19 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
       setPath(objectPath);
       await refreshUser();
       toast({
-        title: side === "idFront" ? "✓ ID Front Verified" : "✓ ID Back Verified",
+        title: side === "idFront" ? "✓ ID Front Verified" : "✓ ID Back Saved",
         description: verifyData.extractedName ? `Name matched: ${verifyData.extractedName}` : "Document accepted.",
       });
     } catch (err) {
-      toast({ title: "Verification failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      toast({
+        title: isAbort ? "Verification timed out" : "Verification failed",
+        description: isAbort
+          ? "The AI check took too long. Please try again with a clearer, well-lit photo."
+          : err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+        duration: 8000,
+      });
       setPath(null);
     } finally {
       setVerifying(false);
