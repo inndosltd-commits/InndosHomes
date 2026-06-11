@@ -806,6 +806,12 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      openai:
+        specifier: ^6.27.0
+        version: 6.41.0(ws@8.20.0)(zod@4.3.6)
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6

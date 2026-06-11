@@ -144,31 +144,37 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
 
     setVerifying(true);
     try {
-      const verifyController = new AbortController();
-      const verifyTimer = setTimeout(() => verifyController.abort(), 30_000);
-      let verifyRes: Response;
-      try {
-        verifyRes = await fetch("/api/auth/verify-id", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ objectPath }),
-          signal: verifyController.signal,
-        });
-      } finally {
-        clearTimeout(verifyTimer);
-      }
-      const verifyData = await verifyRes.json() as { ok: boolean; message: string; extractedName?: string };
+      let extractedName: string | undefined;
 
-      if (!verifyData.ok) {
-        toast({
-          title: "ID Not Verified",
-          description: verifyData.message,
-          variant: "destructive",
-          duration: 8000,
-        });
-        setPath(null);
-        if (inputEl.current) inputEl.current.value = "";
-        return;
+      // Only run AI verification on the front side
+      if (side === "idFront") {
+        const verifyController = new AbortController();
+        const verifyTimer = setTimeout(() => verifyController.abort(), 30_000);
+        let verifyRes: Response;
+        try {
+          verifyRes = await fetch("/api/auth/verify-id", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ objectPath }),
+            signal: verifyController.signal,
+          });
+        } finally {
+          clearTimeout(verifyTimer);
+        }
+        const verifyData = await verifyRes.json() as { ok: boolean; message: string; extractedName?: string };
+
+        if (!verifyData.ok) {
+          toast({
+            title: "ID Not Verified",
+            description: verifyData.message,
+            variant: "destructive",
+            duration: 8000,
+          });
+          setPath(null);
+          if (inputEl.current) inputEl.current.value = "";
+          return;
+        }
+        extractedName = verifyData.extractedName;
       }
 
       const saveRes = await fetch("/api/auth/profile", {
@@ -181,7 +187,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
       await refreshUser();
       toast({
         title: side === "idFront" ? "✓ ID Front Verified" : "✓ ID Back Saved",
-        description: verifyData.extractedName ? `Name matched: ${verifyData.extractedName}` : "Document accepted.",
+        description: extractedName ? `Name matched: ${extractedName}` : "Document accepted.",
       });
     } catch (err) {
       const isAbort = err instanceof Error && err.name === "AbortError";

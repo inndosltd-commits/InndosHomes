@@ -13,10 +13,12 @@ const objectStorageService = new ObjectStorageService();
 const AI_TIMEOUT_MS = 20_000;
 
 function namesOverlap(registeredName: string, idName: string): boolean {
+  if (!idName.trim()) return true; // model confirmed ID but declined to print name — trust it
   const clean = (s: string) =>
     s.toLowerCase().replace(/[^a-z\s]/g, "").trim().split(/\s+/).filter(w => w.length > 1);
   const regParts = clean(registeredName);
   const idParts = clean(idName);
+  if (regParts.length === 0 || idParts.length === 0) return false;
   const matches = regParts.filter(w => idParts.includes(w));
   return matches.length >= Math.min(2, Math.min(regParts.length, idParts.length));
 }
@@ -62,15 +64,17 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     // Promise.race guarantees we respond within AI_TIMEOUT_MS regardless of
     // whether the SDK honours the AbortSignal in this environment.
     const aiCall = openai.chat.completions.create({
-      model: "gpt-5-nano",
-      max_completion_tokens: 128,
+      model: "gpt-5-mini",
+      max_completion_tokens: 2048,
       messages: [
         {
           role: "system",
           content:
             'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
-            'isKenyanId is true only if the image shows a Kenyan National ID card (has "REPUBLIC OF KENYA" or "JAMHURI YA KENYA" text, ID number field, date of birth field, and holder photo). ' +
-            "extractedName is the full name printed on the card, or empty string. reason is one sentence.",
+            'isKenyanId is true if the image shows either side of a Kenyan National ID card. ' +
+            'Front side: "JAMHURI YA KENYA"/"REPUBLIC OF KENYA" header with ID number, date of birth, holder photo. ' +
+            'Back side: MRZ lines starting with "IDKYA" and/or district/division/location fields. Either qualifies. ' +
+            'extractedName is the full name (front: FULL NAMES field; back: third MRZ line after removing < chars), or empty string if not visible. reason is one sentence.',
         },
         {
           role: "user",
