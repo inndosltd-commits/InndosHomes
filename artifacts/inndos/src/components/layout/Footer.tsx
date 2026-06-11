@@ -25,7 +25,7 @@ export function Footer() {
     <footer className="bg-primary text-white py-12">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-           <h3 className="text-2xl mb-4" style={{ fontFamily: "'Neo Tech', sans-serif" }}>inndos</h3>
+           <div className="mb-4"><img src="/logo-inndos.png" alt="inndos" className="h-8 w-auto" style={{ filter: "invert(1)" }} /></div>
            <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
         </div>
         <div>
