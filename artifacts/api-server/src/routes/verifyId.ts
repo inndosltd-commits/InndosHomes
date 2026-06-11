@@ -1,4 +1,5 @@
 import { Router } from "express";
+import sharp from "sharp";
 import { requireAuth } from "../lib/requireAuth";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -36,15 +37,19 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
   }
 
   let imageBase64: string;
-  let mimeType = "image/jpeg";
+  const mimeType = "image/jpeg";
 
   try {
     const file = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(file);
-    const ct = response.headers.get("content-type");
-    if (ct) mimeType = ct.split(";")[0].trim();
     const arrayBuffer = await response.arrayBuffer();
-    imageBase64 = Buffer.from(arrayBuffer).toString("base64");
+    // Resize to max 900px wide/tall and convert to JPEG to keep payload small (~50-150KB)
+    const resized = await sharp(Buffer.from(arrayBuffer))
+      .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    imageBase64 = resized.toString("base64");
+    req.log.info({ originalBytes: arrayBuffer.byteLength, resizedBytes: resized.length }, "ID image resized");
   } catch (err) {
     req.log.error({ err }, "Failed to read ID image from storage");
     res.status(500).json({ ok: false, message: "Could not read the uploaded image. Please try again." });
@@ -61,8 +66,8 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     try {
       completion = await openai.chat.completions.create(
         {
-          model: "gpt-5.1",
-          max_completion_tokens: 256,
+          model: "gpt-5-nano",
+          max_completion_tokens: 128,
           messages: [
             {
               role: "system",
