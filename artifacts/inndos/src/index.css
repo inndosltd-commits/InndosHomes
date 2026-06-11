@@ -6,7 +6,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/neo-tech.woff') format('woff');
+  src: url('/fonts/neo-tech.ttf') format('truetype');
 }
 
 @custom-variant dark (&:is(.dark *));
