@@ -26,20 +26,20 @@ export default function About() {
               We connect you directly to property owners — no middlemen, no commissions, no drama.
             </p>
             <p className="mb-6">
-              Open the app and instantly see BnBs and rentals around you. Filter amenities like WiFi, security, parking, gym. Chat the owner straight away.
+              Open the app and instantly see B&Bs and rentals around you. Filter amenities like WiFi, security, parking, gym. Chat the owner straight away.
             </p>
             <p className="mb-8">
-              Whether you need a same-night BnB or a long-term keja, it's all in one place.
+              Whether you need a same-night B&B or a long-term keja, it's all in one place.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* BnB */}
+          {/* B&B */}
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 hover:border-primary/30 transition-colors">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">BnB – Stay Tonight</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">B&B – Stay Tonight</h2>
             <p className="text-gray-600 mb-4">Late out? Flight delayed? Need a safe spot right now?</p>
-            <p className="text-gray-600 mb-4">Inndos shows available BnBs the moment you open the app.</p>
+            <p className="text-gray-600 mb-4">Inndos shows available B&Bs the moment you open the app.</p>
             <ul className="list-disc pl-5 space-y-2 text-gray-600 mb-6">
               <li>Map lights up with options near you</li>
               <li>Filter: clean bedding, WiFi, hot shower, secure parking</li>
@@ -47,7 +47,7 @@ export default function About() {
               <li>Book and pay via M-Pesa instantly</li>
             </ul>
             <p className="font-medium text-gray-900 mb-2">No crazy mark-ups. No middlemen.</p>
-            <p className="text-sm text-gray-500">List your extra room as BnB and earn extra cash with zero fees. Inndos — your spot tonight, direct from the owner.</p>
+            <p className="text-sm text-gray-500">List your extra room as a B&B and earn extra cash with zero fees. Inndos — your spot tonight, direct from the owner.</p>
           </div>
 
           {/* Rent */}
