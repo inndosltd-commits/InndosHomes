@@ -61,48 +61,50 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
   let aiResult: { isKenyanId: boolean; extractedName: string; reason: string };
 
   try {
-    // Promise.race guarantees we respond within AI_TIMEOUT_MS regardless of
-    // whether the SDK honours the AbortSignal in this environment.
-    const aiCall = openai.chat.completions.create({
-      model: "gpt-5-mini",
-      max_completion_tokens: 2048,
-      messages: [
-        {
-          role: "system",
-          content:
-            'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
-            'isKenyanId is true if the image shows either side of a Kenyan National ID card. ' +
-            'Front side: "JAMHURI YA KENYA"/"REPUBLIC OF KENYA" header with ID number, date of birth, holder photo. ' +
-            'Back side: MRZ lines starting with "IDKYA" and/or district/division/location fields. Either qualifies. ' +
-            'extractedName is the full name (front: FULL NAMES field; back: third MRZ line after removing < chars), or empty string if not visible. reason is one sentence.',
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-            },
-          ],
-        },
-      ],
-    });
-
-    const hardTimeout = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(Object.assign(new Error("AI_TIMEOUT"), { name: "AbortError" })),
-        AI_TIMEOUT_MS
-      )
+    // Pass timeout + maxRetries=0 directly to the SDK so it aborts at the
+    // HTTP level — Promise.race alone cannot cancel an in-flight SDK request.
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-5-mini",
+        max_completion_tokens: 2048,
+        messages: [
+          {
+            role: "system",
+            content:
+              'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
+              'isKenyanId is true if the image shows either side of a Kenyan National ID card. ' +
+              'Front side: "JAMHURI YA KENYA"/"REPUBLIC OF KENYA" header with ID number, date of birth, holder photo. ' +
+              'Back side: MRZ lines starting with "IDKYA" and/or district/division/location fields. Either qualifies. ' +
+              'extractedName is the full name (front: FULL NAMES field; back: third MRZ line after removing < chars), or empty string if not visible. reason is one sentence.',
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
+              {
+                type: "image_url",
+                image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        timeout: AI_TIMEOUT_MS,
+        maxRetries: 0,
+      }
     );
-
-    const completion = await Promise.race([aiCall, hardTimeout]);
     const raw = completion.choices[0]?.message?.content ?? "{}";
     aiResult = JSON.parse(raw.replace(/```json|```/g, "").trim());
   } catch (err: unknown) {
     req.log.error({ err }, "OpenAI vision call failed or timed out");
+    // OpenAI SDK throws APIConnectionTimeoutError on timeout; also handle legacy AbortError name
     const isTimeout =
-      err instanceof Error && (err.name === "AbortError" || (err as any).message === "AI_TIMEOUT");
+      err instanceof Error &&
+      (err.name === "APIConnectionTimeoutError" ||
+        err.name === "AbortError" ||
+        err.constructor?.name === "APIConnectionTimeoutError" ||
+        (err as any).code === "ETIMEDOUT");
     res.status(500).json({
       ok: false,
       message: isTimeout
