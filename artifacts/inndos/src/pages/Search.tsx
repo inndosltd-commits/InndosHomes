@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X, Map, LayoutList } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLanguage } from "@/lib/language";
 import PropertyMap from "@/components/ui/PropertyMap";
 
@@ -55,6 +55,9 @@ export default function Search() {
   const [isLoadingProps, setIsLoadingProps]     = useState(true);
   const [searchQuery, setSearchQuery]           = useState("");
   const [priceRange, setPriceRange]             = useState([0, maxPrice]);
+  const [minDraft, setMinDraft] = useState<string>("0");
+  const [maxDraft, setMaxDraft] = useState<string>(String(maxPrice));
+  const prevMaxPrice = useRef(maxPrice);
   const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [isGeofencingActive, setIsGeofencingActive] = useState(false);
@@ -90,12 +93,35 @@ export default function Search() {
     );
   };
 
+  useEffect(() => {
+    if (prevMaxPrice.current !== maxPrice) {
+      prevMaxPrice.current = maxPrice;
+      setPriceRange([0, maxPrice]);
+      setMinDraft("0");
+      setMaxDraft(String(maxPrice));
+    }
+  }, [maxPrice]);
+
+  const commitMin = (raw: string) => {
+    const v = Math.max(0, Math.min(Number(raw) || 0, priceRange[1]));
+    setMinDraft(String(v));
+    setPriceRange([v, priceRange[1]]);
+  };
+
+  const commitMax = (raw: string) => {
+    const v = Math.max(priceRange[0], Math.min(Number(raw) || 0, maxPrice));
+    setMaxDraft(String(v));
+    setPriceRange([priceRange[0], v]);
+  };
+
   const resetAllFilters = () => {
     setSearchQuery("");
     setSelectedBedrooms(null);
     setSelectedAmenities([]);
     setIsGeofencingActive(false);
     setPriceRange([0, maxPrice]);
+    setMinDraft("0");
+    setMaxDraft(String(maxPrice));
   };
 
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
@@ -186,7 +212,11 @@ export default function Search() {
         <h3 className="font-bold mb-3">Price Range</h3>
         <Slider
           value={priceRange}
-          onValueChange={setPriceRange}
+          onValueChange={(v) => {
+            setPriceRange(v);
+            setMinDraft(String(v[0]));
+            setMaxDraft(String(v[1]));
+          }}
           max={maxPrice}
           step={priceStep}
           className="mb-4 touch-none"
@@ -197,12 +227,10 @@ export default function Search() {
             <input
               type="number"
               min={0}
-              max={priceRange[1]}
-              value={priceRange[0]}
-              onChange={e => {
-                const v = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
-                setPriceRange([v, priceRange[1]]);
-              }}
+              value={minDraft}
+              onChange={e => setMinDraft(e.target.value)}
+              onBlur={e => commitMin(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
               className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -211,20 +239,18 @@ export default function Search() {
             <label className="text-xs text-muted-foreground mb-1 block">Max</label>
             <input
               type="number"
-              min={priceRange[0]}
-              max={maxPrice}
-              value={priceRange[1]}
-              onChange={e => {
-                const v = Math.max(priceRange[0], Math.min(Number(e.target.value), maxPrice));
-                setPriceRange([priceRange[0], v]);
-              }}
+              min={0}
+              value={maxDraft}
+              onChange={e => setMaxDraft(e.target.value)}
+              onBlur={e => commitMax(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
               className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
         {isPriceFiltered && (
           <button
-            onClick={() => setPriceRange([0, maxPrice])}
+            onClick={() => { setPriceRange([0, maxPrice]); setMinDraft("0"); setMaxDraft(String(maxPrice)); }}
             className="mt-2 text-xs text-primary hover:underline"
           >
             Reset price
