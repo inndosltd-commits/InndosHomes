@@ -206,7 +206,7 @@ export default function Search() {
     return "Properties";
   };
 
-  const FilterPanel = () => (
+  const filterPanel = (
     <div className="space-y-6">
       <div>
         <h3 className="font-bold mb-3">Price Range</h3>
@@ -393,7 +393,7 @@ export default function Search() {
                   </button>
                 </div>
               </div>
-              <FilterPanel />
+              {filterPanel}
               <Button
                 className="w-full mt-6 bg-primary"
                 onClick={() => setShowMobileFilters(false)}
@@ -419,7 +419,7 @@ export default function Search() {
               </button>
             </div>
           </div>
-          <FilterPanel />
+          {filterPanel}
         </div>
 
         {/* Results Grid / Map */}
