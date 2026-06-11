@@ -1229,7 +1229,7 @@ export default function Dashboard() {
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { window.location.hash = "/"; }}>
-          <span className="text-2xl font-bold tracking-tight text-white" style={{ fontFamily: "'Neotech', sans-serif" }}>inndos</span>
+          <span className="text-2xl tracking-tight text-white" style={{ fontFamily: "'Neotech', sans-serif", fontWeight: 900 }}>inndos</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="text-white/80 hover:text-white rounded-full"><Bell className="w-5 h-5" /></Button>
@@ -1323,7 +1323,7 @@ export default function Dashboard() {
         <div className="p-6 pb-2">
             <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer mb-6">
-                <span className="text-2xl font-bold tracking-tight text-white" style={{ fontFamily: "'Neotech', sans-serif" }}>inndos</span>
+                <span className="text-2xl tracking-tight text-white" style={{ fontFamily: "'Neotech', sans-serif", fontWeight: 900 }}>inndos</span>
             </div>
             </Link>
             <div className="mb-6">

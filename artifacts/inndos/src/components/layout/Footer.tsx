@@ -25,7 +25,7 @@ export function Footer() {
     <footer className="bg-primary text-white py-12">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-           <h3 className="font-bold text-2xl mb-4" style={{ fontFamily: "'Neotech', sans-serif" }}>inndos</h3>
+           <h3 className="text-2xl mb-4" style={{ fontFamily: "'Neotech', sans-serif", fontWeight: 900 }}>inndos</h3>
            <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
         </div>
         <div>
