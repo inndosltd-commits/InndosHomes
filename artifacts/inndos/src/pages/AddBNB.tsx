@@ -459,7 +459,7 @@ export default function AddBNB() {
                   mapContainerClassName="w-full h-full"
                   center={draftPin ?? NAIROBI_CENTER}
                   zoom={13}
-                  options={{ mapId: "DEMO_MAP_ID", mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
+                  options={{ mapId: "c7cd60c6a53a720a14502d1b", mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
                   onLoad={(map) => { mapRef.current = map; }}
                   onClick={(e) => {
                     if (e.latLng) {

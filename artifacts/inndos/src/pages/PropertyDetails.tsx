@@ -31,7 +31,7 @@ function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
       center={{ lat, lng }}
       zoom={15}
       options={{
-        mapId: "DEMO_MAP_ID",
+        mapId: "c7cd60c6a53a720a14502d1b",
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,

@@ -78,7 +78,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         onLoad={onLoad}
         onClick={() => setSelectedProperty(null)}
         options={{
-          mapId: "DEMO_MAP_ID",
+          mapId: "c7cd60c6a53a720a14502d1b",
           zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
           mapTypeControl: false,
           streetViewControl: false,
