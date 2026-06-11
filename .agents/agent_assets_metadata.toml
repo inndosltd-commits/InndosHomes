@@ -1,8 +1,19 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "4xmSc57eo-ljMwbAyVXHq"
 uri = "file://artifacts/inndos-mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "c4eiXaY9qG2HDGW80Tnvo"
+uri = "file://inndos-web-source.zip"
+type = "unspecified"
+title = "INNDOS Website + API Server (source code)"
+
+[[outputs]]
+id = "XxCXSlvM1vNQX_HGMB2AS"
+uri = "file://inndos-mobile-source.zip"
+type = "unspecified"
+title = "INNDOS Mobile App — Expo/React Native (source code)"
