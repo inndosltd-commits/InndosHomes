@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: 'Neo Tech';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/neo-tech.woff') format('woff');
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
