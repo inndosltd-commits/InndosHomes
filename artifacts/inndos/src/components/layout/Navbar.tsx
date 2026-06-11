@@ -38,12 +38,8 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
-          <div className="flex items-center gap-3 cursor-pointer group">
-            <img 
-              src="/logo.png" 
-              alt="INNDOS" 
-              className="h-8 w-auto object-contain" 
-            />
+          <div className="flex items-center cursor-pointer">
+            <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>inndos</span>
           </div>
         </Link>
 
@@ -214,7 +210,7 @@ export function Navbar() {
                 className="p-4 border-b border-gray-100 flex items-center gap-3 cursor-pointer"
                 onClick={() => { setIsMenuOpen(false); window.location.hash = "/"; }}
               >
-                <img src="/logo.png" alt="INNDOS" className="h-8 w-auto object-contain" />
+                <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>inndos</span>
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                 <div className="h-px bg-gray-100 my-2" />
