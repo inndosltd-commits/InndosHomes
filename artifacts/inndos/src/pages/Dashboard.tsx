@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage } from "@/lib/language";
 
 function IdSideUpload({
   label, hint, currentPath, isUploading, isVerifying, inputRef, onChange
@@ -75,6 +76,7 @@ function getImageUrl(path: string | null | undefined): string {
 
 function ProfileCard({ user, token, refreshUser }: { user: User; token: string | null; refreshUser: () => Promise<void> }) {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [profileName, setProfileName] = useState(user.name);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -243,39 +245,37 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="profile-name">Full Name</Label>
+            <Label htmlFor="profile-name">{t("dash.full_name")}</Label>
             <Input id="profile-name" value={profileName} onChange={e => setProfileName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="profile-email">Email Address</Label>
+            <Label htmlFor="profile-email">{t("dash.email_address")}</Label>
             <Input id="profile-email" defaultValue={user.email} readOnly className="bg-gray-50 cursor-not-allowed" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="profile-phone">Phone Number</Label>
+            <Label htmlFor="profile-phone">{t("dash.phone_number")}</Label>
             <div className="relative">
               <Input id="profile-phone" value={user.phone ?? ""} readOnly className="bg-gray-50 cursor-not-allowed pr-32" />
               {user.phoneVerified && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                  <Check className="h-3 w-3" /> Verified
+                  <Check className="h-3 w-3" /> {t("dash.verified")}
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Verified during registration. Contact support to change.</p>
+            <p className="text-xs text-muted-foreground">{t("dash.phone_desc")}</p>
           </div>
         </div>
 
         {/* ID Document Upload — Front & Back */}
         <div className="space-y-3">
           <div>
-            <Label>National ID or Passport</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Upload clear photos of <span className="font-semibold text-gray-700">both sides</span> of your National ID or Passport for identity verification.
-            </p>
+            <Label>{t("dash.national_id")}</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("dash.id_desc")}</p>
           </div>
           <div className="flex gap-4 flex-col sm:flex-row">
             <IdSideUpload
-              label="Front Side"
-              hint="Upload the front of your ID / Passport"
+              label={t("dash.front_side")}
+              hint={t("dash.upload_front_hint")}
               currentPath={idFrontPath}
               isUploading={isUploadingIdFront}
               isVerifying={isVerifyingIdFront}
@@ -283,8 +283,8 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
               onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIsVerifyingIdFront, setIdFrontPath, idFrontInputRef)}
             />
             <IdSideUpload
-              label="Back Side"
-              hint="Upload the back of your ID / Passport"
+              label={t("dash.back_side")}
+              hint={t("dash.upload_back_hint")}
               currentPath={idBackPath}
               isUploading={isUploadingIdBack}
               isVerifying={isVerifyingIdBack}
@@ -294,17 +294,17 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           </div>
           {(idFrontPath && idBackPath) && (
             <p className="text-xs text-green-700 flex items-center gap-1">
-              <Check className="h-3 w-3" /> Both sides uploaded — your identity is pending review.
+              <Check className="h-3 w-3" /> {t("dash.both_uploaded")}
             </p>
           )}
           {(idFrontPath && !idBackPath) && (
             <p className="text-xs text-amber-600 flex items-center gap-1">
-              ⚠ Please also upload the <span className="font-semibold">back side</span> to complete verification.
+              ⚠ {t("dash.upload_back_msg")}
             </p>
           )}
           {(!idFrontPath && idBackPath) && (
             <p className="text-xs text-amber-600 flex items-center gap-1">
-              ⚠ Please also upload the <span className="font-semibold">front side</span> to complete verification.
+              ⚠ {t("dash.upload_front_msg")}
             </p>
           )}
         </div>
@@ -328,7 +328,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
             } finally { setIsSavingProfile(false); }
           }}
         >
-          {isSavingProfile ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save Changes"}
+          {isSavingProfile ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("dash.saving")}</> : t("dash.save_changes")}
         </Button>
       </CardContent>
     </Card>
@@ -346,6 +346,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user, token, isLoading, logout, refreshUser } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // --- REAL-TIME STATE ---
   // Admin State
@@ -1239,16 +1240,16 @@ export default function Dashboard() {
       <div className="md:hidden bg-zinc-800 shrink-0 border-b border-white/10">
         <TabsList className="flex w-full h-auto bg-transparent p-2 overflow-x-auto justify-start no-scrollbar gap-2">
           <TabsTrigger value="overview" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-            Dashboard
+            {t("dash.dashboard")}
           </TabsTrigger>
           <TabsTrigger value="settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-            Profile
+            {t("dash.profile")}
           </TabsTrigger>
           <TabsTrigger value="messages" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-            Messages
+            {t("dash.messages")}
           </TabsTrigger>
           <TabsTrigger value="bookings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-            Bookings
+            {t("dash.bookings")}
             {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
               <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                 {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1256,21 +1257,21 @@ export default function Dashboard() {
             )}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-            Analytics
+            {t("dash.analytics")}
           </TabsTrigger>
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="subscription" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Subscription
+              {t("dash.subscription")}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="listings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Listings
+              {t("dash.listings_short")}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="reservations" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Reservations
+              {t("dash.reservations")}
               {unreadBookingCount > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                   {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1280,7 +1281,7 @@ export default function Dashboard() {
           )}
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsTrigger value="notifications" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Notifications
+              {t("dash.notifications")}
               {unreadBookingCount > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                   {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1290,27 +1291,27 @@ export default function Dashboard() {
           )}
           {user.role === 'admin' && (
             <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Properties
+              {t("dash.properties")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
             <TabsTrigger value="users" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Users
+              {t("dash.users")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
             <TabsTrigger value="admin-subscriptions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Subscriptions
+              {t("dash.subscriptions")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
             <TabsTrigger value="payment-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Payments
+              {t("dash.payments")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
             <TabsTrigger value="sms-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              SMS
+              {t("dash.sms")}
             </TabsTrigger>
           )}
         </TabsList>
@@ -1326,23 +1327,23 @@ export default function Dashboard() {
             </div>
             </Link>
             <div className="mb-6">
-              <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase mb-1">{user.role} PORTAL</p>
+              <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase mb-1">{user.role} {t("dash.portal")}</p>
             </div>
         </div>
         
         <div className="flex-1 overflow-y-auto px-4 py-2">
             <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-1">
             <TabsTrigger value="overview" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Home className="w-5 h-5 mr-3" /> Dashboard
+                <Home className="w-5 h-5 mr-3" /> {t("dash.dashboard")}
             </TabsTrigger>
             <TabsTrigger value="settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <UserCircle className="w-5 h-5 mr-3" /> My Profile
+                <UserCircle className="w-5 h-5 mr-3" /> {t("dash.my_profile")}
             </TabsTrigger>
             <TabsTrigger value="messages" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <MessageSquare className="w-5 h-5 mr-3" /> Messages
+                <MessageSquare className="w-5 h-5 mr-3" /> {t("dash.messages")}
             </TabsTrigger>
             <TabsTrigger value="bookings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Calendar className="w-5 h-5 mr-3" /> Bookings
+                <Calendar className="w-5 h-5 mr-3" /> {t("dash.bookings")}
                 {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1350,21 +1351,21 @@ export default function Dashboard() {
                 )}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <BarChart3 className="w-5 h-5 mr-3" /> Analytics
+                <BarChart3 className="w-5 h-5 mr-3" /> {t("dash.analytics")}
             </TabsTrigger>
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="subscription" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Crown className="w-5 h-5 mr-3" /> Subscription
+                <Crown className="w-5 h-5 mr-3" /> {t("dash.subscription")}
                 </TabsTrigger>
             )}
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="listings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <FileText className="w-5 h-5 mr-3" /> My Listings
+                <FileText className="w-5 h-5 mr-3" /> {t("dash.listings")}
                 </TabsTrigger>
             )}
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="reservations" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Users className="w-5 h-5 mr-3" /> Reservations
+                <Users className="w-5 h-5 mr-3" /> {t("dash.reservations")}
                 {unreadBookingCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1374,7 +1375,7 @@ export default function Dashboard() {
             )}
             {(user.role === 'owner' || user.role === 'host') && (
                 <TabsTrigger value="notifications" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Bell className="w-5 h-5 mr-3" /> Notifications
+                <Bell className="w-5 h-5 mr-3" /> {t("dash.notifications")}
                 {unreadBookingCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
@@ -1384,27 +1385,27 @@ export default function Dashboard() {
             )}
             {user.role === 'admin' && (
                 <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Home className="w-5 h-5 mr-3" /> All Properties
+                <Home className="w-5 h-5 mr-3" /> {t("dash.all_properties")}
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
                 <TabsTrigger value="users" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Users className="w-5 h-5 mr-3" /> Users
+                <Users className="w-5 h-5 mr-3" /> {t("dash.users")}
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
                 <TabsTrigger value="admin-subscriptions" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <Crown className="w-5 h-5 mr-3" /> Subscriptions
+                <Crown className="w-5 h-5 mr-3" /> {t("dash.subscriptions")}
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
                 <TabsTrigger value="payment-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <CreditCard className="w-5 h-5 mr-3" /> Payments
+                <CreditCard className="w-5 h-5 mr-3" /> {t("dash.payments")}
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
                 <TabsTrigger value="sms-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
-                <MessageSquare className="w-5 h-5 mr-3" /> SMS Settings
+                <MessageSquare className="w-5 h-5 mr-3" /> {t("dash.sms_settings")}
                 </TabsTrigger>
             )}
             </TabsList>
@@ -1422,7 +1423,7 @@ export default function Dashboard() {
             </div>
             <Button variant="ghost" className="w-full justify-start text-zinc-400 hover:text-white hover:bg-white/5 px-2 font-normal" onClick={logout}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 mr-3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-            Sign Out
+            {t("dash.sign_out")}
             </Button>
         </div>
       </div>
@@ -1445,14 +1446,14 @@ export default function Dashboard() {
             {activeTab === 'overview' && (
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back, {user.name.split(' ')[0]}!</h1>
-                  <p className="text-gray-500 text-sm">Here's your {user.role} overview</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">{t("dash.welcome")} {user.name.split(' ')[0]}!</h1>
+                  <p className="text-gray-500 text-sm">{t("dash.overview_sub").replace("{role}", user.role)}</p>
                 </div>
                 {(user?.role === 'owner' || user?.role === 'host') && (
                   <Link href="/add-listing">
                     <Button className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-5 h-10">
                       <Plus className="h-4 w-4" />
-                      List Property
+                      {t("dash.list_property")}
                     </Button>
                   </Link>
                 )}
@@ -1462,14 +1463,14 @@ export default function Dashboard() {
           <TabsContent value="analytics" className="space-y-6">
              <Card>
                <CardHeader>
-                 <CardTitle>Analytics & Reports</CardTitle>
-                 <CardDescription>View your performance metrics and download reports</CardDescription>
+                 <CardTitle>{t("dash.analytics_title")}</CardTitle>
+                 <CardDescription>{t("dash.analytics_desc")}</CardDescription>
                </CardHeader>
                <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                  <BarChart3 className="h-16 w-16 text-gray-300 mb-4" />
-                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available Yet</h3>
-                 <p className="max-w-md">Your analytics dashboard will populate with insights once your properties start receiving views, inquiries, and bookings.</p>
-                 <Button variant="outline" className="mt-6">Download Sample Report</Button>
+                 <h3 className="text-lg font-medium text-gray-900 mb-2">{t("dash.no_data")}</h3>
+                 <p className="max-w-md">{t("dash.analytics_empty")}</p>
+                 <Button variant="outline" className="mt-6">{t("dash.download_report")}</Button>
                </CardContent>
              </Card>
           </TabsContent>
@@ -1481,20 +1482,20 @@ export default function Dashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" /> Reservations Received
+                    <Calendar className="h-5 w-5 text-primary" /> {t("dash.reservations_received")}
                   </CardTitle>
-                  <CardDescription>Bookings guests have made on your properties</CardDescription>
+                  <CardDescription>{t("dash.reservations_received_desc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoadingReceivedBookings ? (
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading reservations...
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> {t("dash.loading_reservations")}
                     </div>
                   ) : receivedBookings.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                       <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <h3 className="text-lg font-medium text-gray-900">No reservations yet</h3>
-                      <p className="mb-4">Bookings from guests will appear here once your listings receive reservations.</p>
+                      <h3 className="text-lg font-medium text-gray-900">{t("dash.no_reservations")}</h3>
+                      <p className="mb-4">{t("dash.no_reservations_desc")}</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1534,22 +1535,22 @@ export default function Dashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" /> My Bookings
+                    <Calendar className="h-5 w-5 text-primary" /> {t("dash.my_bookings")}
                   </CardTitle>
-                  <CardDescription>Your property reservations</CardDescription>
+                  <CardDescription>{t("dash.my_bookings_desc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoadingBookings ? (
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading bookings...
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" /> {t("dash.loading_bookings")}
                     </div>
                   ) : bookings.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                       <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <h3 className="text-lg font-medium text-gray-900">No bookings yet</h3>
-                      <p className="mb-4">Your bookings will appear here once you make a reservation.</p>
+                      <h3 className="text-lg font-medium text-gray-900">{t("dash.no_bookings")}</h3>
+                      <p className="mb-4">{t("dash.no_bookings_desc")}</p>
                       <Link href="/properties">
-                        <Button variant="outline">Browse Properties</Button>
+                        <Button variant="outline">{t("dash.browse_props")}</Button>
                       </Link>
                     </div>
                   ) : (
@@ -1594,8 +1595,8 @@ export default function Dashboard() {
           <TabsContent value="messages" className="space-y-6">
              <Card>
                <CardHeader>
-                 <CardTitle>Inbox</CardTitle>
-                 <CardDescription>Manage your communications</CardDescription>
+                 <CardTitle>{t("dash.inbox")}</CardTitle>
+                 <CardDescription>{t("dash.inbox_desc")}</CardDescription>
                </CardHeader>
                <CardContent>
                  <MessagingSystem />
@@ -1611,34 +1612,34 @@ export default function Dashboard() {
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-blue-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Total Listings</p>
+                        <p className="text-sm font-medium text-muted-foreground">{t("dash.total_listings")}</p>
                         <Home className="h-4 w-4 text-blue-500" />
                       </div>
                       <div className="text-2xl font-bold">{ownerProperties.length}</div>
                       <p className="text-xs text-green-600 flex items-center mt-1">
-                        <ArrowUpRight className="h-3 w-3 mr-1" /> Active now
+                        <ArrowUpRight className="h-3 w-3 mr-1" /> {t("dash.active_now")}
                       </p>
                     </CardContent>
                   </Card>
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-purple-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Bookings</p>
+                        <p className="text-sm font-medium text-muted-foreground">{t("dash.bookings")}</p>
                         <MessageSquare className="h-4 w-4 text-purple-500" />
                       </div>
                       <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : receivedBookingsCount}</div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {isLoadingReceivedBookings
-                          ? 'Loading...'
+                          ? t("dash.loading")
                           : receivedBookingsCount === 0
-                          ? 'No bookings yet'
+                          ? t("dash.no_bookings_yet")
                           : (() => {
                               const pendingCount = receivedBookings.filter((b: any) => !b.status || b.status === 'pending').length;
                               const confirmedCount = receivedBookings.filter((b: any) => b.status === 'confirmed').length;
                               const parts = [];
-                              if (pendingCount > 0) parts.push(`${pendingCount} pending`);
+                              if (pendingCount > 0) parts.push(`${pendingCount} ${t("dash.pending").toLowerCase()}`);
                               if (confirmedCount > 0) parts.push(`${confirmedCount} confirmed`);
-                              return parts.length > 0 ? parts.join(' · ') : 'All bookings';
+                              return parts.length > 0 ? parts.join(' · ') : t("dash.bookings");
                             })()
                         }
                       </p>
@@ -1647,26 +1648,26 @@ export default function Dashboard() {
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-orange-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Check-ins</p>
+                        <p className="text-sm font-medium text-muted-foreground">{t("dash.check_ins")}</p>
                         <Calendar className="h-4 w-4 text-orange-500" />
                       </div>
                       <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : todayCheckIns.length}</div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {nextCheckIn
                           ? `Next: ${new Date(nextCheckIn.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                          : 'No upcoming check-ins'}
+                          : t("dash.no_upcoming_checkins")}
                       </p>
                     </CardContent>
                   </Card>
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-green-500">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Revenue</p>
+                        <p className="text-sm font-medium text-muted-foreground">{t("dash.revenue")}</p>
                         <DollarSign className="h-4 w-4 text-green-500" />
                       </div>
                       <div className="text-2xl font-bold">KES {isLoadingReceivedBookings ? '—' : receivedRevenue.toLocaleString()}</div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        From confirmed bookings only
+                        {t("dash.from_confirmed")}
                       </p>
                     </CardContent>
                   </Card>
