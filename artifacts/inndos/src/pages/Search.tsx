@@ -225,10 +225,11 @@ export default function Search() {
           <div className="flex-1">
             <label className="text-xs text-muted-foreground mb-1 block">Min</label>
             <input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={minDraft}
-              onChange={e => setMinDraft(e.target.value)}
+              onChange={e => { if (/^\d*$/.test(e.target.value)) setMinDraft(e.target.value); }}
               onFocus={e => e.target.select()}
               onBlur={e => commitMin(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
@@ -239,10 +240,11 @@ export default function Search() {
           <div className="flex-1">
             <label className="text-xs text-muted-foreground mb-1 block">Max</label>
             <input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={maxDraft}
-              onChange={e => setMaxDraft(e.target.value)}
+              onChange={e => { if (/^\d*$/.test(e.target.value)) setMaxDraft(e.target.value); }}
               onFocus={e => e.target.select()}
               onBlur={e => commitMax(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
