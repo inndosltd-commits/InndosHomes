@@ -4,7 +4,7 @@ import { PropertyCard, ApiProperty } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { SlidersHorizontal } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 interface Category {
   label: string;
@@ -33,6 +33,20 @@ export default function BNB() {
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, MAX_PRICE]);
+  const [minDraft, setMinDraft] = useState("0");
+  const [maxDraft, setMaxDraft] = useState(String(MAX_PRICE));
+
+  const commitMin = useCallback((raw: string) => {
+    const v = Math.max(0, Math.min(Number(raw) || 0, priceRange[1]));
+    setMinDraft(String(v));
+    setPriceRange([v, priceRange[1]]);
+  }, [priceRange]);
+
+  const commitMax = useCallback((raw: string) => {
+    const v = Math.max(priceRange[0], Math.min(Number(raw) || 0, MAX_PRICE));
+    setMaxDraft(String(v));
+    setPriceRange([priceRange[0], v]);
+  }, [priceRange]);
 
   useEffect(() => {
     fetch("/api/properties?type=bnb")
@@ -115,7 +129,7 @@ export default function BNB() {
                 <span className="text-sm font-semibold">Price Range (KES / night)</span>
                 <button
                   className="text-xs text-gray-500 underline hover:text-gray-800"
-                  onClick={() => setPriceRange([0, MAX_PRICE])}
+                  onClick={() => { setPriceRange([0, MAX_PRICE]); setMinDraft("0"); setMaxDraft(String(MAX_PRICE)); }}
                 >
                   Reset
                 </button>
@@ -125,7 +139,7 @@ export default function BNB() {
                 max={MAX_PRICE}
                 step={500}
                 value={priceRange}
-                onValueChange={(v) => setPriceRange(v as [number, number])}
+                onValueChange={(v) => { setPriceRange(v as [number, number]); setMinDraft(String(v[0])); setMaxDraft(String(v[1])); }}
                 className="mb-3"
               />
               <div className="flex items-center gap-2">
@@ -134,12 +148,11 @@ export default function BNB() {
                   <input
                     type="number"
                     min={0}
-                    max={priceRange[1]}
-                    value={priceRange[0]}
-                    onChange={e => {
-                      const v = Math.max(0, Math.min(Number(e.target.value), priceRange[1]));
-                      setPriceRange([v, priceRange[1]]);
-                    }}
+                    value={minDraft}
+                    onChange={e => setMinDraft(e.target.value)}
+                    onFocus={e => e.target.select()}
+                    onBlur={e => commitMin(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                     className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -148,13 +161,12 @@ export default function BNB() {
                   <label className="text-xs text-gray-500 mb-1 block">Max (KES)</label>
                   <input
                     type="number"
-                    min={priceRange[0]}
-                    max={MAX_PRICE}
-                    value={priceRange[1]}
-                    onChange={e => {
-                      const v = Math.max(priceRange[0], Math.min(Number(e.target.value), MAX_PRICE));
-                      setPriceRange([priceRange[0], v]);
-                    }}
+                    min={0}
+                    value={maxDraft}
+                    onChange={e => setMaxDraft(e.target.value)}
+                    onFocus={e => e.target.select()}
+                    onBlur={e => commitMax(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                     className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>

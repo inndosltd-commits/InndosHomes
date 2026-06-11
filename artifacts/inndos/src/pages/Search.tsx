@@ -229,6 +229,7 @@ export default function Search() {
               min={0}
               value={minDraft}
               onChange={e => setMinDraft(e.target.value)}
+              onFocus={e => e.target.select()}
               onBlur={e => commitMin(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
               className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
@@ -242,6 +243,7 @@ export default function Search() {
               min={0}
               value={maxDraft}
               onChange={e => setMaxDraft(e.target.value)}
+              onFocus={e => e.target.select()}
               onBlur={e => commitMax(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
               className="w-full border rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
