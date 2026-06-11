@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 const router = Router();
 const objectStorageService = new ObjectStorageService();
 
-const AI_TIMEOUT_MS = 35_000;
+const AI_TIMEOUT_MS = 30_000;
 
 function namesOverlap(registeredName: string, idName: string): boolean {
   if (!idName.trim()) return true; // model confirmed ID but declined to print name — trust it
@@ -59,13 +59,14 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
   let aiResult: { isKenyanId: boolean; extractedName: string; reason: string };
 
   try {
-    // Use native fetch with AbortSignal.timeout() — the OpenAI SDK's timeout option
-    // does not reliably abort TCP connections that are established but non-responsive
-    // in the production environment.
     const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
     const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 
-    const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+    // Promise.race with a plain setTimeout — this ALWAYS fires and completes the
+    // async function, even if the underlying fetch hangs indefinitely on the
+    // production AI proxy. AbortSignal.timeout / SDK timeout both failed to
+    // cancel the hanging TCP connection; Promise.race guarantees the handler exits.
+    const fetchPromise = fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -98,8 +99,16 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
           },
         ],
       }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(Object.assign(new Error("AI_TIMEOUT"), { isAiTimeout: true })),
+        AI_TIMEOUT_MS,
+      )
+    );
+
+    const aiResponse = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (!aiResponse.ok) {
       throw new Error(`AI service returned ${aiResponse.status}`);
@@ -112,10 +121,10 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     req.log.error({ err }, "AI vision call failed or timed out");
     const isTimeout =
       err instanceof Error &&
-      (err.name === "TimeoutError" ||
+      ((err as any).isAiTimeout === true ||
+        err.name === "TimeoutError" ||
         err.name === "AbortError" ||
-        err.name === "APIConnectionTimeoutError" ||
-        (err as any).code === "ETIMEDOUT");
+        (err as any).message === "AI_TIMEOUT");
     res.status(500).json({
       ok: false,
       message: isTimeout
