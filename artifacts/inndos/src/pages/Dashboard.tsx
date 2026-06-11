@@ -1229,7 +1229,7 @@ export default function Dashboard() {
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { window.location.hash = "/"; }}>
-          <img src="/logo-inndos.png" alt="inndos" className="h-8 w-auto" style={{ filter: "invert(1)" }} />
+          <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none', filter: "invert(1)" }} />
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="text-white/80 hover:text-white rounded-full"><Bell className="w-5 h-5" /></Button>
@@ -1323,7 +1323,7 @@ export default function Dashboard() {
         <div className="p-6 pb-2">
             <Link href="/">
             <div className="flex items-center gap-2 cursor-pointer mb-6">
-                <img src="/logo-inndos.png" alt="inndos" className="h-8 w-auto" style={{ filter: "invert(1)" }} />
+                <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none', filter: "invert(1)" }} />
             </div>
             </Link>
             <div className="mb-6">

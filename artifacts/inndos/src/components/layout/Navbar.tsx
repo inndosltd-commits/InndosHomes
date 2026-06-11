@@ -39,7 +39,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
           <div className="flex items-center cursor-pointer">
-            <img src="/logo-inndos.png" alt="inndos" className="h-8 w-auto" />
+            <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none' }} />
           </div>
         </Link>
 
@@ -210,7 +210,7 @@ export function Navbar() {
                 className="p-4 border-b border-gray-100 flex items-center gap-3 cursor-pointer"
                 onClick={() => { setIsMenuOpen(false); window.location.hash = "/"; }}
               >
-                <img src="/logo-inndos.png" alt="inndos" className="h-8 w-auto" />
+                <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none' }} />
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                 <div className="h-px bg-gray-100 my-2" />
