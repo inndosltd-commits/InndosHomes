@@ -27,13 +27,22 @@ interface DropdownMenuProps {
   onClose: () => void;
 }
 
+const DROPDOWN_WIDTH = 168;
+
 function DropdownMenu({ items, anchorRef, onClose }: DropdownMenuProps) {
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (anchorRef.current) {
       const r = anchorRef.current.getBoundingClientRect();
-      setCoords({ top: r.bottom + 6, left: r.left });
+      const vw = window.innerWidth;
+      const top = r.bottom + 6;
+      // If dropdown would overflow the right edge, anchor to button's right side instead
+      if (r.left + DROPDOWN_WIDTH > vw - 8) {
+        setCoords({ top, right: vw - r.right });
+      } else {
+        setCoords({ top, left: r.left });
+      }
     }
     const close = () => onClose();
     window.addEventListener("scroll", close, { passive: true });
@@ -49,7 +58,7 @@ function DropdownMenu({ items, anchorRef, onClose }: DropdownMenuProps) {
       <div className="fixed inset-0 z-[490]" onClick={onClose} />
       <div
         className="fixed z-[500] bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[168px] overflow-hidden"
-        style={{ top: coords.top, left: coords.left }}
+        style={{ top: coords.top, left: coords.left, right: coords.right }}
       >
         {items.map(item => (
           <Link key={item.href} href={item.href}>
