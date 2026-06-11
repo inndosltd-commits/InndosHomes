@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 const router = Router();
 const objectStorageService = new ObjectStorageService();
 
-const AI_TIMEOUT_MS = 25_000;
+const AI_TIMEOUT_MS = 20_000;
 
 function namesOverlap(registeredName: string, idName: string): boolean {
   const clean = (s: string) =>
@@ -43,10 +43,10 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
     const file = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(file);
     const arrayBuffer = await response.arrayBuffer();
-    // Resize to max 900px wide/tall and convert to JPEG to keep payload small (~50-150KB)
+    // Resize to max 512px — minimises base64 payload to ~30-80KB
     const resized = await sharp(Buffer.from(arrayBuffer))
-      .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: 80 })
+      .resize({ width: 512, height: 512, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 75 })
       .toBuffer();
     imageBase64 = resized.toString("base64");
     req.log.info({ originalBytes: arrayBuffer.byteLength, resizedBytes: resized.length }, "ID image resized");
@@ -59,50 +59,46 @@ router.post("/auth/verify-id", requireAuth, async (req, res) => {
   let aiResult: { isKenyanId: boolean; extractedName: string; reason: string };
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-
-    let completion;
-    try {
-      completion = await openai.chat.completions.create(
+    // Promise.race guarantees we respond within AI_TIMEOUT_MS regardless of
+    // whether the SDK honours the AbortSignal in this environment.
+    const aiCall = openai.chat.completions.create({
+      model: "gpt-5-nano",
+      max_completion_tokens: 128,
+      messages: [
         {
-          model: "gpt-5-nano",
-          max_completion_tokens: 128,
-          messages: [
+          role: "system",
+          content:
+            'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
+            'isKenyanId is true only if the image shows a Kenyan National ID card (has "REPUBLIC OF KENYA" or "JAMHURI YA KENYA" text, ID number field, date of birth field, and holder photo). ' +
+            "extractedName is the full name printed on the card, or empty string. reason is one sentence.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
             {
-              role: "system",
-              content:
-                'You are an ID verification system. Reply ONLY with valid JSON (no markdown): {"isKenyanId":bool,"extractedName":"string","reason":"string"}. ' +
-                'isKenyanId is true only if the image shows a Kenyan National ID card (has "REPUBLIC OF KENYA" or "JAMHURI YA KENYA" and "NATIONAL IDENTITY CARD" text, ID number field, date of birth field, and holder photo). ' +
-                "extractedName is the full name printed on the card, or empty string. reason is one sentence.",
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Is this a valid Kenyan National ID? Extract the name." },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mimeType};base64,${imageBase64}`,
-                    detail: "low",
-                  },
-                },
-              ],
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
             },
           ],
         },
-        { signal: controller.signal }
-      );
-    } finally {
-      clearTimeout(timer);
-    }
+      ],
+    });
 
+    const hardTimeout = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(Object.assign(new Error("AI_TIMEOUT"), { name: "AbortError" })),
+        AI_TIMEOUT_MS
+      )
+    );
+
+    const completion = await Promise.race([aiCall, hardTimeout]);
     const raw = completion.choices[0]?.message?.content ?? "{}";
     aiResult = JSON.parse(raw.replace(/```json|```/g, "").trim());
   } catch (err: unknown) {
     req.log.error({ err }, "OpenAI vision call failed or timed out");
     const isTimeout =
-      (err instanceof Error && (err.name === "AbortError" || err.message?.includes("abort")));
+      err instanceof Error && (err.name === "AbortError" || (err as any).message === "AI_TIMEOUT");
     res.status(500).json({
       ok: false,
       message: isTimeout
