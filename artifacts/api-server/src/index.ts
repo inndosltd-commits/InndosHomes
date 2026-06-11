@@ -110,12 +110,23 @@ async function seedDefaultPlans() {
   logger.info("Default subscription plans seeded (Free/Basic/Pro/Enterprise)");
 }
 
+async function runMigrations() {
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`);
+  logger.info("Schema migrations applied");
+}
+
 app.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
+  try {
+    await runMigrations();
+  } catch (e) {
+    logger.error({ err: e }, "Failed to run migrations");
+  }
   try {
     await seedDefaultPlans();
   } catch (e) {

@@ -40,6 +40,9 @@ export default function Login() {
   const [isLoading, setIsLoading]           = useState(false);
   const [isSignUp, setIsSignUp]             = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmailSent, setForgotEmailSent] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [resetToken, setResetToken]           = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted]   = useState(false);
   const { login, signup, user, token: authToken } = useAuth();
   const { toast } = useToast();
@@ -54,7 +57,14 @@ export default function Login() {
   const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
 
   useEffect(() => {
-    const isSignupUrl = window.location.search.includes("signup=true") || window.location.hash.includes("signup=true");
+    const hash = window.location.hash;
+    const resetMatch = hash.match(/reset-password\?token=([^&]+)/);
+    if (resetMatch) {
+      setResetToken(decodeURIComponent(resetMatch[1]));
+      setIsResetPassword(true);
+      return;
+    }
+    const isSignupUrl = window.location.search.includes("signup=true") || hash.includes("signup=true");
     setIsSignUp(isSignupUrl);
   }, [location]);
 
@@ -265,15 +275,62 @@ export default function Login() {
     window.addEventListener("message", onMessage);
   };
 
-  /* ── forgot password (placeholder until email service is wired) ── */
-  const handleForgotPassword = (e: React.FormEvent) => {
+  /* ── forgot password ── */
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const emailEl = document.getElementById("reset-email") as HTMLInputElement | null;
+    const email = emailEl?.value?.trim();
+    if (!email) return;
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Request failed");
+      setForgotEmailSent(true);
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
       setIsLoading(false);
-      setIsForgotPassword(false);
-      toast({ title: "Email sent", description: "Password reset instructions sent to your email." });
-    }, 800);
+    }
+  };
+
+  /* ── reset password (from email link) ── */
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newPwEl   = document.getElementById("new-password")    as HTMLInputElement | null;
+    const confirmEl = document.getElementById("confirm-password") as HTMLInputElement | null;
+    const newPw = newPwEl?.value ?? "";
+    const confirm = confirmEl?.value ?? "";
+    if (newPw.length < 6) {
+      toast({ title: "Too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPw !== confirm) {
+      toast({ title: "Passwords don't match", description: "Please make sure both passwords are the same.", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, password: newPw }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error ?? "Reset failed");
+      toast({ title: "Password updated!", description: "You can now sign in with your new password." });
+      setIsResetPassword(false);
+      setResetToken(null);
+      window.location.hash = "/login";
+    } catch (err) {
+      toast({ title: "Reset failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const googleConfigured   = Boolean(GOOGLE_CLIENT_ID   && GOOGLE_CLIENT_ID   !== "placeholder");
@@ -287,31 +344,58 @@ export default function Login() {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold font-heading text-primary">
-              {isForgotPassword ? "Reset Password" : (isSignUp ? "Create an Account" : "Welcome Back")}
+              {isResetPassword ? "Set New Password" : isForgotPassword ? "Reset Password" : (isSignUp ? "Create an Account" : "Welcome Back")}
             </CardTitle>
             <CardDescription>
-              {isForgotPassword
-                ? "Enter your email and we'll send reset instructions."
-                : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")}
+              {isResetPassword
+                ? "Enter your new password below."
+                : isForgotPassword
+                  ? "Enter your email and we'll send reset instructions."
+                  : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {isForgotPassword ? (
-              <form onSubmit={handleForgotPassword} className="space-y-4">
+            {isResetPassword ? (
+              <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reset-email">Email Address</Label>
-                  <Input id="reset-email" type="email" placeholder="name@example.com" required />
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input id="new-password" type="password" placeholder="At least 6 characters" required minLength={6} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input id="confirm-password" type="password" placeholder="Repeat new password" required />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send Reset Instructions"}
+                  {isLoading ? "Saving..." : "Save New Password"}
                 </Button>
-                <div className="text-center mt-4">
-                  <Button variant="link" onClick={() => setIsForgotPassword(false)} className="text-sm">
-                    Back to login
+              </form>
+            ) : isForgotPassword ? (
+              forgotEmailSent ? (
+                <div className="text-center space-y-4 py-2">
+                  <div className="text-4xl">📬</div>
+                  <p className="text-sm text-gray-700 font-medium">Check your email</p>
+                  <p className="text-sm text-gray-500">We sent a password reset link to your inbox. It expires in 1 hour.</p>
+                  <Button variant="link" className="text-sm" onClick={() => { setIsForgotPassword(false); setForgotEmailSent(false); }}>
+                    Back to sign in
                   </Button>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email Address</Label>
+                    <Input id="reset-email" type="email" placeholder="name@example.com" required />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Sending..." : "Send Reset Link"}
+                  </Button>
+                  <div className="text-center mt-4">
+                    <Button variant="link" onClick={() => setIsForgotPassword(false)} className="text-sm">
+                      Back to sign in
+                    </Button>
+                  </div>
+                </form>
+              )
             ) : (
               <Tabs key={isSignUp ? "signup" : "login"} defaultValue="owner" className="w-full">
                 <TabsList className={`grid w-full mb-8 ${isSignUp ? "grid-cols-3" : "grid-cols-3"}`}>

@@ -1,12 +1,14 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@workspace/db";
 import { users, insertUserSchema, otpCodes } from "@workspace/db";
 import { eq, and, gt, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendSms, normalizePhone } from "../lib/sms";
+import { sendPasswordResetEmail } from "../lib/email";
 
 const router = Router();
 
@@ -219,6 +221,77 @@ router.patch("/profile", async (req, res) => {
 
   const { password: _pw, ...safeUser } = updated;
   res.json(safeUser);
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+
+  const [user] = await db.select({ id: users.id, name: users.name, email: users.email })
+    .from(users).where(eq(users.email, email.toLowerCase().trim()));
+
+  // Always return success to prevent email enumeration
+  if (!user) {
+    res.json({ ok: true, message: "If that email exists, a reset link has been sent." });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.update(users)
+    .set({ resetToken: token, resetTokenExpiry: expiry })
+    .where(eq(users.id, user.id));
+
+  const host = process.env["REPLIT_DOMAINS"]?.split(",")[0]?.trim()
+    ?? `localhost:${process.env["PORT"] ?? 8080}`;
+  const resetLink = `https://${host}/#/reset-password?token=${token}`;
+
+  try {
+    await sendPasswordResetEmail({ to: user.email, name: user.name, resetLink });
+    req.log.info({ userId: user.id }, "Password reset email sent");
+  } catch (err) {
+    req.log.error({ err }, "Failed to send password reset email");
+    res.status(500).json({ error: "Failed to send reset email. Please try again." });
+    return;
+  }
+
+  res.json({ ok: true, message: "If that email exists, a reset link has been sent." });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token || !password) {
+    res.status(400).json({ error: "Token and new password are required" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: "Password must be at least 6 characters" });
+    return;
+  }
+
+  const [user] = await db.select({ id: users.id, resetTokenExpiry: users.resetTokenExpiry })
+    .from(users).where(eq(users.resetToken, token));
+
+  if (!user) {
+    res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
+    return;
+  }
+  if (!user.resetTokenExpiry || new Date() > user.resetTokenExpiry) {
+    res.status(400).json({ error: "This reset link has expired. Please request a new one." });
+    return;
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  await db.update(users)
+    .set({ password: hashed, resetToken: null, resetTokenExpiry: null })
+    .where(eq(users.id, user.id));
+
+  req.log.info({ userId: user.id }, "Password reset successfully");
+  res.json({ ok: true, message: "Password updated successfully. You can now sign in." });
 });
 
 router.post("/facebook", async (req, res) => {

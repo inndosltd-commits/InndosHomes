@@ -32,6 +32,8 @@ export const users = pgTable("users", {
   idDocument: text("id_document"),
   idFront: text("id_front"),
   idBack: text("id_back"),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
 });
 
 export const properties = pgTable("properties", {
