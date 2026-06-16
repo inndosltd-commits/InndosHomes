@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: eu-west-1          # ← change to your AWS region
-  S3_BUCKET: your-inndos-bucket  # ← change to your S3 bucket name
-  CF_DISTRIBUTION_ID: XXXXXXXXXXXXX  # ← change to your CloudFront distribution ID
+  AWS_REGION: Europe (Stockholm) eu-north-1          # ← change to your AWS region
+  S3_BUCKET: inndos-web  # ← change to your S3 bucket name
+  CF_DISTRIBUTION_ID: EEV142OEEBP45  # ← change to your CloudFront distribution ID
   PNPM_VERSION: 9
 
 jobs:
