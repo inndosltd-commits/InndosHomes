@@ -11,7 +11,6 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
 
-const HOUSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 L12 3 L21 10.5 V20 Q21 21 20 21 H4 Q3 21 3 20 Z"/></svg>`;
 
 const LOCATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="black" stroke="white" stroke-width="4"/><circle cx="32" cy="32" r="8" fill="white"/></svg>`;
 
@@ -91,7 +90,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
             position={{ lat, lng }}
             onClick={() => setSelectedProperty({ property, lat, lng })}
           >
-            <div dangerouslySetInnerHTML={{ __html: HOUSE_SVG }} />
+            <img src="/map-pin.png" alt="property" style={{ width: 48, height: 56, display: "block" }} />
           </AdvancedMarker>
         ))}
 
