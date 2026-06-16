@@ -12,7 +12,7 @@ env:
   PNPM_VERSION: 9
 
 jobs:
-  # ── 1. BUILD FRONTEND & DEPLOY TO S3 ──────────────────────────────────────
+  # ── 1. FRONTEND → S3 + CloudFront ─────────────────────────────────────────
   deploy-frontend:
     name: Frontend → S3 + CloudFront
     runs-on: ubuntu-latest
@@ -42,7 +42,6 @@ jobs:
         run: pnpm --filter @workspace/inndos run build
         env:
           VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -66,9 +65,9 @@ jobs:
             --distribution-id ${{ env.CF_DISTRIBUTION_ID }} \
             --paths "/index.html"
 
-  # ── 2. BUILD BACKEND & DEPLOY TO APP RUNNER ───────────────────────────────
+  # ── 2. BACKEND → Elastic Beanstalk ────────────────────────────────────────
   deploy-backend:
-    name: Backend → App Runner
+    name: Backend → Elastic Beanstalk
     runs-on: ubuntu-latest
 
     steps:
@@ -95,6 +94,17 @@ jobs:
       - name: Build backend
         run: pnpm --filter @workspace/api-server run build
 
+      - name: Create self-contained deployment package
+        run: |
+          # Use pnpm deploy to create a standalone folder with production deps only
+          pnpm --filter @workspace/api-server deploy --prod ./eb-pkg
+          # Copy the compiled dist on top
+          cp -r artifacts/api-server/dist ./eb-pkg/dist
+          # Add the Procfile so Elastic Beanstalk knows how to start the app
+          cp Procfile ./eb-pkg/Procfile
+          # Zip it up
+          cd eb-pkg && zip -r ../deploy.zip . && cd ..
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -102,7 +112,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to App Runner
-        run: |
-          aws apprunner start-deployment \
-            --service-arn ${{ secrets.APP_RUNNER_SERVICE_ARN }}
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APPLICATION_NAME }}
+          environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
+          version_label: ${{ github.sha }}
+          region: ${{ env.AWS_REGION }}
+          deployment_package: deploy.zip
