@@ -253,6 +253,26 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   createdAt: true,
 });
 
+export const contactInquiries = pgTable("contact_inquiries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  status: text("status").$type<"new" | "read" | "replied">().notNull().default("new"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertContactInquirySchema = createInsertSchema(contactInquiries).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+});
+
+export type InsertContactInquiry = z.infer<typeof insertContactInquirySchema>;
+export type ContactInquiry = typeof contactInquiries.$inferSelect;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;
