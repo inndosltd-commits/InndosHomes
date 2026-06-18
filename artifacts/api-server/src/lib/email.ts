@@ -3,7 +3,7 @@ import { logger } from "./logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const EMAIL_FROM = "INNDOS <notifications@inndos.com>";
+const EMAIL_FROM = "INNDOS <notifications@resend.inndos.com>";
 
 export interface NewBookingEmailParams {
   ownerEmail: string;
@@ -19,7 +19,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
   const { ownerEmail, ownerName, guestName, propertyTitle, startDate, endDate, dashboardUrl } = params;
 
   const { error } = await resend.emails.send({
-    from: "INNDOS <notifications@inndos.com>",
+    from: EMAIL_FROM,
     to: ownerEmail,
     subject: `New booking request for "${propertyTitle}"`,
     html: `
