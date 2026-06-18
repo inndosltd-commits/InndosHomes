@@ -90,7 +90,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
             position={{ lat, lng }}
             onClick={() => setSelectedProperty({ property, lat, lng })}
           >
-            <img src="/map-pin.png" alt="property" style={{ width: 48, height: 56, display: "block" }} />
+            <img src="/map-pin.png" alt="property" style={{ width: 28, height: 38, display: "block" }} />
           </AdvancedMarker>
         ))}
 
