@@ -246,8 +246,7 @@ router.post("/forgot-password", async (req, res) => {
     .set({ resetToken: token, resetTokenExpiry: expiry })
     .where(eq(users.id, user.id));
 
-  const host = process.env["REPLIT_DOMAINS"]?.split(",")[0]?.trim()
-    ?? `localhost:${process.env["PORT"] ?? 8080}`;
+  const host = process.env["APP_DOMAIN"] ?? "inndos.com";
   const resetLink = `https://${host}/#/reset-password?token=${token}`;
 
   try {
