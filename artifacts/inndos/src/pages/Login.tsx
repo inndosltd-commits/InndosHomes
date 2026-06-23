@@ -15,11 +15,6 @@ const LOGIN_ROLES  = ["owner", "host", "admin"]          as const;
 const SIGNUP_ROLES = ["owner", "host", "tenant"] as const;
 type Role = "owner" | "host" | "tenant" | "admin";
 
-const DEMO_CREDS: Record<typeof LOGIN_ROLES[number], { email: string; password: string }> = {
-  owner: { email: "owner@inndos.com",  password: "owner123"  },
-  host:  { email: "host@inndos.com",   password: "host123"   },
-  admin: { email: "admin@inndos.com",  password: "admin123"  },
-};
 
 const GOOGLE_CLIENT_ID   = import.meta.env.VITE_GOOGLE_CLIENT_ID   as string;
 const FACEBOOK_APP_ID    = import.meta.env.VITE_FACEBOOK_APP_ID    as string;
@@ -86,9 +81,8 @@ export default function Login() {
     try {
       const emailEl    = document.getElementById(`email-${role}`)    as HTMLInputElement | null;
       const passwordEl = document.getElementById(`password-${role}`) as HTMLInputElement | null;
-      const creds = DEMO_CREDS[role as typeof LOGIN_ROLES[number]];
-      const email      = emailEl?.value    || creds?.email    || "";
-      const password   = passwordEl?.value || creds?.password || "";
+      const email    = emailEl?.value    || "";
+      const password = passwordEl?.value || "";
       await login(email, password);
     } catch (err) {
       toast({ title: "Sign in failed", description: err instanceof Error ? err.message : "Invalid credentials.", variant: "destructive" });
@@ -471,8 +465,7 @@ export default function Login() {
                         <Input
                           id={`email-${role}`}
                           type="email"
-                          placeholder={`${role}@example.com`}
-                          defaultValue={isSignUp ? "" : (DEMO_CREDS[role as typeof LOGIN_ROLES[number]]?.email ?? "")}
+                          placeholder="Enter your email"
                         />
                       </div>
                       <div className="space-y-2">
@@ -480,7 +473,6 @@ export default function Login() {
                         <Input
                           id={`password-${role}`}
                           type="password"
-                          defaultValue={isSignUp ? "" : (DEMO_CREDS[role as typeof LOGIN_ROLES[number]]?.password ?? "")}
                         />
                       </div>
                       <Button
