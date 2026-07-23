@@ -29,11 +29,11 @@ externalPort = 80
 
 [[ports]]
 localPort = 21995
-externalPort = 3000
+externalPort = 3001
 
 [[ports]]
 localPort = 25756
-externalPort = 3001
+externalPort = 3000
 
 [userenv]
 
