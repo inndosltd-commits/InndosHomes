@@ -2633,6 +2633,14 @@ export default function Dashboard() {
                               >
                                 <Eye className="h-3 w-3" /> View Profile
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-zinc-700 border-zinc-300 hover:bg-zinc-50"
+                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); }}
+                              >
+                                <Crown className="h-3 w-3" /> Assign Plan
+                              </Button>
                               {!isSelf && u.status !== 'suspended' ? (
                                 <Button
                                   size="sm"
