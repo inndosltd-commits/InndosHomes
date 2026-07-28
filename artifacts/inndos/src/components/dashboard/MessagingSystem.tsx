@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,35 +29,10 @@ interface Conversation {
   messages: Message[];
 }
 
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: "1",
-    participant: { id: "admin", name: "Inndos Support", role: "admin", status: "online" },
-    lastMessage: "How can we help you today?",
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 5), // 5 mins ago
-    unreadCount: 1,
-    messages: [
-      { id: "m1", senderId: "admin", text: "Hello! Welcome to Inndos.", timestamp: new Date(Date.now() - 1000 * 60 * 60), isRead: true },
-      { id: "m2", senderId: "admin", text: "How can we help you today?", timestamp: new Date(Date.now() - 1000 * 60 * 5), isRead: false },
-    ]
-  },
-  {
-    id: "2",
-    participant: { id: "u2", name: "John Doe", role: "tenant", status: "offline" },
-    lastMessage: "Is the apartment still available?",
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    unreadCount: 0,
-    messages: [
-      { id: "m3", senderId: "u2", text: "Hi, I saw your listing for the Downtown Apt.", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2.1), isRead: true },
-      { id: "m4", senderId: "u2", text: "Is the apartment still available?", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), isRead: true },
-    ]
-  }
-];
-
 export function MessagingSystem() {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
-  const [activeConversationId, setActiveConversationId] = useState<string>(MOCK_CONVERSATIONS[0].id);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>("");
   const [newMessage, setNewMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -133,34 +107,42 @@ export function MessagingSystem() {
         </div>
         <ScrollArea className="flex-1">
           <div className="flex flex-col">
-            {conversations.map(conv => (
-              <button
-                key={conv.id}
-                onClick={() => setActiveConversationId(conv.id)}
-                className={`flex items-start gap-3 p-4 text-left transition-colors hover:bg-gray-50 ${
-                  activeConversationId === conv.id ? "bg-primary/5 border-l-4 border-primary" : "border-l-4 border-transparent"
-                }`}
-              >
-                <div className="relative">
-                  <Avatar>
-                    <AvatarImage src={conv.participant.avatar} />
-                    <AvatarFallback>{conv.participant.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  {conv.participant.status === 'online' && (
-                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
-                  )}
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold truncate">{conv.participant.name}</span>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                      {conv.lastMessageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+            {conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center text-muted-foreground">
+                <Search className="h-8 w-8 mb-3 text-gray-300" />
+                <p className="text-sm font-medium">No messages yet</p>
+                <p className="text-xs mt-1">Conversations with guests and support will appear here</p>
+              </div>
+            ) : (
+              conversations.map(conv => (
+                <button
+                  key={conv.id}
+                  onClick={() => setActiveConversationId(conv.id)}
+                  className={`flex items-start gap-3 p-4 text-left transition-colors hover:bg-gray-50 ${
+                    activeConversationId === conv.id ? "bg-primary/5 border-l-4 border-primary" : "border-l-4 border-transparent"
+                  }`}
+                >
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarImage src={conv.participant.avatar} />
+                      <AvatarFallback>{conv.participant.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {conv.participant.status === 'online' && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
-                </div>
-              </button>
-            ))}
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex justify-between items-start">
+                      <span className="font-semibold truncate">{conv.participant.name}</span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        {conv.lastMessageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </ScrollArea>
       </div>

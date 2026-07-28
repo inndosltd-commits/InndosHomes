@@ -99,7 +99,9 @@ export default function PropertyDetails() {
   useEffect(() => {
     if (!params?.id) return;
     setIsLoading(true);
-    fetch(`/api/properties/${params.id}`)
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    fetch(`/api/properties/${params.id}`, { headers })
       .then((r) => {
         if (!r.ok) throw new Error("Not found");
         return r.json();
@@ -107,7 +109,7 @@ export default function PropertyDetails() {
       .then((data) => setProperty(data))
       .catch(() => setProperty(null))
       .finally(() => setIsLoading(false));
-  }, [params?.id]);
+  }, [params?.id, token]);
 
   useEffect(() => {
     if (!property) return;

@@ -1609,7 +1609,7 @@ export default function Dashboard() {
             <>
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-blue-500">
+                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-blue-500" onClick={() => setActiveTab("listings")}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.total_listings")}</p>
@@ -1621,7 +1621,7 @@ export default function Dashboard() {
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-purple-500">
+                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-purple-500" onClick={() => setActiveTab("reservations")}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.bookings")}</p>
@@ -1645,7 +1645,7 @@ export default function Dashboard() {
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-orange-500">
+                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-orange-500" onClick={() => setActiveTab("reservations")}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.check_ins")}</p>
@@ -1659,7 +1659,7 @@ export default function Dashboard() {
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-green-500">
+                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-green-500" onClick={() => setActiveTab("analytics")}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.revenue")}</p>
