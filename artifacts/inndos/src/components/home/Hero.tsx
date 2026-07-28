@@ -7,10 +7,16 @@ import { useLocation } from "wouter";
 export function Hero() {
   const [activeTab, setActiveTab] = useState<"rent" | "buy">("rent");
   const [, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [propertyType, setPropertyType] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setLocation(`/search?type=${activeTab === "rent" ? "rent" : "sale"}`);
+    const params = new URLSearchParams();
+    params.set("type", activeTab === "rent" ? "rent" : "sale");
+    if (searchQuery.trim()) params.set("search", searchQuery.trim());
+    if (propertyType) params.set("propertyType", propertyType);
+    setLocation(`/search?${params.toString()}`);
   };
 
   return (
@@ -64,16 +70,24 @@ export function Hero() {
             <div className="flex-1 relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input 
-                placeholder="Location, City, or Zip Code" 
+                placeholder="Location, city, or property name" 
                 className="pl-10 h-12 bg-gray-50 border-gray-200 focus:ring-2 focus:ring-primary/20"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="md:w-48">
-              <select className="w-full h-12 px-3 rounded-md border border-gray-200 bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/20">
-                <option>Property Type</option>
-                <option>Apartment</option>
-                <option>House</option>
-                <option>Villa</option>
+              <select
+                className="w-full h-12 px-3 rounded-md border border-gray-200 bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                value={propertyType}
+                onChange={(e) => setPropertyType(e.target.value)}
+              >
+                <option value="">Property Type</option>
+                <option value="apartment">Apartment</option>
+                <option value="house">House</option>
+                <option value="villa">Villa</option>
+                <option value="studio">Studio</option>
+                <option value="commercial">Commercial</option>
               </select>
             </div>
             <Button 

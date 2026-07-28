@@ -2,8 +2,9 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PropertyCard, ApiProperty } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Search } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 
 interface Category {
@@ -35,6 +36,7 @@ export default function BNB() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, MAX_PRICE]);
   const [minDraft, setMinDraft] = useState("0");
   const [maxDraft, setMaxDraft] = useState(String(MAX_PRICE));
+  const [bnbSearch, setBnbSearch] = useState("");
 
   const commitMin = useCallback((raw: string) => {
     const v = Math.max(0, Math.min(Number(raw) || 0, priceRange[1]));
@@ -64,8 +66,17 @@ export default function BNB() {
         (p) => p.subtype === selectedCategory.subtype
       );
     }
+    if (bnbSearch.trim()) {
+      const q = bnbSearch.trim().toLowerCase();
+      properties = properties.filter(
+        (p) =>
+          (p.title || "").toLowerCase().includes(q) ||
+          (p.address || "").toLowerCase().includes(q) ||
+          (p.location || "").toLowerCase().includes(q)
+      );
+    }
     return properties;
-  }, [selectedCategory, allProperties, priceRange]);
+  }, [selectedCategory, allProperties, priceRange, bnbSearch]);
 
   const activeCat = selectedCategory;
 
@@ -180,11 +191,22 @@ export default function BNB() {
 
       {/* Listings */}
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-1">
-            {activeCat.subtype === null ? "All B&B Stays" : activeCat.label}
-          </h1>
-          <p className="text-muted-foreground text-sm">{activeCat.description}</p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold mb-1">
+              {activeCat.subtype === null ? "All B&B Stays" : activeCat.label}
+            </h1>
+            <p className="text-muted-foreground text-sm">{activeCat.description}</p>
+          </div>
+          <div className="relative sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or location…"
+              value={bnbSearch}
+              onChange={(e) => setBnbSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         {filteredBnbProperties.length === 0 ? (

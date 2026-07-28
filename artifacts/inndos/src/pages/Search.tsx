@@ -50,8 +50,9 @@ export default function Search() {
     return () => window.removeEventListener("hashchange", handler);
   }, []);
 
-  const queryType   = getHashQueryParam("type")   || "rent";
-  const queryFilter = getHashQueryParam("filter") || null;
+  const queryType        = getHashQueryParam("type")   || "rent";
+  const queryFilter      = getHashQueryParam("filter") || null;
+  const querySearchParam = getHashQueryParam("search") || "";
   const { t } = useLanguage();
 
   const isRentPage = queryType.startsWith("rent");
@@ -61,7 +62,7 @@ export default function Search() {
 
   const [properties, setProperties]           = useState<ApiProperty[]>([]);
   const [isLoadingProps, setIsLoadingProps]   = useState(true);
-  const [searchQuery, setSearchQuery]         = useState("");
+  const [searchQuery, setSearchQuery]         = useState(querySearchParam);
   const [priceRange, setPriceRange]           = useState([0, maxPrice]);
   const [minDraft, setMinDraft]               = useState("0");
   const [maxDraft, setMaxDraft]               = useState(String(maxPrice));

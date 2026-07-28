@@ -11,9 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
-const LOGIN_ROLES  = ["owner", "host", "admin"]          as const;
+const LOGIN_ROLES  = ["owner", "host", "tenant"] as const;
 const SIGNUP_ROLES = ["owner", "host", "tenant"] as const;
-type Role = "owner" | "host" | "tenant" | "admin";
+type Role = "owner" | "host" | "tenant";
 
 
 const GOOGLE_CLIENT_ID   = import.meta.env.VITE_GOOGLE_CLIENT_ID   as string;

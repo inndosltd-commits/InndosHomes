@@ -59,10 +59,18 @@ export async function sendSms(to: string, message: string): Promise<void> {
       throw new Error(`Airtouch SMS error ${res.status}: ${text}`);
     }
 
-    // Airtouch returns a plain-text response — treat anything non-empty as success
-    // unless it contains a known failure keyword
+    // Airtouch returns JSON — parse and check status_code
+    let parsed: { status_code?: string; status_desc?: string } = {};
+    try { parsed = JSON.parse(text); } catch { /* plain-text fallback */ }
+
+    if (parsed.status_code === "1004") {
+      throw new Error("SMS balance depleted. Please top up your Airtouch account to send OTPs.");
+    }
     const lower = text.toLowerCase();
-    if (lower.includes("error") || lower.includes("invalid") || lower.includes("fail")) {
+    if (parsed.status_code && parsed.status_code !== "1000" && parsed.status_code !== "200") {
+      throw new Error(`Airtouch SMS rejected (${parsed.status_code}): ${parsed.status_desc ?? text}`);
+    }
+    if (!parsed.status_code && (lower.includes("error") || lower.includes("invalid") || lower.includes("fail"))) {
       throw new Error(`Airtouch SMS rejected: ${text}`);
     }
 
