@@ -66,6 +66,7 @@ export const properties = pgTable("properties", {
     .default("pending"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
   lng: decimal("lng", { precision: 10, scale: 7 }),
+  totalUnits: integer("total_units").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -244,6 +245,7 @@ export const insertPropertySchema = createInsertSchema(properties)
     beds: z.number().int().min(0, "Bedrooms cannot be negative"),
     baths: z.number().int().min(0, "Bathrooms cannot be negative"),
     sqft: z.number().int().min(0, "Square footage cannot be negative"),
+    totalUnits: z.number().int().min(1, "Must have at least 1 unit").optional().default(1),
     lat: latLngField,
     lng: latLngField,
   });

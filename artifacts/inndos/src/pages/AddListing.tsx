@@ -169,6 +169,7 @@ export default function AddListing() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [subtype, setSubtype] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
+  const [totalUnits, setTotalUnits] = useState("1");
 
   const toggleAmenity = (id: string) => {
     setSelectedAmenities(prev =>
@@ -201,7 +202,7 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; image?: string; images?: string[]; videos?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
+      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; totalUnits?: number; image?: string; images?: string[]; videos?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
         setTitle(prop.title ?? "");
         setListingType(prop.type ?? "");
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -209,6 +210,7 @@ export default function AddListing() {
         setBeds(prop.beds != null ? String(prop.beds) : "");
         setBaths(prop.baths != null ? String(prop.baths) : "");
         setSqft(prop.sqft != null ? String(prop.sqft) : "");
+        setTotalUnits(prop.totalUnits != null ? String(prop.totalUnits) : "1");
         setDescription(prop.description ?? "");
         if (prop.images && prop.images.length > 0) {
           setImages(prop.images);
@@ -394,6 +396,7 @@ export default function AddListing() {
     setFieldErrors({});
     setIsSubmitting(true);
     try {
+      const parsedTotalUnits = parseInt(totalUnits, 10);
       const body = {
         title,
         type: toApiType(listingType),
@@ -402,6 +405,7 @@ export default function AddListing() {
         beds: isNaN(parsedBeds) ? 0 : parsedBeds,
         baths: isNaN(parsedBaths) ? 0 : parsedBaths,
         sqft: isNaN(parsedSqft) ? 0 : parsedSqft,
+        totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
         description: description || null,
         images,
         videos,
@@ -721,6 +725,33 @@ export default function AddListing() {
                       <Input id="sqft" type="number" min="0" value={sqft} onChange={e => { setSqft(e.target.value); setFieldErrors(prev => ({ ...prev, sqft: [] })); }} className={fieldErrors.sqft?.length ? "border-red-500" : ""} />
                       {fieldErrors.sqft?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
+                  </div>
+
+                  {/* Number of Units */}
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 space-y-1">
+                        <Label htmlFor="totalUnits" className="text-sm font-semibold">Number of Units Available</Label>
+                        <p className="text-xs text-muted-foreground">
+                          How many identical units do you have for this listing? (e.g. 5 apartments in a block, 10 hotel rooms of the same type). Guests can book any available unit on their chosen dates — once all units are booked, the dates are shown as unavailable.
+                        </p>
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <Input
+                          id="totalUnits"
+                          type="number"
+                          min="1"
+                          value={totalUnits}
+                          onChange={e => setTotalUnits(e.target.value)}
+                          className="text-center font-semibold"
+                        />
+                      </div>
+                    </div>
+                    {parseInt(totalUnits, 10) > 1 && (
+                      <p className="text-xs text-blue-600 font-medium">
+                        ✓ Up to {totalUnits} bookings can be confirmed for the same dates simultaneously.
+                      </p>
+                    )}
                   </div>
                   
                   {/* Unit Amenities */}

@@ -96,8 +96,12 @@ router.post("/", async (req, res) => {
       )
     );
 
-  if (overlapping.length > 0) {
-    res.status(409).json({ error: "These dates are already booked. Please choose different dates." });
+  const totalUnits = prop.totalUnits ?? 1;
+  if (overlapping.length >= totalUnits) {
+    const msg = totalUnits > 1
+      ? `All ${totalUnits} units are booked for these dates. Please choose different dates.`
+      : "These dates are already booked. Please choose different dates.";
+    res.status(409).json({ error: msg });
     return;
   }
 
