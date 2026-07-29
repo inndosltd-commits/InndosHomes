@@ -3,11 +3,21 @@ import { Footer } from "@/components/layout/Footer";
 import { PropertyCard, ApiProperty } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed, MapPin } from "lucide-react";
+import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed, MapPin, Navigation } from "lucide-react";
 import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useLanguage } from "@/lib/language";
+import { useJsApiLoader } from "@react-google-maps/api";
+
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+const MAPS_LIBRARIES: ["places", "marker", "geocoding"] = ["places", "marker", "geocoding"];
+
+interface PlacePrediction {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+}
 
 export default function Home() {
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
@@ -15,7 +25,17 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
+  const [placePredictions, setPlacePredictions] = useState<PlacePrediction[]>([]);
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+  const [locating, setLocating] = useState(false);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const predictionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useLanguage();
+
+  const { isLoaded: mapsLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_API_KEY,
+    libraries: MAPS_LIBRARIES,
+  });
 
   useEffect(() => {
     const handler = (e: Event) => setIsNavMenuOpen((e as CustomEvent<boolean>).detail);
@@ -34,9 +54,146 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Auto-request geolocation once Maps is ready
+  useEffect(() => {
+    if (!mapsLoaded || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(loc);
+        mapInstanceRef.current?.panTo(loc);
+        mapInstanceRef.current?.setZoom(13);
+      },
+      () => { /* permission denied — stay on Nairobi default */ }
+    );
+  }, [mapsLoaded]);
+
+  // nothing to initialise — we use the new AutocompleteSuggestion API lazily per keypress
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    const query = value.toLowerCase();
+
+    // Filter properties from API
+    if (query) {
+      setFilteredProperties(
+        allProperties.filter(
+          (p) =>
+            p.title.toLowerCase().includes(query) ||
+            p.address.toLowerCase().includes(query) ||
+            p.type.toLowerCase().includes(query)
+        )
+      );
+    } else {
+      setFilteredProperties(allProperties);
+      setPlacePredictions([]);
+      return;
+    }
+
+    // Get Google Places predictions using the new AutocompleteSuggestion API
+    if (mapsLoaded && query.length >= 2) {
+      if (predictionsDebounceRef.current) clearTimeout(predictionsDebounceRef.current);
+      predictionsDebounceRef.current = setTimeout(async () => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { AutocompleteSuggestion } = (google.maps.places as any);
+          if (!AutocompleteSuggestion) { setPlacePredictions([]); return; }
+          const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: value,
+            includedRegionCodes: ["ke"],
+          });
+          setPlacePredictions(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (suggestions as any[]).slice(0, 3).map((s: any) => {
+              const p = s.placePrediction;
+              return {
+                placeId: p.placeId,
+                mainText: p.structuredFormat?.mainText?.text ?? p.text?.text ?? value,
+                secondaryText: p.structuredFormat?.secondaryText?.text ?? "",
+              };
+            })
+          );
+        } catch {
+          setPlacePredictions([]);
+        }
+      }, 250);
+    } else {
+      setPlacePredictions([]);
+    }
+  }, [allProperties]);
+
+  const handleLocateMe = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(loc);
+        mapInstanceRef.current?.panTo(loc);
+        mapInstanceRef.current?.setZoom(14);
+        setLocating(false);
+      },
+      () => setLocating(false)
+    );
+  }, []);
+
+  const handlePropertyClick = useCallback((property: ApiProperty) => {
+    setSearchQuery(property.address);
+    setFilteredProperties([property]);
+    setIsSearchFocused(false);
+    setPlacePredictions([]);
+
+    const lat = property.lat ? parseFloat(String(property.lat)) : null;
+    const lng = property.lng ? parseFloat(String(property.lng)) : null;
+    if (lat && lng && mapInstanceRef.current) {
+      mapInstanceRef.current.panTo({ lat, lng });
+      mapInstanceRef.current.setZoom(15);
+    }
+  }, []);
+
+  const handlePlaceClick = useCallback((prediction: PlacePrediction) => {
+    setSearchQuery(prediction.mainText);
+    setIsSearchFocused(false);
+    setPlacePredictions([]);
+
+    if (!mapsLoaded || !mapInstanceRef.current) return;
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ placeId: prediction.placeId }, (results, status) => {
+      if (status === "OK" && results?.[0]?.geometry?.location) {
+        const loc = {
+          lat: results[0].geometry.location.lat(),
+          lng: results[0].geometry.location.lng(),
+        };
+        mapInstanceRef.current?.panTo(loc);
+        mapInstanceRef.current?.setZoom(14);
+
+        // Also filter properties near this location
+        const q = prediction.mainText.toLowerCase();
+        const nearby = allProperties.filter(
+          (p) => p.address.toLowerCase().includes(q) || p.title.toLowerCase().includes(q)
+        );
+        setFilteredProperties(nearby.length > 0 ? nearby : allProperties);
+      }
+    });
+  }, [mapsLoaded, allProperties]);
+
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapInstanceRef.current = map;
+  }, []);
+
+  const matchedProperties = searchQuery
+    ? allProperties.filter(
+        (p) =>
+          p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.address.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
+
   const rentalProperties = allProperties.filter((p) => p.type === "rent");
   const saleProperties = allProperties.filter((p) => p.type === "sale");
   const bnbProperties = allProperties.filter((p) => p.type === "bnb");
+
+  const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,67 +204,83 @@ export default function Home() {
         {/* Floating Search Bar */}
         <div className={`absolute top-6 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-xl pointer-events-none transition-opacity duration-150 ${isNavMenuOpen ? "opacity-0 pointer-events-none" : ""}`}>
           <div className="relative w-full pointer-events-auto">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full shadow-[0_0_0_2px_white,0_0_0_4px_black]"></div>
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full shadow-[0_0_0_2px_white,0_0_0_4px_black]" />
             <Input
               placeholder="Where to?"
               className="w-full pl-12 pr-6 h-14 bg-white shadow-[0_4px_20px_rgb(0,0,0,0.1)] rounded-full border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-medium text-gray-900 placeholder:text-gray-500"
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                const query = e.target.value.toLowerCase();
-                if (query) {
-                  setFilteredProperties(
-                    allProperties.filter(
-                      (p) =>
-                        p.title.toLowerCase().includes(query) ||
-                        p.address.toLowerCase().includes(query) ||
-                        p.type.toLowerCase().includes(query)
-                    )
-                  );
-                } else {
-                  setFilteredProperties(allProperties);
-                }
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
             />
 
             {/* Autocomplete Dropdown */}
-            {isSearchFocused && searchQuery && (
+            {showDropdown && (
               <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-[500] border border-gray-100">
-                {filteredProperties.length > 0 ? (
-                  <div className="max-h-[300px] overflow-y-auto py-2">
-                    {filteredProperties.slice(0, 5).map((property, index) => (
-                      <div
-                        key={property.id}
-                        className="px-4 hover:bg-gray-50 cursor-pointer flex items-start gap-4 transition-colors group"
-                        onClick={() => {
-                          setSearchQuery(property.address);
-                          setFilteredProperties([property]);
-                          setIsSearchFocused(false);
-                        }}
-                      >
-                        <div className="mt-4 flex items-center justify-center shrink-0">
-                          <MapPin className="h-5 w-5 text-gray-400 group-hover:text-black transition-colors" />
-                        </div>
-                        <div className={`flex-1 min-w-0 py-4 ${index !== Math.min(filteredProperties.length, 5) - 1 ? "border-b border-gray-100" : ""}`}>
-                          <div className="font-medium text-gray-900 text-base truncate">{property.address}</div>
-                          <div className="text-sm text-gray-500 truncate mt-0.5">{property.title}</div>
-                        </div>
+                <div className="max-h-[360px] overflow-y-auto py-2">
+
+                  {/* Property results */}
+                  {matchedProperties.slice(0, 4).map((property, index) => (
+                    <div
+                      key={property.id}
+                      className="px-4 hover:bg-gray-50 cursor-pointer flex items-start gap-4 transition-colors group"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handlePropertyClick(property)}
+                    >
+                      <div className="mt-4 flex items-center justify-center shrink-0">
+                        <MapPin className="h-5 w-5 text-gray-400 group-hover:text-black transition-colors" />
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-6 py-8 text-center text-gray-500">
-                    No locations found matching &ldquo;{searchQuery}&rdquo;
-                  </div>
-                )}
+                      <div className={`flex-1 min-w-0 py-4 ${index < matchedProperties.slice(0, 4).length - 1 || placePredictions.length > 0 ? "border-b border-gray-100" : ""}`}>
+                        <div className="font-medium text-gray-900 text-base truncate">{property.address}</div>
+                        <div className="text-sm text-gray-500 truncate mt-0.5">{property.title}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Google Places predictions */}
+                  {placePredictions.map((pred, index) => (
+                    <div
+                      key={pred.placeId}
+                      className="px-4 hover:bg-gray-50 cursor-pointer flex items-start gap-4 transition-colors group"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handlePlaceClick(pred)}
+                    >
+                      <div className="mt-4 flex items-center justify-center shrink-0">
+                        <MapPin className="h-5 w-5 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                      </div>
+                      <div className={`flex-1 min-w-0 py-4 ${index < placePredictions.length - 1 ? "border-b border-gray-100" : ""}`}>
+                        <div className="font-medium text-gray-900 text-base truncate">{pred.mainText}</div>
+                        <div className="text-sm text-gray-500 truncate mt-0.5">{pred.secondaryText}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {matchedProperties.length === 0 && placePredictions.length === 0 && (
+                    <div className="px-6 py-8 text-center text-gray-500">
+                      No locations found matching &ldquo;{searchQuery}&rdquo;
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* Locate Me button */}
+        <button
+          onClick={handleLocateMe}
+          title="Show my location"
+          className="absolute bottom-6 right-4 z-[400] bg-white border border-gray-200 rounded-full p-3 shadow-lg hover:shadow-xl transition-all hover:bg-gray-50"
+        >
+          <Navigation className={`h-5 w-5 ${locating ? "text-blue-500 animate-pulse" : "text-gray-700"}`} />
+        </button>
+
         <div className="absolute inset-0 z-0">
-          <PropertyMap properties={filteredProperties} />
+          <PropertyMap
+            properties={filteredProperties}
+            userLocation={userLocation}
+            onMapLoad={onMapLoad}
+          />
         </div>
       </section>
 

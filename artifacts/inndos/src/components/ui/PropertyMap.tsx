@@ -11,11 +11,12 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
 
-
 const LOCATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="black" stroke="white" stroke-width="4"/><circle cx="32" cy="32" r="8" fill="white"/></svg>`;
 
 interface PropertyMapProps {
   properties: ApiProperty[];
+  userLocation?: google.maps.LatLngLiteral | null;
+  onMapLoad?: (map: google.maps.Map) => void;
 }
 
 interface MappableProperty {
@@ -36,10 +37,8 @@ function parseMappableProperties(props: ApiProperty[]): MappableProperty[] {
   }, []);
 }
 
-export default function PropertyMap({ properties }: PropertyMapProps) {
-  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+export default function PropertyMap({ properties, userLocation, onMapLoad }: PropertyMapProps) {
   const [selectedProperty, setSelectedProperty] = useState<MappableProperty | null>(null);
-  const [mapRef, setMapRef] = useState<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_API_KEY,
@@ -48,17 +47,9 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
 
   const mappable = parseMappableProperties(properties);
 
-  const handleLocateMe = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setUserLocation(loc);
-      mapRef?.panTo(loc);
-      mapRef?.setZoom(14);
-    });
-  };
-
-  const onLoad = useCallback((m: google.maps.Map) => setMapRef(m), []);
+  const handleLoad = useCallback((m: google.maps.Map) => {
+    onMapLoad?.(m);
+  }, [onMapLoad]);
 
   if (!isLoaded) {
     return (
@@ -74,7 +65,7 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
         mapContainerClassName="w-full h-full"
         center={NAIROBI_CENTER}
         zoom={11}
-        onLoad={onLoad}
+        onLoad={handleLoad}
         onClick={() => setSelectedProperty(null)}
         options={{
           mapId: "c7cd60c6a53a720a14502d1b",
@@ -129,14 +120,6 @@ export default function PropertyMap({ properties }: PropertyMapProps) {
           </AdvancedMarker>
         )}
       </GoogleMap>
-
-      <button
-        onClick={handleLocateMe}
-        className="absolute bottom-20 right-4 z-[1000] bg-white border border-gray-200 rounded-full p-3 shadow-lg hover:shadow-xl transition-all hover:bg-gray-50"
-        title="Find my location"
-      >
-        <MapPin className="h-5 w-5 text-gray-700" />
-      </button>
     </div>
   );
 }
