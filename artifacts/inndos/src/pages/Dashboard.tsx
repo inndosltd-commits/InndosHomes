@@ -361,6 +361,7 @@ export default function Dashboard() {
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const [userLocationSearch, setUserLocationSearch] = useState("");
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -373,6 +374,11 @@ export default function Dashboard() {
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
   const [isLoadingAdminProperties, setIsLoadingAdminProperties] = useState(false);
+  const [propSearch, setPropSearch] = useState("");
+  const [propStatusFilter, setPropStatusFilter] = useState("all");
+  const [propLocationSearch, setPropLocationSearch] = useState("");
+  const [myPropSearch, setMyPropSearch] = useState("");
+  const [myPropStatusFilter, setMyPropStatusFilter] = useState("all");
   const [adminPropertyActionLoading, setAdminPropertyActionLoading] = useState<Record<string, boolean>>({});
   const [flagDialogId, setFlagDialogId] = useState<string | null>(null);
   const [flagComment, setFlagComment] = useState("");
@@ -1753,13 +1759,36 @@ export default function Dashboard() {
                     <CardDescription>Manage your active listings</CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {!isLoadingProperties && ownerProperties.length > 0 && (
+                      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <input type="text" value={myPropSearch} onChange={e => setMyPropSearch(e.target.value)} placeholder="Search by title or address…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50" />
+                        </div>
+                        <select value={myPropStatusFilter} onChange={e => setMyPropStatusFilter(e.target.value)} className="text-sm border rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:w-36">
+                          <option value="all">All Statuses</option>
+                          <option value="active">Active</option>
+                          <option value="pending">Pending</option>
+                          <option value="flagged">Flagged</option>
+                        </select>
+                        {(myPropSearch || myPropStatusFilter !== "all") && (
+                          <button onClick={() => { setMyPropSearch(""); setMyPropStatusFilter("all"); }} className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0">Clear</button>
+                        )}
+                      </div>
+                    )}
                     {isLoadingProperties ? (
                       <div className="flex items-center justify-center py-12 text-muted-foreground">
                         <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading your listings...
                       </div>
                     ) : (
                     <div className="space-y-4">
-                      {ownerProperties.map(p => {
+                      {ownerProperties.filter(p => {
+                        if (myPropSearch) { const q = myPropSearch.toLowerCase(); if (!(p.title||"").toLowerCase().includes(q) && !(p.address||"").toLowerCase().includes(q)) return false; }
+                        if (myPropStatusFilter === "active" && (!p.isVerified || p.propertyStatus === 'flagged')) return false;
+                        if (myPropStatusFilter === "pending" && (p.isVerified || p.propertyStatus === 'flagged')) return false;
+                        if (myPropStatusFilter === "flagged" && p.propertyStatus !== 'flagged') return false;
+                        return true;
+                      }).map(p => {
                         const isFlagged = p.propertyStatus === 'flagged';
                         const isPending = !p.isVerified && !isFlagged;
                         return (
@@ -2284,15 +2313,48 @@ export default function Dashboard() {
                   <CardDescription>Manage, edit or terminate existing listings across the platform</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {!isLoadingAdminProperties && adminProperties.length > 0 && (
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input type="text" value={propSearch} onChange={e => setPropSearch(e.target.value)} placeholder="Search by title or ID…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50" />
+                      </div>
+                      <div className="relative sm:w-52">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input type="text" value={propLocationSearch} onChange={e => setPropLocationSearch(e.target.value)} placeholder="Filter by location…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50" />
+                      </div>
+                      <select value={propStatusFilter} onChange={e => setPropStatusFilter(e.target.value)} className="text-sm border rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:w-36">
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                      {(propSearch || propLocationSearch || propStatusFilter !== "all") && (
+                        <button onClick={() => { setPropSearch(""); setPropLocationSearch(""); setPropStatusFilter("all"); }} className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0">Clear</button>
+                      )}
+                    </div>
+                  )}
                   {isLoadingAdminProperties ? (
                     <div className="flex items-center justify-center py-8 text-muted-foreground">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading properties...
                     </div>
                   ) : adminProperties.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground">No properties found on the platform.</div>
-                  ) : (
+                  ) : (() => {
+                    const filteredProps = adminProperties.filter(p => {
+                      if (propSearch) { const q = propSearch.toLowerCase(); if (!(p.title || "").toLowerCase().includes(q) && !(p.id || "").toLowerCase().includes(q)) return false; }
+                      if (propLocationSearch) { const q = propLocationSearch.toLowerCase(); if (!(p.address || "").toLowerCase().includes(q) && !(p.location || "").toLowerCase().includes(q)) return false; }
+                      if (propStatusFilter === "active" && !p.isVerified) return false;
+                      if (propStatusFilter === "inactive" && p.isVerified) return false;
+                      return true;
+                    });
+                    return filteredProps.length === 0 ? (
+                      <div className="text-center py-10 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                        <p className="font-medium">No properties match your filters</p>
+                        <p className="text-xs mt-1">Try adjusting the search or filters above</p>
+                      </div>
+                    ) : (
                   <div className="space-y-4">
-                    {adminProperties.map(p => {
+                    {filteredProps.map(p => {
                       const isDeactivated = !p.isVerified;
                       const isActioning = !!adminPropertyActionLoading[p.id];
                       return (
@@ -2437,7 +2499,8 @@ export default function Dashboard() {
                       </div>
                     )})}
                   </div>
-                  )}
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -2612,9 +2675,13 @@ export default function Dashboard() {
                         <option value="suspended">Suspended</option>
                         <option value="pending">Pending</option>
                       </select>
-                      {(userSearch || userRoleFilter !== "all" || userStatusFilter !== "all") && (
+                      <div className="relative sm:w-48">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input type="text" value={userLocationSearch} onChange={e => setUserLocationSearch(e.target.value)} placeholder="Filter by location…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50" />
+                      </div>
+                      {(userSearch || userRoleFilter !== "all" || userStatusFilter !== "all" || userLocationSearch) && (
                         <button
-                          onClick={() => { setUserSearch(""); setUserRoleFilter("all"); setUserStatusFilter("all"); }}
+                          onClick={() => { setUserSearch(""); setUserRoleFilter("all"); setUserStatusFilter("all"); setUserLocationSearch(""); }}
                           className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0"
                         >
                           Clear
@@ -2638,6 +2705,7 @@ export default function Dashboard() {
                     }
                     if (userRoleFilter !== "all" && u.role !== userRoleFilter) return false;
                     if (userStatusFilter !== "all" && u.status !== userStatusFilter) return false;
+                        if (userLocationSearch) { const q = userLocationSearch.toLowerCase(); if (!(u.address || "").toLowerCase().includes(q) && !(u.city || "").toLowerCase().includes(q) && !(u.email || "").toLowerCase().includes(q)) {} else {} if (!((u.address||"").toLowerCase().includes(q)||(u.city||"").toLowerCase().includes(q))) return false; }
                     return true;
                   }).length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
@@ -2654,6 +2722,7 @@ export default function Dashboard() {
                         }
                         if (userRoleFilter !== "all" && u.role !== userRoleFilter) return false;
                         if (userStatusFilter !== "all" && u.status !== userStatusFilter) return false;
+                          if (userLocationSearch) { const q2 = userLocationSearch.toLowerCase(); if (!((u.address||"").toLowerCase().includes(q2)||(u.city||"").toLowerCase().includes(q2))) return false; }
                         return true;
                       }).sort((a: any, b: any) => new Date(b.joinDate ?? 0).getTime() - new Date(a.joinDate ?? 0).getTime()).map((u: any) => {
                         const initials = u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();

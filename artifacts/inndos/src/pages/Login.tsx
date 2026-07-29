@@ -9,11 +9,13 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff } from "lucide-react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const LOGIN_ROLES  = ["owner", "host", "tenant"] as const;
 const SIGNUP_ROLES = ["owner", "host", "tenant"] as const;
 type Role = "owner" | "host" | "tenant";
+const ROLE_LABELS: Record<Role, string> = { owner: "Owner", host: "Host/Agency", tenant: "Tenant" };
 
 
 const GOOGLE_CLIENT_ID   = import.meta.env.VITE_GOOGLE_CLIENT_ID   as string;
@@ -38,6 +40,8 @@ export default function Login() {
   const [forgotEmailSent, setForgotEmailSent] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [resetToken, setResetToken]           = useState<string | null>(null);
+  const [showPasswords, setShowPasswords]     = useState<Record<string, boolean>>({});
+  const toggleShowPassword = (key: string) => setShowPasswords(p => ({ ...p, [key]: !p[key] }));
   const [termsAccepted, setTermsAccepted]   = useState(false);
   const { login, signup, user, token: authToken } = useAuth();
   const { toast } = useToast();
@@ -354,11 +358,21 @@ export default function Login() {
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" placeholder="At least 6 characters" required minLength={6} />
+                  <div className="relative">
+                    <Input id="new-password" type={showPasswords["new-pw"] ? "text" : "password"} placeholder="At least 6 characters" required minLength={6} className="pr-10" />
+                    <button type="button" tabIndex={-1} onClick={() => toggleShowPassword("new-pw")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPasswords["new-pw"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <Input id="confirm-password" type="password" placeholder="Repeat new password" required />
+                  <div className="relative">
+                    <Input id="confirm-password" type={showPasswords["confirm-pw"] ? "text" : "password"} placeholder="Repeat new password" required className="pr-10" />
+                    <button type="button" tabIndex={-1} onClick={() => toggleShowPassword("confirm-pw")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPasswords["confirm-pw"] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Saving..." : "Save New Password"}
@@ -395,7 +409,7 @@ export default function Login() {
                 <TabsList className={`grid w-full mb-8 ${isSignUp ? "grid-cols-3" : "grid-cols-3"}`}>
                   {(isSignUp ? SIGNUP_ROLES : LOGIN_ROLES).map((role) => (
                     <TabsTrigger key={role} value={role} className="text-xs px-1">
-                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                      {ROLE_LABELS[role]}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -470,10 +484,21 @@ export default function Login() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor={`password-${role}`}>Password</Label>
-                        <Input
-                          id={`password-${role}`}
-                          type="password"
-                        />
+                        <div className="relative">
+                          <Input
+                            id={`password-${role}`}
+                            type={showPasswords[`pw-${role}`] ? "text" : "password"}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() => toggleShowPassword(`pw-${role}`)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showPasswords[`pw-${role}`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
                       <Button
                         className="w-full"
@@ -483,8 +508,8 @@ export default function Login() {
                         {isLoading
                           ? (isSignUp ? "Signing up..." : "Signing in...")
                           : (isSignUp
-                            ? `Sign up as ${role.charAt(0).toUpperCase() + role.slice(1)}`
-                            : `Sign in as ${role.charAt(0).toUpperCase() + role.slice(1)}`)}
+                            ? `Sign up as ${ROLE_LABELS[role]}`
+                            : `Sign in as ${ROLE_LABELS[role]}`)}
                       </Button>
 
                       {/* ── Social Sign-In ── */}
