@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe, Search } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -358,6 +358,9 @@ export default function Dashboard() {
   const [totalProperties, setTotalProperties] = useState(0);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -2575,6 +2578,50 @@ export default function Dashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* Search + Filter bar */}
+                  {!isLoadingAdminUsers && adminUsers.length > 0 && (
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          value={userSearch}
+                          onChange={e => setUserSearch(e.target.value)}
+                          placeholder="Search by name or email…"
+                          className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50"
+                        />
+                      </div>
+                      <select
+                        value={userRoleFilter}
+                        onChange={e => setUserRoleFilter(e.target.value)}
+                        className="text-sm border rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:w-36"
+                      >
+                        <option value="all">All Roles</option>
+                        <option value="owner">Owner</option>
+                        <option value="host">Host</option>
+                        <option value="tenant">Tenant</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                      <select
+                        value={userStatusFilter}
+                        onChange={e => setUserStatusFilter(e.target.value)}
+                        className="text-sm border rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:w-36"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                      {(userSearch || userRoleFilter !== "all" || userStatusFilter !== "all") && (
+                        <button
+                          onClick={() => { setUserSearch(""); setUserRoleFilter("all"); setUserStatusFilter("all"); }}
+                          className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {isLoadingAdminUsers ? (
                     <div className="flex items-center justify-center py-12 text-muted-foreground">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading users...
@@ -2584,9 +2631,31 @@ export default function Dashboard() {
                       <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                       <p className="font-medium">No users found</p>
                     </div>
+                  ) : adminUsers.filter((u: any) => {
+                    if (userSearch) {
+                      const q = userSearch.toLowerCase();
+                      if (!(u.name || "").toLowerCase().includes(q) && !(u.email || "").toLowerCase().includes(q)) return false;
+                    }
+                    if (userRoleFilter !== "all" && u.role !== userRoleFilter) return false;
+                    if (userStatusFilter !== "all" && u.status !== userStatusFilter) return false;
+                    return true;
+                  }).length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="font-medium">No users match your filters</p>
+                      <p className="text-xs mt-1">Try adjusting the search or filters above</p>
+                    </div>
                   ) : (
                     <div className="space-y-3">
-                      {adminUsers.map((u: any) => {
+                      {adminUsers.filter((u: any) => {
+                        if (userSearch) {
+                          const q = userSearch.toLowerCase();
+                          if (!(u.name || "").toLowerCase().includes(q) && !(u.email || "").toLowerCase().includes(q)) return false;
+                        }
+                        if (userRoleFilter !== "all" && u.role !== userRoleFilter) return false;
+                        if (userStatusFilter !== "all" && u.status !== userStatusFilter) return false;
+                        return true;
+                      }).sort((a: any, b: any) => new Date(b.joinDate ?? 0).getTime() - new Date(a.joinDate ?? 0).getTime()).map((u: any) => {
                         const initials = u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                         const statusColor =
                           u.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -2625,53 +2694,29 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <div className="flex gap-2 shrink-0 flex-wrap justify-end">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1"
-                                onClick={() => setSelectedProfileUser(u)}
-                              >
+                              <Button size="sm" variant="outline" className="gap-1" onClick={() => setSelectedProfileUser(u)}>
                                 <Eye className="h-3 w-3" /> View Profile
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1 text-zinc-700 border-zinc-300 hover:bg-zinc-50"
-                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); }}
-                              >
+                              <Button size="sm" variant="outline" className="gap-1 text-zinc-700 border-zinc-300 hover:bg-zinc-50"
+                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); }}>
                                 <Crown className="h-3 w-3" /> Assign Plan
                               </Button>
                               {!isSelf && u.status !== 'suspended' ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                  disabled={isBusy}
-                                  onClick={() => handleUserStatusUpdate(u.id, 'suspended')}
-                                >
+                                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  disabled={isBusy} onClick={() => handleUserStatusUpdate(u.id, 'suspended')}>
                                   {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3 mr-1" />}
                                   Suspend
                                 </Button>
                               ) : !isSelf && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                                  disabled={isBusy}
-                                  onClick={() => handleUserStatusUpdate(u.id, 'active')}
-                                >
+                                <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                  disabled={isBusy} onClick={() => handleUserStatusUpdate(u.id, 'active')}>
                                   {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
                                   Reactivate
                                 </Button>
                               )}
                               {!isSelf && u.role !== 'admin' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-700 hover:text-red-800 hover:bg-red-50 border-red-300"
-                                  disabled={isBusy}
-                                  onClick={() => setDeleteUserId(u.id)}
-                                >
+                                <Button size="sm" variant="outline" className="text-red-700 hover:text-red-800 hover:bg-red-50 border-red-300"
+                                  disabled={isBusy} onClick={() => setDeleteUserId(u.id)}>
                                   <Trash2 className="h-3 w-3 mr-1" /> Delete
                                 </Button>
                               )}
