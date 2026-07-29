@@ -3855,6 +3855,18 @@ export default function Dashboard() {
                         />
                         {smsSettings?.passwordSet && <p className="text-xs text-gray-400">Password is set. Leave blank to keep it unchanged.</p>}
                       </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold">API Key <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <input
+                          type="password"
+                          value={smsForm.apiKey}
+                          onChange={e => setSmsForm(f => ({ ...f, apiKey: e.target.value }))}
+                          className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                          placeholder={smsSettings?.apiKeySet ? "Leave blank to keep current API key" : "Enter your Airtouch API key (if required)"}
+                        />
+                        {smsSettings?.apiKeySet && <p className="text-xs text-gray-400">API key is set. Leave blank to keep it unchanged.</p>}
+                        <p className="text-xs text-gray-400">Some Airtouch accounts use an API key instead of or alongside the password.</p>
+                      </div>
                     </div>
                   )}
 
