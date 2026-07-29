@@ -113,7 +113,7 @@ router.post("/signup", async (req, res) => {
   }
 
   const { name, email, password, role } = result.data;
-  const { phoneToken } = req.body as { phoneToken?: string };
+  const { phoneToken, isRegisteredFirm, firmType } = req.body as { phoneToken?: string; isRegisteredFirm?: boolean; firmType?: string };
 
   if (!phoneToken) {
     res.status(400).json({ error: "Phone verification is required to create an account" });
@@ -144,7 +144,11 @@ router.post("/signup", async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
   const [user] = await db
     .insert(users)
-    .values({ name, email, password: hashed, role: allowedRole, phone: verifiedPhone, phoneVerified: true })
+    .values({
+      name, email, password: hashed, role: allowedRole, phone: verifiedPhone, phoneVerified: true,
+      ...(typeof isRegisteredFirm === "boolean" ? { isRegisteredFirm } : {}),
+      ...(typeof firmType === "string" ? { firmType: firmType as "business_name" | "registered_company" } : {}),
+    })
     .returning();
 
   const token = signToken(user.id);
@@ -206,13 +210,31 @@ router.patch("/profile", async (req, res) => {
   const payload = verifyToken(authHeader.slice(7));
   if (!payload) { res.status(401).json({ error: "Invalid or expired token" }); return; }
 
-  const { name, avatar, idDocument, idFront, idBack } = req.body as { name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string };
-  const updates: Partial<{ name: string; avatar: string; idDocument: string; idFront: string; idBack: string }> = {};
+  const {
+    name, avatar, idDocument, idFront, idBack,
+    isRegisteredFirm, firmType, firmCertRegistration, firmCertIncorporation, firmCr12, firmDirectorIds,
+    businessCertRegistration, businessPermit,
+  } = req.body as {
+    name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string;
+    isRegisteredFirm?: boolean; firmType?: string;
+    firmCertRegistration?: string; firmCertIncorporation?: string; firmCr12?: string;
+    firmDirectorIds?: string[];
+    businessCertRegistration?: string; businessPermit?: string;
+  };
+  const updates: Record<string, unknown> = {};
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
   if (typeof avatar === "string") updates.avatar = avatar;
   if (typeof idDocument === "string") updates.idDocument = idDocument;
   if (typeof idFront === "string") updates.idFront = idFront;
   if (typeof idBack === "string") updates.idBack = idBack;
+  if (typeof isRegisteredFirm === "boolean") updates.isRegisteredFirm = isRegisteredFirm;
+  if (typeof firmType === "string") updates.firmType = firmType;
+  if (typeof firmCertRegistration === "string") updates.firmCertRegistration = firmCertRegistration;
+  if (typeof firmCertIncorporation === "string") updates.firmCertIncorporation = firmCertIncorporation;
+  if (typeof firmCr12 === "string") updates.firmCr12 = firmCr12;
+  if (Array.isArray(firmDirectorIds)) updates.firmDirectorIds = firmDirectorIds;
+  if (typeof businessCertRegistration === "string") updates.businessCertRegistration = businessCertRegistration;
+  if (typeof businessPermit === "string") updates.businessPermit = businessPermit;
 
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
 

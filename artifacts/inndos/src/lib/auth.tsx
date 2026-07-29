@@ -16,13 +16,21 @@ export interface User {
   idDocument?: string | null;
   idFront?: string | null;
   idBack?: string | null;
+  isRegisteredFirm?: boolean;
+  firmType?: "business_name" | "registered_company" | null;
+  firmCertRegistration?: string | null;
+  firmCertIncorporation?: string | null;
+  firmCr12?: string | null;
+  firmDirectorIds?: string[];
+  businessCertRegistration?: string | null;
+  businessPermit?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string, preexistingToken?: string) => Promise<void>;
-  signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string) => Promise<void>;
+  signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
@@ -104,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLocation("/dashboard");
   };
 
-  const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string) => {
+  const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string }) => {
     setError(null);
     if (!role) return;
     const res = await apiFetch("/auth/signup", {
@@ -115,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: password || "password123",
         role,
         ...(phoneToken ? { phoneToken } : {}),
+        ...(extra ?? {}),
       }),
     });
     if (!res.ok) {

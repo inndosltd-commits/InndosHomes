@@ -86,9 +86,24 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
   const [isVerifyingIdBack, setIsVerifyingIdBack] = useState(false);
   const [idFrontPath, setIdFrontPath] = useState<string | null>(user.idFront ?? null);
   const [idBackPath, setIdBackPath] = useState<string | null>(user.idBack ?? null);
+  // Firm document state
+  const [firmCertRegPath, setFirmCertRegPath] = useState<string | null>((user as any).firmCertRegistration ?? null);
+  const [firmCertIncPath, setFirmCertIncPath] = useState<string | null>((user as any).firmCertIncorporation ?? null);
+  const [firmCr12Path, setFirmCr12Path] = useState<string | null>((user as any).firmCr12 ?? null);
+  const [firmDirectorIdPaths, setFirmDirectorIdPaths] = useState<string[]>((user as any).firmDirectorIds ?? []);
+  const [isUploadingFirm, setIsUploadingFirm] = useState<Record<string, boolean>>({});
+  // Business documents (owner / host / agent — optional)
+  const [bizCertPath, setBizCertPath] = useState<string | null>((user as any).businessCertRegistration ?? null);
+  const [bizPermitPath, setBizPermitPath] = useState<string | null>((user as any).businessPermit ?? null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const idFrontInputRef = useRef<HTMLInputElement>(null);
   const idBackInputRef = useRef<HTMLInputElement>(null);
+  const firmCertRegInputRef = useRef<HTMLInputElement>(null);
+  const firmCertIncInputRef = useRef<HTMLInputElement>(null);
+  const firmCr12InputRef = useRef<HTMLInputElement>(null);
+  const firmDirIdInputRef = useRef<HTMLInputElement>(null);
+  const bizCertInputRef = useRef<HTMLInputElement>(null);
+  const bizPermitInputRef = useRef<HTMLInputElement>(null);
 
   const uploadFile = async (file: File): Promise<string> => {
     const urlRes = await fetch("/api/storage/uploads/request-url", {
@@ -208,6 +223,50 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
     }
   };
 
+  // Firm document upload handler
+  const handleFirmDocUpload = async (
+    key: string,
+    file: File,
+    profileField: string,
+    onDone: (path: string) => void,
+    isArray?: boolean,
+    currentArray?: string[],
+  ) => {
+    if (file.size > 20 * 1024 * 1024) { toast({ title: "File too large", description: "Maximum 20 MB.", variant: "destructive" }); return; }
+    setIsUploadingFirm(p => ({ ...p, [key]: true }));
+    try {
+      const objectPath = await uploadFile(file);
+      const body: Record<string, unknown> = isArray
+        ? { [profileField]: [...(currentArray ?? []), objectPath] }
+        : { [profileField]: objectPath };
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed to save document");
+      onDone(objectPath);
+      await refreshUser();
+      toast({ title: "✓ Document uploaded", description: "Saved successfully." });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsUploadingFirm(p => ({ ...p, [key]: false }));
+    }
+  };
+
+  const removeFirmDirectorId = async (idx: number) => {
+    const updated = firmDirectorIdPaths.filter((_, i) => i !== idx);
+    await fetch("/api/auth/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ firmDirectorIds: updated }),
+    });
+    setFirmDirectorIdPaths(updated);
+    await refreshUser();
+    toast({ title: "Director ID removed" });
+  };
+
   const avatarSrc = user.avatar?.startsWith("/objects/")
     ? `/api/storage${user.avatar}`
     : user.avatar ?? null;
@@ -266,48 +325,302 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           </div>
         </div>
 
-        {/* ID Document Upload — Front & Back */}
-        <div className="space-y-3">
-          <div>
-            <Label>{t("dash.national_id")}</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("dash.id_desc")}</p>
+        {/* Verification Documents */}
+        {(user as any).isRegisteredFirm ? (
+          /* ── Registered Firm / Agency verification ── */
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+              <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">
+                  Registered {(user as any).firmType === "registered_company" ? "Company" : "Business Name"} Verification
+                </p>
+                <p className="text-xs text-blue-600">Upload your business documents below. No National ID required.</p>
+              </div>
+            </div>
+
+            {(user as any).firmType === "business_name" && (
+              /* Business Name — Certificate of Registration */
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Certificate of Registration</Label>
+                <p className="text-xs text-muted-foreground">Issued by the Registrar of Business Names (BN series)</p>
+                <IdSideUpload
+                  label="Certificate of Registration"
+                  hint="Upload a clear scan or photo of your certificate"
+                  currentPath={firmCertRegPath}
+                  isUploading={!!isUploadingFirm["certReg"]}
+                  inputRef={firmCertRegInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    handleFirmDocUpload("certReg", file, "firmCertRegistration", setFirmCertRegPath);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            )}
+
+            {(user as any).firmType === "registered_company" && (
+              <div className="space-y-5">
+                {/* Certificate of Incorporation */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Certificate of Incorporation</Label>
+                  <p className="text-xs text-muted-foreground">Issued by the Registrar of Companies (PVT/PLC series)</p>
+                  <IdSideUpload
+                    label="Certificate of Incorporation"
+                    hint="Upload a clear scan or photo"
+                    currentPath={firmCertIncPath}
+                    isUploading={!!isUploadingFirm["certInc"]}
+                    inputRef={firmCertIncInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      handleFirmDocUpload("certInc", file, "firmCertIncorporation", setFirmCertIncPath);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+
+                {/* CR12 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">CR12 Certificate</Label>
+                  <p className="text-xs text-muted-foreground">Official list of directors from the Registrar of Companies</p>
+                  <IdSideUpload
+                    label="CR12 Certificate"
+                    hint="Upload a clear scan or photo"
+                    currentPath={firmCr12Path}
+                    isUploading={!!isUploadingFirm["cr12"]}
+                    inputRef={firmCr12InputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      handleFirmDocUpload("cr12", file, "firmCr12", setFirmCr12Path);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+
+                {/* Director IDs */}
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-semibold">Director ID Documents</Label>
+                    <p className="text-xs text-muted-foreground">Upload a National ID or Passport for each director listed in the CR12</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {firmDirectorIdPaths.map((path, idx) => (
+                      <div key={idx} className="relative group border rounded-lg overflow-hidden bg-gray-50">
+                        <img
+                          src={path.startsWith("/objects/") ? `/api/storage${path}` : path}
+                          alt={`Director ${idx + 1} ID`}
+                          className="w-full h-32 object-cover"
+                        />
+                        <div className="px-2 py-1 text-xs font-medium text-gray-600 flex items-center justify-between">
+                          <span>Director {idx + 1} ID</span>
+                          <button
+                            onClick={() => removeFirmDirectorId(idx)}
+                            className="text-red-500 hover:text-red-700 text-xs font-semibold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      className="border-2 border-dashed rounded-lg flex flex-col items-center justify-center h-32 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => firmDirIdInputRef.current?.click()}
+                    >
+                      {isUploadingFirm["dirId"] ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                      ) : (
+                        <>
+                          <Plus className="h-6 w-6 text-gray-400 mb-1" />
+                          <span className="text-xs text-gray-500">Add Director ID</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    ref={firmDirIdInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      handleFirmDocUpload(
+                        "dirId", file, "firmDirectorIds",
+                        (path) => setFirmDirectorIdPaths(prev => [...prev, path]),
+                        true, firmDirectorIdPaths,
+                      );
+                      e.target.value = "";
+                    }}
+                  />
+                  {firmDirectorIdPaths.length === 0 && (
+                    <p className="text-xs text-amber-600">⚠ Add at least one director ID matching the CR12</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex gap-4 flex-col sm:flex-row">
-            <IdSideUpload
-              label={t("dash.front_side")}
-              hint={t("dash.upload_front_hint")}
-              currentPath={idFrontPath}
-              isUploading={isUploadingIdFront}
-              isVerifying={isVerifyingIdFront}
-              inputRef={idFrontInputRef}
-              onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIsVerifyingIdFront, setIdFrontPath, idFrontInputRef)}
-            />
-            <IdSideUpload
-              label={t("dash.back_side")}
-              hint={t("dash.upload_back_hint")}
-              currentPath={idBackPath}
-              isUploading={isUploadingIdBack}
-              isVerifying={isVerifyingIdBack}
-              inputRef={idBackInputRef}
-              onChange={makeIdHandler("idBack", setIsUploadingIdBack, setIsVerifyingIdBack, setIdBackPath, idBackInputRef)}
-            />
+        ) : (
+          /* ── Individual — National ID ── */
+          <div className="space-y-3">
+            <div>
+              <Label>{t("dash.national_id")}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("dash.id_desc")}</p>
+            </div>
+            <div className="flex gap-4 flex-col sm:flex-row">
+              <IdSideUpload
+                label={t("dash.front_side")}
+                hint={t("dash.upload_front_hint")}
+                currentPath={idFrontPath}
+                isUploading={isUploadingIdFront}
+                isVerifying={isVerifyingIdFront}
+                inputRef={idFrontInputRef}
+                onChange={makeIdHandler("idFront", setIsUploadingIdFront, setIsVerifyingIdFront, setIdFrontPath, idFrontInputRef)}
+              />
+              <IdSideUpload
+                label={t("dash.back_side")}
+                hint={t("dash.upload_back_hint")}
+                currentPath={idBackPath}
+                isUploading={isUploadingIdBack}
+                isVerifying={isVerifyingIdBack}
+                inputRef={idBackInputRef}
+                onChange={makeIdHandler("idBack", setIsUploadingIdBack, setIsVerifyingIdBack, setIdBackPath, idBackInputRef)}
+              />
+            </div>
+            {(idFrontPath && idBackPath) && (
+              <p className="text-xs text-green-700 flex items-center gap-1">
+                <Check className="h-3 w-3" /> {t("dash.both_uploaded")}
+              </p>
+            )}
+            {(idFrontPath && !idBackPath) && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                ⚠ {t("dash.upload_back_msg")}
+              </p>
+            )}
+            {(!idFrontPath && idBackPath) && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                ⚠ {t("dash.upload_front_msg")}
+              </p>
+            )}
           </div>
-          {(idFrontPath && idBackPath) && (
-            <p className="text-xs text-green-700 flex items-center gap-1">
-              <Check className="h-3 w-3" /> {t("dash.both_uploaded")}
-            </p>
-          )}
-          {(idFrontPath && !idBackPath) && (
-            <p className="text-xs text-amber-600 flex items-center gap-1">
-              ⚠ {t("dash.upload_back_msg")}
-            </p>
-          )}
-          {(!idFrontPath && idBackPath) && (
-            <p className="text-xs text-amber-600 flex items-center gap-1">
-              ⚠ {t("dash.upload_front_msg")}
-            </p>
-          )}
-        </div>
+        )}
+
+        {/* ── Business Documents — owners, hosts, agents (optional) ── */}
+        {(user.role === "owner" || user.role === "host") && (
+          <div className="space-y-4 rounded-xl border border-emerald-100 bg-emerald-50/40 p-5">
+            <div className="flex items-start gap-3">
+              <FileText className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Business Documents <span className="font-normal text-emerald-600 text-xs">(Optional)</span></p>
+                <p className="text-xs text-emerald-700 mt-0.5">Upload your business registration certificate and/or business permit to build trust with guests and tenants. These can be added or updated at any time.</p>
+              </div>
+            </div>
+
+            {/* Certificate of Business Registration */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Certificate of Business Registration</Label>
+              <p className="text-xs text-muted-foreground">Certificate issued by the Registrar of Business Names or Registrar of Companies</p>
+              <div
+                className={`flex items-center gap-4 p-3 rounded-lg border-2 border-dashed cursor-pointer transition-colors
+                  ${bizCertPath ? "border-emerald-300 bg-white" : "border-gray-200 bg-white hover:bg-gray-50"}`}
+                onClick={() => !isUploadingFirm["bizCert"] && bizCertInputRef.current?.click()}
+              >
+                {bizCertPath ? (
+                  <>
+                    <div className="h-14 w-14 rounded-md overflow-hidden shrink-0 border border-emerald-200">
+                      <img
+                        src={bizCertPath.startsWith("/objects/") ? `/api/storage${bizCertPath}` : bizCertPath}
+                        alt="Certificate"
+                        className="h-full w-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-emerald-700 flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Certificate uploaded</p>
+                      <p className="text-xs text-muted-foreground truncate">{bizCertPath.split("/").pop()}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-xs text-gray-500 shrink-0" onClick={e => { e.stopPropagation(); bizCertInputRef.current?.click(); }}>Replace</Button>
+                  </>
+                ) : isUploadingFirm["bizCert"] ? (
+                  <div className="flex items-center gap-2 py-2 px-1 w-full justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                    <span className="text-sm text-emerald-700">Uploading…</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 py-2 px-1 w-full">
+                    <UploadCloud className="h-8 w-8 text-gray-300 shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-600">Click to upload certificate</p>
+                      <p className="text-xs text-muted-foreground">JPG, PNG, or PDF · max 20 MB</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={bizCertInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]; if (!file) return;
+                  await handleFirmDocUpload("bizCert", file, "businessCertRegistration", setBizCertPath);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            {/* Business Permit */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Business Permit <span className="text-xs text-muted-foreground font-normal">(Optional)</span></Label>
+              <p className="text-xs text-muted-foreground">Annual county business permit / single business permit (SBP)</p>
+              <div
+                className={`flex items-center gap-4 p-3 rounded-lg border-2 border-dashed cursor-pointer transition-colors
+                  ${bizPermitPath ? "border-emerald-300 bg-white" : "border-gray-200 bg-white hover:bg-gray-50"}`}
+                onClick={() => !isUploadingFirm["bizPermit"] && bizPermitInputRef.current?.click()}
+              >
+                {bizPermitPath ? (
+                  <>
+                    <div className="h-14 w-14 rounded-md overflow-hidden shrink-0 border border-emerald-200">
+                      <img
+                        src={bizPermitPath.startsWith("/objects/") ? `/api/storage${bizPermitPath}` : bizPermitPath}
+                        alt="Business Permit"
+                        className="h-full w-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-emerald-700 flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Permit uploaded</p>
+                      <p className="text-xs text-muted-foreground truncate">{bizPermitPath.split("/").pop()}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-xs text-gray-500 shrink-0" onClick={e => { e.stopPropagation(); bizPermitInputRef.current?.click(); }}>Replace</Button>
+                  </>
+                ) : isUploadingFirm["bizPermit"] ? (
+                  <div className="flex items-center gap-2 py-2 px-1 w-full justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                    <span className="text-sm text-emerald-700">Uploading…</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 py-2 px-1 w-full">
+                    <UploadCloud className="h-8 w-8 text-gray-300 shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-600">Click to upload business permit</p>
+                      <p className="text-xs text-muted-foreground">JPG, PNG, or PDF · max 20 MB</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={bizPermitInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]; if (!file) return;
+                  await handleFirmDocUpload("bizPermit", file, "businessPermit", setBizPermitPath);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         <Button
           className="w-full md:w-auto"

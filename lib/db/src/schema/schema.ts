@@ -34,6 +34,14 @@ export const users = pgTable("users", {
   idBack: text("id_back"),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
+  isRegisteredFirm: boolean("is_registered_firm").notNull().default(false),
+  firmType: text("firm_type").$type<"business_name" | "registered_company">(),
+  firmCertRegistration: text("firm_cert_registration"),
+  firmCertIncorporation: text("firm_cert_incorporation"),
+  firmCr12: text("firm_cr12"),
+  firmDirectorIds: text("firm_director_ids").array().notNull().default(sql`'{}'::text[]`),
+  businessCertRegistration: text("business_cert_registration"),
+  businessPermit: text("business_permit"),
 });
 
 export const properties = pgTable("properties", {

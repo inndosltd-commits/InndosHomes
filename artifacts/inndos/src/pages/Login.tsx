@@ -53,6 +53,10 @@ export default function Login() {
   const [isSendingOtp, setIsSendingOtp]   = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
+  // Firm/agency registration state (host tab only)
+  const [isRegisteredFirm, setIsRegisteredFirm] = useState(false);
+  const [firmType, setFirmType] = useState<"business_name" | "registered_company">("business_name");
+
   const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
 
   useEffect(() => {
@@ -172,7 +176,7 @@ export default function Login() {
         toast({ title: "Missing fields", description: "Please fill in name, email, and password.", variant: "destructive" });
         return;
       }
-      await signup(role, name, email, password, phoneToken);
+      await signup(role, name, email, password, phoneToken, role === "host" ? { isRegisteredFirm, firmType: isRegisteredFirm ? firmType : undefined } : undefined);
     } catch (err) {
       toast({ title: "Sign up failed", description: err instanceof Error ? err.message : "Something went wrong.", variant: "destructive" });
     } finally {
@@ -474,6 +478,68 @@ export default function Login() {
                           <p className="text-xs text-gray-400">Enter the code sent to your phone. Valid for 10 minutes.</p>
                         </div>
                       )}
+
+                      {/* Firm/Agency section — host only, signup only */}
+                      {isSignUp && role === "host" && (
+                        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              id="is-registered-firm"
+                              checked={isRegisteredFirm}
+                              onCheckedChange={(v) => setIsRegisteredFirm(v === true)}
+                              className="mt-0.5"
+                            />
+                            <div>
+                              <label htmlFor="is-registered-firm" className="text-sm font-semibold text-gray-800 cursor-pointer select-none">
+                                I am registering as a registered firm / agency
+                              </label>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Companies and business-name holders upload business documents instead of a National ID for verification.
+                              </p>
+                            </div>
+                          </div>
+
+                          {isRegisteredFirm && (
+                            <div className="space-y-2 pl-7">
+                              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Firm type</p>
+                              <div className="flex flex-col gap-2">
+                                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${firmType === "business_name" ? "border-blue-500 bg-white" : "border-gray-200 bg-white/60 hover:bg-white"}`}>
+                                  <input
+                                    type="radio"
+                                    name="firmType"
+                                    value="business_name"
+                                    checked={firmType === "business_name"}
+                                    onChange={() => setFirmType("business_name")}
+                                    className="mt-0.5 accent-blue-600"
+                                  />
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-800">Business Name</span>
+                                    <p className="text-xs text-gray-500">Sole proprietor / partnership registered under a business name</p>
+                                    <p className="text-xs text-blue-600 mt-0.5">📄 Required: Certificate of Registration</p>
+                                  </div>
+                                </label>
+                                <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${firmType === "registered_company" ? "border-blue-500 bg-white" : "border-gray-200 bg-white/60 hover:bg-white"}`}>
+                                  <input
+                                    type="radio"
+                                    name="firmType"
+                                    value="registered_company"
+                                    checked={firmType === "registered_company"}
+                                    onChange={() => setFirmType("registered_company")}
+                                    className="mt-0.5 accent-blue-600"
+                                  />
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-800">Registered Company</span>
+                                    <p className="text-xs text-gray-500">Limited company (Ltd/PLC) incorporated with the Registrar</p>
+                                    <p className="text-xs text-blue-600 mt-0.5">📄 Required: Certificate of Incorporation + CR12 + Director IDs</p>
+                                  </div>
+                                </label>
+                              </div>
+                              <p className="text-xs text-gray-400 pt-1">You will upload these documents after creating your account under <strong>My Account → Verification</strong>.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label htmlFor={`email-${role}`}>Email</Label>
                         <Input
