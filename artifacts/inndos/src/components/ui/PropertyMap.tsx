@@ -9,7 +9,7 @@ import type { ApiProperty } from "@/components/property/PropertyCard";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
-const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
 
 const LOCATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="black" stroke="white" stroke-width="4"/><circle cx="32" cy="32" r="8" fill="white"/></svg>`;
 

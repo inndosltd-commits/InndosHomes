@@ -18,7 +18,7 @@ import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
-const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
 
 function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });

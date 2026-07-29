@@ -17,7 +17,7 @@ import { GoogleMap, StandaloneSearchBox, useJsApiLoader } from "@react-google-ma
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
-const GOOGLE_MAPS_LIBRARIES: ["places", "marker"] = ["places", "marker"];
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
 const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
 
 function getImageDisplayUrl(objectPath: string): string {

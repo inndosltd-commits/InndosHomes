@@ -11,7 +11,7 @@ import { useLanguage } from "@/lib/language";
 import { useJsApiLoader } from "@react-google-maps/api";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
-const MAPS_LIBRARIES: ["places", "marker", "geocoding"] = ["places", "marker", "geocoding"];
+import { GOOGLE_MAPS_LIBRARIES as MAPS_LIBRARIES } from "@/lib/maps";
 
 interface PlacePrediction {
   placeId: string;
