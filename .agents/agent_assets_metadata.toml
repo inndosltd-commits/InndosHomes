@@ -17,3 +17,9 @@ id = "XxCXSlvM1vNQX_HGMB2AS"
 uri = "file://inndos-mobile-source.zip"
 type = "unspecified"
 title = "INNDOS Mobile App — Expo/React Native (source code)"
+
+[[outputs]]
+id = "1TCSy5dQbxG61m-cFzaMD"
+uri = "file://inndos-mobile.zip"
+type = "unspecified"
+title = "INNDOS Mobile — Expo Build Package"
