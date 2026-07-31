@@ -209,6 +209,9 @@ function toApiType(raw: string): ApiPropertyType {
 }
 
 const isLandType = (t: string) => t === "land";
+const isCommercialVariant = (t: string) =>
+  ["rent-godown", "rent-business", "rent-stall", "rent-shop", "commercial"].includes(t);
+const hideBedsBaths = (t: string) => isLandType(t) || isCommercialVariant(t);
 const hasStandardAmenities = (t: string) => !isLandType(t);
 
 function getEditId(): string | null {
@@ -716,7 +719,6 @@ export default function AddListing() {
                       <SelectContent>
                         <SelectItem value="apartment">Apartment</SelectItem>
                         <SelectItem value="home">Home / House</SelectItem>
-                        <SelectItem value="land">Land</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">Helps buyers filter by property category.</p>
@@ -871,8 +873,8 @@ export default function AddListing() {
                 </CardHeader>
                 <CardContent className="space-y-6">
 
-                  {/* ── Standard beds / baths / sqft (hidden for land) ── */}
-                  {!isLandType(listingType) && (
+                  {/* ── Standard beds / baths / sqft (hidden for land + commercial variants) ── */}
+                  {!hideBedsBaths(listingType) && (
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="beds">Bedrooms</Label>
