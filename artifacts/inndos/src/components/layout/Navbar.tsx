@@ -55,7 +55,7 @@ export function Navbar() {
                 {t('nav.rent')}
               </span>
             </Link>
-            <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[500] py-2">
+            <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[9999] py-2">
               <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Apartments</div>
               <Link href="/search?type=rent&filter=studio">
                 <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Studio / Bedsitter</div>
@@ -104,7 +104,7 @@ export function Navbar() {
                 {t('nav.buy')}
               </span>
             </Link>
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[500] py-2">
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-100 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[9999] py-2">
               <Link href="/search?type=sale&category=apartments">
                 <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Apartments</div>
               </Link>

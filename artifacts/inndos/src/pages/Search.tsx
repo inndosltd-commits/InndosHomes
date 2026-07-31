@@ -284,7 +284,7 @@ export default function Search() {
         )}
       </div>
 
-      {!["rent-business", "rent-godown", "rent-stall", "rent-shop", "commercial"].includes(queryType) && (
+      {!["rent-business", "rent-godown", "rent-stall", "rent-shop"].includes(queryType) && (
       <div>
         <h3 className="font-bold mb-3">{t("search.bedrooms")}</h3>
         <div className="flex gap-2 flex-wrap">

@@ -217,7 +217,7 @@ const LAND_SURROUNDING = [
 function getAmenityLists(type: string) {
   if (type === "rent-godown") return { unit: GODOWN_UNIT_AMENITIES, premise: GODOWN_PREMISE_AMENITIES };
   if (type === "rent-business") return { unit: BUSINESS_UNIT_AMENITIES, premise: BUSINESS_PREMISE_AMENITIES };
-  if (type === "commercial") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
+  if (type === "rent-stall" || type === "rent-shop") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
   if (type === "hotel") return { unit: UNIT_AMENITIES, premise: HOTEL_PREMISE_AMENITIES };
   return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
 }
@@ -234,7 +234,7 @@ function toApiType(raw: string): ApiPropertyType {
 
 const isLandType = (t: string) => t === "land";
 const isCommercialVariant = (t: string) =>
-  ["rent-godown", "rent-business", "rent-stall", "rent-shop", "commercial"].includes(t);
+  ["rent-godown", "rent-business", "rent-stall", "rent-shop"].includes(t);
 const hideBedsBaths = (t: string) => isLandType(t) || isCommercialVariant(t);
 const hasStandardAmenities = (t: string) => !isLandType(t);
 
@@ -692,7 +692,6 @@ export default function AddListing() {
                           <SelectItem value="rent-godown">For Rent - Godown</SelectItem>
                           <SelectItem value="rent-stall">For Rent - Stall</SelectItem>
                           <SelectItem value="rent-shop">For Rent - Shop</SelectItem>
-                          <SelectItem value="commercial">Commercial Space</SelectItem>
                           <SelectItem value="sale">For Sale</SelectItem>
                           <SelectItem value="land">Land</SelectItem>
                           <SelectItem value="bnb">B&B / Short Stay</SelectItem>
@@ -901,7 +900,7 @@ export default function AddListing() {
                   {!hideBedsBaths(listingType) && (
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="beds">Bedrooms</Label>
+                      <Label htmlFor="beds">{listingType === "hostel" ? "Beds / Units" : "Bedrooms"}</Label>
                       <Input id="beds" type="number" min="0" value={beds} onChange={e => { setBeds(e.target.value); setFieldErrors(prev => ({ ...prev, beds: [] })); }} className={fieldErrors.beds?.length ? "border-red-500" : ""} />
                       {fieldErrors.beds?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
@@ -931,7 +930,7 @@ export default function AddListing() {
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="plotSizeFt" className="text-xs text-muted-foreground">Plot size (feet)</Label>
-                          <Input id="plotSizeFt" type="number" min="0" placeholder="e.g. 2178" value={plotSizeFt} onChange={e => setPlotSizeFt(e.target.value)} />
+                          <Input id="plotSizeFt" type="text" inputMode="decimal" placeholder="e.g. 2178" value={plotSizeFt} onChange={e => setPlotSizeFt(e.target.value)} />
                         </div>
                       </div>
                     </div>
