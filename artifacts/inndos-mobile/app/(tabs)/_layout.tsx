@@ -16,7 +16,7 @@ interface TabLayoutProps {
   savedCount: number;
 }
 
-function NativeTabLayout({ savedCount }: TabLayoutProps) {
+function NativeTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: boolean }) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -46,6 +46,12 @@ function NativeTabLayout({ savedCount }: TabLayoutProps) {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>List</Label>
       </NativeTabs.Trigger>
+      {isAdmin && (
+        <NativeTabs.Trigger name="admin">
+          <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+          <Label>Admin</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profile</Label>
@@ -54,7 +60,7 @@ function NativeTabLayout({ savedCount }: TabLayoutProps) {
   );
 }
 
-function ClassicTabLayout({ savedCount }: TabLayoutProps) {
+function ClassicTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: boolean }) {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -172,6 +178,19 @@ function ClassicTabLayout({ savedCount }: TabLayoutProps) {
         }}
       />
       <Tabs.Screen
+        name="admin"
+        options={{
+          title: "Admin",
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.2" tintColor={color} size={24} />
+            ) : (
+              <Feather name="users" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
@@ -193,9 +212,10 @@ export default function TabLayout() {
     query: { queryKey: getListFavoritesQueryKey(), enabled: !!user },
   });
   const savedCount = user ? (savedProperties?.length ?? 0) : 0;
+  const isAdmin = user?.role === "admin";
 
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout savedCount={savedCount} />;
+    return <NativeTabLayout savedCount={savedCount} isAdmin={isAdmin} />;
   }
-  return <ClassicTabLayout savedCount={savedCount} />;
+  return <ClassicTabLayout savedCount={savedCount} isAdmin={isAdmin} />;
 }
