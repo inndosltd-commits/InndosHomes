@@ -2832,6 +2832,8 @@ export default function Dashboard() {
                   </DialogHeader>
                   {selectedProfileUser && (() => {
                     const pu = selectedProfileUser;
+                    const isPending = pu.status === 'pending';
+                    const isBusy = !!userActionLoading[pu.id];
                     const puAvatar = pu.avatar?.startsWith("/objects/") ? `/api/storage${pu.avatar}` : pu.avatar ?? null;
                     const puIdFront = pu.idFront?.startsWith("/objects/") ? `/api/storage${pu.idFront}` : pu.idFront ?? null;
                     const puIdBack = pu.idBack?.startsWith("/objects/") ? `/api/storage${pu.idBack}` : pu.idBack ?? null;
@@ -3030,6 +3032,39 @@ export default function Dashboard() {
                       </div>
                     );
                   })()}
+                  {selectedProfileUser?.status === 'pending' && (
+                    <DialogFooter className="pt-4 border-t mt-4">
+                      <div className="flex gap-2 w-full">
+                        <Button
+                          variant="destructive"
+                          className="flex-1 gap-2"
+                          disabled={!!userActionLoading[selectedProfileUser.id]}
+                          onClick={async () => {
+                            await handleUserStatusUpdate(selectedProfileUser.id, 'suspended');
+                            setSelectedProfileUser(null);
+                          }}
+                        >
+                          {userActionLoading[selectedProfileUser.id]
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <X className="h-4 w-4" />}
+                          Reject / Suspend
+                        </Button>
+                        <Button
+                          className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
+                          disabled={!!userActionLoading[selectedProfileUser.id]}
+                          onClick={async () => {
+                            await handleUserStatusUpdate(selectedProfileUser.id, 'active');
+                            setSelectedProfileUser(null);
+                          }}
+                        >
+                          {userActionLoading[selectedProfileUser.id]
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Check className="h-4 w-4" />}
+                          Approve
+                        </Button>
+                      </div>
+                    </DialogFooter>
+                  )}
                 </DialogContent>
               </Dialog>
 
