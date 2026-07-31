@@ -1,0 +1,144 @@
+On add list - property form, when you click below Listing Type, it should pull exact details e.g Premise Amenities and Unit Amenities for that specific type and not the normal existing Premise Amenities and Unit Amenities
+, add new type know as land too and when click it pulls exact details as given and not the normal existing Premise Amenities and Unit Amenities
+Add new type Commercial Space List type and insteady of loading normal existing Premise Amenities and Unit Amenities when clicked you load details given
+
+
+Godown type features
+
+a)Premise Amenities
+Use check box 
+	cafeteria
+	loading docks
+	cctv and biometrics
+	waste management
+	Entrances & Pathways
+	Parking Spaces
+
+b)Unit Amenities
+Use check box 
+	Toilets, 
+	sprinkler systems
+	fire extinguishers
+	Emergency exits 
+	temperature regulation
+	dehumidifiers 
+	climate-controlled
+	Gym
+	Borehole water
+	Garden
+	CCTV
+	Parking
+	24/7 security
+	Elevator
+	Electric fence
+	Solar water heating
+	Swimming pool
+	Smoking area
+	Backup generator
+
+Bussiness type space
+
+a)Premise Amenities
+	waste management
+	proper drainage
+	conference rooms
+	coffee room/food area
+	ramp ways
+	Pathways
+	Parking Spaces
+	Drinking Fountains
+	street lighting
+
+b)Unit Amenities
+	fire extinguisher 
+	emargency exits
+	security saverance
+	clean water 
+	work stations
+	quite space
+	
+
+Land Type
+Add land on listing type
+To have below deatails
+Part 1:
+Size of land to have fields to enter Acres and another for Plot size by feets
+Land / Parcel Features
+	Soil type (type in)
+	Survey maps & beacons (yes or No)
+	Ready title deed / land reference number (Yes or No)
+	Zoning classification (checkbox any of below)
+i.	residential, 
+ii.	commercial
+iii.	agricultural
+iv.	mixed-use
+	Fencing (checkbox)
+	Gated (checkbox)
+	Corner plot (checkbox)
+Utilities on the Land
+All below (checkbox)
+	Electricity connection 
+	Water supply 
+	Sewer 
+	septic system
+	Internet / fiber access
+
+
+Premise & Surrounding Amenities
+•	Nearness to schools (checkbox)
+•	Nearness to hospitals / clinics
+•	Nearness to shopping centers / markets
+•	Nearness to places of worship
+•	Road access (tick any of below)
+(tarmac, murram, distance to main road)
+•	Proximity to police station
+•	Security(checkbox)
+•	Nearby recreational areas (parks, gyms)
+•	Future development plans in the area (roads, malls)
+Legal / Financial
+•	Rates / land rent status
+•	Encumbrances or disputes (none)
+•	Payment plan options
+•	Price per unit (acre / sqm)
+
+Commercial Space List type
+For office space, stalls & shops — before listing on an online real estate marketplace
+Unit Amenities (specific to each office / stall / shop)
+All below are checkbox
+•	Quiet space / soundproofing
+•	Work station / desk space
+•	Storage space
+•	Air conditioning / ventilation
+•	Fire extinguisher
+•	Glass window display (stalls/shops)
+•	Wheelchair accessible entry
+•	Ensuite washroom
+•	Internet/fiber point in-unit
+•	Dedicated power socket / backup point
+•	Partitioning options
+•	Natural lighting
+•	Shelving / display racks (stalls)
+•	Lockable door / security grill (stalls)
+•	Ceiling height suited to storage/stock
+Property Amenities (shared across the building/complex
+All below are checkbox
+•	Meeting rooms (shared)
+•	Coffee room & food station / cafeteria
+•	Internet connectivity
+•	Waste collection 
+•	Loading bay
+•	Wheelchair-accessible ramps & elevators
+•	Ample parking (customer & staff)
+•	Perimeter security
+•	Standby generator
+•	Borehole / water tank backup
+•	Elevator / lift access
+•	Signage & branding space
+•	24-hour access
+•	Fire assembly point
+•	 sprinkler system
+•	Reception 
+•	ATM or banking hall
+•	Public restrooms
+•	Rooftop / terrace common area
+

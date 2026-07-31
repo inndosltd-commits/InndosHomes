@@ -71,15 +71,145 @@ const PREMISE_AMENITIES = [
   { id: "dsq", label: "DSQ" }
 ];
 
+// ── Godown ──────────────────────────────────────────────────────────────────
+const GODOWN_PREMISE_AMENITIES = [
+  { id: "godown_cafeteria", label: "Cafeteria" },
+  { id: "godown_loading_docks", label: "Loading docks" },
+  { id: "godown_cctv_biometrics", label: "CCTV and Biometrics" },
+  { id: "godown_waste_mgmt", label: "Waste management" },
+  { id: "godown_entrances_pathways", label: "Entrances & Pathways" },
+  { id: "godown_parking", label: "Parking Spaces" },
+];
+const GODOWN_UNIT_AMENITIES = [
+  { id: "godown_toilets", label: "Toilets" },
+  { id: "godown_sprinkler", label: "Sprinkler systems" },
+  { id: "godown_fire_extinguisher", label: "Fire extinguishers" },
+  { id: "godown_emergency_exits", label: "Emergency exits" },
+  { id: "godown_temp_regulation", label: "Temperature regulation" },
+  { id: "godown_dehumidifiers", label: "Dehumidifiers" },
+  { id: "godown_climate_controlled", label: "Climate-controlled" },
+  { id: "godown_gym", label: "Gym" },
+  { id: "godown_borewater", label: "Borehole water" },
+  { id: "godown_garden", label: "Garden" },
+  { id: "godown_cctv", label: "CCTV" },
+  { id: "godown_parking_unit", label: "Parking" },
+  { id: "godown_security_247", label: "24/7 security" },
+  { id: "godown_elevator", label: "Elevator" },
+  { id: "godown_electric_fence", label: "Electric fence" },
+  { id: "godown_solar", label: "Solar water heating" },
+  { id: "godown_pool", label: "Swimming pool" },
+  { id: "godown_smoking_area", label: "Smoking area" },
+  { id: "godown_generator", label: "Backup generator" },
+];
+
+// ── Business Space ───────────────────────────────────────────────────────────
+const BUSINESS_PREMISE_AMENITIES = [
+  { id: "biz_waste_mgmt", label: "Waste management" },
+  { id: "biz_drainage", label: "Proper drainage" },
+  { id: "biz_conference_rooms", label: "Conference rooms" },
+  { id: "biz_coffee_room", label: "Coffee room / food area" },
+  { id: "biz_rampways", label: "Ramp ways" },
+  { id: "biz_pathways", label: "Pathways" },
+  { id: "biz_parking", label: "Parking Spaces" },
+  { id: "biz_drinking_fountains", label: "Drinking Fountains" },
+  { id: "biz_street_lighting", label: "Street lighting" },
+];
+const BUSINESS_UNIT_AMENITIES = [
+  { id: "biz_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "biz_emergency_exits", label: "Emergency exits" },
+  { id: "biz_security", label: "Security surveillance" },
+  { id: "biz_clean_water", label: "Clean water" },
+  { id: "biz_workstations", label: "Work stations" },
+  { id: "biz_quiet_space", label: "Quiet space" },
+];
+
+// ── Commercial Space ─────────────────────────────────────────────────────────
+const COMMERCIAL_UNIT_AMENITIES = [
+  { id: "com_quiet_soundproof", label: "Quiet space / soundproofing" },
+  { id: "com_workstation", label: "Work station / desk space" },
+  { id: "com_storage", label: "Storage space" },
+  { id: "com_ac_ventilation", label: "Air conditioning / ventilation" },
+  { id: "com_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "com_glass_window", label: "Glass window display (stalls/shops)" },
+  { id: "com_wheelchair_entry", label: "Wheelchair accessible entry" },
+  { id: "com_ensuite_washroom", label: "Ensuite washroom" },
+  { id: "com_internet_point", label: "Internet/fiber point in-unit" },
+  { id: "com_power_socket", label: "Dedicated power socket / backup point" },
+  { id: "com_partitioning", label: "Partitioning options" },
+  { id: "com_natural_lighting", label: "Natural lighting" },
+  { id: "com_shelving", label: "Shelving / display racks (stalls)" },
+  { id: "com_lockable_door", label: "Lockable door / security grill (stalls)" },
+  { id: "com_ceiling_height", label: "Ceiling height suited to storage/stock" },
+];
+const COMMERCIAL_PREMISE_AMENITIES = [
+  { id: "com_meeting_rooms", label: "Meeting rooms (shared)" },
+  { id: "com_cafeteria", label: "Coffee room & food station / cafeteria" },
+  { id: "com_internet", label: "Internet connectivity" },
+  { id: "com_waste_collection", label: "Waste collection" },
+  { id: "com_loading_bay", label: "Loading bay" },
+  { id: "com_wheelchair_ramps", label: "Wheelchair-accessible ramps & elevators" },
+  { id: "com_parking", label: "Ample parking (customer & staff)" },
+  { id: "com_perimeter_security", label: "Perimeter security" },
+  { id: "com_generator", label: "Standby generator" },
+  { id: "com_borehole_water", label: "Borehole / water tank backup" },
+  { id: "com_elevator", label: "Elevator / lift access" },
+  { id: "com_signage", label: "Signage & branding space" },
+  { id: "com_24hr_access", label: "24-hour access" },
+  { id: "com_fire_assembly", label: "Fire assembly point" },
+  { id: "com_sprinkler", label: "Sprinkler system" },
+  { id: "com_reception", label: "Reception" },
+  { id: "com_atm", label: "ATM or banking hall" },
+  { id: "com_public_restrooms", label: "Public restrooms" },
+  { id: "com_rooftop", label: "Rooftop / terrace common area" },
+];
+
+// ── Land checkboxes ──────────────────────────────────────────────────────────
+const LAND_ZONING_OPTIONS = [
+  { id: "zone_residential", label: "Residential" },
+  { id: "zone_commercial", label: "Commercial" },
+  { id: "zone_agricultural", label: "Agricultural" },
+  { id: "zone_mixed_use", label: "Mixed-use" },
+];
+const LAND_UTILITIES = [
+  { id: "land_electricity", label: "Electricity connection" },
+  { id: "land_water_supply", label: "Water supply" },
+  { id: "land_sewer", label: "Sewer" },
+  { id: "land_septic", label: "Septic system" },
+  { id: "land_internet", label: "Internet / fiber access" },
+];
+const LAND_SURROUNDING = [
+  { id: "land_surr_schools", label: "Nearness to schools" },
+  { id: "land_surr_hospitals", label: "Nearness to hospitals / clinics" },
+  { id: "land_surr_shopping", label: "Nearness to shopping centers / markets" },
+  { id: "land_surr_worship", label: "Nearness to places of worship" },
+  { id: "land_road_tarmac", label: "Tarmac road access" },
+  { id: "land_road_murram", label: "Murram road access" },
+  { id: "land_road_distance", label: "Close to main road" },
+  { id: "land_police", label: "Proximity to police station" },
+  { id: "land_security", label: "Security" },
+  { id: "land_recreational", label: "Nearby recreational areas (parks, gyms)" },
+  { id: "land_future_dev", label: "Future development plans in the area" },
+];
+
+function getAmenityLists(type: string) {
+  if (type === "rent-godown") return { unit: GODOWN_UNIT_AMENITIES, premise: GODOWN_PREMISE_AMENITIES };
+  if (type === "rent-business") return { unit: BUSINESS_UNIT_AMENITIES, premise: BUSINESS_PREMISE_AMENITIES };
+  if (type === "commercial") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
+  return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
+}
+
 type ApiPropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
 
 function toApiType(raw: string): ApiPropertyType {
-  if (raw === "sale") return "sale";
+  if (raw === "sale" || raw === "land") return "sale";
   if (raw === "bnb") return "bnb";
   if (raw === "hotel") return "hotel";
   if (raw === "hostel") return "hostel";
   return "rent";
 }
+
+const isLandType = (t: string) => t === "land";
+const hasStandardAmenities = (t: string) => !isLandType(t);
 
 function getEditId(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
@@ -170,6 +300,17 @@ export default function AddListing() {
   const [subtype, setSubtype] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [totalUnits, setTotalUnits] = useState("1");
+
+  // Land-specific fields
+  const [acres, setAcres] = useState("");
+  const [plotSizeFt, setPlotSizeFt] = useState("");
+  const [soilType, setSoilType] = useState("");
+  const [surveyMaps, setSurveyMaps] = useState("");
+  const [titleDeed, setTitleDeed] = useState("");
+  const [legalRates, setLegalRates] = useState("");
+  const [legalEncumbrances, setLegalEncumbrances] = useState("");
+  const [paymentPlan, setPaymentPlan] = useState("");
+  const [pricePerUnit, setPricePerUnit] = useState("");
 
   const toggleAmenity = (id: string) => {
     setSelectedAmenities(prev =>
@@ -379,13 +520,14 @@ export default function AddListing() {
     const parsedBeds = parseInt(beds, 10);
     const parsedBaths = parseInt(baths, 10);
     const parsedSqft = parseInt(sqft, 10);
+    const isLand = isLandType(listingType);
 
     const clientErrors: Record<string, string[]> = {};
     if (!title.trim()) clientErrors.title = ["Title is required"];
     if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
     if (!address.trim() && !searchQuery.trim()) clientErrors.address = ["Address is required"];
-    if (!isNaN(parsedBeds) && parsedBeds < 0) clientErrors.beds = ["Bedrooms cannot be negative"];
-    if (!isNaN(parsedBaths) && parsedBaths < 0) clientErrors.baths = ["Bathrooms cannot be negative"];
+    if (!isLand && !isNaN(parsedBeds) && parsedBeds < 0) clientErrors.beds = ["Bedrooms cannot be negative"];
+    if (!isLand && !isNaN(parsedBaths) && parsedBaths < 0) clientErrors.baths = ["Bathrooms cannot be negative"];
 
     if (Object.keys(clientErrors).length > 0) {
       setFieldErrors(clientErrors);
@@ -397,16 +539,33 @@ export default function AddListing() {
     setIsSubmitting(true);
     try {
       const parsedTotalUnits = parseInt(totalUnits, 10);
+
+      // For land listings, compose extra details into description
+      let finalDescription = description || "";
+      if (isLand) {
+        const extras: string[] = [];
+        if (soilType) extras.push(`Soil type: ${soilType}`);
+        if (surveyMaps) extras.push(`Survey maps & beacons: ${surveyMaps}`);
+        if (titleDeed) extras.push(`Ready title deed: ${titleDeed}`);
+        if (legalRates) extras.push(`Rates / land rent status: ${legalRates}`);
+        if (legalEncumbrances) extras.push(`Encumbrances or disputes: ${legalEncumbrances}`);
+        if (paymentPlan) extras.push(`Payment plan: ${paymentPlan}`);
+        if (pricePerUnit) extras.push(`Price per unit: ${pricePerUnit}`);
+        if (extras.length > 0) {
+          finalDescription = [finalDescription, extras.join("\n")].filter(Boolean).join("\n\n");
+        }
+      }
+
       const body = {
         title,
         type: toApiType(listingType),
         price: parsedPrice,
         address: address || searchQuery,
-        beds: isNaN(parsedBeds) ? 0 : parsedBeds,
-        baths: isNaN(parsedBaths) ? 0 : parsedBaths,
-        sqft: isNaN(parsedSqft) ? 0 : parsedSqft,
+        beds: isLand ? (parseFloat(acres) || 0) : (isNaN(parsedBeds) ? 0 : parsedBeds),
+        baths: isLand ? 0 : (isNaN(parsedBaths) ? 0 : parsedBaths),
+        sqft: isLand ? (parseInt(plotSizeFt, 10) || 0) : (isNaN(parsedSqft) ? 0 : parsedSqft),
         totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
-        description: description || null,
+        description: finalDescription || null,
         images,
         videos,
         tags: selectedAmenities,
@@ -506,7 +665,9 @@ export default function AddListing() {
                           <SelectItem value="rent-godown">For Rent - Godown</SelectItem>
                           <SelectItem value="rent-stall">For Rent - Stall</SelectItem>
                           <SelectItem value="rent-shop">For Rent - Shop</SelectItem>
+                          <SelectItem value="commercial">Commercial Space</SelectItem>
                           <SelectItem value="sale">For Sale</SelectItem>
+                          <SelectItem value="land">Land</SelectItem>
                           <SelectItem value="bnb">B&B / Short Stay</SelectItem>
                           <SelectItem value="hotel">Hotel</SelectItem>
                           <SelectItem value="hostel">Hostel (Student Rentals)</SelectItem>
@@ -709,15 +870,18 @@ export default function AddListing() {
                   <CardTitle>Features & Amenities</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+
+                  {/* ── Standard beds / baths / sqft (hidden for land) ── */}
+                  {!isLandType(listingType) && (
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="beds">Bedrooms</Label>
-                      <Input id="beds" type="number" min="0" value={beds} onChange={e => { setBeds(e.target.value); setFieldErrors(prev => ({ ...prev, beds: [] })); }} required className={fieldErrors.beds?.length ? "border-red-500" : ""} />
+                      <Input id="beds" type="number" min="0" value={beds} onChange={e => { setBeds(e.target.value); setFieldErrors(prev => ({ ...prev, beds: [] })); }} className={fieldErrors.beds?.length ? "border-red-500" : ""} />
                       {fieldErrors.beds?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="baths">Bathrooms</Label>
-                      <Input id="baths" type="number" min="0" value={baths} onChange={e => { setBaths(e.target.value); setFieldErrors(prev => ({ ...prev, baths: [] })); }} required className={fieldErrors.baths?.length ? "border-red-500" : ""} />
+                      <Input id="baths" type="number" min="0" value={baths} onChange={e => { setBaths(e.target.value); setFieldErrors(prev => ({ ...prev, baths: [] })); }} className={fieldErrors.baths?.length ? "border-red-500" : ""} />
                       {fieldErrors.baths?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                     <div className="space-y-2">
@@ -726,8 +890,135 @@ export default function AddListing() {
                       {fieldErrors.sqft?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                   </div>
+                  )}
 
-                  {/* Number of Units */}
+                  {/* ── LAND-specific fields ──────────────────────────── */}
+                  {isLandType(listingType) && (
+                  <div className="space-y-6">
+                    {/* Size */}
+                    <div>
+                      <Label className="text-sm font-semibold">Size of Land</Label>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="acres" className="text-xs text-muted-foreground">Acres</Label>
+                          <Input id="acres" type="number" min="0" step="0.01" placeholder="e.g. 0.5" value={acres} onChange={e => setAcres(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="plotSizeFt" className="text-xs text-muted-foreground">Plot size (feet)</Label>
+                          <Input id="plotSizeFt" type="number" min="0" placeholder="e.g. 2178" value={plotSizeFt} onChange={e => setPlotSizeFt(e.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Land / Parcel Features */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">Land / Parcel Features</Label>
+                      <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                        <div className="space-y-1">
+                          <Label htmlFor="soilType" className="text-xs">Soil type</Label>
+                          <Input id="soilType" placeholder="e.g. Red clay, Sandy loam" value={soilType} onChange={e => setSoilType(e.target.value)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="surveyMaps" className="text-xs">Survey maps & beacons</Label>
+                            <Select value={surveyMaps} onValueChange={setSurveyMaps}>
+                              <SelectTrigger><SelectValue placeholder="Yes / No" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="titleDeed" className="text-xs">Ready title deed / land ref no.</Label>
+                            <Select value={titleDeed} onValueChange={setTitleDeed}>
+                              <SelectTrigger><SelectValue placeholder="Yes / No" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Zoning classification</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {LAND_ZONING_OPTIONS.map(opt => (
+                              <div key={opt.id} className="flex items-center space-x-2">
+                                <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                                <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-6">
+                          {[
+                            { id: "land_fencing", label: "Fencing" },
+                            { id: "land_gated", label: "Gated" },
+                            { id: "land_corner_plot", label: "Corner plot" },
+                          ].map(opt => (
+                            <div key={opt.id} className="flex items-center space-x-2">
+                              <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                              <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Utilities on the Land */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">Utilities on the Land</Label>
+                      <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg border">
+                        {LAND_UTILITIES.map(opt => (
+                          <div key={opt.id} className="flex items-center space-x-2">
+                            <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                            <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Surrounding Amenities */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">Premise & Surrounding Amenities</Label>
+                      <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg border">
+                        {LAND_SURROUNDING.map(opt => (
+                          <div key={opt.id} className="flex items-center space-x-2">
+                            <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                            <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Legal / Financial */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold">Legal / Financial</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border">
+                        <div className="space-y-1">
+                          <Label htmlFor="legalRates" className="text-xs">Rates / land rent status</Label>
+                          <Input id="legalRates" placeholder="e.g. Up to date" value={legalRates} onChange={e => setLegalRates(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="legalEncumbrances" className="text-xs">Encumbrances or disputes</Label>
+                          <Input id="legalEncumbrances" placeholder="e.g. None" value={legalEncumbrances} onChange={e => setLegalEncumbrances(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="paymentPlan" className="text-xs">Payment plan options</Label>
+                          <Input id="paymentPlan" placeholder="e.g. Installments available" value={paymentPlan} onChange={e => setPaymentPlan(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="pricePerUnit" className="text-xs">Price per unit (acre / sqm)</Label>
+                          <Input id="pricePerUnit" placeholder="e.g. KES 2M per acre" value={pricePerUnit} onChange={e => setPricePerUnit(e.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  )}
+
+                  {/* Number of Units (hidden for land) */}
+                  {!isLandType(listingType) && (
                   <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-2">
                     <div className="flex items-start gap-3">
                       <div className="flex-1 space-y-1">
@@ -753,56 +1044,47 @@ export default function AddListing() {
                       </p>
                     )}
                   </div>
-                  
-                  {/* Unit Amenities */}
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-sm font-semibold">Unit Amenities</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Features inside the individual unit/room</p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
-                      {UNIT_AMENITIES.map((item) => (
-                        <div key={item.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`amenity-${item.id}`}
-                            checked={selectedAmenities.includes(item.id)}
-                            onCheckedChange={() => toggleAmenity(item.id)}
-                          />
-                          <label
-                            htmlFor={`amenity-${item.id}`}
-                            className="text-sm leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {item.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Premise Amenities */}
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-sm font-semibold">Premise Amenities</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Shared facilities available on the property</p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
-                      {PREMISE_AMENITIES.map((item) => (
-                        <div key={item.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`amenity-${item.id}`}
-                            checked={selectedAmenities.includes(item.id)}
-                            onCheckedChange={() => toggleAmenity(item.id)}
-                          />
-                          <label
-                            htmlFor={`amenity-${item.id}`}
-                            className="text-sm leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {item.label}
-                          </label>
+                  {/* ── Dynamic amenities (all non-land types) ─────────── */}
+                  {hasStandardAmenities(listingType) && (() => {
+                    const { unit, premise } = getAmenityLists(listingType);
+                    return (
+                      <>
+                        {/* Unit Amenities */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-semibold">Unit Amenities</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">Features inside the individual unit/space</p>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
+                            {unit.map((item) => (
+                              <div key={item.id} className="flex items-center space-x-2">
+                                <Checkbox id={`amenity-${item.id}`} checked={selectedAmenities.includes(item.id)} onCheckedChange={() => toggleAmenity(item.id)} />
+                                <label htmlFor={`amenity-${item.id}`} className="text-sm leading-none cursor-pointer">{item.label}</label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        {/* Premise Amenities */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-semibold">Premise Amenities</Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">Shared facilities available on the property</p>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border">
+                            {premise.map((item) => (
+                              <div key={item.id} className="flex items-center space-x-2">
+                                <Checkbox id={`amenity-${item.id}`} checked={selectedAmenities.includes(item.id)} onCheckedChange={() => toggleAmenity(item.id)} />
+                                <label htmlFor={`amenity-${item.id}`} className="text-sm leading-none cursor-pointer">{item.label}</label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
