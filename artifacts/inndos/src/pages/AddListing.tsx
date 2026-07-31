@@ -1051,29 +1051,6 @@ export default function AddListing() {
                             </Select>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Zoning classification</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {LAND_ZONING_OPTIONS.map(opt => (
-                              <div key={opt.id} className="flex items-center space-x-2">
-                                <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
-                                <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex gap-6">
-                          {[
-                            { id: "land_fencing", label: "Fencing" },
-                            { id: "land_gated", label: "Gated" },
-                            { id: "land_corner_plot", label: "Corner plot" },
-                          ].map(opt => (
-                            <div key={opt.id} className="flex items-center space-x-2">
-                              <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
-                              <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     </div>
 
@@ -1100,6 +1077,30 @@ export default function AddListing() {
                             <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
                           </div>
                         ))}
+                      </div>
+                      {/* Zoning & plot attributes */}
+                      <div className="space-y-3 pt-2">
+                        <Label className="text-xs font-medium text-gray-600">Zoning classification</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {LAND_ZONING_OPTIONS.map(opt => (
+                            <div key={opt.id} className="flex items-center space-x-2">
+                              <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                              <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-6 pt-1">
+                          {[
+                            { id: "land_fencing", label: "Fencing" },
+                            { id: "land_gated", label: "Gated" },
+                            { id: "land_corner_plot", label: "Corner plot" },
+                          ].map(opt => (
+                            <div key={opt.id} className="flex items-center space-x-2">
+                              <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
+                              <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
