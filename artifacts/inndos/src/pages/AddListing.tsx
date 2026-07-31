@@ -353,11 +353,13 @@ export default function AddListing() {
   const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftAddress, setDraftAddress] = useState("");
+  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>(NAIROBI_CENTER);
 
   const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePlacesChanged = useCallback(() => {
     const places = searchBoxRef.current?.getPlaces();
@@ -367,9 +369,28 @@ export default function AddListing() {
     if (!loc) return;
     const pos = { lat: loc.lat(), lng: loc.lng() };
     setDraftPin(pos);
+    setMapCenter(pos);
     setDraftAddress(place.formatted_address ?? place.name ?? "");
     mapRef.current?.panTo(pos);
-    mapRef.current?.setZoom(15);
+    mapRef.current?.setZoom(16);
+  }, []);
+
+  // Fallback: geocode whatever is typed when Enter is pressed and no autocomplete selection
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || !window.google) return;
+    const query = searchInputRef.current?.value;
+    if (!query) return;
+    new google.maps.Geocoder().geocode({ address: query }, (results, status) => {
+      if (status === "OK" && results && results[0]) {
+        const loc = results[0].geometry.location;
+        const pos = { lat: loc.lat(), lng: loc.lng() };
+        setDraftPin(pos);
+        setMapCenter(pos);
+        setDraftAddress(results[0].formatted_address);
+        mapRef.current?.panTo(pos);
+        mapRef.current?.setZoom(16);
+      }
+    });
   }, []);
 
   const reverseGeocodeDraft = useCallback((pos: google.maps.LatLngLiteral) => {
@@ -381,10 +402,25 @@ export default function AddListing() {
     });
   }, []);
 
+  // On modal open: restore existing pin or geolocate user
   useEffect(() => {
-    if (isMapModalOpen) {
-      setDraftPin(pinPosition);
-      setDraftAddress(address || searchQuery);
+    if (!isMapModalOpen) return;
+    setDraftPin(pinPosition);
+    setDraftAddress(address || searchQuery);
+    if (pinPosition) {
+      setMapCenter(pinPosition);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setMapCenter(userPos);
+          // Pan if map already loaded
+          mapRef.current?.panTo(userPos);
+          mapRef.current?.setZoom(14);
+        },
+        () => { /* permission denied – stay on default */ },
+        { timeout: 5000 }
+      );
     }
   }, [isMapModalOpen]);
 
@@ -1444,9 +1480,11 @@ export default function AddListing() {
                   <div className="absolute top-3 left-3 right-3 z-10">
                     <div className="relative">
                       <input
+                        ref={searchInputRef}
                         type="text"
                         placeholder="Search for a neighbourhood or address…"
                         className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm shadow-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        onKeyDown={handleSearchKeyDown}
                       />
                       <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
                     </div>
@@ -1454,8 +1492,8 @@ export default function AddListing() {
                 </StandaloneSearchBox>
                 <GoogleMap
                   mapContainerClassName="w-full h-full"
-                  center={draftPin ?? NAIROBI_CENTER}
-                  zoom={13}
+                  center={mapCenter}
+                  defaultZoom={14}
                   options={{ mapId: "c7cd60c6a53a720a14502d1b", mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
                   onLoad={(map) => { mapRef.current = map; }}
                   onClick={(e) => {
