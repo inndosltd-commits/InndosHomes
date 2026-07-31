@@ -22,16 +22,72 @@ const RENT_CATEGORIES = [
   { tKey: "cat.shops",          type: "rent-shop",     filter: null },
 ];
 
-const AMENITY_KEYS: Record<string, string> = {
-  "Parking":     "amenity.parking",
-  "Pool":        "amenity.pool",
-  "Gym":         "amenity.gym",
-  "Pet Friendly":"amenity.pet_friendly",
-  "WiFi":        "amenity.wifi",
-  "Balcony":     "amenity.balcony",
-  "Garden":      "amenity.garden",
-  "Security":    "amenity.security",
+// Type-aware amenity filter sets — IDs must match listing form tag IDs
+const AMENITY_FILTER_SETS: Record<string, { id: string; label: string }[]> = {
+  rent: [
+    { id: "apt_prem_secure_parking",  label: "Secure Parking" },
+    { id: "apt_prem_security_247",    label: "24-Hour Security" },
+    { id: "apt_prem_cctv",            label: "CCTV Surveillance" },
+    { id: "apt_prem_elevator",        label: "Elevator / Lift" },
+    { id: "apt_prem_pool",            label: "Swimming Pool" },
+    { id: "apt_prem_gym",             label: "Gym" },
+    { id: "apt_prem_generator",       label: "Backup Generator" },
+    { id: "apt_prem_borehole",        label: "Borehole Water" },
+    { id: "apt_prem_playground",      label: "Children's Playground" },
+    { id: "apt_prem_rooftop",         label: "Rooftop Terrace" },
+    { id: "apt_balcony",              label: "Private Balcony" },
+    { id: "apt_ensuite_beds",         label: "En-suite Bedrooms" },
+    { id: "apt_ac_fans",              label: "Air Conditioning" },
+    { id: "apt_wifi",                 label: "High-Speed Wi-Fi" },
+    { id: "apt_fitted_kitchen",       label: "Fitted Kitchen" },
+  ],
+  sale: [
+    { id: "home_garden",             label: "Garden / Landscaped Yard" },
+    { id: "home_pool",               label: "Swimming Pool" },
+    { id: "home_gym",                label: "Gym / Fitness Room" },
+    { id: "home_parking",            label: "Parking Space" },
+    { id: "home_security_247",       label: "24-Hour Security" },
+    { id: "home_cctv",               label: "CCTV Surveillance" },
+    { id: "home_perimeter_wall",     label: "Perimeter Wall & Gate" },
+    { id: "home_electricity_backup", label: "Electricity Backup" },
+    { id: "home_solar_water",        label: "Solar Water Heating" },
+    { id: "home_prem_borehole",      label: "Borehole Water" },
+    { id: "home_kids_play",          label: "Children's Play Area" },
+    { id: "home_wifi",               label: "High-Speed Wi-Fi" },
+    { id: "home_ac_fans",            label: "Air Conditioning" },
+    { id: "home_ensuite_bath",       label: "En-suite Bathrooms" },
+    { id: "home_prem_pet_friendly",  label: "Pet-Friendly Compound" },
+  ],
+  hotel: [
+    { id: "hotel_breakfast",     label: "Complimentary Breakfast" },
+    { id: "hotel_pool",          label: "Swimming Pool" },
+    { id: "hotel_gym",           label: "Gym" },
+    { id: "hotel_room_service",  label: "Room Service" },
+    { id: "hotel_restaurant_bar",label: "Restaurant & Bar" },
+    { id: "hotel_conference_hall",label: "Conference Hall" },
+    { id: "hotel_valet",         label: "Valet" },
+    { id: "hotel_reception_24hr",label: "24hrs Reception" },
+    { id: "hotel_ballroom",      label: "Ballroom" },
+    { id: "hotel_tennis",        label: "Tennis Court" },
+  ],
+  default: [
+    { id: "parking",      label: "Parking" },
+    { id: "pool",         label: "Swimming Pool" },
+    { id: "gym",          label: "Gym" },
+    { id: "wifi",         label: "WiFi" },
+    { id: "security",     label: "24/7 Security" },
+    { id: "cctv",         label: "CCTV" },
+    { id: "generator",    label: "Backup Generator" },
+    { id: "borewater",    label: "Borehole Water" },
+  ],
 };
+
+function getAmenityFilters(queryType: string) {
+  if (queryType === "rent") return AMENITY_FILTER_SETS.rent;
+  if (queryType === "sale") return AMENITY_FILTER_SETS.sale;
+  if (queryType === "hotel") return AMENITY_FILTER_SETS.hotel;
+  return AMENITY_FILTER_SETS.default;
+}
 
 const formatKES = (n: number) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
@@ -156,8 +212,8 @@ export default function Search() {
         else if (p.bedrooms !== selectedBedrooms) return false;
       }
       if (selectedAmenities.length > 0) {
-        const pAmenities = (p.amenities || []).map((a: string) => a.toLowerCase());
-        if (!selectedAmenities.every((a) => pAmenities.includes(a.toLowerCase()))) return false;
+        const pTags = (p.tags || []).map((a: string) => a.toLowerCase());
+        if (!selectedAmenities.every((a) => pTags.includes(a.toLowerCase()))) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -308,15 +364,15 @@ export default function Search() {
       <div>
         <h3 className="font-bold mb-3">{t("search.amenities")}</h3>
         <div className="space-y-2">
-          {Object.keys(AMENITY_KEYS).map((a) => (
-            <div key={a} className="flex items-center space-x-2">
+          {getAmenityFilters(queryType).map(({ id, label }) => (
+            <div key={id} className="flex items-center space-x-2">
               <Checkbox
-                id={`filter-${a}`}
-                checked={selectedAmenities.includes(a)}
-                onCheckedChange={() => toggleAmenity(a)}
+                id={`filter-${id}`}
+                checked={selectedAmenities.includes(id)}
+                onCheckedChange={() => toggleAmenity(id)}
               />
-              <label htmlFor={`filter-${a}`} className="text-sm font-medium leading-none cursor-pointer">
-                {t(AMENITY_KEYS[a])}
+              <label htmlFor={`filter-${id}`} className="text-sm font-medium leading-none cursor-pointer">
+                {label}
               </label>
             </div>
           ))}

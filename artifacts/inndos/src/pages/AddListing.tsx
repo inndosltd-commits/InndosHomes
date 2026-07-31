@@ -71,6 +71,90 @@ const PREMISE_AMENITIES = [
   { id: "dsq", label: "DSQ" }
 ];
 
+// ── Apartment ────────────────────────────────────────────────────────────────
+const APARTMENT_UNIT_AMENITIES = [
+  { id: "apt_living_room",       label: "Spacious living room" },
+  { id: "apt_fitted_kitchen",    label: "Modern fitted kitchen" },
+  { id: "apt_dining_area",       label: "Dining area" },
+  { id: "apt_ensuite_beds",      label: "En-suite bedrooms" },
+  { id: "apt_wardrobes",         label: "Built-in wardrobes" },
+  { id: "apt_balcony",           label: "Private balcony" },
+  { id: "apt_floor_finishes",    label: "High-quality floor finishes" },
+  { id: "apt_hot_water",         label: "Hot water supply" },
+  { id: "apt_ac_fans",           label: "Air conditioning or ceiling fans" },
+  { id: "apt_laundry",           label: "Laundry area" },
+  { id: "apt_wifi",              label: "High-speed internet / Wi-Fi" },
+  { id: "apt_cable_tv",          label: "Cable TV connection" },
+  { id: "apt_smoke_detectors",   label: "Smoke detectors" },
+  { id: "apt_energy_lighting",   label: "Energy-efficient lighting" },
+  { id: "apt_storage",           label: "Ample storage space" },
+];
+const APARTMENT_PREMISE_AMENITIES = [
+  { id: "apt_prem_secure_parking",   label: "Secure parking" },
+  { id: "apt_prem_security_247",     label: "24-hour security" },
+  { id: "apt_prem_cctv",             label: "CCTV surveillance" },
+  { id: "apt_prem_gate_access",      label: "Controlled gate access" },
+  { id: "apt_prem_generator",        label: "Backup generator" },
+  { id: "apt_prem_borehole",         label: "Borehole and water storage" },
+  { id: "apt_prem_internet",         label: "High-speed internet" },
+  { id: "apt_prem_elevator",         label: "Elevator (lift)" },
+  { id: "apt_prem_pool",             label: "Swimming pool" },
+  { id: "apt_prem_gym",              label: "Gym" },
+  { id: "apt_prem_playground",       label: "Children's playground" },
+  { id: "apt_prem_gardens",          label: "Landscaped gardens" },
+  { id: "apt_prem_rooftop",          label: "Rooftop terrace" },
+  { id: "apt_prem_waste",            label: "Waste management services" },
+  { id: "apt_prem_visitor_parking",  label: "Visitor parking" },
+  { id: "apt_prem_management",       label: "Property management office" },
+];
+
+// ── Home / House ─────────────────────────────────────────────────────────────
+const HOME_UNIT_AMENITIES = [
+  { id: "home_living_room",        label: "Living room" },
+  { id: "home_dining_area",        label: "Dining area" },
+  { id: "home_modern_kitchen",     label: "Modern kitchen" },
+  { id: "home_wardrobes",          label: "Bedrooms with wardrobes" },
+  { id: "home_ensuite_bath",       label: "En-suite bathrooms" },
+  { id: "home_guest_toilet",       label: "Guest toilet" },
+  { id: "home_laundry",            label: "Laundry area" },
+  { id: "home_balcony",            label: "Balcony or veranda" },
+  { id: "home_parking",            label: "Parking space" },
+  { id: "home_garden",             label: "Garden or landscaped yard" },
+  { id: "home_perimeter_wall",     label: "Perimeter wall and gate" },
+  { id: "home_security_247",       label: "24-hour security" },
+  { id: "home_cctv",               label: "CCTV surveillance" },
+  { id: "home_water_supply",       label: "Reliable water supply" },
+  { id: "home_electricity_backup", label: "Electricity backup (generator/inverter)" },
+  { id: "home_wifi",               label: "High-speed Wi-Fi / Internet" },
+  { id: "home_ac_fans",            label: "Air conditioning or ceiling fans" },
+  { id: "home_solar_water",        label: "Solar water heating" },
+  { id: "home_kids_play",          label: "Children's play area" },
+  { id: "home_pool",               label: "Swimming pool (optional)" },
+  { id: "home_gym",                label: "Gym or fitness room (optional)" },
+];
+const HOME_PREMISE_AMENITIES = [
+  { id: "home_prem_perimeter_wall",    label: "Secure perimeter wall / fence" },
+  { id: "home_prem_gated",             label: "Gated entrance" },
+  { id: "home_prem_security_247",      label: "24-hour security" },
+  { id: "home_prem_cctv",              label: "CCTV surveillance" },
+  { id: "home_prem_cabro_paved",       label: "Cabro-paved driveway" },
+  { id: "home_prem_parking",           label: "Ample parking space" },
+  { id: "home_prem_landscaped",        label: "Landscaped gardens / lawn" },
+  { id: "home_prem_outdoor_seating",   label: "Outdoor seating area" },
+  { id: "home_prem_kids_play",         label: "Children's play area" },
+  { id: "home_prem_walking_paths",     label: "Walking paths" },
+  { id: "home_prem_security_lighting", label: "Security lighting" },
+  { id: "home_prem_water_supply",      label: "Reliable water supply" },
+  { id: "home_prem_water_tanks",       label: "Water storage tanks" },
+  { id: "home_prem_borehole",          label: "Borehole (if available)" },
+  { id: "home_prem_drainage",          label: "Drainage system" },
+  { id: "home_prem_waste_collection",  label: "Waste collection area" },
+  { id: "home_prem_outdoor_kitchen",   label: "Outdoor kitchen / barbecue area" },
+  { id: "home_prem_gazebo",            label: "Gazebo or pergola" },
+  { id: "home_prem_pool",              label: "Swimming pool (optional)" },
+  { id: "home_prem_pet_friendly",      label: "Pet-friendly compound" },
+];
+
 // ── Godown ──────────────────────────────────────────────────────────────────
 const GODOWN_PREMISE_AMENITIES = [
   { id: "godown_cafeteria", label: "Cafeteria" },
@@ -214,11 +298,13 @@ const LAND_SURROUNDING = [
   { id: "land_future_dev", label: "Future development plans in the area" },
 ];
 
-function getAmenityLists(type: string) {
+function getAmenityLists(type: string, subtype?: string) {
   if (type === "rent-godown") return { unit: GODOWN_UNIT_AMENITIES, premise: GODOWN_PREMISE_AMENITIES };
   if (type === "rent-business") return { unit: BUSINESS_UNIT_AMENITIES, premise: BUSINESS_PREMISE_AMENITIES };
   if (type === "rent-stall" || type === "rent-shop") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
   if (type === "hotel") return { unit: UNIT_AMENITIES, premise: HOTEL_PREMISE_AMENITIES };
+  if (type === "rent") return { unit: APARTMENT_UNIT_AMENITIES, premise: APARTMENT_PREMISE_AMENITIES };
+  if (type === "sale" && subtype === "home") return { unit: HOME_UNIT_AMENITIES, premise: HOME_PREMISE_AMENITIES };
   return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
 }
 
@@ -1073,7 +1159,7 @@ export default function AddListing() {
 
                   {/* ── Dynamic amenities (all non-land types) ─────────── */}
                   {hasStandardAmenities(listingType) && (() => {
-                    const { unit, premise } = getAmenityLists(listingType);
+                    const { unit, premise } = getAmenityLists(listingType, subtype);
                     return (
                       <>
                         {/* Unit Amenities */}
