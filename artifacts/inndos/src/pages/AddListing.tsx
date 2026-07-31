@@ -113,6 +113,8 @@ const BUSINESS_PREMISE_AMENITIES = [
   { id: "biz_parking", label: "Parking Spaces" },
   { id: "biz_drinking_fountains", label: "Drinking Fountains" },
   { id: "biz_street_lighting", label: "Street lighting" },
+  { id: "biz_elevator", label: "Elevator" },
+  { id: "biz_generator", label: "Backup generator" },
 ];
 const BUSINESS_UNIT_AMENITIES = [
   { id: "biz_fire_extinguisher", label: "Fire extinguisher" },
@@ -121,6 +123,7 @@ const BUSINESS_UNIT_AMENITIES = [
   { id: "biz_clean_water", label: "Clean water" },
   { id: "biz_workstations", label: "Work stations" },
   { id: "biz_quiet_space", label: "Quiet space" },
+  { id: "biz_signature_space", label: "Signature space" },
 ];
 
 // ── Commercial Space ─────────────────────────────────────────────────────────
@@ -163,6 +166,26 @@ const COMMERCIAL_PREMISE_AMENITIES = [
   { id: "com_rooftop", label: "Rooftop / terrace common area" },
 ];
 
+// ── Hotel ────────────────────────────────────────────────────────────────────
+const HOTEL_PREMISE_AMENITIES = [
+  { id: "hotel_breakfast", label: "Complimentary Breakfast" },
+  { id: "hotel_ramp", label: "Ramp" },
+  { id: "hotel_conference_hall", label: "Conference Hall" },
+  { id: "hotel_reception_24hr", label: "24hrs Reception" },
+  { id: "hotel_housekeeping", label: "House Keeping" },
+  { id: "hotel_restaurant_bar", label: "Restaurant & Bar" },
+  { id: "hotel_pool", label: "Swimming Pool" },
+  { id: "hotel_pool_billiards", label: "Pool Billiards" },
+  { id: "hotel_kids_play", label: "Kids Play Area" },
+  { id: "hotel_recreational", label: "Recreational Facilities" },
+  { id: "hotel_valet", label: "Valet" },
+  { id: "hotel_room_service", label: "Room Service" },
+  { id: "hotel_ballroom", label: "Ballroom" },
+  { id: "hotel_golf", label: "Golf Course" },
+  { id: "hotel_tennis", label: "Tennis Court" },
+  { id: "hotel_smoking_lounge", label: "Smoking Lounge" },
+];
+
 // ── Land checkboxes ──────────────────────────────────────────────────────────
 const LAND_ZONING_OPTIONS = [
   { id: "zone_residential", label: "Residential" },
@@ -195,6 +218,7 @@ function getAmenityLists(type: string) {
   if (type === "rent-godown") return { unit: GODOWN_UNIT_AMENITIES, premise: GODOWN_PREMISE_AMENITIES };
   if (type === "rent-business") return { unit: BUSINESS_UNIT_AMENITIES, premise: BUSINESS_PREMISE_AMENITIES };
   if (type === "commercial") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
+  if (type === "hotel") return { unit: UNIT_AMENITIES, premise: HOTEL_PREMISE_AMENITIES };
   return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
 }
 
