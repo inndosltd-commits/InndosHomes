@@ -3212,6 +3212,14 @@ export default function Dashboard() {
                               <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                               <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 <Badge variant="secondary" className="text-[10px] px-1.5 h-4 capitalize">{u.role}</Badge>
+                                {u.isRegisteredFirm && (
+                                  <span
+                                    title={u.firmType === "registered_company" ? "Registered Company" : "Business Name"}
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-1.5 py-0.5 cursor-default"
+                                  >
+                                    <ShieldCheck className="h-2.5 w-2.5" /> Firm
+                                  </span>
+                                )}
                                 <Badge variant="outline" className={`text-[10px] px-1.5 h-4 capitalize ${statusColor}`}>{u.status}</Badge>
                                 {u.joinDate && (
                                   <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
