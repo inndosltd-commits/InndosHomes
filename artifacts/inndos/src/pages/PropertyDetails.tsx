@@ -13,6 +13,7 @@ import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
+import { resolveAmenityLabel } from "@/lib/amenities";
 import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
@@ -509,7 +510,7 @@ export default function PropertyDetails() {
                   {(property.tags || []).concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map((tag) => (
                     <div key={tag} className="flex items-center gap-2 text-gray-600">
                       <CheckCircle className="h-4 w-4 text-primary/60" />
-                      {tag}
+                      {resolveAmenityLabel(tag)}
                     </div>
                   ))}
                 </div>

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { BedDouble, Bath, Square, Heart, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import { useCurrency } from "@/lib/currency";
+import { resolveAmenityLabel } from "@/lib/amenities";
 
 export interface ApiProperty {
   id: string;
@@ -124,7 +125,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
             <div className="flex flex-wrap gap-1 mt-2">
               {property.tags.slice(0, 3).map((tag) => (
                 <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                  {tag}
+                  {resolveAmenityLabel(tag)}
                 </span>
               ))}
             </div>
