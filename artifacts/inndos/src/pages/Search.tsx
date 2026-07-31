@@ -89,6 +89,52 @@ function getAmenityFilters(queryType: string) {
   return AMENITY_FILTER_SETS.default;
 }
 
+/**
+ * Maps new typed amenity IDs to the old generic IDs used by properties
+ * listed before the per-type amenity system was introduced. This lets
+ * the filter work for legacy inventory without requiring re-listing.
+ */
+const AMENITY_LEGACY_ALIASES: Record<string, string[]> = {
+  // Apartment / rent
+  apt_prem_secure_parking:  ["parking"],
+  apt_prem_security_247:    ["security"],
+  apt_prem_cctv:            ["cctv"],
+  apt_prem_elevator:        ["elevator"],
+  apt_prem_pool:            ["pool"],
+  apt_prem_gym:             ["gym"],
+  apt_prem_generator:       ["generator"],
+  apt_prem_borehole:        ["borewater"],
+  apt_balcony:              ["balcony"],
+  apt_ac_fans:              ["ac"],
+  apt_wifi:                 ["wifi"],
+  // Home / sale
+  home_garden:              ["garden"],
+  home_pool:                ["pool"],
+  home_gym:                 ["gym"],
+  home_parking:             ["parking"],
+  home_security_247:        ["security"],
+  home_cctv:                ["cctv"],
+  home_perimeter_wall:      ["electric_fence"],
+  home_electricity_backup:  ["generator"],
+  home_prem_borehole:       ["borewater"],
+  home_wifi:                ["wifi"],
+  home_ac_fans:             ["ac"],
+  home_solar_water:         ["solar"],
+  home_prem_pet_friendly:   ["pet_friendly"],
+  // Hotel
+  hotel_pool:               ["pool"],
+  hotel_gym:                ["gym"],
+};
+
+/** Returns true if the property's tags satisfy the selected amenity,
+ *  accepting either the new typed ID or any of its legacy aliases. */
+function propertyMatchesAmenity(pTags: string[], amenityId: string): boolean {
+  const id = amenityId.toLowerCase();
+  if (pTags.includes(id)) return true;
+  const aliases = AMENITY_LEGACY_ALIASES[id] ?? [];
+  return aliases.some((alias) => pTags.includes(alias.toLowerCase()));
+}
+
 const formatKES = (n: number) =>
   new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 
@@ -213,7 +259,7 @@ export default function Search() {
       }
       if (selectedAmenities.length > 0) {
         const pTags = (p.tags || []).map((a: string) => a.toLowerCase());
-        if (!selectedAmenities.every((a) => pTags.includes(a.toLowerCase()))) return false;
+        if (!selectedAmenities.every((a) => propertyMatchesAmenity(pTags, a))) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
