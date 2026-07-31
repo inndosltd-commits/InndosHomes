@@ -296,6 +296,9 @@ const LAND_SURROUNDING = [
   { id: "land_security", label: "Security" },
   { id: "land_recreational", label: "Nearby recreational areas (parks, gyms)" },
   { id: "land_future_dev", label: "Future development plans in the area" },
+  { id: "land_fencing", label: "Fencing" },
+  { id: "land_gated", label: "Gated" },
+  { id: "land_corner_plot", label: "Corner plot" },
 ];
 
 function getAmenityLists(type: string, subtype?: string) {
@@ -1114,23 +1117,11 @@ export default function AddListing() {
                           </div>
                         ))}
                       </div>
-                      {/* Zoning & plot attributes */}
-                      <div className="space-y-3 pt-2">
+                      {/* Zoning classification */}
+                      <div className="space-y-2 pt-2">
                         <Label className="text-xs font-medium text-gray-600">Zoning classification</Label>
                         <div className="grid grid-cols-2 gap-2">
                           {LAND_ZONING_OPTIONS.map(opt => (
-                            <div key={opt.id} className="flex items-center space-x-2">
-                              <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
-                              <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex gap-6 pt-1">
-                          {[
-                            { id: "land_fencing", label: "Fencing" },
-                            { id: "land_gated", label: "Gated" },
-                            { id: "land_corner_plot", label: "Corner plot" },
-                          ].map(opt => (
                             <div key={opt.id} className="flex items-center space-x-2">
                               <Checkbox id={opt.id} checked={selectedAmenities.includes(opt.id)} onCheckedChange={() => toggleAmenity(opt.id)} />
                               <label htmlFor={opt.id} className="text-sm cursor-pointer">{opt.label}</label>
