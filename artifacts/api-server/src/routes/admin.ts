@@ -157,6 +157,12 @@ router.get("/users", async (req, res) => {
       idDocument: users.idDocument,
       idFront: users.idFront,
       idBack: users.idBack,
+      isRegisteredFirm: users.isRegisteredFirm,
+      firmType: users.firmType,
+      firmCertRegistration: users.firmCertRegistration,
+      firmCertIncorporation: users.firmCertIncorporation,
+      firmCr12: users.firmCr12,
+      firmDirectorIds: users.firmDirectorIds,
     })
     .from(users)
     .orderBy(asc(users.joinDate));

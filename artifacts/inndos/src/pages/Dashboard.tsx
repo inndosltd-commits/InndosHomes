@@ -2835,6 +2835,12 @@ export default function Dashboard() {
                     const puAvatar = pu.avatar?.startsWith("/objects/") ? `/api/storage${pu.avatar}` : pu.avatar ?? null;
                     const puIdFront = pu.idFront?.startsWith("/objects/") ? `/api/storage${pu.idFront}` : pu.idFront ?? null;
                     const puIdBack = pu.idBack?.startsWith("/objects/") ? `/api/storage${pu.idBack}` : pu.idBack ?? null;
+                    const puIsRegisteredFirm = !!pu.isRegisteredFirm;
+                    const puFirmType = pu.firmType as "business_name" | "registered_company" | undefined;
+                    const puFirmCertReg = pu.firmCertRegistration?.startsWith("/objects/") ? `/api/storage${pu.firmCertRegistration}` : pu.firmCertRegistration ?? null;
+                    const puFirmCertInc = pu.firmCertIncorporation?.startsWith("/objects/") ? `/api/storage${pu.firmCertIncorporation}` : pu.firmCertIncorporation ?? null;
+                    const puFirmCr12 = pu.firmCr12?.startsWith("/objects/") ? `/api/storage${pu.firmCr12}` : pu.firmCr12 ?? null;
+                    const puFirmDirectorIds: string[] = (pu.firmDirectorIds ?? []).map((p: string) => p.startsWith("/objects/") ? `/api/storage${p}` : p);
                     const puInitials = pu.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                     const statusColor =
                       pu.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -2885,38 +2891,142 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        {/* ID Documents */}
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold flex items-center gap-1.5">
-                            <ShieldCheck className="h-4 w-4 text-gray-500" /> Identity Documents
-                          </p>
-                          {!puIdFront && !puIdBack ? (
-                            <div className="text-center py-6 border rounded-lg bg-gray-50 text-muted-foreground text-sm">
-                              No ID documents uploaded yet
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <p className="text-xs font-medium text-gray-600">Front Side</p>
-                                {puIdFront
-                                  ? <img src={puIdFront} alt="ID Front" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
-                                  : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                        {/* Verification Documents — firm or individual */}
+                        {puIsRegisteredFirm ? (
+                          <div className="space-y-4">
+                            <p className="text-sm font-semibold flex items-center gap-1.5">
+                              <ShieldCheck className="h-4 w-4 text-blue-600" /> Business Documents
+                              <span className="ml-1 text-[10px] font-normal bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                                {puFirmType === "registered_company" ? "Registered Company" : "Business Name"}
+                              </span>
+                            </p>
+
+                            {puFirmType === "business_name" && (
+                              <div className="space-y-1.5">
+                                <p className="text-xs font-medium text-gray-600">Certificate of Registration</p>
+                                {puFirmCertReg ? (
+                                  <div className="relative group border rounded-lg overflow-hidden">
+                                    <img src={puFirmCertReg} alt="Certificate of Registration" className="w-full object-cover rounded-lg" style={{ maxHeight: 180 }} />
+                                    <a
+                                      href={puFirmCertReg}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="absolute top-2 right-2 bg-white/90 border rounded-md px-2 py-1 text-[10px] font-medium text-gray-700 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <ExternalLink className="h-3 w-3" /> Open
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <div className="h-24 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>
+                                )}
                               </div>
-                              <div className="space-y-1">
-                                <p className="text-xs font-medium text-gray-600">Back Side</p>
-                                {puIdBack
-                                  ? <img src={puIdBack} alt="ID Back" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
-                                  : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                            )}
+
+                            {puFirmType === "registered_company" && (
+                              <div className="space-y-4">
+                                {/* Certificate of Incorporation */}
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium text-gray-600">Certificate of Incorporation</p>
+                                  {puFirmCertInc ? (
+                                    <div className="relative group border rounded-lg overflow-hidden">
+                                      <img src={puFirmCertInc} alt="Certificate of Incorporation" className="w-full object-cover rounded-lg" style={{ maxHeight: 180 }} />
+                                      <a
+                                        href={puFirmCertInc}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="absolute top-2 right-2 bg-white/90 border rounded-md px-2 py-1 text-[10px] font-medium text-gray-700 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <ExternalLink className="h-3 w-3" /> Open
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <div className="h-24 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>
+                                  )}
+                                </div>
+
+                                {/* CR12 */}
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium text-gray-600">CR12 Certificate</p>
+                                  {puFirmCr12 ? (
+                                    <div className="relative group border rounded-lg overflow-hidden">
+                                      <img src={puFirmCr12} alt="CR12 Certificate" className="w-full object-cover rounded-lg" style={{ maxHeight: 180 }} />
+                                      <a
+                                        href={puFirmCr12}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="absolute top-2 right-2 bg-white/90 border rounded-md px-2 py-1 text-[10px] font-medium text-gray-700 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <ExternalLink className="h-3 w-3" /> Open
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <div className="h-24 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>
+                                  )}
+                                </div>
+
+                                {/* Director IDs */}
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium text-gray-600">Director ID Documents ({puFirmDirectorIds.length})</p>
+                                  {puFirmDirectorIds.length === 0 ? (
+                                    <div className="h-20 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">None uploaded</div>
+                                  ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {puFirmDirectorIds.map((src, idx) => (
+                                        <div key={idx} className="relative group border rounded-lg overflow-hidden">
+                                          <img src={src} alt={`Director ${idx + 1} ID`} className="w-full h-28 object-cover" />
+                                          <div className="px-2 py-1 text-[10px] text-gray-600 font-medium bg-white border-t flex items-center justify-between">
+                                            <span>Director {idx + 1}</span>
+                                            <a href={src} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5">
+                                              <ExternalLink className="h-2.5 w-2.5" /> Open
+                                            </a>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {(puIdFront || puIdBack) && !(puIdFront && puIdBack) && (
-                            <p className="text-xs text-amber-600 flex items-center gap-1">⚠ Only one side uploaded — verification incomplete</p>
-                          )}
-                          {puIdFront && puIdBack && (
-                            <p className="text-xs text-green-600 flex items-center gap-1"><Check className="h-3 w-3" /> Both sides submitted</p>
-                          )}
-                        </div>
+                            )}
+
+                            {!puFirmType && (
+                              <div className="text-center py-6 border rounded-lg bg-gray-50 text-muted-foreground text-sm">
+                                Firm type not specified
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold flex items-center gap-1.5">
+                              <ShieldCheck className="h-4 w-4 text-gray-500" /> Identity Documents
+                            </p>
+                            {!puIdFront && !puIdBack ? (
+                              <div className="text-center py-6 border rounded-lg bg-gray-50 text-muted-foreground text-sm">
+                                No ID documents uploaded yet
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <p className="text-xs font-medium text-gray-600">Front Side</p>
+                                  {puIdFront
+                                    ? <img src={puIdFront} alt="ID Front" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
+                                    : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs font-medium text-gray-600">Back Side</p>
+                                  {puIdBack
+                                    ? <img src={puIdBack} alt="ID Back" className="w-full rounded-lg border object-cover" style={{ maxHeight: 160 }} />
+                                    : <div className="h-28 rounded-lg border bg-gray-50 flex items-center justify-center text-xs text-muted-foreground">Not uploaded</div>}
+                                </div>
+                              </div>
+                            )}
+                            {(puIdFront || puIdBack) && !(puIdFront && puIdBack) && (
+                              <p className="text-xs text-amber-600 flex items-center gap-1">⚠ Only one side uploaded — verification incomplete</p>
+                            )}
+                            {puIdFront && puIdBack && (
+                              <p className="text-xs text-green-600 flex items-center gap-1"><Check className="h-3 w-3" /> Both sides submitted</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
