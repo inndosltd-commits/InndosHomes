@@ -1020,9 +1020,6 @@ export default function PropertyDetails() {
                         </>
                       )}
 
-                      <Button variant="outline" className="w-full gap-2" onClick={() => toast({ title: "Message sent!" })} disabled={!isLinkedUp}>
-                        <MessageSquare className="h-4 w-4" /> {t("prop.send_message")}
-                      </Button>
                     </div>
                   </>
                 )}
