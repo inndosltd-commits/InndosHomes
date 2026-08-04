@@ -443,9 +443,10 @@ router.post("/google", async (req, res) => {
         .returning();
     }
 
+    const isNewUser = !user.phone;
     const token = signToken(user.id);
     const { password: _pw, ...safeUser } = user;
-    res.json({ token, user: safeUser });
+    res.json({ token, user: safeUser, isNewUser });
   } catch (err) {
     req.log.error({ err }, "Google auth failed");
     res.status(401).json({ error: "Google authentication failed" });

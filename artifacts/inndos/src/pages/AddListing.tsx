@@ -1370,7 +1370,7 @@ export default function AddListing() {
                       </CardDescription>
                     </div>
                     {videoLimit === 0 && (
-                      <a href="#/pricing" className="text-xs text-primary underline underline-offset-2 shrink-0 mt-1">Upgrade plan</a>
+                      <a href="/#/pricing" className="text-xs text-primary underline underline-offset-2 shrink-0 mt-1">Upgrade plan</a>
                     )}
                   </div>
                 </CardHeader>

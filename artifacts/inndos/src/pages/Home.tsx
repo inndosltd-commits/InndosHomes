@@ -44,7 +44,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/properties")
+    fetch("/api/properties", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         const props = Array.isArray(data) ? data : [];

@@ -4,12 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLocation, Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Phone } from "lucide-react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const LOGIN_ROLES  = ["owner", "host", "tenant"] as const;
@@ -52,6 +53,15 @@ export default function Login() {
   const [phoneToken, setPhoneToken]       = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp]   = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  // Google new-user phone verification
+  const [pendingGoogleToken, setPendingGoogleToken] = useState<string | null>(null);
+  const [pendingGoogleEmail, setPendingGoogleEmail] = useState("");
+  const [showGooglePhoneModal, setShowGooglePhoneModal] = useState(false);
+  const [gPhone, setGPhone] = useState("");
+  const [gOtpSent, setGOtpSent] = useState(false);
+  const [gOtpCode, setGOtpCode] = useState("");
+  const [isGPhoneLoading, setIsGPhoneLoading] = useState(false);
 
   // Firm/agency registration state (host tab only)
   const [isRegisteredFirm, setIsRegisteredFirm] = useState(false);
@@ -198,12 +208,78 @@ export default function Login() {
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error || "Google sign-in failed");
       }
-      const { token, user: googleUser } = await res.json() as { token: string; user: { name: string; email: string; role: string } };
-      await login(googleUser.email, "", token);
+      const { token, user: googleUser, isNewUser } = await res.json() as {
+        token: string;
+        user: { name: string; email: string; role: string };
+        isNewUser: boolean;
+      };
+      if (isNewUser) {
+        // New account — require phone verification before granting access
+        setPendingGoogleToken(token);
+        setPendingGoogleEmail(googleUser.email);
+        setShowGooglePhoneModal(true);
+      } else {
+        await login(googleUser.email, "", token);
+      }
     } catch (err) {
       toast({ title: "Google sign-in failed", description: err instanceof Error ? err.message : "Please try again.", variant: "destructive" });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /* ── Google new-user phone OTP ── */
+  const handleGoogleSendOtp = async () => {
+    if (!gPhone.trim()) {
+      toast({ title: "Phone required", description: "Please enter your phone number.", variant: "destructive" });
+      return;
+    }
+    setIsGPhoneLoading(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: gPhone.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed to send OTP");
+      setGOtpSent(true);
+      toast({ title: "OTP sent", description: "Check your phone for the 6-digit code." });
+    } catch (err) {
+      toast({ title: "Failed to send OTP", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsGPhoneLoading(false);
+    }
+  };
+
+  const handleGoogleVerifyAndLogin = async () => {
+    if (!gOtpCode.trim() || !gPhone.trim()) {
+      toast({ title: "Missing fields", description: "Enter your phone and OTP code.", variant: "destructive" });
+      return;
+    }
+    setIsGPhoneLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: gPhone.trim(), code: gOtpCode.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "OTP verification failed");
+      // Optionally save phone to profile (best-effort)
+      if (pendingGoogleToken) {
+        fetch("/api/auth/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${pendingGoogleToken}` },
+          body: JSON.stringify({ phone: gPhone.trim() }),
+        }).catch(() => {});
+        await login(pendingGoogleEmail, "", pendingGoogleToken);
+      }
+      setShowGooglePhoneModal(false);
+    } catch (err) {
+      toast({ title: "Verification failed", description: err instanceof Error ? err.message : "Invalid code.", variant: "destructive" });
+    } finally {
+      setIsGPhoneLoading(false);
     }
   };
 
@@ -667,7 +743,12 @@ export default function Login() {
               {isSignUp ? "Already have an account? " : "Don't have an account? "}
               <span
                 className="text-primary font-semibold cursor-pointer hover:underline"
-                onClick={() => { setIsSignUp(!isSignUp); setTermsAccepted(false); }}
+                onClick={() => {
+                  const next = !isSignUp;
+                  setIsSignUp(next);
+                  setTermsAccepted(false);
+                  window.location.hash = next ? "/login?signup=true" : "/login";
+                }}
               >
                 {isSignUp ? "Sign in" : "Sign up"}
               </span>
@@ -675,6 +756,90 @@ export default function Login() {
           </CardFooter>
         </Card>
       </div>
+      {/* ── Google new-user phone verification dialog ── */}
+      <Dialog open={showGooglePhoneModal} onOpenChange={(open) => { if (!open) { setShowGooglePhoneModal(false); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" /> Verify Your Phone Number
+            </DialogTitle>
+            <DialogDescription>
+              Your account was created with Google. Please verify your phone number to complete sign-up — just like other INNDOS users.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="tel"
+                  placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                  value={gPhone}
+                  onChange={(e) => setGPhone(e.target.value)}
+                  disabled={gOtpSent || isGPhoneLoading}
+                />
+                <button
+                  type="button"
+                  onClick={handleGoogleSendOtp}
+                  disabled={isGPhoneLoading || gOtpSent}
+                  className="shrink-0 px-3 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {isGPhoneLoading && !gOtpSent ? "Sending…" : gOtpSent ? "Sent ✓" : "Send OTP"}
+                </button>
+              </div>
+            </div>
+            {gOtpSent && (
+              <div className="space-y-2">
+                <Label>Verification Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="6-digit code"
+                    maxLength={6}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={gOtpCode}
+                    onChange={(e) => setGOtpCode(e.target.value)}
+                    disabled={isGPhoneLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGoogleVerifyAndLogin}
+                    disabled={isGPhoneLoading || gOtpCode.length < 6}
+                    className="shrink-0 px-3 py-2 text-sm font-medium rounded-md bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+                  >
+                    {isGPhoneLoading ? "Verifying…" : "Verify & Continue"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">Code expires in 10 minutes.</p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t">
+            <button
+              type="button"
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+              onClick={async () => {
+                // Allow skip but warn — complete login without phone
+                if (pendingGoogleToken && pendingGoogleEmail) {
+                  await login(pendingGoogleEmail, "", pendingGoogleToken);
+                }
+                setShowGooglePhoneModal(false);
+              }}
+            >
+              Skip for now
+            </button>
+            {gOtpSent && (
+              <button
+                type="button"
+                className="text-xs text-gray-400 hover:text-gray-600 underline"
+                onClick={() => { setGOtpSent(false); setGOtpCode(""); setGPhone(""); }}
+              >
+                Change number
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

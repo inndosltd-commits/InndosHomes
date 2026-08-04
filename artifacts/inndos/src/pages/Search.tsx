@@ -188,7 +188,7 @@ export default function Search() {
 
   useEffect(() => {
     setIsLoadingProps(true);
-    fetch("/api/properties")
+    fetch("/api/properties", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setProperties(Array.isArray(data) ? data : []))
       .catch(() => setProperties([]))
