@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
@@ -15,11 +15,279 @@ import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
 import { resolveAmenityLabel } from "@/lib/amenities";
 import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, DirectionsRenderer } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
+
+/* ── Haversine distance (km) ── */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const MANEUVER_ICONS: Record<string, string> = {
+  "turn-left": "↰", "turn-right": "↱",
+  "turn-sharp-left": "↰", "turn-sharp-right": "↱",
+  "turn-slight-left": "↖", "turn-slight-right": "↗",
+  "straight": "↑", "merge": "↑",
+  "ramp-left": "↖", "ramp-right": "↗",
+  "fork-left": "↖", "fork-right": "↗",
+  "ferry": "⛴", "ferry-train": "🚂",
+  "roundabout-left": "↺", "roundabout-right": "↻",
+  "uturn-left": "↩", "uturn-right": "↪",
+};
+
+/* ══════════════════════════════════════════════════
+   In-app turn-by-turn navigation overlay
+   ══════════════════════════════════════════════════ */
+function NavigationOverlay({
+  destLat,
+  destLng,
+  propertyTitle,
+  onExit,
+}: {
+  destLat: number;
+  destLng: number;
+  propertyTitle: string;
+  onExit: () => void;
+}) {
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
+  const mapRef    = useRef<google.maps.Map | null>(null);
+  const watchRef  = useRef<number | null>(null);
+
+  const [userPos,      setUserPos]      = useState<google.maps.LatLngLiteral | null>(null);
+  const [directions,   setDirections]   = useState<google.maps.DirectionsResult | null>(null);
+  const [stepIndex,    setStepIndex]    = useState(0);
+  const [arrived,      setArrived]      = useState(false);
+  const [travelMode,   setTravelMode]   = useState<google.maps.TravelMode | null>(null);
+  const [routeInfo,    setRouteInfo]    = useState<{ distance: string; duration: string; eta: string } | null>(null);
+  const [loadingRoute, setLoadingRoute] = useState(true);
+
+  const fetchRoute = useCallback(
+    (origin: google.maps.LatLngLiteral, mode: google.maps.TravelMode) => {
+      setLoadingRoute(true);
+      new window.google.maps.DirectionsService().route(
+        { origin, destination: { lat: destLat, lng: destLng }, travelMode: mode },
+        (result, status) => {
+          setLoadingRoute(false);
+          if (status === window.google.maps.DirectionsStatus.OK && result) {
+            setDirections(result);
+            setStepIndex(0);
+            const leg = result.routes[0].legs[0];
+            const secs = leg.duration?.value ?? 0;
+            const etaTime = new Date(Date.now() + secs * 1000);
+            setRouteInfo({
+              distance: leg.distance?.text ?? "",
+              duration: leg.duration?.text ?? "",
+              eta: etaTime.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
+            });
+            mapRef.current?.fitBounds(result.routes[0].bounds);
+          }
+        }
+      );
+    },
+    [destLat, destLng]
+  );
+
+  /* First load: get position → fetch route */
+  useEffect(() => {
+    if (!isLoaded) return;
+    const mode = window.google.maps.TravelMode.DRIVING;
+    setTravelMode(mode);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const origin = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserPos(origin);
+        fetchRoute(origin, mode);
+      },
+      () => fetchRoute({ lat: destLat, lng: destLng }, mode),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, [isLoaded, fetchRoute, destLat, destLng]);
+
+  /* Live position watcher */
+  useEffect(() => {
+    if (!isLoaded) return;
+    watchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserPos(p);
+        mapRef.current?.panTo(p);
+        if (haversineKm(p.lat, p.lng, destLat, destLng) < 0.05) {
+          setArrived(true);
+          return;
+        }
+        setStepIndex((prev) => {
+          if (!directions) return prev;
+          const steps = directions.routes[0].legs[0].steps;
+          if (prev >= steps.length - 1) return prev;
+          const end = steps[prev].end_location;
+          return haversineKm(p.lat, p.lng, end.lat(), end.lng()) < 0.03
+            ? prev + 1
+            : prev;
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 3000 }
+    );
+    return () => {
+      if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
+    };
+  }, [isLoaded, directions, destLat, destLng]);
+
+  const switchMode = (mode: google.maps.TravelMode) => {
+    if (!userPos) return;
+    setTravelMode(mode);
+    fetchRoute(userPos, mode);
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#1a1a2e] flex items-center justify-center">
+        <div className="text-white text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+          <p className="text-lg font-medium">Loading navigation…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const steps       = directions?.routes[0].legs[0].steps ?? [];
+  const curStep     = steps[stepIndex];
+  const nextStep    = steps[stepIndex + 1];
+  const icon        = MANEUVER_ICONS[curStep?.maneuver ?? "straight"] ?? "↑";
+  const nextIcon    = MANEUVER_ICONS[nextStep?.maneuver ?? "straight"] ?? "↑";
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col">
+      {/* ── Top instruction banner ── */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-[#1a73e8] text-white px-4 pt-[env(safe-area-inset-top,16px)] pb-4 shadow-xl flex flex-col gap-2">
+        {arrived ? (
+          <div className="py-3 text-center">
+            <p className="text-2xl font-bold">🏁 You have arrived!</p>
+            <p className="text-sm opacity-90 mt-1">{propertyTitle}</p>
+          </div>
+        ) : loadingRoute ? (
+          <div className="flex items-center gap-3 py-2">
+            <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+            <p className="font-semibold">Calculating route…</p>
+          </div>
+        ) : curStep ? (
+          <>
+            <div className="flex items-start gap-3">
+              <span className="text-4xl font-black shrink-0 leading-none mt-1">{icon}</span>
+              <div className="flex-1 min-w-0">
+                <p
+                  className="font-bold text-xl leading-snug"
+                  dangerouslySetInnerHTML={{ __html: curStep.instructions }}
+                />
+                <p className="text-sm opacity-80 mt-1">{curStep.distance?.text}</p>
+              </div>
+            </div>
+            {nextStep && (
+              <div className="bg-[#1557b0] rounded-xl px-3 py-2 flex items-center gap-2 text-sm">
+                <span className="text-lg shrink-0">{nextIcon}</span>
+                <span className="opacity-80 shrink-0">Then</span>
+                <span
+                  className="truncate"
+                  dangerouslySetInnerHTML={{ __html: nextStep.instructions }}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="font-semibold py-2">Heading to destination…</p>
+        )}
+      </div>
+
+      {/* ── Map ── */}
+      <GoogleMap
+        mapContainerClassName="w-full h-full"
+        center={userPos ?? { lat: destLat, lng: destLng }}
+        zoom={17}
+        onLoad={(m) => { mapRef.current = m; }}
+        options={{
+          mapId: "c7cd60c6a53a720a14502d1b",
+          disableDefaultUI: true,
+          zoomControl: false,
+        }}
+      >
+        {directions && (
+          <DirectionsRenderer
+            directions={directions}
+            options={{
+              suppressMarkers: false,
+              polylineOptions: { strokeColor: "#4285F4", strokeWeight: 9, strokeOpacity: 0.9 },
+            }}
+          />
+        )}
+        {userPos && <AdvancedMarker position={userPos} title="You are here" />}
+      </GoogleMap>
+
+      {/* ── Bottom panel ── */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-white px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] rounded-t-3xl shadow-2xl">
+        {!arrived && routeInfo && (
+          <div className="flex items-end gap-3 mb-4">
+            <div>
+              <p className="font-black text-3xl text-gray-900 leading-none">{routeInfo.duration}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {routeInfo.distance} · {routeInfo.eta}
+              </p>
+            </div>
+            {/* Travel mode switcher */}
+            <div className="ml-auto flex gap-2">
+              {(
+                [
+                  { mode: "DRIVING",   emoji: "🚗", label: "Drive"  },
+                  { mode: "WALKING",   emoji: "🚶", label: "Walk"   },
+                  { mode: "BICYCLING", emoji: "🚲", label: "Cycle"  },
+                ] as const
+              ).map(({ mode, emoji, label }) => {
+                const gMode = window.google.maps.TravelMode[mode];
+                const active = travelMode === gMode;
+                return (
+                  <button
+                    key={mode}
+                    title={label}
+                    onClick={() => switchMode(gMode)}
+                    className={`w-11 h-11 rounded-full text-xl flex items-center justify-center transition-all ${
+                      active
+                        ? "bg-blue-100 ring-2 ring-blue-500 scale-110 shadow-md"
+                        : "bg-gray-100 hover:bg-gray-200"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {arrived && (
+          <div className="text-center mb-4">
+            <p className="text-xl font-bold text-green-600">You have arrived at your destination</p>
+            <p className="text-sm text-gray-500 mt-1">{propertyTitle}</p>
+          </div>
+        )}
+        <button
+          onClick={onExit}
+          className="w-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold py-3.5 rounded-2xl text-base transition-colors shadow-sm"
+        >
+          Exit Navigation
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
@@ -61,6 +329,7 @@ export default function PropertyDetails() {
   const [isLiked, setIsLiked] = useState(false);
   const [isLinkedUp, setIsLinkedUp] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [isCopyingPin, setIsCopyingPin] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
@@ -535,14 +804,24 @@ export default function PropertyDetails() {
                       </Button>
                       <Button
                         size="sm"
-                        className="gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white"
+                        variant="outline"
+                        className="gap-2"
                         onClick={handleGetDirections}
                         disabled={isGettingLocation}
+                        title="Open in Google Maps"
                       >
                         {isGettingLocation
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Navigation className="h-3.5 w-3.5" />}
-                        Get Directions
+                        Directions
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="gap-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold shadow-md"
+                        onClick={() => setIsNavigating(true)}
+                      >
+                        <Compass className="h-3.5 w-3.5" />
+                        Navigate
                       </Button>
                     </div>
                   </div>
@@ -759,6 +1038,16 @@ export default function PropertyDetails() {
         </div>
       </div>
       <Footer />
+
+      {/* ── In-app Navigation Overlay ── */}
+      {isNavigating && property && (
+        <NavigationOverlay
+          destLat={parseFloat(String(property.lat ?? -1.2921))}
+          destLng={parseFloat(String(property.lng ?? 36.8219))}
+          propertyTitle={property.title}
+          onExit={() => setIsNavigating(false)}
+        />
+      )}
     </div>
   );
 }
