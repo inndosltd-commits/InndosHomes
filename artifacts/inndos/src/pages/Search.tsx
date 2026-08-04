@@ -249,7 +249,7 @@ export default function Search() {
         hostel: ["hostel"],
       };
       const allowed = typeMap[queryType] || ["rent"];
-      if (!allowed.includes((p.listingType || "").toLowerCase())) return false;
+      if (!allowed.includes((p.type || "").toLowerCase())) return false;
       if (!matchesRentFilter(p, queryFilter)) return false;
       const price = p.price || 0;
       if (isPriceFiltered && (price < priceRange[0] || price > priceRange[1])) return false;
