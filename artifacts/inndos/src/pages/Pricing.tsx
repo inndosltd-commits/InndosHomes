@@ -66,7 +66,7 @@ export default function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Link href="/dashboard#/dashboard?tab=subscription" className="w-full">
+              <Link href="/dashboard?tab=subscription" className="w-full">
                 <Button className="w-full h-12 bg-white text-zinc-900 hover:bg-gray-100">Subscribe via Pesapal</Button>
               </Link>
             </CardFooter>
@@ -93,21 +93,13 @@ export default function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Link href="/dashboard#/dashboard?tab=subscription" className="w-full">
+              <Link href="/dashboard?tab=subscription" className="w-full">
                 <Button className="w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-white">Upgrade to Gold</Button>
               </Link>
             </CardFooter>
           </Card>
         </div>
 
-        {/* Integration Note */}
-        <div className="max-w-3xl mx-auto mt-16 bg-blue-50 border border-blue-100 rounded-xl p-6 flex gap-4 items-start">
-          <Info className="h-6 w-6 text-blue-500 shrink-0 mt-1" />
-          <div>
-            <h4 className="font-bold text-blue-900">Secure Payments via Pesapal</h4>
-            <p className="text-sm text-blue-800 mt-1">All subscriptions are processed securely using Pesapal. This is a mockup interface. In the full-stack version, clicking subscribe will redirect to the official Pesapal payment gateway.</p>
-          </div>
-        </div>
       </div>
       
       <Footer />
