@@ -59,7 +59,7 @@ export default function PropertyDetails() {
   const [property, setProperty] = useState<PropertyWithOwner | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
-  const [isBooked, setIsBooked] = useState(false);
+  const [isLinkedUp, setIsLinkedUp] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [isCopyingPin, setIsCopyingPin] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
@@ -175,47 +175,24 @@ export default function PropertyDetails() {
     );
   };
 
-  const handleBook = async () => {
-    if (!property) return;
+  /** Format a phone number to wa.me format (Kenyan numbers → 254XXXXXXXXX) */
+  const toWhatsApp = (phone?: string | null) => {
+    if (!phone) return "254";
+    const digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("0") && digits.length === 10) return "254" + digits.slice(1);
+    if (digits.startsWith("254")) return digits;
+    return digits;
+  };
+
+  const handleLinkUp = () => {
     if (!user || !token) {
       navigate("/login");
       return;
     }
-
-    if (property.type === "bnb" || property.type === "hotel" || property.type === "hostel") {
-      try {
-        const res = await fetch("/api/bookings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            propertyId: property.id,
-            startDate: checkIn,
-            endDate: checkOut,
-            totalPrice: property.price,
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          toast({
-            title: "Booking failed",
-            description: (data as { error?: string }).error || "Could not complete booking. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } catch {
-        toast({ title: "Booking failed", description: "Network error. Please try again.", variant: "destructive" });
-        return;
-      }
-    }
-
-    setIsBooked(true);
+    setIsLinkedUp(true);
     toast({
-      title: property.type === "rent" || property.type === "sale" ? "Tour Requested" : "Booking Confirmed",
-      description:
-        property.type === "rent" || property.type === "sale"
-          ? `Request sent to ${property.ownerName || "the owner"}. They will contact you shortly.`
-          : `Your stay at ${property.title} has been booked!`,
+      title: "Linked Up!",
+      description: `Contact ${property?.ownerName || "the owner"} to confirm availability.`,
     });
   };
 
@@ -235,7 +212,7 @@ export default function PropertyDetails() {
   }, []);
 
   const handleRate = (rating: number) => {
-    if (!isBooked && !hasRated) {
+    if (!isLinkedUp && !hasRated) {
       toast({ title: "Action Required", description: "You need to book or stay at this property first.", variant: "destructive" });
       return;
     }
@@ -585,8 +562,8 @@ export default function PropertyDetails() {
                       <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                         <Lock className="h-8 w-8 text-gray-400" />
                       </div>
-                      <h3 className="font-bold text-lg mb-1">Sign in to view details</h3>
-                      <p className="text-sm text-muted-foreground">Create a free account or sign in to see contact information, phone numbers, and to book or request a tour.</p>
+                      <h3 className="font-bold text-lg mb-1">Sign in to Link Up</h3>
+                      <p className="text-sm text-muted-foreground">Create a free account or sign in to view contact information and link up with the owner/host.</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-3">
                       <div className="flex items-center gap-3 text-sm text-gray-400">
@@ -608,7 +585,7 @@ export default function PropertyDetails() {
                       </div>
                     </div>
                     <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-base font-bold" onClick={() => navigate("/login")}>
-                      Sign in to Book
+                      🔗 Sign in to Link Up
                     </Button>
                     <p className="text-center text-xs text-muted-foreground">
                       Don't have an account?{" "}
@@ -616,10 +593,11 @@ export default function PropertyDetails() {
                     </p>
                   </div>
                 ) : (
-                  /* Logged in — show contact + book/reveal flow */
+                  /* Logged in — show contact + link-up flow */
                   <>
-                    <div className={`transition-all duration-500 ${!isBooked ? "blur-[4px] opacity-70 select-none" : ""}`}>
-                      <div className="flex items-center gap-4 mb-6">
+                    {/* Owner info (blurred until linked up) */}
+                    <div className={`transition-all duration-500 ${!isLinkedUp ? "blur-[4px] opacity-60 select-none pointer-events-none" : ""}`}>
+                      <div className="flex items-center gap-4 mb-5">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${property.ownerName || "owner"}`} />
                           <AvatarFallback>{(property.ownerName || "O").charAt(0)}</AvatarFallback>
@@ -629,31 +607,31 @@ export default function PropertyDetails() {
                           <p className="text-sm text-muted-foreground capitalize">Owner / Host</p>
                         </div>
                       </div>
-                      <div className="space-y-4 mb-6">
+                      <div className="space-y-2 mb-5">
                         <a
-                          href={isBooked && property.ownerPhone ? `tel:${property.ownerPhone}` : undefined}
-                          className="flex items-center gap-3 text-sm text-gray-600 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md"
-                          onClick={(e) => !isBooked && e.preventDefault()}
+                          href={isLinkedUp && property.ownerPhone ? `tel:${property.ownerPhone}` : undefined}
+                          className="flex items-center gap-3 text-sm text-gray-700 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md"
                         >
-                          <PhoneCall className="h-4 w-4" />
-                          <span>{isBooked ? (property.ownerPhone || "No phone listed") : "••• ••• •••"}</span>
+                          <PhoneCall className="h-4 w-4 shrink-0" />
+                          <span>{isLinkedUp ? (property.ownerPhone || "No phone listed") : "••• ••• •••"}</span>
                         </a>
-                        <div className="flex items-center gap-3 text-sm text-gray-600 p-2">
-                          <Mail className="h-4 w-4" />
-                          <span>{isBooked ? (property.ownerEmail || "No email listed") : "••••@•••••.com"}</span>
+                        <div className="flex items-center gap-3 text-sm text-gray-700 p-2">
+                          <Mail className="h-4 w-4 shrink-0" />
+                          <span>{isLinkedUp ? (property.ownerEmail || "No email listed") : "••••@•••••.com"}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-3 relative z-10 mt-[-120px] pt-[130px]">
-                      {!isBooked && (
-                        <div className="absolute top-0 left-0 w-full text-center pb-4 text-sm font-medium text-gray-800">
+                    <div className="space-y-3 relative z-10 mt-[-110px] pt-[120px]">
+                      {!isLinkedUp && (
+                        <p className="absolute top-0 left-0 w-full text-center pb-3 text-sm font-medium text-gray-700">
                           {t("prop.book_to_reveal")}
-                        </div>
+                        </p>
                       )}
 
-                      {(property.type === "bnb" || property.type === "hotel" || property.type === "hostel") && (
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 shadow-sm relative z-20">
+                      {/* Date picker for nightly types */}
+                      {isNightlyType && (
+                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm relative z-20">
                           <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Select Dates</label>
                           <div className="grid grid-cols-2 gap-2 mb-3">
                             <div>
@@ -693,7 +671,7 @@ export default function PropertyDetails() {
                           )}
                           {isDateRangeAvailable === false && (
                             <Badge className="w-full justify-center gap-1.5 bg-red-100 text-red-700 hover:bg-red-100 border-red-200 border">
-                              <XCircle className="h-3.5 w-3.5" /> Unavailable
+                              <XCircle className="h-3.5 w-3.5" /> Unavailable — contact owner to confirm
                             </Badge>
                           )}
                           {isDateRangeAvailable === null && (
@@ -704,29 +682,68 @@ export default function PropertyDetails() {
                         </div>
                       )}
 
-                      {!isBooked ? (
-                        <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold" onClick={handleBook}>
-                          {property.type === "rent" || property.type === "sale" ? t("prop.request_tour") : t("prop.book_now")}
+                      {/* Primary CTA */}
+                      {!isLinkedUp ? (
+                        <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold tracking-wide" onClick={handleLinkUp}>
+                          🔗 {t("prop.book_now")}
                         </Button>
                       ) : (
-                        <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center mb-4 flex items-center justify-center gap-2 font-medium">
-                          <CheckCircle className="h-5 w-5" />
-                          {property.type === "rent" || property.type === "sale" ? t("prop.tour_requested") : t("prop.booking_confirmed")}
-                        </div>
+                        <>
+                          {/* Linked-up confirmation badge */}
+                          <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center flex items-center justify-center gap-2 font-medium">
+                            <CheckCircle className="h-5 w-5 shrink-0" />
+                            {t("prop.booking_confirmed")}
+                          </div>
+
+                          {/* Contact to confirm availability */}
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                            <div>
+                              <p className="text-sm font-bold text-amber-900">Contact to confirm availability</p>
+                              <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                                Reach the owner/host directly to confirm the property is available for your dates.
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {property.ownerPhone && (
+                                <a
+                                  href={`tel:${property.ownerPhone}`}
+                                  className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50 hover:border-primary/40 transition-colors"
+                                >
+                                  <PhoneCall className="h-4 w-4 text-primary shrink-0" />
+                                  <span>Call {property.ownerPhone}</span>
+                                </a>
+                              )}
+                              {property.ownerPhone && (
+                                <a
+                                  href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I'm interested in your property "${property.title}" listed on INNDOS. Is it available?`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-3 px-4 py-2.5 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
+                                >
+                                  <MessageCircle className="h-4 w-4 shrink-0" />
+                                  <span>WhatsApp</span>
+                                </a>
+                              )}
+                              {property.ownerEmail && (
+                                <a
+                                  href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on INNDOS and would like to confirm availability.\n\nPlease get back to me.\n\nThank you.`)}`}
+                                  className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50 hover:border-primary/40 transition-colors"
+                                >
+                                  <Mail className="h-4 w-4 text-primary shrink-0" />
+                                  <span>Email {property.ownerEmail}</span>
+                                </a>
+                              )}
+                              {!property.ownerPhone && !property.ownerEmail && (
+                                <p className="text-xs text-amber-700 italic">No direct contact listed — try messaging below.</p>
+                              )}
+                            </div>
+                          </div>
+                        </>
                       )}
 
-                      <Button variant="outline" className="w-full gap-2" onClick={() => toast({ title: "Message sent!" })} disabled={!isBooked}>
+                      <Button variant="outline" className="w-full gap-2" onClick={() => toast({ title: "Message sent!" })} disabled={!isLinkedUp}>
                         <MessageSquare className="h-4 w-4" /> {t("prop.send_message")}
                       </Button>
-                      <a
-                        href="https://wa.me/254713361799"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center justify-center w-full h-10 px-4 py-2 text-white rounded-md transition-colors font-medium gap-2 ${isBooked ? "bg-[#25D366] hover:bg-[#128C7E]" : "bg-gray-300 cursor-not-allowed"}`}
-                        onClick={(e) => !isBooked && e.preventDefault()}
-                      >
-                        <MessageCircle className="h-4 w-4" /> {t("prop.chat_whatsapp")}
-                      </a>
                     </div>
                   </>
                 )}

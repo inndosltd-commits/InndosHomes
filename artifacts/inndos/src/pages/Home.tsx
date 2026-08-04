@@ -231,8 +231,8 @@ export default function Home() {
                         <MapPin className="h-5 w-5 text-gray-400 group-hover:text-black transition-colors" />
                       </div>
                       <div className={`flex-1 min-w-0 py-4 ${index < matchedProperties.slice(0, 4).length - 1 || placePredictions.length > 0 ? "border-b border-gray-100" : ""}`}>
-                        <div className="font-medium text-gray-900 text-base truncate">{property.address}</div>
-                        <div className="text-sm text-gray-500 truncate mt-0.5">{property.title}</div>
+                        <div className="font-medium text-gray-900 text-base truncate">{property.title}</div>
+                        <div className="text-sm text-gray-500 truncate mt-0.5">{property.address}</div>
                       </div>
                     </div>
                   ))}
