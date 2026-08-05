@@ -140,3 +140,9 @@
     @apply bg-white/90 backdrop-blur-md border border-black/10 shadow-lg;
   }
 }
+
+/* Google Maps autocomplete dropdown — must sit above Radix Dialog overlay (z-50 = 50) */
+.pac-container {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}

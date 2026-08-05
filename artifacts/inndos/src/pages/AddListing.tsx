@@ -1489,7 +1489,14 @@ export default function AddListing() {
       </div>
 
       <Dialog open={isMapModalOpen} onOpenChange={setIsMapModalOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
+        <DialogContent
+          className="sm:max-w-[600px] p-0 overflow-hidden"
+          onInteractOutside={(e) => {
+            // Prevent Radix from treating clicks on Google autocomplete dropdown as "outside" the dialog
+            const target = e.target as Element | null;
+            if (target?.closest?.(".pac-container")) e.preventDefault();
+          }}
+        >
           <DialogHeader className="p-4 bg-white border-b">
             <DialogTitle>Pin Property Location</DialogTitle>
             <DialogDescription>
