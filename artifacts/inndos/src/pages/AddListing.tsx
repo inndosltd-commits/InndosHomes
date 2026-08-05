@@ -726,7 +726,10 @@ export default function AddListing() {
         images,
         videos,
         tags: selectedAmenities,
-        subtype: subtype || undefined,
+        // For commercial listing types, always persist the category as subtype so Search can filter correctly
+        subtype: isCommercialVariant(listingType)
+          ? listingType.replace("rent-", "")   // "rent-godown" → "godown", "rent-business" → "business", etc.
+          : (subtype || undefined),
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
         priceUnit: priceUnit || undefined,
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,

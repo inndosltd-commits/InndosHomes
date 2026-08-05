@@ -227,7 +227,7 @@ export default function Search() {
 
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
     if (!filter) return true;
-    const sub   = (p.subCategory || "").toLowerCase();
+    const sub   = (p.subtype || "").toLowerCase();
     const title = (p.title || "").toLowerCase();
     const beds  = p.bedrooms || 0;
     if (filter === "studio")       return sub.includes("studio") || sub.includes("bedsitter") || title.includes("studio") || title.includes("bedsitter") || beds <= 1;
@@ -240,7 +240,7 @@ export default function Search() {
 
   const matchesSaleCategory = (p: ApiProperty, category: string | null): boolean => {
     if (!category) return true;
-    const sub   = (p.subCategory || "").toLowerCase();
+    const sub   = (p.subtype || "").toLowerCase();
     const title = (p.title || "").toLowerCase();
     if (category === "apartments") return sub.includes("apartment") || sub.includes("flat") || sub.includes("condo") || title.includes("apartment") || title.includes("flat") || title.includes("condo");
     if (category === "homes")      return sub.includes("home") || sub.includes("house") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette") || sub.includes("townhouse") || title.includes("home") || title.includes("house") || title.includes("bungalow") || title.includes("villa") || title.includes("maisonette") || title.includes("townhouse");
@@ -248,20 +248,35 @@ export default function Search() {
     return true;
   };
 
+  // Commercial rent listings are stored with type="rent" and subtype="godown"/"business"/"stall"/"shop"
+  const matchesCommercialSubtype = (p: ApiProperty, commercialKey: string): boolean => {
+    if (p.type !== "rent") return false;
+    const sub   = (p.subtype || "").toLowerCase();
+    const title = (p.title || "").toLowerCase();
+    return sub.includes(commercialKey) || title.includes(commercialKey);
+  };
+
   const filteredProperties = useMemo(() => {
     let list = properties.filter((p) => {
-      const typeMap: Record<string, string[]> = {
-        rent: ["rent"],
-        "rent-business": ["commercial"],
-        "rent-godown": ["godown"],
-        "rent-stall": ["stall"],
-        "rent-shop": ["shop"],
-        sale: ["sale"],
-        hotel: ["hotel"],
-        hostel: ["hostel"],
-      };
-      const allowed = typeMap[queryType] || ["rent"];
-      if (!allowed.includes((p.type || "").toLowerCase())) return false;
+      const pType = (p.type || "").toLowerCase();
+      // Commercial subcategories: all stored as type="rent", differentiated by subtype
+      if (queryType === "rent-godown")   { if (!matchesCommercialSubtype(p, "godown"))   return false; }
+      else if (queryType === "rent-business") { if (!matchesCommercialSubtype(p, "business")) return false; }
+      else if (queryType === "rent-stall")    { if (!matchesCommercialSubtype(p, "stall"))    return false; }
+      else if (queryType === "rent-shop")     { if (!matchesCommercialSubtype(p, "shop"))     return false; }
+      else {
+        // Non-commercial type matching
+        const typeMap: Record<string, string> = {
+          rent: "rent", sale: "sale", hotel: "hotel", hostel: "hostel",
+        };
+        const expected = typeMap[queryType] || "rent";
+        if (pType !== expected) return false;
+        // For the plain "rent" tab, exclude commercial subtypes so they don't bleed into general results
+        if (queryType === "rent") {
+          const sub = (p.subtype || "").toLowerCase();
+          if (["godown", "business", "stall", "shop"].some(c => sub.includes(c))) return false;
+        }
+      }
       if (!matchesRentFilter(p, queryFilter)) return false;
       if (queryType === "sale" && !matchesSaleCategory(p, queryCategory)) return false;
       const price = p.price || 0;
