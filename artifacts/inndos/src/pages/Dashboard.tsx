@@ -1342,6 +1342,29 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- PROFILE COMPLETION REMINDER (every 3 days) ---
+  useEffect(() => {
+    if (!user) return;
+    const isComplete = !!(user.phone && user.avatar && user.idFront);
+    if (isComplete) return;
+    const REMINDER_KEY = 'inndos_profile_reminder_ts';
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const last = localStorage.getItem(REMINDER_KEY);
+    if (!last || now - Number(last) >= THREE_DAYS) {
+      const t = setTimeout(() => {
+        toast({
+          title: "Complete your profile",
+          description: "Your profile has missing details. Go to My Profile to add your phone number, photo, and ID documents — this builds trust with property owners.",
+          duration: 12000,
+        });
+        localStorage.setItem(REMINDER_KEY, String(now));
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1689,29 +1712,6 @@ export default function Dashboard() {
       setBookingActionLoading(prev => ({ ...prev, [bookingId]: false }));
     }
   };
-
-  // --- PROFILE COMPLETION REMINDER (every 3 days) ---
-  useEffect(() => {
-    if (!user) return;
-    const isComplete = !!(user.phone && user.avatar && user.idFront);
-    if (isComplete) return;
-    const REMINDER_KEY = 'inndos_profile_reminder_ts';
-    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const last = localStorage.getItem(REMINDER_KEY);
-    if (!last || now - Number(last) >= THREE_DAYS) {
-      const t = setTimeout(() => {
-        toast({
-          title: "Complete your profile",
-          description: "Your profile has missing details. Go to My Profile to add your phone number, photo, and ID documents — this builds trust with property owners.",
-          duration: 12000,
-        });
-        localStorage.setItem(REMINDER_KEY, String(now));
-      }, 2500);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
 
   // --- UPGRADE ROLE HANDLER ---
   const handleUpgradeRole = async () => {
