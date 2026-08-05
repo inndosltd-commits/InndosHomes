@@ -214,6 +214,7 @@ router.patch("/profile", async (req, res) => {
     name, avatar, idDocument, idFront, idBack,
     isRegisteredFirm, firmType, firmCertRegistration, firmCertIncorporation, firmCr12, firmDirectorIds,
     businessCertRegistration, businessPermit, role,
+    phone, phoneVerified, phoneToken,
   } = req.body as {
     name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string;
     isRegisteredFirm?: boolean; firmType?: string;
@@ -221,10 +222,29 @@ router.patch("/profile", async (req, res) => {
     firmDirectorIds?: string[];
     businessCertRegistration?: string; businessPermit?: string;
     role?: string;
+    phone?: string; phoneVerified?: boolean; phoneToken?: string;
   };
   const updates: Record<string, unknown> = {};
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
   if (typeof avatar === "string") updates.avatar = avatar;
+  // Phone update via verified phoneToken
+  if (typeof phoneToken === "string" && phoneToken) {
+    try {
+      const JWT_SECRET = process.env.JWT_SECRET ?? "fallback-secret";
+      const decoded = (await import("jsonwebtoken")).default.verify(phoneToken, JWT_SECRET) as { phone?: string; purpose?: string };
+      if (decoded.purpose === "phone_verification" && decoded.phone) {
+        updates.phone = decoded.phone;
+        updates.phoneVerified = true;
+      }
+    } catch {
+      res.status(400).json({ error: "Phone verification token is invalid or expired" });
+      return;
+    }
+  } else if (typeof phone === "string" && phone.trim() && phoneVerified === true) {
+    // Admin-internal: direct set (kept for Google OTP path which passes both fields)
+    updates.phone = phone.trim();
+    updates.phoneVerified = true;
+  }
   if (typeof idDocument === "string") updates.idDocument = idDocument;
   if (typeof idFront === "string") updates.idFront = idFront;
   if (typeof idBack === "string") updates.idBack = idBack;

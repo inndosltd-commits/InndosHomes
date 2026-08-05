@@ -1009,7 +1009,6 @@ export default function AddListing() {
                       <SelectContent>
                         <SelectItem value="month">Per Month</SelectItem>
                         <SelectItem value="sqft">Per Sq Ft</SelectItem>
-                        <SelectItem value="semester">Per Semester</SelectItem>
                         <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>

@@ -80,6 +80,74 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
   const [profileName, setProfileName] = useState(user.name);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // Phone OTP state
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneOtpCode, setPhoneOtpCode] = useState("");
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [isSendingPhoneOtp, setIsSendingPhoneOtp] = useState(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+
+  const handleSendPhoneOtp = async () => {
+    if (!phoneInput.trim()) {
+      toast({ title: "Phone required", description: "Please enter your phone number.", variant: "destructive" });
+      return;
+    }
+    setIsSendingPhoneOtp(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Failed to send OTP");
+      setPhoneOtpSent(true);
+      toast({ title: "OTP sent", description: "Check your phone for the 6-digit code." });
+    } catch (err) {
+      toast({ title: "Failed to send OTP", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsSendingPhoneOtp(false);
+    }
+  };
+
+  const handleVerifyPhone = async () => {
+    if (!phoneInput.trim() || !phoneOtpCode.trim()) {
+      toast({ title: "Missing fields", description: "Enter your phone number and OTP code.", variant: "destructive" });
+      return;
+    }
+    setIsVerifyingPhone(true);
+    try {
+      // Verify OTP — get a phoneToken
+      const verRes = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneInput.trim(), code: phoneOtpCode.trim() }),
+      });
+      const verData = await verRes.json();
+      if (!verRes.ok) throw new Error((verData as { error?: string }).error || "OTP verification failed");
+      const phoneToken = (verData as { phoneToken?: string }).phoneToken;
+
+      // Save phone to profile via phoneToken
+      const saveRes = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ phoneToken }),
+      });
+      if (!saveRes.ok) {
+        const saveErr = await saveRes.json().catch(() => ({}));
+        throw new Error((saveErr as { error?: string }).error || "Failed to save phone");
+      }
+      await refreshUser();
+      setPhoneInput("");
+      setPhoneOtpCode("");
+      setPhoneOtpSent(false);
+      toast({ title: "Phone verified ✓", description: "Your phone number has been saved." });
+    } catch (err) {
+      toast({ title: "Verification failed", description: err instanceof Error ? err.message : "Try again.", variant: "destructive" });
+    } finally {
+      setIsVerifyingPhone(false);
+    }
+  };
   const [isUploadingIdFront, setIsUploadingIdFront] = useState(false);
   const [isUploadingIdBack, setIsUploadingIdBack] = useState(false);
   const [isVerifyingIdFront, setIsVerifyingIdFront] = useState(false);
@@ -313,15 +381,56 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-phone">{t("dash.phone_number")}</Label>
-            <div className="relative">
-              <Input id="profile-phone" value={user.phone ?? ""} readOnly className="bg-gray-50 cursor-not-allowed pr-32" />
-              {user.phoneVerified && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                  <Check className="h-3 w-3" /> {t("dash.verified")}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{t("dash.phone_desc")}</p>
+            {user.phone ? (
+              /* Phone already set — show readOnly with verified badge */
+              <div className="relative">
+                <Input id="profile-phone" value={user.phone} readOnly className="bg-gray-50 cursor-not-allowed pr-32" />
+                {user.phoneVerified && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                    <Check className="h-3 w-3" /> {t("dash.verified")}
+                  </span>
+                )}
+              </div>
+            ) : (
+              /* Phone not set — show OTP verification flow */
+              <div className="space-y-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-800 font-medium">Add and verify your phone number</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="07XXXXXXXX or +254XXXXXXXXX"
+                    value={phoneInput}
+                    onChange={e => setPhoneInput(e.target.value)}
+                    disabled={phoneOtpSent}
+                    className="bg-white text-sm"
+                  />
+                  {!phoneOtpSent ? (
+                    <Button size="sm" variant="outline" onClick={handleSendPhoneOtp} disabled={isSendingPhoneOtp} className="shrink-0 whitespace-nowrap">
+                      {isSendingPhoneOtp ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send OTP"}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => { setPhoneOtpSent(false); setPhoneOtpCode(""); }} className="shrink-0 text-xs text-gray-500">
+                      Change
+                    </Button>
+                  )}
+                </div>
+                {phoneOtpSent && (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter 6-digit OTP"
+                      value={phoneOtpCode}
+                      onChange={e => setPhoneOtpCode(e.target.value)}
+                      maxLength={6}
+                      className="bg-white text-sm tracking-widest"
+                      onKeyDown={e => e.key === "Enter" && handleVerifyPhone()}
+                    />
+                    <Button size="sm" onClick={handleVerifyPhone} disabled={isVerifyingPhone || phoneOtpCode.length < 6} className="shrink-0 bg-green-600 hover:bg-green-700">
+                      {isVerifyingPhone ? <Loader2 className="h-3 w-3 animate-spin" /> : "Verify"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">{user.phone ? t("dash.phone_desc") : "Your phone number is used to receive booking notifications via SMS."}</p>
           </div>
         </div>
 
