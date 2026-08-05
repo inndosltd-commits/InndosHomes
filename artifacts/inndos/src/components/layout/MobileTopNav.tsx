@@ -8,7 +8,10 @@ const RENT_ITEMS = [
   { label: "By Bedrooms", href: "/search?type=rent&filter=bedrooms" },
   { label: "Penthouse", href: "/search?type=rent&filter=penthouse" },
   { label: "Own Compound", href: "/search?type=rent&filter=own-compound" },
+  { label: "Condominiums", href: "/search?type=rent&filter=condominium" },
   { label: "Business Spaces", href: "/search?type=rent-business" },
+  { label: "Godowns", href: "/search?type=rent-godown" },
+  { label: "Stalls", href: "/search?type=rent-stall" },
   { label: "Shops", href: "/search?type=rent-shop" },
 ];
 
