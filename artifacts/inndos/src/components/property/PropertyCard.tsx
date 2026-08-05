@@ -54,10 +54,24 @@ export function PropertyCard({ property }: PropertyCardProps) {
     }
   };
 
+  const PRICE_UNIT_LABELS: Record<string, string> = {
+    night: "/night",
+    month: "/mo",
+    semester: "/sem",
+    year: "/yr",
+    sqft: "/sq ft",
+    day: "/day",
+    hour: "/hr",
+  };
+
   const priceLabel = () => {
-    if (property.type === "rent") return `${convert(property.price)}/mo`;
-    if (property.type === "bnb" || property.type === "hotel" || property.type === "hostel") return `${convert(property.price)}/night`;
-    return convert(property.price);
+    const amount = convert(property.price);
+    const unit = property.priceUnit;
+    if (unit && PRICE_UNIT_LABELS[unit]) return `${amount}${PRICE_UNIT_LABELS[unit]}`;
+    // Legacy fallbacks when priceUnit was not saved
+    if (property.type === "rent") return `${amount}/mo`;
+    if (property.type === "bnb" || property.type === "hotel" || property.type === "hostel") return `${amount}/night`;
+    return amount;
   };
 
   return (
