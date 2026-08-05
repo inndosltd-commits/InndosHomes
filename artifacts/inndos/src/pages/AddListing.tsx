@@ -715,7 +715,12 @@ export default function AddListing() {
         address: address || searchQuery,
         beds: isLand ? (parseFloat(acres) || 0) : (isNaN(parsedBeds) ? 0 : parsedBeds),
         baths: isLand ? 0 : (isNaN(parsedBaths) ? 0 : parsedBaths),
-        sqft: isLand ? (parseInt(plotSizeFt, 10) || 0) : (isNaN(parsedSqft) ? 0 : parsedSqft),
+        sqft: isLand ? (() => {
+          // Support "50X100" / "20x60" dimension format → multiply to get area
+          const dimMatch = plotSizeFt.match(/^(\d+\.?\d*)X(\d+\.?\d*)$/i);
+          if (dimMatch) return Math.round(parseFloat(dimMatch[1]) * parseFloat(dimMatch[2]));
+          return parseInt(plotSizeFt, 10) || 0;
+        })() : (isNaN(parsedSqft) ? 0 : parsedSqft),
         totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
         description: finalDescription || null,
         images,
@@ -1090,7 +1095,18 @@ export default function AddListing() {
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="plotSizeFt" className="text-xs text-muted-foreground">Plot size (feet)</Label>
-                          <Input id="plotSizeFt" type="text" inputMode="decimal" placeholder="e.g. 2178" value={plotSizeFt} onChange={e => setPlotSizeFt(e.target.value)} />
+                          <Input
+                            id="plotSizeFt"
+                            type="text"
+                            inputMode="text"
+                            placeholder="e.g. 50X100 or 20X60"
+                            value={plotSizeFt}
+                            onChange={e => {
+                              // Allow digits, X/x separator, and decimal point only
+                              const val = e.target.value.replace(/[^0-9Xx.]/g, "").toUpperCase();
+                              setPlotSizeFt(val);
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
