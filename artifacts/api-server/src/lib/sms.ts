@@ -16,7 +16,7 @@ async function getSmsSettings() {
 
   return {
     apiKey:   map["sms_api_key"]   ?? "",
-    senderId: map["sms_sender_id"] ?? "INNDOS",
+    senderId: map["sms_sender_id"] ?? "inndos",
     provider: map["sms_provider"]  ?? "africastalking",
     username: map["sms_username"]  ?? "",
     password: map["sms_password"]  ?? "",

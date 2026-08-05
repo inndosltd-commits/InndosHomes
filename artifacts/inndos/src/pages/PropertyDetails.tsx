@@ -530,23 +530,43 @@ export default function PropertyDetails() {
     }
   };
 
+  const PRICE_UNIT_LABELS: Record<string, string> = {
+    night: "/night",
+    month: "/mo",
+    semester: "/semester",
+    year: "/yr",
+    sqft: "/sq ft",
+    day: "/day",
+    hour: "/hr",
+  };
+
   const priceLabel = () => {
     const amount = convert(property.price);
-    if (property.type === "rent") return <>{amount}<span className="text-lg text-gray-500 font-normal">{t("prop.mo")}</span></>;
+    const unit = property.priceUnit;
+
     if (property.type === "bnb") {
       const hasHourly = property.hourlyRate != null && property.hourlyRate > 0;
       const hasDaily = property.price > 0;
+      const dayLabel = unit ? (PRICE_UNIT_LABELS[unit] ?? "/day") : "/day";
       if (hasHourly && hasDaily) {
         return (
           <div className="flex flex-col items-end gap-1">
-            <div className="text-3xl font-bold text-primary">{amount}<span className="text-lg text-gray-500 font-normal">/day</span></div>
+            <div className="text-3xl font-bold text-primary">{amount}<span className="text-lg text-gray-500 font-normal">{dayLabel}</span></div>
             <div className="text-xl font-semibold text-gray-600">{convert(property.hourlyRate!)}<span className="text-base text-gray-400 font-normal">/hr</span></div>
           </div>
         );
       }
       if (hasHourly) return <>{convert(property.hourlyRate!)}<span className="text-lg text-gray-500 font-normal">/hr</span></>;
-      return <>{amount}<span className="text-lg text-gray-500 font-normal">/day</span></>;
+      return <>{amount}<span className="text-lg text-gray-500 font-normal">{dayLabel}</span></>;
     }
+
+    if (unit) {
+      const suffix = PRICE_UNIT_LABELS[unit] ?? "";
+      return <>{amount}<span className="text-lg text-gray-500 font-normal">{suffix}</span></>;
+    }
+
+    // Legacy fallback
+    if (property.type === "rent") return <>{amount}<span className="text-lg text-gray-500 font-normal">{t("prop.mo")}</span></>;
     if (property.type === "hotel" || property.type === "hostel") return <>{amount}<span className="text-lg text-gray-500 font-normal">/night</span></>;
     return amount;
   };

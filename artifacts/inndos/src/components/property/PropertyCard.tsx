@@ -21,6 +21,7 @@ export interface ApiProperty {
   tags: string[];
   subtype?: string | null;
   hourlyRate?: number | null;
+  priceUnit?: string | null;
   images?: string[];
   lat?: string | null;
   lng?: string | null;

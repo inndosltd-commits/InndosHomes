@@ -31,6 +31,7 @@ const PROPERTY_COLUMNS = {
   tags: properties.tags,
   subtype: properties.subtype,
   hourlyRate: properties.hourlyRate,
+  priceUnit: properties.priceUnit,
   lat: properties.lat,
   lng: properties.lng,
   createdAt: properties.createdAt,

@@ -75,6 +75,7 @@ export const properties = pgTable("properties", {
   lat: decimal("lat", { precision: 10, scale: 7 }),
   lng: decimal("lng", { precision: 10, scale: 7 }),
   totalUnits: integer("total_units").notNull().default(1),
+  priceUnit: text("price_unit"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

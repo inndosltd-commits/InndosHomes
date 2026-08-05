@@ -3,7 +3,7 @@ import { logger } from "./logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const EMAIL_FROM = "INNDOS <notifications@resend.inndos.com>";
+const EMAIL_FROM = "inndos <notifications@resend.inndos.com>";
 
 export interface NewBookingEmailParams {
   ownerEmail: string;
@@ -38,7 +38,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
           <!-- Header -->
           <tr>
             <td style="background-color:#1a1a2e;padding:28px 32px;">
-              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">INNDOS</p>
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
               <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
             </td>
           </tr>
@@ -87,7 +87,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
           <!-- Footer -->
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on INNDOS.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on inndos.</p>
             </td>
           </tr>
         </table>
@@ -135,7 +135,7 @@ export async function sendListingApprovedEmail(params: ListingApprovedEmailParam
           <!-- Header -->
           <tr>
             <td style="background-color:#1a1a2e;padding:28px 32px;">
-              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">INNDOS</p>
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
               <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
             </td>
           </tr>
@@ -154,7 +154,7 @@ export async function sendListingApprovedEmail(params: ListingApprovedEmailParam
                 </tr>
               </table>
 
-              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Your listing is now live and visible to guests on INNDOS. Head to your dashboard to manage bookings and track performance.</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Your listing is now live and visible to guests on inndos. Head to your dashboard to manage bookings and track performance.</p>
 
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
@@ -168,7 +168,7 @@ export async function sendListingApprovedEmail(params: ListingApprovedEmailParam
           <!-- Footer -->
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on INNDOS.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on inndos.</p>
             </td>
           </tr>
         </table>
@@ -197,7 +197,7 @@ export async function sendPasswordResetEmail(params: PasswordResetEmailParams): 
   const { error } = await resend.emails.send({
     from: EMAIL_FROM,
     to,
-    subject: "Reset your INNDOS password",
+    subject: "Reset your inndos password",
     html: `
 <!DOCTYPE html>
 <html lang="en">
@@ -220,7 +220,7 @@ export async function sendPasswordResetEmail(params: PasswordResetEmailParams): 
           <tr>
             <td style="padding:32px;">
               <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">Reset your password</p>
-              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${name}, we received a request to reset your INNDOS password. Click the button below to set a new one.</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${name}, we received a request to reset your inndos password. Click the button below to set a new one.</p>
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
                 <tr>
                   <td align="center">
@@ -235,7 +235,7 @@ export async function sendPasswordResetEmail(params: PasswordResetEmailParams): 
           </tr>
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an account on INNDOS.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an account on inndos.</p>
             </td>
           </tr>
         </table>
@@ -283,7 +283,7 @@ export async function sendListingRejectedEmail(params: ListingRejectedEmailParam
           <!-- Header -->
           <tr>
             <td style="background-color:#1a1a2e;padding:28px 32px;">
-              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">INNDOS</p>
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
               <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
             </td>
           </tr>
@@ -324,7 +324,7 @@ export async function sendListingRejectedEmail(params: ListingRejectedEmailParam
           <!-- Footer -->
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on INNDOS.</p>
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on inndos.</p>
             </td>
           </tr>
         </table>

@@ -268,10 +268,10 @@ export default function Login() {
       if (!res.ok) throw new Error((data as { error?: string }).error || "OTP verification failed");
       // Optionally save phone to profile (best-effort)
       if (pendingGoogleToken) {
-        fetch("/api/auth/profile", {
+        await fetch("/api/auth/profile", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${pendingGoogleToken}` },
-          body: JSON.stringify({ phone: gPhone.trim() }),
+          body: JSON.stringify({ phone: gPhone.trim(), phoneVerified: true }),
         }).catch(() => {});
         await login(pendingGoogleEmail, "", pendingGoogleToken);
       }
@@ -429,7 +429,7 @@ export default function Login() {
                 ? "Enter your new password below."
                 : isForgotPassword
                   ? "Enter your email and we'll send reset instructions."
-                  : (isSignUp ? "Sign up to join the INNDOS community" : "Sign in to access your INNDOS dashboard")}
+                  : (isSignUp ? "Sign up to join the inndos community" : "Sign in to access your inndos dashboard")}
             </CardDescription>
           </CardHeader>
 
@@ -764,7 +764,7 @@ export default function Login() {
               <Phone className="h-5 w-5 text-primary" /> Verify Your Phone Number
             </DialogTitle>
             <DialogDescription>
-              Your account was created with Google. Please verify your phone number to complete sign-up — just like other INNDOS users.
+              Your account was created with Google. Please verify your phone number to complete sign-up — just like other inndos users.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

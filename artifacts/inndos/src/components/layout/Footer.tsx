@@ -71,7 +71,7 @@ export function Footer() {
         </div>
       </div>
       <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-gray-400">
-        © 2025 INNDOS. All rights reserved.
+        © 2025 inndos. All rights reserved.
       </div>
     </footer>
   );

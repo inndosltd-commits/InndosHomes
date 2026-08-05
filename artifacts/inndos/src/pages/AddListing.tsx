@@ -13,7 +13,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
 import { useUpload } from "@workspace/object-storage-web";
-import { GoogleMap, StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
@@ -361,15 +361,13 @@ export default function AddListing() {
   const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
 
   const mapRef = useRef<google.maps.Map | null>(null);
-  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handlePlacesChanged = useCallback(() => {
-    const places = searchBoxRef.current?.getPlaces();
-    if (!places || places.length === 0) return;
-    const place = places[0];
-    const loc = place.geometry?.location;
-    if (!loc) return;
+  const handlePlaceChanged = useCallback(() => {
+    const place = autocompleteRef.current?.getPlace();
+    if (!place || !place.geometry?.location) return;
+    const loc = place.geometry.location;
     const pos = { lat: loc.lat(), lng: loc.lng() };
     setDraftPin(pos);
     setMapCenter(pos);
@@ -451,6 +449,7 @@ export default function AddListing() {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [subtype, setSubtype] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
+  const [priceUnit, setPriceUnit] = useState("");
   const [totalUnits, setTotalUnits] = useState("1");
 
   // Land-specific fields
@@ -514,6 +513,7 @@ export default function AddListing() {
         if (prop.tags) setSelectedAmenities(prop.tags);
         if (prop.subtype) setSubtype(prop.subtype);
         if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
+        if ((prop as any).priceUnit) setPriceUnit((prop as any).priceUnit);
       })
       .catch(() => {
         toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
@@ -723,6 +723,7 @@ export default function AddListing() {
         tags: selectedAmenities,
         subtype: subtype || undefined,
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
+        priceUnit: priceUnit || undefined,
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
         lng: pinPosition?.lng != null ? String(pinPosition.lng) : undefined,
       };
@@ -813,7 +814,7 @@ export default function AddListing() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="rent">For Rent</SelectItem>
-                          <SelectItem value="rent-business">For Rent - Business Space</SelectItem>
+                          <SelectItem value="rent-business">For Rent - Office Space</SelectItem>
                           <SelectItem value="rent-godown">For Rent - Godown</SelectItem>
                           <SelectItem value="rent-stall">For Rent - Stall</SelectItem>
                           <SelectItem value="rent-shop">For Rent - Shop</SelectItem>
@@ -966,18 +967,53 @@ export default function AddListing() {
 
                   {listingType === 'hostel' && (
                   <div className="space-y-2">
-                    <Label htmlFor="payment_term">Payment Term</Label>
-                    <Select>
+                    <Label htmlFor="hostel_price_unit">Price Per</Label>
+                    <Select value={priceUnit} onValueChange={setPriceUnit}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select payment term" />
+                        <SelectValue placeholder="Select payment period" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="monthly">Per Month</SelectItem>
-                        <SelectItem value="quarterly">For 3 Months (Quarterly)</SelectItem>
-                        <SelectItem value="yearly">Per Year</SelectItem>
+                        <SelectItem value="night">Per Night</SelectItem>
+                        <SelectItem value="month">Per Month</SelectItem>
+                        <SelectItem value="semester">Per Semester / Term</SelectItem>
+                        <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Select the required payment term so students know when they book.</p>
+                    <p className="text-xs text-muted-foreground">Select the payment period so students know when they book.</p>
+                  </div>
+                  )}
+
+                  {listingType === 'hotel' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="hotel_price_unit">Price Per</Label>
+                    <Select value={priceUnit} onValueChange={setPriceUnit}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pricing period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="night">Per Night</SelectItem>
+                        <SelectItem value="month">Per Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Default is per night. Choose per month for long-stay guests.</p>
+                  </div>
+                  )}
+
+                  {isCommercialVariant(listingType) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="commercial_price_unit">Price Per</Label>
+                    <Select value={priceUnit} onValueChange={setPriceUnit}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select pricing unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="month">Per Month</SelectItem>
+                        <SelectItem value="sqft">Per Sq Ft</SelectItem>
+                        <SelectItem value="semester">Per Semester</SelectItem>
+                        <SelectItem value="year">Per Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Select the pricing unit for this commercial space.</p>
                   </div>
                   )}
 
@@ -1464,9 +1500,10 @@ export default function AddListing() {
           <div className="relative h-[400px] w-full overflow-hidden">
             {mapsLoaded ? (
               <>
-                <StandaloneSearchBox
-                  onLoad={(ref) => { searchBoxRef.current = ref; }}
-                  onPlacesChanged={handlePlacesChanged}
+                <Autocomplete
+                  onLoad={(ref) => { autocompleteRef.current = ref; }}
+                  onPlaceChanged={handlePlaceChanged}
+                  options={{ componentRestrictions: { country: "ke" } }}
                 >
                   <div className="absolute top-3 left-3 right-3 z-10">
                     <div className="relative">
@@ -1480,7 +1517,7 @@ export default function AddListing() {
                       <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
                     </div>
                   </div>
-                </StandaloneSearchBox>
+                </Autocomplete>
                 <GoogleMap
                   mapContainerClassName="w-full h-full"
                   center={mapCenter}
