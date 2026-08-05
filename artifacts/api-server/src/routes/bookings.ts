@@ -127,7 +127,7 @@ router.post("/", async (req, res) => {
     });
     const [ownerUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, prop.ownerId));
     if (ownerUser?.phone) {
-      sendSms(ownerUser.phone, `INNDOS: ${ownerMsg}`).catch((e: unknown) =>
+      sendSms(ownerUser.phone, ownerMsg).catch((e: unknown) =>
         req.log.error({ e }, "Owner booking SMS failed")
       );
     }
@@ -240,7 +240,7 @@ router.patch("/:id/status", async (req, res) => {
     });
     const [guestUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, booking.guestId));
     if (guestUser?.phone) {
-      sendSms(guestUser.phone, `INNDOS: ${notificationMessage}`).catch((e: unknown) =>
+      sendSms(guestUser.phone, notificationMessage).catch((e: unknown) =>
         req.log.error({ e }, "Guest booking SMS failed")
       );
     }

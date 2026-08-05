@@ -987,57 +987,58 @@ export default function PropertyDetails() {
                           🔗 {t("prop.book_now")}
                         </Button>
                       ) : (
-                        <>
-                          {/* Linked-up confirmation badge */}
-                          <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-center flex items-center justify-center gap-2 font-medium">
-                            <CheckCircle className="h-5 w-5 shrink-0" />
-                            {t("prop.booking_confirmed")}
+                        /* After linking up — show contact options only, no "booked" status */
+                        <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                          <div className="bg-zinc-900 px-4 py-3">
+                            <p className="text-sm font-bold text-white">Contact to confirm availability</p>
+                            <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+                              Reach the owner/host directly to confirm the property is available for your dates.
+                            </p>
                           </div>
-
-                          {/* Contact to confirm availability */}
-                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-                            <div>
-                              <p className="text-sm font-bold text-amber-900">Contact to confirm availability</p>
-                              <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                                Reach the owner/host directly to confirm the property is available for your dates.
-                              </p>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              {property.ownerPhone && (
-                                <a
-                                  href={`tel:${property.ownerPhone}`}
-                                  className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50 hover:border-primary/40 transition-colors"
-                                >
-                                  <PhoneCall className="h-4 w-4 text-primary shrink-0" />
-                                  <span>Call {property.ownerPhone}</span>
-                                </a>
-                              )}
-                              {property.ownerPhone && (
-                                <a
-                                  href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I'm interested in your property "${property.title}" listed on INNDOS. Is it available?`)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-3 px-4 py-2.5 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
-                                >
-                                  <MessageCircle className="h-4 w-4 shrink-0" />
-                                  <span>WhatsApp</span>
-                                </a>
-                              )}
-                              {property.ownerEmail && (
-                                <a
-                                  href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on INNDOS and would like to confirm availability.\n\nPlease get back to me.\n\nThank you.`)}`}
-                                  className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50 hover:border-primary/40 transition-colors"
-                                >
-                                  <Mail className="h-4 w-4 text-primary shrink-0" />
-                                  <span>Email {property.ownerEmail}</span>
-                                </a>
-                              )}
-                              {!property.ownerPhone && !property.ownerEmail && (
-                                <p className="text-xs text-amber-700 italic">No direct contact listed — try messaging below.</p>
-                              )}
-                            </div>
+                          <div className="flex flex-col gap-2 p-3 bg-white">
+                            {property.ownerPhone && (
+                              <a
+                                href={`tel:${property.ownerPhone}`}
+                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                              >
+                                <PhoneCall className="h-4 w-4 text-primary shrink-0" />
+                                <div>
+                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Call</div>
+                                  <div>{property.ownerPhone}</div>
+                                </div>
+                              </a>
+                            )}
+                            {property.ownerPhone && (
+                              <a
+                                href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I found your property "${property.title}" on inndos and would like to confirm availability. Is it still available?`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 px-4 py-3 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
+                              >
+                                <MessageCircle className="h-4 w-4 shrink-0" />
+                                <div>
+                                  <div className="text-xs text-white/70 leading-none mb-0.5">WhatsApp</div>
+                                  <div>{property.ownerPhone}</div>
+                                </div>
+                              </a>
+                            )}
+                            {property.ownerEmail && (
+                              <a
+                                href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Availability Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on inndos and would like to confirm availability.\n\nPlease get back to me.\n\nThank you.`)}`}
+                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                              >
+                                <Mail className="h-4 w-4 text-primary shrink-0" />
+                                <div>
+                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Email</div>
+                                  <div>{property.ownerEmail}</div>
+                                </div>
+                              </a>
+                            )}
+                            {!property.ownerPhone && !property.ownerEmail && (
+                              <p className="text-xs text-gray-500 italic px-2">No direct contact listed — try messaging below.</p>
+                            )}
                           </div>
-                        </>
+                        </div>
                       )}
 
                     </div>
