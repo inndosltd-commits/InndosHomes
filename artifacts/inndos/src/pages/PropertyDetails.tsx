@@ -314,6 +314,7 @@ function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
 
 interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
+  ownerAvatar?: string | null;
 }
 
 export default function PropertyDetails() {
@@ -960,8 +961,17 @@ export default function PropertyDetails() {
                     <div className={`transition-all duration-500 ${!isLinkedUp ? "blur-[4px] opacity-60 select-none pointer-events-none" : ""}`}>
                       <div className="flex items-center gap-4 mb-5">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${property.ownerName || "owner"}`} />
-                          <AvatarFallback>{(property.ownerName || "O").charAt(0)}</AvatarFallback>
+                          {(property as PropertyWithOwner).ownerAvatar ? (
+                            <AvatarImage
+                              src={(property as PropertyWithOwner).ownerAvatar!.startsWith("/objects/")
+                                ? `/api/storage${(property as PropertyWithOwner).ownerAvatar}`
+                                : (property as PropertyWithOwner).ownerAvatar!}
+                              alt={property.ownerName || "Owner"}
+                            />
+                          ) : null}
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {(property.ownerName || "O").charAt(0).toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                         <div>
                           <h3 className="font-bold">{property.ownerName || "Property Owner"}</h3>
