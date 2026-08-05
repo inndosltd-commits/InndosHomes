@@ -328,6 +328,7 @@ export default function PropertyDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [isLinkedUp, setIsLinkedUp] = useState(false);
+  const [isLinkingUp, setIsLinkingUp] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isCopyingPin, setIsCopyingPin] = useState(false);
@@ -389,6 +390,20 @@ export default function PropertyDetails() {
       setHasRated(true);
     }
   }, [property?.id]);
+
+  // Persist isLinkedUp across navigation — check if user already has a booking for this property
+  useEffect(() => {
+    if (!user || !token || !property?.id) return;
+    fetch("/api/bookings", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: { propertyId: string; status: string }[]) => {
+        const has = list.some(
+          (b) => b.propertyId === property.id && b.status !== "cancelled"
+        );
+        if (has) setIsLinkedUp(true);
+      })
+      .catch(() => {});
+  }, [user?.id, token, property?.id]);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -453,16 +468,63 @@ export default function PropertyDetails() {
     return digits;
   };
 
-  const handleLinkUp = () => {
+  const handleLinkUp = async () => {
     if (!user || !token) {
       navigate("/login");
       return;
     }
-    setIsLinkedUp(true);
-    toast({
-      title: "Linked Up!",
-      description: `Contact ${property?.ownerName || "the owner"} to confirm availability.`,
-    });
+    if (!property) return;
+    setIsLinkingUp(true);
+
+    // Dates: nightly types use the date picker; others use today → +30 days as an enquiry window
+    const startDate = isNightlyType ? checkIn : todayStr;
+    const endDateRaw = isNightlyType
+      ? checkOut
+      : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const nights = isNightlyType
+      ? Math.max(1, (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
+      : 1;
+    const totalPrice = Math.round(property.price * nights);
+
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          propertyId: property.id,
+          startDate,
+          endDate: endDateRaw,
+          totalPrice,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({
+          title: "Could not link up",
+          description: (err as { error?: string }).error || "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsLinkedUp(true);
+      toast({
+        title: "Linked Up! 🔗",
+        description: `Contact ${property.ownerName || "the owner"} to confirm availability.`,
+      });
+    } catch {
+      toast({
+        title: "Network error",
+        description: "Could not reach the server. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLinkingUp(false);
+    }
   };
 
   const openLightbox = useCallback((index: number) => {
@@ -983,8 +1045,16 @@ export default function PropertyDetails() {
 
                       {/* Primary CTA */}
                       {!isLinkedUp ? (
-                        <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold tracking-wide" onClick={handleLinkUp}>
-                          🔗 {t("prop.book_now")}
+                        <Button
+                          className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold tracking-wide gap-2"
+                          onClick={handleLinkUp}
+                          disabled={isLinkingUp}
+                        >
+                          {isLinkingUp ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <>🔗 {t("prop.book_now")}</>
+                          )}
                         </Button>
                       ) : (
                         /* After linking up — show contact options only, no "booked" status */
