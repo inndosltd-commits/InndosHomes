@@ -307,21 +307,23 @@ function getAmenityLists(type: string, subtype?: string) {
   if (type === "rent-stall" || type === "rent-shop") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
   if (type === "hotel") return { unit: UNIT_AMENITIES, premise: HOTEL_PREMISE_AMENITIES };
   if (type === "rent") return { unit: APARTMENT_UNIT_AMENITIES, premise: APARTMENT_PREMISE_AMENITIES };
-  if (type === "sale" && subtype === "home") return { unit: HOME_UNIT_AMENITIES, premise: HOME_PREMISE_AMENITIES };
+  if (type === "sale-home" || (type === "sale" && subtype === "home")) return { unit: HOME_UNIT_AMENITIES, premise: HOME_PREMISE_AMENITIES };
+  if (type === "sale-apartment") return { unit: APARTMENT_UNIT_AMENITIES, premise: APARTMENT_PREMISE_AMENITIES };
   return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
 }
 
 type ApiPropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
 
 function toApiType(raw: string): ApiPropertyType {
-  if (raw === "sale" || raw === "land") return "sale";
+  if (raw === "sale" || raw === "land" || raw === "sale-land" || raw === "sale-apartment" || raw === "sale-home") return "sale";
   if (raw === "bnb") return "bnb";
   if (raw === "hotel") return "hotel";
   if (raw === "hostel") return "hostel";
   return "rent";
 }
 
-const isLandType = (t: string) => t === "land";
+const isLandType = (t: string) => t === "land" || t === "sale-land";
+const isSaleVariant = (t: string) => ["sale-land", "sale-apartment", "sale-home"].includes(t);
 const isCommercialVariant = (t: string) =>
   ["rent-godown", "rent-business", "rent-stall", "rent-shop"].includes(t);
 const hideBedsBaths = (t: string) => isLandType(t) || isCommercialVariant(t);
@@ -496,7 +498,14 @@ export default function AddListing() {
       })
       .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; totalUnits?: number; image?: string; images?: string[]; videos?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
         setTitle(prop.title ?? "");
-        setListingType(prop.type ?? "");
+        // Reconstruct frontend listing type from API type + subtype for sale properties
+        let frontendType = prop.type ?? "";
+        if (frontendType === "sale" && prop.subtype) {
+          if (prop.subtype === "apartment") frontendType = "sale-apartment";
+          else if (prop.subtype === "home") frontendType = "sale-home";
+          else if (prop.subtype === "land") frontendType = "sale-land";
+        }
+        setListingType(frontendType);
         setPrice(prop.price != null ? String(prop.price) : "");
         setAddress(prop.address ?? "");
         setBeds(prop.beds != null ? String(prop.beds) : "");
@@ -726,10 +735,12 @@ export default function AddListing() {
         images,
         videos,
         tags: selectedAmenities,
-        // For commercial listing types, always persist the category as subtype so Search can filter correctly
+        // Persist the category as subtype so Search can filter correctly
         subtype: isCommercialVariant(listingType)
           ? listingType.replace("rent-", "")   // "rent-godown" → "godown", "rent-business" → "business", etc.
-          : (subtype || undefined),
+          : isSaleVariant(listingType)
+            ? listingType.replace("sale-", "") // "sale-apartment" → "apartment", "sale-home" → "home", "sale-land" → "land"
+            : (subtype || undefined),
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
         priceUnit: priceUnit || undefined,
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
@@ -826,8 +837,9 @@ export default function AddListing() {
                           <SelectItem value="rent-godown">For Rent - Godown</SelectItem>
                           <SelectItem value="rent-stall">For Rent - Stall</SelectItem>
                           <SelectItem value="rent-shop">For Rent - Shop</SelectItem>
-                          <SelectItem value="sale">For Sale</SelectItem>
-                          <SelectItem value="land">Land</SelectItem>
+                          <SelectItem value="sale-apartment">For Sale - Apartment</SelectItem>
+                          <SelectItem value="sale-home">For Sale - House / Home</SelectItem>
+                          <SelectItem value="sale-land">For Sale - Land</SelectItem>
                           <SelectItem value="bnb">B&B / Short Stay</SelectItem>
                           <SelectItem value="hotel">Hotel</SelectItem>
                           <SelectItem value="hostel">Hostel (Student Rentals)</SelectItem>
@@ -866,19 +878,21 @@ export default function AddListing() {
                   </div>
                   )}
 
-                  {listingType === 'sale' && (
+                  {/* Price Per — standard rent */}
+                  {listingType === 'rent' && (
                   <div className="space-y-2">
-                    <Label htmlFor="subtype">Property Category</Label>
-                    <Select value={subtype} onValueChange={setSubtype}>
+                    <Label htmlFor="rent_price_unit">Price Per</Label>
+                    <Select value={priceUnit} onValueChange={setPriceUnit}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select category (optional)" />
+                        <SelectValue placeholder="Select payment period" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="apartment">Apartment</SelectItem>
-                        <SelectItem value="home">Home / House</SelectItem>
+                        <SelectItem value="month">Per Month</SelectItem>
+                        <SelectItem value="week">Per Week</SelectItem>
+                        <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Helps buyers filter by property category.</p>
+                    <p className="text-xs text-muted-foreground">Select how often the rent is charged.</p>
                   </div>
                   )}
 

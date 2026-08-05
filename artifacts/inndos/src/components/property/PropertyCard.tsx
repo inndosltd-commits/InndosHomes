@@ -57,6 +57,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const PRICE_UNIT_LABELS: Record<string, string> = {
     night: "/night",
     month: "/mo",
+    week: "/wk",
     semester: "/sem",
     year: "/yr",
     sqft: "/sq ft",
