@@ -51,7 +51,7 @@ export function MobileBottomNav() {
           className={`flex flex-col items-center gap-0.5 py-3 px-5 transition-colors ${isBookings ? "text-black" : "text-gray-400"}`}
         >
           <CalendarCheck className="h-5 w-5" strokeWidth={isBookings ? 2.5 : 1.5} />
-          <span className="text-[10px] font-medium">Bookings</span>
+          <span className="text-[10px] font-medium">Link Ups</span>
         </button>
 
         <button

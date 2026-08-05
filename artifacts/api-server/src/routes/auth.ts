@@ -213,13 +213,14 @@ router.patch("/profile", async (req, res) => {
   const {
     name, avatar, idDocument, idFront, idBack,
     isRegisteredFirm, firmType, firmCertRegistration, firmCertIncorporation, firmCr12, firmDirectorIds,
-    businessCertRegistration, businessPermit,
+    businessCertRegistration, businessPermit, role,
   } = req.body as {
     name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string;
     isRegisteredFirm?: boolean; firmType?: string;
     firmCertRegistration?: string; firmCertIncorporation?: string; firmCr12?: string;
     firmDirectorIds?: string[];
     businessCertRegistration?: string; businessPermit?: string;
+    role?: string;
   };
   const updates: Record<string, unknown> = {};
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
@@ -235,6 +236,13 @@ router.patch("/profile", async (req, res) => {
   if (Array.isArray(firmDirectorIds)) updates.firmDirectorIds = firmDirectorIds;
   if (typeof businessCertRegistration === "string") updates.businessCertRegistration = businessCertRegistration;
   if (typeof businessPermit === "string") updates.businessPermit = businessPermit;
+  // Allow tenant/guest to upgrade to owner or host — fetch current role first to validate
+  if (role === "owner" || role === "host") {
+    const [cur] = await db.select({ role: users.role }).from(users).where(eq(users.id, payload.userId));
+    if (cur && (cur.role === "tenant" || cur.role === "guest")) {
+      updates.role = role;
+    }
+  }
 
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
 

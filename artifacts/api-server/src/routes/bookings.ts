@@ -117,7 +117,7 @@ router.post("/", async (req, res) => {
   const guestName = guest?.name ?? "A guest";
 
   try {
-    const ownerMsg = `${guestName} booked "${prop.title}" from ${startDate} to ${endDate}.`;
+    const ownerMsg = `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`;
     await db.insert(notifications).values({
       userId: prop.ownerId,
       type: "new_booking",
@@ -228,7 +228,7 @@ router.patch("/:id/status", async (req, res) => {
     .returning();
 
   const statusLabel = status === "confirmed" ? "confirmed" : "declined";
-  const notificationMessage = `Your booking for "${booking.propertyTitle}" has been ${statusLabel}.`;
+  const notificationMessage = `Your link-up for "${booking.propertyTitle}" has been ${statusLabel}.`;
 
   try {
     await db.insert(notifications).values({

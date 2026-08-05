@@ -152,9 +152,10 @@ export default function Search() {
     return () => window.removeEventListener("hashchange", handler);
   }, []);
 
-  const queryType        = getHashQueryParam("type")   || "rent";
-  const queryFilter      = getHashQueryParam("filter") || null;
-  const querySearchParam = getHashQueryParam("search") || "";
+  const queryType        = getHashQueryParam("type")     || "rent";
+  const queryFilter      = getHashQueryParam("filter")   || null;
+  const queryCategory    = getHashQueryParam("category") || null;
+  const querySearchParam = getHashQueryParam("search")   || "";
   const { t } = useLanguage();
 
   const isRentPage = queryType.startsWith("rent");
@@ -226,13 +227,24 @@ export default function Search() {
 
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
     if (!filter) return true;
-    const sub = (p.subCategory || "").toLowerCase();
-    const beds = p.bedrooms || 0;
-    if (filter === "studio")       return sub.includes("studio") || sub.includes("bedsitter") || beds <= 1;
+    const sub   = (p.subCategory || "").toLowerCase();
+    const title = (p.title || "").toLowerCase();
+    const beds  = p.bedrooms || 0;
+    if (filter === "studio")       return sub.includes("studio") || sub.includes("bedsitter") || title.includes("studio") || title.includes("bedsitter") || beds <= 1;
     if (filter === "bedrooms")     return beds >= 1;
-    if (filter === "penthouse")    return sub.includes("penthouse");
-    if (filter === "own-compound") return sub.includes("compound") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette");
-    if (filter === "condominium")  return sub.includes("condo") || sub.includes("apartment") || sub.includes("flat");
+    if (filter === "penthouse")    return sub.includes("penthouse") || title.includes("penthouse");
+    if (filter === "own-compound") return sub.includes("compound") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette") || title.includes("compound") || title.includes("bungalow") || title.includes("villa") || title.includes("maisonette");
+    if (filter === "condominium")  return sub.includes("condo") || sub.includes("apartment") || sub.includes("flat") || title.includes("condo") || title.includes("apartment") || title.includes("flat");
+    return true;
+  };
+
+  const matchesSaleCategory = (p: ApiProperty, category: string | null): boolean => {
+    if (!category) return true;
+    const sub   = (p.subCategory || "").toLowerCase();
+    const title = (p.title || "").toLowerCase();
+    if (category === "apartments") return sub.includes("apartment") || sub.includes("flat") || sub.includes("condo") || title.includes("apartment") || title.includes("flat") || title.includes("condo");
+    if (category === "homes")      return sub.includes("home") || sub.includes("house") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette") || sub.includes("townhouse") || title.includes("home") || title.includes("house") || title.includes("bungalow") || title.includes("villa") || title.includes("maisonette") || title.includes("townhouse");
+    if (category === "lands")      return sub.includes("land") || sub.includes("plot") || sub.includes("acre") || title.includes("land") || title.includes("plot") || title.includes("acre");
     return true;
   };
 
@@ -251,6 +263,7 @@ export default function Search() {
       const allowed = typeMap[queryType] || ["rent"];
       if (!allowed.includes((p.type || "").toLowerCase())) return false;
       if (!matchesRentFilter(p, queryFilter)) return false;
+      if (queryType === "sale" && !matchesSaleCategory(p, queryCategory)) return false;
       const price = p.price || 0;
       if (isPriceFiltered && (price < priceRange[0] || price > priceRange[1])) return false;
       if (selectedBedrooms !== null) {
@@ -285,7 +298,7 @@ export default function Search() {
     if (sortBy === "price-desc") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
     if (sortBy === "newest")     list = [...list].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     return list;
-  }, [properties, queryType, queryFilter, priceRange, selectedBedrooms, selectedAmenities, sortBy, searchQuery, isGeofencingActive, userLocation, isPriceFiltered]);
+  }, [properties, queryType, queryFilter, queryCategory, priceRange, selectedBedrooms, selectedAmenities, sortBy, searchQuery, isGeofencingActive, userLocation, isPriceFiltered]);
 
   const activeCatIndex = RENT_CATEGORIES.findIndex(
     (c) => c.type === queryType && c.filter === queryFilter

@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, type User } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -286,7 +286,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           <div className="flex items-center gap-4">
             <div className="h-24 w-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden shrink-0">
               {avatarSrc
-                ? <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
+                ? <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" key={avatarSrc} />
                 : <UserCircle className="h-12 w-12 text-gray-400" />}
             </div>
             <div className="flex flex-col gap-1">
@@ -683,6 +683,10 @@ export default function Dashboard() {
   const [createUserForm, setCreateUserForm] = useState({ name: "", email: "", password: "", role: "tenant" });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
+  // Upgrade account dialog (tenant → owner/host)
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [upgradeTargetRole, setUpgradeTargetRole] = useState<'owner' | 'host' | null>(null);
+  const [isUpgradingRole, setIsUpgradingRole] = useState(false);
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
@@ -1546,8 +1550,113 @@ export default function Dashboard() {
     }
   };
 
+  // --- PROFILE COMPLETION REMINDER (every 3 days) ---
+  useEffect(() => {
+    if (!user) return;
+    const isComplete = !!(user.phone && user.avatar && user.idFront);
+    if (isComplete) return;
+    const REMINDER_KEY = 'inndos_profile_reminder_ts';
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const last = localStorage.getItem(REMINDER_KEY);
+    if (!last || now - Number(last) >= THREE_DAYS) {
+      const t = setTimeout(() => {
+        toast({
+          title: "Complete your profile",
+          description: "Your profile has missing details. Go to My Profile to add your phone number, photo, and ID documents — this builds trust with property owners.",
+          duration: 12000,
+        });
+        localStorage.setItem(REMINDER_KEY, String(now));
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // --- UPGRADE ROLE HANDLER ---
+  const handleUpgradeRole = async () => {
+    if (!upgradeTargetRole || !token) return;
+    setIsUpgradingRole(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: upgradeTargetRole }),
+      });
+      if (!res.ok) throw new Error("Failed to upgrade account");
+      await refreshUser();
+      setShowUpgradeDialog(false);
+      toast({ title: "Account upgraded!", description: `You are now a ${upgradeTargetRole === 'owner' ? 'Property Owner' : 'Host / Agency'}. You can now list your property.` });
+      window.location.hash = "/add-listing";
+    } catch {
+      toast({ title: "Upgrade failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setIsUpgradingRole(false);
+    }
+  };
+
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
+      {/* Upgrade Account Dialog — placed at Tabs root level so it's never unmounted */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Switch Account to List a Property</DialogTitle>
+            <DialogDescription>
+              Tenant accounts can't list properties. Choose the account type that fits you best — you can always manage everything from your dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            {/* Owner option */}
+            <button
+              onClick={() => setUpgradeTargetRole('owner')}
+              className={`text-left rounded-xl border-2 p-4 transition-all ${upgradeTargetRole === 'owner' ? 'border-zinc-900 bg-zinc-50' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Home className="h-5 w-5 text-zinc-800" />
+                <span className="font-semibold text-sm">Property Owner</span>
+              </div>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>✓ List your own properties for rent or sale</li>
+                <li>✓ Receive link-up requests from tenants</li>
+                <li>✓ Manage bookings from your dashboard</li>
+                <li>✓ Get SMS & email alerts on new link-ups</li>
+              </ul>
+            </button>
+            {/* Host / Agency option */}
+            <button
+              onClick={() => setUpgradeTargetRole('host')}
+              className={`text-left rounded-xl border-2 p-4 transition-all ${upgradeTargetRole === 'host' ? 'border-zinc-900 bg-zinc-50' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-5 w-5 text-zinc-800" />
+                <span className="font-semibold text-sm">Host / Agency</span>
+              </div>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>✓ List multiple properties on behalf of others</li>
+                <li>✓ Register as a firm (business / company)</li>
+                <li>✓ Access agency-level subscription plans</li>
+                <li>✓ Manage all client listings in one dashboard</li>
+              </ul>
+            </button>
+          </div>
+          {upgradeTargetRole && (
+            <p className="text-xs text-muted-foreground mt-1">
+              You're switching to: <strong>{upgradeTargetRole === 'owner' ? 'Property Owner' : 'Host / Agency'}</strong>. This change takes effect immediately.
+            </p>
+          )}
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)} disabled={isUpgradingRole}>Cancel</Button>
+            <Button
+              className="bg-zinc-900 hover:bg-zinc-800 text-white"
+              disabled={!upgradeTargetRole || isUpgradingRole}
+              onClick={handleUpgradeRole}
+            >
+              {isUpgradingRole ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Switching…</> : "Switch & List Property"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { window.location.hash = "/"; }}>
@@ -1735,8 +1844,12 @@ export default function Dashboard() {
 
         <div className="p-4 mt-auto mb-4 mx-4 border-t border-white/10 pt-6">
             <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold shrink-0">
-                {user.name.charAt(0).toUpperCase()}
+            <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
+                {user.avatar?.startsWith("/objects/")
+                  ? <img src={`/api/storage${user.avatar}`} alt={user.name} className="h-full w-full object-cover" key={user.avatar} />
+                  : user.avatar
+                    ? <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" key={user.avatar} />
+                    : user.name.charAt(0).toUpperCase()}
             </div>
             <div className="text-white min-w-0">
                 <div className="font-medium text-sm leading-tight truncate">{user.name}</div>
@@ -1778,6 +1891,15 @@ export default function Dashboard() {
                       {t("dash.list_property")}
                     </Button>
                   </Link>
+                )}
+                {(user?.role === 'tenant' || user?.role === 'guest') && (
+                  <Button
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-5 h-10"
+                    onClick={() => { setUpgradeTargetRole(null); setShowUpgradeDialog(true); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t("dash.list_property")}
+                  </Button>
                 )}
               </div>
             )}
@@ -2211,7 +2333,7 @@ export default function Dashboard() {
               <TabsContent value="reservations" className="space-y-6">
                 <div className="flex justify-between items-center mb-2">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Incoming Bookings</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Incoming Link-Ups</h2>
                     <p className="text-sm text-gray-500">Reservations made by guests on your properties</p>
                   </div>
                   <Badge variant="secondary" className="text-sm px-3 py-1">
@@ -2227,8 +2349,8 @@ export default function Dashboard() {
                     ) : receivedBookings.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                         <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                        <h3 className="text-lg font-medium text-gray-900">No bookings received yet</h3>
-                        <p className="mb-4">Reservations from guests will appear here once they book your properties.</p>
+                        <h3 className="text-lg font-medium text-gray-900">No link-ups received yet</h3>
+                        <p className="mb-4">Reservations from guests will appear here once they link up to your properties.</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -2299,7 +2421,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Notifications</h2>
-                    <p className="text-sm text-gray-500">Alerts for bookings on your properties</p>
+                    <p className="text-sm text-gray-500">Alerts for link-ups on your properties</p>
                   </div>
                   {ownerNotifications.some(n => !n.isRead) && (
                     <Button variant="outline" size="sm" onClick={clearAllNotifications} className="gap-2 text-gray-600">
@@ -2317,7 +2439,7 @@ export default function Dashboard() {
                       <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                         <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                         <h3 className="text-lg font-medium text-gray-900">No notifications yet</h3>
-                        <p className="mb-4">You'll be notified here whenever a guest books one of your properties.</p>
+                        <p className="mb-4">You'll be notified here whenever a guest links up to one of your properties.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2421,7 +2543,7 @@ export default function Dashboard() {
                        <Clock className="h-4 w-4 text-purple-500" />
                     </div>
                     <div className="text-2xl font-bold">{bookings.length}</div>
-                    <p className="text-xs text-muted-foreground">Active bookings</p>
+                    <p className="text-xs text-muted-foreground">Active link-ups</p>
                   </CardContent>
                 </Card>
               </div>

@@ -21,14 +21,14 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
   const { error } = await resend.emails.send({
     from: EMAIL_FROM,
     to: ownerEmail,
-    subject: `New booking request for "${propertyTitle}"`,
+    subject: `New link-up request for "${propertyTitle}"`,
     html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>New Booking Request</title>
+  <title>New Link-Up Request</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
@@ -45,8 +45,8 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
           <!-- Body -->
           <tr>
             <td style="padding:32px;">
-              <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">New Booking Request</p>
-              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${ownerName}, you have a new booking request waiting for your review.</p>
+              <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">New Link-Up Request</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${ownerName}, you have a new link-up request waiting for your review.</p>
 
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;">
                 <tr>
@@ -78,7 +78,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="${dashboardUrl}" style="display:inline-block;background-color:#1a1a2e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">Review Booking</a>
+                    <a href="${dashboardUrl}" style="display:inline-block;background-color:#1a1a2e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">Review Link-Up</a>
                   </td>
                 </tr>
               </table>
@@ -100,7 +100,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
   });
 
   if (error) {
-    logger.error({ error }, "Failed to send new booking email to owner");
+    logger.error({ error }, "Failed to send new link-up email to owner");
     throw new Error(`Resend error: ${error.message}`);
   }
 }

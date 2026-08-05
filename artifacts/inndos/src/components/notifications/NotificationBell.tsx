@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/auth";
 export function NotificationBell() {
   const { user } = useAuth();
   
-  // Generating a rich set of mockup notifications covering the requested scenarios
   const [notifications, setNotifications] = useState([
     { 
       id: 1, 
@@ -19,8 +18,8 @@ export function NotificationBell() {
     },
     { 
       id: 2, 
-      title: "New Booking Confirmed", 
-      description: "John Doe booked Villa Sunrise for 3 nights (Dec 12 - Dec 15).", 
+      title: "New Link-Up Confirmed", 
+      description: "John Doe linked up Villa Sunrise for 3 nights (Dec 12 - Dec 15).", 
       time: "10 mins ago", 
       read: false,
       role: 'owner'
@@ -52,7 +51,7 @@ export function NotificationBell() {
     { 
       id: 6, 
       title: "Upcoming Stay Reminder", 
-      description: "Calendar Alert: Your booked stay at Mountain Cabin starts tomorrow.", 
+      description: "Calendar Alert: Your linked-up stay at Mountain Cabin starts tomorrow.", 
       time: "1 day ago", 
       read: true,
       role: 'user'
@@ -67,10 +66,9 @@ export function NotificationBell() {
     },
   ]);
 
-  // Filter notifications based on user role (for mockup purposes)
   const visibleNotifications = notifications.filter(n => {
-    if (!user) return n.role === 'all' || n.role === 'user'; // Show generic to non-logged in
-    if (user.role === 'admin') return true; // Admin sees everything
+    if (!user) return n.role === 'all' || n.role === 'user';
+    if (user.role === 'admin') return true;
     if (user.role === 'owner') return n.role === 'owner' || n.role === 'all' || n.role === 'user';
     return n.role === 'user' || n.role === 'all';
   });
