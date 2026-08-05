@@ -233,6 +233,40 @@ router.post("/users", async (req, res) => {
   res.status(201).json(safeUser);
 });
 
+router.patch("/users/:id/password", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const targetId = req.params.id;
+
+  if (targetId === adminId) {
+    res.status(400).json({ error: "Use the profile settings to change your own password" });
+    return;
+  }
+
+  const { password } = req.body as { password?: string };
+  if (!password || password.length < 6) {
+    res.status(400).json({ error: "New password must be at least 6 characters" });
+    return;
+  }
+
+  const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, targetId));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (target.role === "admin") {
+    res.status(400).json({ error: "Cannot change another admin's password" });
+    return;
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  await db.update(users).set({ password: hashed, resetToken: null, resetTokenExpiry: null }).where(eq(users.id, targetId));
+
+  req.log.info({ adminId, targetId }, "Admin reset user password");
+  res.json({ ok: true });
+});
+
 router.delete("/users/:id", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;

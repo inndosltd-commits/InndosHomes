@@ -678,6 +678,9 @@ export default function Dashboard() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [createUserDialog, setCreateUserDialog] = useState(false);
   const [createUserForm, setCreateUserForm] = useState({ name: "", email: "", password: "", role: "tenant" });
@@ -1455,6 +1458,34 @@ export default function Dashboard() {
       toast({ title: "Network error", variant: "destructive" });
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!token || !resetPasswordDialog) return;
+    if (resetPasswordValue.length < 6) {
+      toast({ title: "Password too short", description: "New password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    setResetPasswordLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${resetPasswordDialog.userId}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: resetPasswordValue }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Failed to reset password", description: err.error || "An error occurred.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Password reset", description: `Password for ${resetPasswordDialog.userName} has been updated.`, className: "bg-green-50 border-green-200 text-green-800" });
+      setResetPasswordDialog(null);
+      setResetPasswordValue("");
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
 
@@ -3372,6 +3403,12 @@ export default function Dashboard() {
                                 </Button>
                               )}
                               {!isSelf && u.role !== 'admin' && (
+                                <Button size="sm" variant="outline" className="gap-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                                  onClick={() => { setResetPasswordValue(""); setResetPasswordDialog({ userId: u.id, userName: u.name }); }}>
+                                  <Lock className="h-3 w-3" /> Reset Password
+                                </Button>
+                              )}
+                              {!isSelf && u.role !== 'admin' && (
                                 <Button size="sm" variant="outline" className="text-red-700 hover:text-red-800 hover:bg-red-50 border-red-300"
                                   disabled={isBusy} onClick={() => setDeleteUserId(u.id)}>
                                   <Trash2 className="h-3 w-3 mr-1" /> Delete
@@ -3447,6 +3484,43 @@ export default function Dashboard() {
                 <Button onClick={handleCreateUser} disabled={isCreatingUser} className="gap-1">
                   {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Create User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Reset Password Dialog */}
+          <Dialog open={!!resetPasswordDialog} onOpenChange={open => { if (!open) { setResetPasswordDialog(null); setResetPasswordValue(""); } }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-amber-600" /> Reset Password
+                </DialogTitle>
+                <DialogDescription>
+                  Set a new password for <span className="font-semibold text-gray-900">{resetPasswordDialog?.userName}</span>. They will need to use this password to sign in.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="admin-new-password">New Password</Label>
+                  <Input
+                    id="admin-new-password"
+                    type="password"
+                    placeholder="Minimum 6 characters"
+                    value={resetPasswordValue}
+                    onChange={e => setResetPasswordValue(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleResetPassword()}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setResetPasswordDialog(null); setResetPasswordValue(""); }} disabled={resetPasswordLoading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleResetPassword} disabled={resetPasswordLoading || resetPasswordValue.length < 6} className="gap-1 bg-amber-600 hover:bg-amber-700">
+                  {resetPasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                  Set Password
                 </Button>
               </DialogFooter>
             </DialogContent>
