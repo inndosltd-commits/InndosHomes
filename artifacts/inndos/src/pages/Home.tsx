@@ -3,7 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { PropertyCard, ApiProperty } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Search, ClipboardList, Handshake, KeyRound, Bed, MapPin, Navigation } from "lucide-react";
+import { ArrowRight, Search, ClipboardList, Link2, Home as HomeIcon, Bed, MapPin, Navigation } from "lucide-react";
 import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -289,15 +289,15 @@ export default function Home() {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-14">
-            <p className="text-green-600 font-bold uppercase tracking-widest text-sm mb-3">Our Process</p>
+            <p className="text-green-600 font-bold uppercase tracking-widest text-sm mb-3">How inndos Works</p>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
-              Better Places. Better Living.
+              Everything starts with the right place.
             </h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">
-              From finding the{" "}
-              <span className="text-green-600 font-semibold">perfect property</span>{" "}
-              to moving in with peace of mind,<br className="hidden md:block" />
-              we make your journey easy and transparent.
+              From discovering a property to{" "}
+              <span className="text-green-600 font-semibold">linking up</span>{" "}
+              with the right person,<br className="hidden md:block" />
+              Inndos makes finding your next place simpler.
             </p>
           </div>
 
@@ -307,32 +307,32 @@ export default function Home() {
               {
                 num: "01",
                 icon: <Search className="h-6 w-6 text-green-600" />,
-                title: "Explore",
-                desc: "Browse verified listings that match your lifestyle and budget.",
+                title: "Discover",
+                desc: "Explore homes, rentals and stays in places you actually want to live.",
                 img: "/images/process-explore.jpeg",
                 alt: "Modern apartment building exterior at dusk",
               },
               {
                 num: "02",
                 icon: <ClipboardList className="h-6 w-6 text-green-600" />,
-                title: "Evaluate",
+                title: "Compare",
                 desc: "Compare features, prices and locations to choose the best fit.",
                 img: "/images/process-evaluate.jpeg",
                 alt: "Bright modern living room interior",
               },
               {
                 num: "03",
-                icon: <Handshake className="h-6 w-6 text-green-600" />,
-                title: "Connect",
-                desc: "Get in touch with trusted agents and finalize the details.",
+                icon: <Link2 className="h-6 w-6 text-green-600" />,
+                title: "Link Up",
+                desc: "Talk directly with property owners and managers.",
                 img: "/images/process-connect.jpeg",
                 alt: "Couple shaking hands with property agent",
               },
               {
                 num: "04",
-                icon: <KeyRound className="h-6 w-6 text-green-600" />,
-                title: "Settle In",
-                desc: "Move in and enjoy your new space with ongoing support whenever you need.",
+                icon: <HomeIcon className="h-6 w-6 text-green-600" />,
+                title: "Move In",
+                desc: "Complete the process and step into your new space with confidence.",
                 img: "/images/process-settle.jpeg",
                 alt: "Hand holding house keys",
               },
