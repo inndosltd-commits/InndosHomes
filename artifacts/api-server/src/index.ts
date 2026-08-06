@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
 import { subscriptionPlans } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { startSubscriptionReminderJob } from "./lib/reminderJob";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) {
@@ -131,5 +132,10 @@ app.listen(port, async (err) => {
     await seedDefaultPlans();
   } catch (e) {
     logger.error({ err: e }, "Failed to seed default subscription plans");
+  }
+  try {
+    startSubscriptionReminderJob();
+  } catch (e) {
+    logger.error({ err: e }, "Failed to start subscription reminder job");
   }
 });

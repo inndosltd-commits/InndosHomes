@@ -438,6 +438,117 @@ export async function sendPasswordResetEmail(params: PasswordResetEmailParams): 
   }
 }
 
+export interface SubscriptionReminderEmailParams {
+  toEmail: string;
+  clientName: string;
+  planName: string;
+  amount: number;
+  expiryDate: string;
+  renewalUrl: string;
+  helpUrl: string;
+  daysLeft: number;
+}
+
+export async function sendSubscriptionReminderEmail(params: SubscriptionReminderEmailParams): Promise<void> {
+  const { toEmail, clientName, planName, amount, expiryDate, renewalUrl, helpUrl, daysLeft } = params;
+
+  const urgencyColor = daysLeft === 1 ? "#dc2626" : daysLeft <= 3 ? "#d97706" : "#1a1a2e";
+  const urgencyLabel = daysLeft === 1 ? "⚠️ Expires Tomorrow" : daysLeft <= 3 ? `⚠️ ${daysLeft} Days Left` : `${daysLeft} Days Left`;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject: `Reminder: Your inndos ${planName} subscription expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Renewal Reminder</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1a1a2e;padding:28px 32px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+              <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
+            </td>
+          </tr>
+          <!-- Urgency banner -->
+          <tr>
+            <td style="background-color:${urgencyColor};padding:10px 32px;">
+              <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;text-align:center;letter-spacing:0.3px;">${urgencyLabel}</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 20px;font-size:16px;color:#374151;">Dear <strong>${clientName}</strong>,</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.6;">
+                This is a friendly reminder from <strong>inndos</strong> that your <strong>${planName}</strong> subscription payment of <strong>KES ${amount.toLocaleString()}</strong> is due on <strong>${expiryDate}</strong>.
+                To avoid interruption, please renew your subscription below.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Plan</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${planName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Amount Due</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">KES ${amount.toLocaleString()}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Expiry Date</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:${urgencyColor};">${expiryDate}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr>
+                  <td align="center">
+                    <a href="${renewalUrl}" style="display:inline-block;background-color:${urgencyColor};color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:8px;letter-spacing:0.2px;">Renew My Subscription</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 4px;font-size:14px;color:#4b5563;line-height:1.6;">
+                Thank you for being part of <strong>inndos</strong>. Let us know if you need help — <a href="${helpUrl}" style="color:#1a1a2e;font-weight:600;">contact us here</a>.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an active subscription on inndos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send subscription reminder email");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
+
 export interface ListingRejectedEmailParams {
   ownerEmail: string;
   ownerName: string;
