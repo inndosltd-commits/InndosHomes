@@ -3,7 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { PropertyCard, ApiProperty } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, ShieldCheck, Users, Building2, Key, Bed, MapPin, Navigation } from "lucide-react";
+import { ArrowRight, Search, ClipboardList, Handshake, KeyRound, Bed, MapPin, Navigation } from "lucide-react";
 import { Link } from "wouter";
 import PropertyMap from "@/components/ui/PropertyMap";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -284,38 +284,83 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-white">
+      {/* Our Process Section */}
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-                <ShieldCheck className="h-6 w-6" />
+          {/* Header */}
+          <div className="text-center mb-14">
+            <p className="text-green-600 font-bold uppercase tracking-widest text-sm mb-3">Our Process</p>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
+              Better Places. Better Living.
+            </h2>
+            <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">
+              From finding the{" "}
+              <span className="text-green-600 font-semibold">perfect property</span>{" "}
+              to moving in with peace of mind,<br className="hidden md:block" />
+              we make your journey easy and transparent.
+            </p>
+          </div>
+
+          {/* Process Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                num: "01",
+                icon: <Search className="h-6 w-6 text-green-600" />,
+                title: "Explore",
+                desc: "Browse verified listings that match your lifestyle and budget.",
+                img: "/images/process-explore.jpeg",
+                alt: "Modern apartment building exterior at dusk",
+              },
+              {
+                num: "02",
+                icon: <ClipboardList className="h-6 w-6 text-green-600" />,
+                title: "Evaluate",
+                desc: "Compare features, prices and locations to choose the best fit.",
+                img: "/images/process-evaluate.jpeg",
+                alt: "Bright modern living room interior",
+              },
+              {
+                num: "03",
+                icon: <Handshake className="h-6 w-6 text-green-600" />,
+                title: "Connect",
+                desc: "Get in touch with trusted agents and finalize the details.",
+                img: "/images/process-connect.jpeg",
+                alt: "Couple shaking hands with property agent",
+              },
+              {
+                num: "04",
+                icon: <KeyRound className="h-6 w-6 text-green-600" />,
+                title: "Settle In",
+                desc: "Move in and enjoy your new space with ongoing support whenever you need.",
+                img: "/images/process-settle.jpeg",
+                alt: "Hand holding house keys",
+              },
+            ].map((step) => (
+              <div
+                key={step.num}
+                className="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Top content */}
+                <div className="p-6 pb-4">
+                  <div className="h-14 w-14 bg-green-50 rounded-full flex items-center justify-center mb-4">
+                    {step.icon}
+                  </div>
+                  <p className="text-green-600 font-bold text-sm mb-1">{step.num}</p>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">{step.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
+                </div>
+                {/* Photo */}
+                <div className="mt-auto">
+                  <img
+                    src={step.img}
+                    alt={step.alt}
+                    className="w-full h-48 object-cover"
+                    loading="lazy"
+                  />
+                </div>
               </div>
-              <h3 className="font-heading font-bold text-lg mb-2">{t("home.verified_listings")}</h3>
-              <p className="text-muted-foreground text-sm">{t("home.verified_desc")}</p>
-            </div>
-            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
-              <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
-                <Users className="h-6 w-6" />
-              </div>
-              <h3 className="font-heading font-bold text-lg mb-2">{t("home.direct_connection")}</h3>
-              <p className="text-muted-foreground text-sm">{t("home.direct_desc")}</p>
-            </div>
-            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-primary/5 transition-colors">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-                <Building2 className="h-6 w-6" />
-              </div>
-              <h3 className="font-heading font-bold text-lg mb-2">{t("home.property_management")}</h3>
-              <p className="text-muted-foreground text-sm">{t("home.property_desc")}</p>
-            </div>
-            <div className="flex flex-col items-center text-center p-6 rounded-xl bg-gray-50 hover:bg-secondary/5 transition-colors">
-              <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary mb-4">
-                <Key className="h-6 w-6" />
-              </div>
-              <h3 className="font-heading font-bold text-lg mb-2">{t("home.secure_booking")}</h3>
-              <p className="text-muted-foreground text-sm">{t("home.secure_desc")}</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
