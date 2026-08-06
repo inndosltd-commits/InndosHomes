@@ -38,7 +38,7 @@ export function Hero() {
           Find your next home <br className="hidden md:block" /> or buyer with ease.
         </h1>
         <p className="text-lg md:text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
-          INNDOS connects property owners, agents, tenants, and buyers on one smart platform.
+          inndos connects property owners, agents, tenants, and buyers on one smart platform.
         </p>
 
         {/* Search Box */}

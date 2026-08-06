@@ -5,7 +5,7 @@ import { and, eq, lt, gt, inArray } from "drizzle-orm";
 import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
-import { sendNewBookingEmail } from "../lib/email";
+import { sendNewBookingEmail, sendBookingStatusEmail, sendGuestCancelledEmail } from "../lib/email";
 
 const router = Router();
 
@@ -135,6 +135,28 @@ router.post("/", async (req, res) => {
     req.log.error({ err, bookingId: booking.id }, "Failed to create owner notification for booking");
   }
 
+  // Notify all admins of the new booking
+  try {
+    const adminMsg = `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`;
+    const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
+    for (const admin of adminUsers) {
+      await db.insert(notifications).values({
+        userId: admin.id,
+        type: "new_booking",
+        message: adminMsg,
+        bookingId: booking.id,
+        isRead: false,
+      });
+      if (admin.phone) {
+        sendSms(admin.phone, adminMsg).catch((e: unknown) =>
+          req.log.error({ e }, "Admin booking SMS failed")
+        );
+      }
+    }
+  } catch (err) {
+    req.log.error({ err, bookingId: booking.id }, "Failed to notify admins of new booking");
+  }
+
   try {
     const [owner] = await db
       .select({ name: users.name, email: users.email })
@@ -169,7 +191,19 @@ router.patch("/:id/cancel", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const [booking] = await db.select().from(bookings).where(eq(bookings.id, req.params.id));
+  const [booking] = await db
+    .select({
+      id: bookings.id,
+      userId: bookings.userId,
+      propertyId: bookings.propertyId,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      propertyTitle: properties.title,
+      ownerId: properties.ownerId,
+    })
+    .from(bookings)
+    .leftJoin(properties, eq(bookings.propertyId, properties.id))
+    .where(eq(bookings.id, req.params.id));
 
   if (!booking) {
     res.status(404).json({ error: "Booking not found" });
@@ -186,6 +220,61 @@ router.patch("/:id/cancel", async (req, res) => {
     .set({ status: "cancelled" })
     .where(eq(bookings.id, req.params.id))
     .returning();
+
+  // Notify owner and admins when a guest cancels
+  try {
+    const [guest] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
+    const guestName = guest?.name ?? "A guest";
+    const cancelMsg = `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`;
+
+    if (booking.ownerId) {
+      await db.insert(notifications).values({
+        userId: booking.ownerId,
+        type: "booking_cancelled_by_guest",
+        message: cancelMsg,
+        bookingId: booking.id,
+        isRead: false,
+      });
+      const [ownerUser] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.ownerId));
+      if (ownerUser?.phone) {
+        sendSms(ownerUser.phone, cancelMsg).catch((e: unknown) =>
+          req.log.error({ e }, "Owner cancel SMS failed")
+        );
+      }
+      if (ownerUser?.email && booking.propertyTitle) {
+        const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+        const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+        sendGuestCancelledEmail({
+          ownerEmail: ownerUser.email,
+          ownerName: ownerUser.name ?? "",
+          guestName,
+          propertyTitle: booking.propertyTitle,
+          startDate: booking.startDate,
+          endDate: booking.endDate,
+          dashboardUrl: `${baseUrl}/#/dashboard`,
+        }).catch((e: unknown) => req.log.error({ e }, "Owner cancel email failed"));
+      }
+    }
+
+    // Also notify admins
+    const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
+    for (const admin of adminUsers) {
+      await db.insert(notifications).values({
+        userId: admin.id,
+        type: "booking_cancelled_by_guest",
+        message: cancelMsg,
+        bookingId: booking.id,
+        isRead: false,
+      });
+      if (admin.phone) {
+        sendSms(admin.phone, cancelMsg).catch((e: unknown) =>
+          req.log.error({ e }, "Admin cancel SMS failed")
+        );
+      }
+    }
+  } catch (err) {
+    req.log.error({ err, bookingId: booking.id }, "Failed to notify owner/admins of guest cancellation");
+  }
 
   res.json(updated);
 });
@@ -238,11 +327,23 @@ router.patch("/:id/status", async (req, res) => {
       bookingId: booking.id,
       isRead: false,
     });
-    const [guestUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, booking.guestId));
+    const [guestUser] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.guestId));
     if (guestUser?.phone) {
       sendSms(guestUser.phone, notificationMessage).catch((e: unknown) =>
         req.log.error({ e }, "Guest booking SMS failed")
       );
+    }
+    // Send guest email for confirmed / declined
+    if (guestUser?.email) {
+      const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+      const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+      sendBookingStatusEmail({
+        guestEmail: guestUser.email,
+        guestName: guestUser.name ?? "Guest",
+        propertyTitle: booking.propertyTitle,
+        status: status as "confirmed" | "cancelled",
+        dashboardUrl: `${baseUrl}/#/dashboard`,
+      }).catch((e: unknown) => req.log.error({ e }, "Guest status email failed"));
     }
   } catch (err) {
     req.log.error({ err, bookingId: booking.id }, "Failed to create guest notification for booking status update");

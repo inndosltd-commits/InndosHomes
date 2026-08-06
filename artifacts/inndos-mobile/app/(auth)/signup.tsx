@@ -81,7 +81,7 @@ export default function SignupScreen() {
       bottomOffset={16}
     >
       <View style={styles.topSection}>
-        <Text style={[styles.heading, { color: colors.foreground }]}>Join INNDOS</Text>
+        <Text style={[styles.heading, { color: colors.foreground }]}>Join inndos</Text>
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
           Create your account to get started
         </Text>

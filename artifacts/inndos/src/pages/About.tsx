@@ -8,7 +8,7 @@ export default function About() {
       
       <div className="bg-primary text-white py-16">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4">About INNDOS</h1>
+          <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4">About inndos</h1>
           <p className="text-xl max-w-2xl mx-auto opacity-90">Direct from owner to you. Simple. Fair. Kenyan.</p>
         </div>
       </div>

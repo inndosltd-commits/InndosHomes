@@ -105,6 +105,192 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
   }
 }
 
+export interface BookingStatusEmailParams {
+  guestEmail: string;
+  guestName: string;
+  propertyTitle: string;
+  status: "confirmed" | "cancelled";
+  dashboardUrl: string;
+}
+
+export async function sendBookingStatusEmail(params: BookingStatusEmailParams): Promise<void> {
+  const { guestEmail, guestName, propertyTitle, status, dashboardUrl } = params;
+  const isConfirmed = status === "confirmed";
+  const subject = isConfirmed
+    ? `Your link-up for "${propertyTitle}" is confirmed!`
+    : `Your link-up request for "${propertyTitle}" was declined`;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: guestEmail,
+    subject,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${isConfirmed ? "Link-Up Confirmed" : "Link-Up Declined"}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:${isConfirmed ? "#1a1a2e" : "#7f1d1d"};padding:28px 32px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+              <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">${isConfirmed ? "🎉 Link-Up Confirmed!" : "Link-Up Not Approved"}</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${guestName}, ${isConfirmed
+                ? "great news — the property owner has confirmed your link-up request."
+                : "the property owner was unable to approve your link-up request at this time."}</p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:${isConfirmed ? "#f0fdf4" : "#fef2f2"};border-radius:8px;border:1px solid ${isConfirmed ? "#bbf7d0" : "#fecaca"};overflow:hidden;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:${isConfirmed ? "#15803d" : "#b91c1c"};text-transform:uppercase;letter-spacing:0.5px;">Property</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${propertyTitle}</p>
+                  </td>
+                </tr>
+              </table>
+
+              ${isConfirmed
+                ? '<p style="margin:0 0 24px;font-size:14px;color:#6b7280;">You\'re all set! Head to your dashboard to view your booking details.</p>'
+                : '<p style="margin:0 0 24px;font-size:14px;color:#6b7280;">You can browse other available properties on inndos and send a new link-up request.</p>'}
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${dashboardUrl}" style="display:inline-block;background-color:#1a1a2e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">View Dashboard</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you made a link-up request on inndos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send booking status email to guest");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
+
+export interface GuestCancelledEmailParams {
+  ownerEmail: string;
+  ownerName: string;
+  guestName: string;
+  propertyTitle: string;
+  startDate: string;
+  endDate: string;
+  dashboardUrl: string;
+}
+
+export async function sendGuestCancelledEmail(params: GuestCancelledEmailParams): Promise<void> {
+  const { ownerEmail, ownerName, guestName, propertyTitle, startDate, endDate, dashboardUrl } = params;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: ownerEmail,
+    subject: `Link-up cancelled: "${propertyTitle}"`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Link-Up Cancelled by Guest</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background-color:#1a1a2e;padding:28px 32px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+              <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">Link-Up Cancelled</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Hi ${ownerName}, a guest has cancelled their link-up for one of your properties.</p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border-radius:8px;border:1px solid #fecaca;overflow:hidden;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #fecaca;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Property</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${propertyTitle}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #fecaca;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Guest</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${guestName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid #fecaca;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Check-in</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${startDate}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Check-out</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${endDate}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">These dates are now open again. Head to your dashboard to see your updated booking calendar.</p>
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${dashboardUrl}" style="display:inline-block;background-color:#1a1a2e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">Go to Dashboard</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you're a property owner on inndos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send guest-cancelled email to owner");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
+
 export interface ListingApprovedEmailParams {
   ownerEmail: string;
   ownerName: string;

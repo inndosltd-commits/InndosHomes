@@ -14,10 +14,10 @@ export default function Legal() {
             <p className="text-muted-foreground mb-8">Last updated: November 25, 2025</p>
 
             <h2 className="text-xl font-bold mt-8 mb-4">1. Introduction</h2>
-            <p>Welcome to INNDOS. By using our website and services, you agree to comply with and be bound by the following terms and conditions. Please review the following terms carefully.</p>
+            <p>Welcome to inndos. By using our website and services, you agree to comply with and be bound by the following terms and conditions. Please review the following terms carefully.</p>
 
             <h2 className="text-xl font-bold mt-8 mb-4">2. Property Listings</h2>
-            <p>INNDOS provides a platform for property owners to list properties for rent or sale. We verify listings to the best of our ability but cannot guarantee the accuracy of all information provided by third parties.</p>
+            <p>inndos provides a platform for property owners to list properties for rent or sale. We verify listings to the best of our ability but cannot guarantee the accuracy of all information provided by third parties.</p>
 
             <h2 className="text-xl font-bold mt-8 mb-4">3. User Responsibilities</h2>
             <p>Users are responsible for maintaining the confidentiality of their account information and for all activities that occur under their account.</p>

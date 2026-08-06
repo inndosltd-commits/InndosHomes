@@ -4499,7 +4499,7 @@ export default function Dashboard() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">IPN Webhook</CardTitle>
-                  <CardDescription>Register the Instant Payment Notification (IPN) URL with PesaPal. This allows PesaPal to notify INNDOS when a payment is completed.</CardDescription>
+                  <CardDescription>Register the Instant Payment Notification (IPN) URL with PesaPal. This allows PesaPal to notify inndos when a payment is completed.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="bg-gray-50 rounded-lg border p-3 font-mono text-xs text-gray-700 break-all">
@@ -5043,7 +5043,7 @@ export default function Dashboard() {
               </DialogHeader>
               {upgradeDialogPlan === 'enterprise' ? (
                 <div className="space-y-4 py-2">
-                  <p className="text-sm text-muted-foreground">Enterprise pricing is custom and requires admin approval. Contact the INNDOS team to get started.</p>
+                  <p className="text-sm text-muted-foreground">Enterprise pricing is custom and requires admin approval. Contact the inndos team to get started.</p>
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2 text-sm text-purple-800">
                     <p className="font-semibold">Enterprise includes:</p>
                     <ul className="space-y-1 text-xs">

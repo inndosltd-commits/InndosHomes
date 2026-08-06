@@ -72,7 +72,7 @@ export default function LoginScreen() {
       <View style={styles.topSection}>
         <Text style={[styles.heading, { color: colors.foreground }]}>Welcome back</Text>
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Sign in to your INNDOS account
+          Sign in to your inndos account
         </Text>
       </View>
 

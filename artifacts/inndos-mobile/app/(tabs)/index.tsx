@@ -220,7 +220,7 @@ export default function BrowseScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>INNDOS</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>inndos</Text>
         <Pressable
           onPress={() => {
             setShowMap((v) => {

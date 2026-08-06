@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@workspace/db";
-import { users, insertUserSchema, otpCodes } from "@workspace/db";
+import { users, insertUserSchema, otpCodes, notifications } from "@workspace/db";
 import { eq, and, gt, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendSms, normalizePhone } from "../lib/sms";
@@ -62,7 +62,7 @@ router.post("/send-otp", async (req, res) => {
   await db.insert(otpCodes).values({ phone: normalized, code, expiresAt });
 
   try {
-    await sendSms(normalized, `Your INNDOS verification code is: ${code}. Valid for 10 minutes. Do not share this code.`);
+    await sendSms(normalized, `Your inndos verification code is: ${code}. Valid for 10 minutes. Do not share this code.`);
     res.json({ success: true, message: "OTP sent successfully" });
   } catch (err) {
     logger.error({ err }, "Failed to send OTP SMS");
@@ -150,6 +150,25 @@ router.post("/signup", async (req, res) => {
       ...(typeof firmType === "string" ? { firmType: firmType as "business_name" | "registered_company" } : {}),
     })
     .returning();
+
+  // Notify all admins of new registration (fire-and-forget)
+  try {
+    const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
+    const adminMsg = `New user registered: ${name} (${email}) joined as ${allowedRole}.`;
+    for (const admin of adminUsers) {
+      await db.insert(notifications).values({
+        userId: admin.id,
+        type: "new_user",
+        message: adminMsg,
+        isRead: false,
+      });
+      if (admin.phone) {
+        sendSms(admin.phone, adminMsg).catch(() => {});
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to notify admins of new user registration");
+  }
 
   const token = signToken(user.id);
   const { password: _pw, ...safeUser } = user;
