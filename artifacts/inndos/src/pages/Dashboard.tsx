@@ -2367,6 +2367,7 @@ export default function Dashboard() {
                           <option value="active">Active</option>
                           <option value="pending">Pending</option>
                           <option value="flagged">Flagged</option>
+                          <option value="sold">Sold</option>
                         </select>
                         {(myPropSearch || myPropStatusFilter !== "all") && (
                           <button onClick={() => { setMyPropSearch(""); setMyPropStatusFilter("all"); }} className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0">Clear</button>
@@ -2381,28 +2382,28 @@ export default function Dashboard() {
                     <div className="space-y-4">
                       {ownerProperties.filter(p => {
                         if (myPropSearch) { const q = myPropSearch.toLowerCase(); if (!(p.title||"").toLowerCase().includes(q) && !(p.address||"").toLowerCase().includes(q)) return false; }
-                        if (myPropStatusFilter === "active" && (!p.isVerified || p.propertyStatus === 'flagged')) return false;
-                        if (myPropStatusFilter === "pending" && (p.isVerified || p.propertyStatus === 'flagged')) return false;
+                        if (myPropStatusFilter === "active" && (!p.isVerified || p.propertyStatus === 'flagged' || p.propertyStatus === 'sold')) return false;
+                        if (myPropStatusFilter === "pending" && (p.isVerified || p.propertyStatus === 'flagged' || p.propertyStatus === 'sold')) return false;
                         if (myPropStatusFilter === "flagged" && p.propertyStatus !== 'flagged') return false;
+                        if (myPropStatusFilter === "sold" && p.propertyStatus !== 'sold') return false;
                         return true;
                       }).map(p => {
+                        const isSold = p.propertyStatus === 'sold';
                         const isFlagged = p.propertyStatus === 'flagged';
-                        const isPending = !p.isVerified && !isFlagged;
+                        const isPending = !p.isVerified && !isFlagged && !isSold;
                         return (
-                        <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
+                        <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isSold ? 'bg-gray-50/60 border-gray-300' : isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
                           <div className="flex items-start gap-3">
-                            <img src={getImageUrl(p.image)} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${!p.isVerified ? 'opacity-70 grayscale-[20%]' : ''}`} alt={p.title} />
+                            <img src={getImageUrl(p.image)} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${isSold || !p.isVerified ? 'opacity-70 grayscale-[40%]' : ''}`} alt={p.title} />
                             <div className="flex-1 min-w-0">
-                              {p.isVerified ? (
-                                <Link href={`/property/${p.id}`}>
-                                  <h4 className="font-semibold text-base sm:text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
-                                </Link>
-                              ) : (
-                                <h4 className="font-semibold text-base sm:text-lg truncate text-gray-700">{p.title}</h4>
-                              )}
+                              <Link href={`/property/${p.id}`}>
+                                <h4 className="font-semibold text-base sm:text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
+                              </Link>
                               <p className="text-sm text-muted-foreground truncate">{p.address}</p>
                               <div className="flex gap-2 mt-1.5 flex-wrap">
-                                {isFlagged ? (
+                                {isSold ? (
+                                  <Badge variant="outline" className="bg-gray-200 text-gray-700 border-gray-400 text-xs">Sold</Badge>
+                                ) : isFlagged ? (
                                   <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 text-xs">Flagged</Badge>
                                 ) : isPending ? (
                                   <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">Pending</Badge>
@@ -2415,17 +2416,17 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="flex gap-2 flex-wrap">
-                            {isFlagged && (
+                            {isFlagged && !isSold && (
                               <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleOwnerResubmit(p.id)}>
                                 <ArrowUpRight className="h-3 w-3" /> Resubmit
                               </Button>
                             )}
-                            {p.isVerified && (
+                            {p.isVerified && !isSold && (
                               <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
                                 {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
                               </Button>
                             )}
-                            {p.isVerified && (
+                            {p.isVerified && !isSold && (
                               <Button
                                 size="sm" variant="outline"
                                 className="gap-1 text-primary border-primary/30 hover:bg-primary/5"
@@ -2439,7 +2440,7 @@ export default function Dashboard() {
                                 <Eye className="h-3 w-3" /> View
                               </Button>
                             </Link>
-                            {!isFlagged && (
+                            {!isFlagged && !isSold && (
                               <Link href={`/add-listing?edit=${p.id}`}>
                                 <Button size="sm" variant="outline">Edit</Button>
                               </Link>

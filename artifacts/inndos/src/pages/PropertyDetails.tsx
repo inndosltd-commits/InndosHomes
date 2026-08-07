@@ -326,6 +326,7 @@ export default function PropertyDetails() {
   const { user, token } = useAuth();
 
   const [property, setProperty] = useState<PropertyWithOwner | null>(null);
+  const [isSoldProperty, setIsSoldProperty] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [isLinkedUp, setIsLinkedUp] = useState(false);
@@ -371,10 +372,16 @@ export default function PropertyDetails() {
   useEffect(() => {
     if (!params?.id) return;
     setIsLoading(true);
+    setIsSoldProperty(false);
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     fetch(`/api/properties/${params.id}`, { headers })
-      .then((r) => {
+      .then(async (r) => {
+        if (r.status === 410) {
+          const body = await r.json().catch(() => ({}));
+          if (body?.sold) setIsSoldProperty(true);
+          throw new Error("sold");
+        }
         if (!r.ok) throw new Error("Not found");
         return r.json();
       })
@@ -569,9 +576,22 @@ export default function PropertyDetails() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center flex-col gap-4">
-          <h2 className="text-2xl font-bold">Property Not Found</h2>
-          <p className="text-muted-foreground">This property may have been removed or the link is incorrect.</p>
+        <div className="flex-1 flex items-center justify-center flex-col gap-4 text-center px-4">
+          {isSoldProperty ? (
+            <>
+              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                <span className="text-3xl">🏷️</span>
+              </div>
+              <h2 className="text-2xl font-bold">This Property Has Been Sold</h2>
+              <p className="text-muted-foreground max-w-md">This listing is no longer available — a sale has been confirmed. Browse other properties that may match what you're looking for.</p>
+              <a href="/" className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors">Browse Properties</a>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold">Property Not Found</h2>
+              <p className="text-muted-foreground">This property may have been removed or the link is incorrect.</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -755,6 +775,14 @@ export default function PropertyDetails() {
         </div>
       )}
 
+      {/* Sold banner */}
+      {property.propertyStatus === 'sold' && (
+        <div className="bg-gray-900 text-white text-center py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium">
+          <span className="inline-block w-2 h-2 rounded-full bg-red-400"></span>
+          This property has been sold and is no longer available.
+        </div>
+      )}
+
       <div className="flex-1 container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
@@ -763,7 +791,10 @@ export default function PropertyDetails() {
               <div className="w-full lg:w-auto">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge className="bg-primary">{getTypeBadgeLabel()}</Badge>
-                  {property.isVerified && (
+                  {property.propertyStatus === 'sold' && (
+                    <Badge className="bg-gray-700 text-white">Sold</Badge>
+                  )}
+                  {property.isVerified && property.propertyStatus !== 'sold' && (
                     <Badge variant="outline" className="border-green-600 bg-green-50 text-green-700 flex items-center gap-1 px-3 py-1 shadow-sm">
                       <ShieldCheck className="h-4 w-4" /> Verified by Inndos
                     </Badge>

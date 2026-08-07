@@ -194,11 +194,11 @@ router.post("/:id/confirm", async (req, res) => {
 
   // If fully resolved, update property and notify both parties
   if (newStatus === "rented_via_inndos" || newStatus === "sold_via_inndos") {
-    // Archive property for sales, mark unavailable for rentals
+    // Mark property as sold so it is excluded from public search
     if (newStatus === "sold_via_inndos") {
       await db
         .update(properties)
-        .set({ propertyStatus: "flagged" as const }) // Repurpose as archived/sold
+        .set({ propertyStatus: "sold" as const })
         .where(eq(properties.id, tx.propertyId));
     }
 

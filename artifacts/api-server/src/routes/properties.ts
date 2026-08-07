@@ -99,6 +99,8 @@ router.get("/", async (req, res) => {
   const isAdmin = caller.role === "admin";
   if (!isAdmin && !isOwnerQuery) {
     conditions.push(eq(properties.isVerified, true));
+    // Exclude sold properties from public search results
+    conditions.push(drizzleSql`${properties.propertyStatus} != 'sold'`);
   }
 
   const rows = conditions.length > 0
@@ -129,17 +131,32 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
+  // Sold properties are hidden from public — owner and admin can still view them
+  if (prop.propertyStatus === "sold" && !isOwner && !isAdmin) {
+    res.status(410).json({ error: "This property has been sold", sold: true });
+    return;
+  }
+
   res.json(prop);
 });
 
 router.get("/:id/availability", async (req, res) => {
+  const caller = await getCallerInfo(req);
+
   const [prop] = await db
-    .select({ id: properties.id })
+    .select({ id: properties.id, propertyStatus: properties.propertyStatus, ownerId: properties.ownerId })
     .from(properties)
     .where(eq(properties.id, req.params.id));
 
   if (!prop) {
     res.status(404).json({ error: "Property not found" });
+    return;
+  }
+
+  const isOwner = caller.userId && caller.userId === prop.ownerId;
+  const isAdmin = caller.role === "admin";
+  if (prop.propertyStatus === "sold" && !isOwner && !isAdmin) {
+    res.status(410).json({ error: "This property has been sold", sold: true });
     return;
   }
 

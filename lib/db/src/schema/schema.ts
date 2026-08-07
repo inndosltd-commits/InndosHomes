@@ -69,7 +69,7 @@ export const properties = pgTable("properties", {
   hourlyRate: integer("hourly_rate"),
   adminComment: text("admin_comment"),
   propertyStatus: text("property_status")
-    .$type<"pending" | "approved" | "flagged">()
+    .$type<"pending" | "approved" | "flagged" | "sold">()
     .notNull()
     .default("pending"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
