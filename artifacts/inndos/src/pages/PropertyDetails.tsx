@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCurrency } from "@/lib/currency";
 import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
