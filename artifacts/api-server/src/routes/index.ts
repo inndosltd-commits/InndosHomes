@@ -10,6 +10,7 @@ import favoritesRouter from "./favorites";
 import subscriptionsRouter from "./subscriptions";
 import verifyIdRouter from "./verifyId";
 import contactsRouter from "./contacts";
+import transactionsRouter from "./transactions";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use("/favorites", favoritesRouter);
 router.use("/subscriptions", subscriptionsRouter);
 router.use(verifyIdRouter);
 router.use(contactsRouter);
+router.use("/transactions", transactionsRouter);
 
 export default router;

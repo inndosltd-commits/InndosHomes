@@ -638,3 +638,133 @@ export async function sendListingRejectedEmail(params: ListingRejectedEmailParam
     throw new Error(`Resend error: ${error.message}`);
   }
 }
+
+// ─── Transaction Confirmation Email ───────────────────────────────────────────
+
+export interface TransactionConfirmationEmailParams {
+  toEmail: string;
+  toName: string;
+  propertyTitle: string;
+  transactionType: "rental" | "sale";
+  eventType: "prompt" | "confirmed" | "reminder";
+  status?: string;
+  dashboardUrl: string;
+  daysElapsed?: number;
+}
+
+export async function sendTransactionConfirmationEmail(
+  params: TransactionConfirmationEmailParams
+): Promise<void> {
+  const { toEmail, toName, propertyTitle, transactionType, eventType, status, dashboardUrl, daysElapsed } = params;
+
+  const typeLabel = transactionType === "sale" ? "Property Sale" : "Rental";
+  const actionLabel = transactionType === "sale" ? "sold" : "rented";
+
+  let subject = "";
+  let headingColor = "#16a34a";
+  let headingBg = "#f0fdf4";
+  let headingBorder = "#bbf7d0";
+  let mainHeading = "";
+  let bodyText = "";
+  let ctaLabel = "Go to Dashboard";
+  let bannerBg = "#16a34a";
+
+  if (eventType === "prompt") {
+    subject = `Action required: Confirm your ${typeLabel} transaction for "${propertyTitle}"`;
+    mainHeading = `Confirm Your ${typeLabel} Transaction`;
+    bodyText = `Hi ${toName}, a Link-Up for <strong>${propertyTitle}</strong> has been confirmed. Please log in to your dashboard to confirm whether the ${actionLabel} was completed via inndos.`;
+    bannerBg = "#2563eb";
+    headingColor = "#1d4ed8";
+    headingBg = "#eff6ff";
+    headingBorder = "#bfdbfe";
+  } else if (eventType === "reminder") {
+    const days = daysElapsed ?? 1;
+    subject = `Reminder (${days} day${days === 1 ? "" : "s"}): Please confirm your ${typeLabel} for "${propertyTitle}"`;
+    mainHeading = `Reminder: Confirm Your ${typeLabel}`;
+    bodyText = `Hi ${toName}, this is a ${days}-day reminder to confirm the ${typeLabel.toLowerCase()} transaction for <strong>${propertyTitle}</strong>. Your confirmation helps keep platform records accurate.`;
+    bannerBg = days >= 3 ? "#d97706" : "#2563eb";
+    headingColor = days >= 3 ? "#92400e" : "#1d4ed8";
+    headingBg = days >= 3 ? "#fffbeb" : "#eff6ff";
+    headingBorder = days >= 3 ? "#fde68a" : "#bfdbfe";
+  } else {
+    // confirmed
+    subject = `Transaction confirmed: "${propertyTitle}" has been marked as ${status?.replace(/_/g, " ") ?? "confirmed"}`;
+    mainHeading = `Transaction Fully Confirmed 🎉`;
+    bodyText = `Hi ${toName}, the ${typeLabel.toLowerCase()} for <strong>${propertyTitle}</strong> has been fully confirmed by both parties. This transaction is now recorded in the platform analytics.`;
+    bannerBg = "#16a34a";
+  }
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:${bannerBg};padding:28px 32px;">
+              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+              <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Property Transaction Confirmation</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">${mainHeading}</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">${bodyText}</p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:${headingBg};border-radius:8px;border:1px solid ${headingBorder};overflow:hidden;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;border-bottom:1px solid ${headingBorder};">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:${headingColor};text-transform:uppercase;letter-spacing:0.5px;">Property</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${propertyTitle}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:${headingColor};text-transform:uppercase;letter-spacing:0.5px;">Transaction Type</p>
+                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${typeLabel}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${dashboardUrl}" style="display:inline-block;background-color:${bannerBg};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;">${ctaLabel}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an active transaction on inndos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send transaction confirmation email");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}

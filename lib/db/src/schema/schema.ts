@@ -103,7 +103,7 @@ export const notifications = pgTable("notifications", {
     .notNull()
     .references(() => users.id),
   type: text("type")
-    .$type<"new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_cancelled_by_guest" | "new_user" | "listing_submitted" | "subscription_reminder">()
+    .$type<"new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_cancelled_by_guest" | "new_user" | "listing_submitted" | "subscription_reminder" | "transaction_confirmation_prompt" | "transaction_confirmed">()
     .notNull()
     .default("new_booking"),
   message: text("message").notNull(),
@@ -232,6 +232,62 @@ export const otpCodes = pgTable("otp_codes", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type OtpCode = typeof otpCodes.$inferSelect;
+
+// ─── Property Transaction Confirmation ────────────────────────────────────────
+export const propertyTransactions = pgTable("property_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").references(() => bookings.id),
+  propertyId: varchar("property_id")
+    .notNull()
+    .references(() => properties.id),
+  ownerId: varchar("owner_id")
+    .notNull()
+    .references(() => users.id),
+  tenantId: varchar("tenant_id")
+    .notNull()
+    .references(() => users.id),
+  transactionType: text("transaction_type")
+    .$type<"rental" | "sale">()
+    .notNull()
+    .default("rental"),
+  propertyTitle: text("property_title").notNull(),
+  propertyAddress: text("property_address"),
+  transactionValue: integer("transaction_value"),
+  ownerConfirmation: text("owner_confirmation")
+    .$type<"pending" | "confirmed" | "not_completed" | "outside_inndos">()
+    .notNull()
+    .default("pending"),
+  tenantConfirmation: text("tenant_confirmation")
+    .$type<"pending" | "confirmed" | "not_completed" | "outside_inndos">()
+    .notNull()
+    .default("pending"),
+  status: text("status")
+    .$type<
+      | "pending_confirmation"
+      | "confirmed_by_owner_only"
+      | "confirmed_by_tenant_only"
+      | "fully_confirmed"
+      | "disputed"
+      | "cancelled"
+      | "not_completed"
+      | "confirmed_outside_inndos"
+      | "sold_via_inndos"
+      | "rented_via_inndos"
+    >()
+    .notNull()
+    .default("pending_confirmation"),
+  ownerConfirmedAt: timestamp("owner_confirmed_at"),
+  tenantConfirmedAt: timestamp("tenant_confirmed_at"),
+  reminder1SentAt: timestamp("reminder_1_sent_at"),
+  reminder3SentAt: timestamp("reminder_3_sent_at"),
+  adminResolvedBy: varchar("admin_resolved_by"),
+  adminResolvedAt: timestamp("admin_resolved_at"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type PropertyTransaction = typeof propertyTransactions.$inferSelect;
+export type InsertPropertyTransaction = typeof propertyTransactions.$inferInsert;
 
 export const insertUserSchema = createInsertSchema(users)
   .pick({ name: true, email: true, password: true, role: true })

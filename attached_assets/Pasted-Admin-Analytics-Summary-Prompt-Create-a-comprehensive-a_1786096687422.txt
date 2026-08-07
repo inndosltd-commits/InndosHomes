@@ -1,0 +1,208 @@
+Admin Analytics (Summary Prompt)
+
+Create a comprehensive analytics dashboard that gives Super Admins a complete overview of the INNDOS platform, user activity, property performance, engagement, subscriptions, and overall platform health.
+
+Dashboard Overview
+
+Display key KPI cards including:
+
+Total Registered Users
+Active Users
+New Users (Today, Weekly, Monthly)
+Total Property Listings
+Active, Pending, Rejected, Expired, Sold, and Rented Listings
+Total Property Views
+Unique Visitors
+Total Favorites, Saves, and Link-Ups
+Total Messages
+Active Subscriptions
+Monthly Platform Growth
+User & Platform Growth
+
+Track platform growth with:
+
+User Registrations (Daily, Weekly, Monthly)
+Active & Returning Users
+User Retention Rate
+Average Session Duration
+User Growth Trends
+Property Analytics
+
+Provide an overview of platform listings, including:
+
+Listings by Status
+Listings by Property Type
+Listings by County/City
+Listings Added Over Time
+Sold vs Rented Properties
+Hidden and Pending Listings
+Property Performance
+
+Monitor property engagement by displaying:
+
+Total Property Views
+Unique Visitors
+Average Views per Property
+Most & Least Viewed Properties
+Top 10 Most Viewed, Saved, Liked, and Linked-Up Properties
+Most Searched Locations
+Engagement Analytics
+
+Track user engagement metrics, including:
+
+Favorites
+Saves
+Shares
+Link-Ups
+Messages
+Contact Button Clicks
+Phone Number Views
+WhatsApp Clicks
+Daily Engagement Trends
+Search Analytics
+
+Analyze search behavior by showing:
+
+Most Searched Cities, Counties, and Estates
+Most Searched Property Types
+Preferred Price Ranges
+Bedroom Preferences
+Trending Searches
+Searches with No Results
+Subscription Analytics
+
+Monitor subscription performance, including:
+
+Active & Expired Subscriptions
+Subscription Renewals
+Outstanding Renewals
+Subscriptions by Package
+Payment Methods
+Monthly and Annual Subscription Trends
+Property Transaction Analytics
+
+Track marketplace activity using confirmed property status:
+
+Successful Rentals (Calendar Marked Unavailable)
+Successful Property Sales (Marked as Sold)
+Monthly & Annual Rental Trends
+Monthly & Annual Sales Trends
+Average Rental Value
+Average Selling Price
+Highest Sale
+Largest Rental
+Conversion Funnel
+
+Visualize the customer journey:
+Visitors → Property Views → Saved → Liked → Contacted → Link-Up → Confirmed Rental/Sale
+
+Display conversion percentages at each stage.
+
+Geographic Analytics
+
+Display interactive location-based insights:
+
+Properties by County/City
+Property Density
+High Demand Areas
+Trending Locations
+Top Performing Counties
+Platform Health
+
+Monitor system performance and operational metrics:
+
+Failed Payments
+Failed Logins
+Server Uptime
+API Response Time
+Database Size
+Storage Usage
+Email Delivery Rate
+SMS Delivery Rate
+Push Notification Delivery
+Moderation Analytics
+
+Track platform moderation activities:
+
+Pending Property Approvals
+Rejected Listings
+Reported Listings
+Blocked Users
+Spam Accounts
+Fake Listings Detected
+Marketing Analytics
+
+Analyze acquisition and engagement sources:
+
+Google
+Facebook
+Instagram
+TikTok
+Direct Traffic
+Referrals
+Email Campaigns
+
+Display traffic trends and conversion rates by source.
+
+Charts & Visualizations
+
+Include interactive visualizations such as:
+
+KPI Cards
+Line Charts
+Bar Charts
+Area Charts
+Pie & Donut Charts
+Funnel Charts
+Geographic Maps
+Heat Maps
+Tables
+Calendar Heatmaps
+Trend Indicators
+Sparklines
+Smart Insights
+
+Generate AI-powered insights such as:
+
+Fastest-growing locations.
+Most popular property categories.
+Peak browsing periods.
+Listings with the highest engagement.
+Properties receiving exceptional growth in views or link-ups.
+User activity trends.
+Search patterns and emerging demand.
+Platform growth summaries and recommendations.
+Filters
+
+Allow analytics to be filtered by:
+
+Today
+Yesterday
+Last 7 Days
+Last 30 Days
+Last 90 Days
+This Month
+Last Month
+This Year
+Custom Date Range
+County/City
+Property Type
+Rental or Sale
+Listing Status
+Subscription Plan
+Reports & Export
+
+Support exporting analytics and reports in:
+
+PDF
+Excel (.xlsx)
+CSV
+Print-Friendly Format
+
+Generate reports for:
+
+Daily
+Weekly
+Monthly
+Quarterly
+Yearly

@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties, users, notifications, insertBookingSchema } from "@workspace/db";
+import { bookings, properties, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
 import { and, eq, lt, gt, inArray } from "drizzle-orm";
 import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
-import { sendNewBookingEmail, sendBookingStatusEmail, sendGuestCancelledEmail } from "../lib/email";
+import { sendNewBookingEmail, sendBookingStatusEmail, sendGuestCancelledEmail, sendTransactionConfirmationEmail } from "../lib/email";
 
 const router = Router();
 
@@ -293,8 +293,12 @@ router.patch("/:id/status", async (req, res) => {
     .select({
       id: bookings.id,
       guestId: bookings.userId,
+      totalPrice: bookings.totalPrice,
       ownerId: properties.ownerId,
+      propertyId: properties.id,
       propertyTitle: properties.title,
+      propertyAddress: properties.address,
+      propertyType: properties.type,
     })
     .from(bookings)
     .innerJoin(properties, eq(bookings.propertyId, properties.id))
@@ -347,6 +351,75 @@ router.patch("/:id/status", async (req, res) => {
     }
   } catch (err) {
     req.log.error({ err, bookingId: booking.id }, "Failed to create guest notification for booking status update");
+  }
+
+  // When owner confirms a link-up, auto-create a Transaction Confirmation record
+  if (status === "confirmed") {
+    try {
+      const txType = booking.propertyType === "sale" ? "rental" : "rental"; // sale listings use booking too
+      const realTxType: "rental" | "sale" = booking.propertyType === "sale" ? "sale" : "rental";
+
+      // Check if a transaction already exists for this booking
+      const [existing] = await db
+        .select({ id: propertyTransactions.id })
+        .from(propertyTransactions)
+        .where(eq(propertyTransactions.bookingId, booking.id));
+
+      if (!existing) {
+        await db.insert(propertyTransactions).values({
+          bookingId: booking.id,
+          propertyId: booking.propertyId,
+          ownerId: booking.ownerId,
+          tenantId: booking.guestId,
+          transactionType: realTxType,
+          propertyTitle: booking.propertyTitle,
+          propertyAddress: booking.propertyAddress,
+          transactionValue: booking.totalPrice,
+          ownerConfirmation: "pending",
+          tenantConfirmation: "pending",
+          status: "pending_confirmation",
+        });
+
+        const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+        const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+        const dashboardUrl = `${baseUrl}/#/dashboard`;
+        const promptMsg = `Please confirm your ${realTxType} for "${booking.propertyTitle}" via your dashboard.`;
+
+        // Notify both owner and tenant to confirm
+        for (const uid of [booking.ownerId, booking.guestId]) {
+          await db.insert(notifications).values({
+            userId: uid,
+            type: "transaction_confirmation_prompt",
+            message: promptMsg,
+            bookingId: booking.id,
+            isRead: false,
+          }).catch(() => {});
+        }
+
+        // SMS + email prompts (fire-and-forget)
+        const [ownerUser] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.ownerId));
+        const [guestUser2] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.guestId));
+
+        for (const u of [ownerUser, guestUser2]) {
+          if (!u) continue;
+          if (u.phone) sendSms(u.phone, promptMsg).catch(() => {});
+          if (u.email) {
+            sendTransactionConfirmationEmail({
+              toEmail: u.email,
+              toName: u.name ?? "User",
+              propertyTitle: booking.propertyTitle,
+              transactionType: realTxType,
+              eventType: "prompt",
+              dashboardUrl,
+            }).catch(() => {});
+          }
+        }
+
+        req.log.info({ bookingId: booking.id }, "Transaction confirmation record created");
+      }
+    } catch (txErr) {
+      req.log.error({ txErr, bookingId: booking.id }, "Failed to create transaction confirmation record");
+    }
   }
 
   res.json(updated);

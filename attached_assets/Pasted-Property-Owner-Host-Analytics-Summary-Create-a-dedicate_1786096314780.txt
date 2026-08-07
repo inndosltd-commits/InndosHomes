@@ -1,0 +1,123 @@
+Property Owner / Host Analytics (Summary)
+
+Create a dedicated analytics dashboard where each property owner only sees data related to their own properties.
+
+Dashboard Overview
+
+Display key metrics including:
+
+Total Properties
+Active Listings
+Total Views
+Unique Visitors
+Saved Properties
+Favorites/Likes
+Link-Ups
+Revenue Generated (Estimated)
+Pending Link-Ups
+Confirmed Rentals
+Sold Properties
+Individual Property Analytics
+
+Each property should have its own analytics page showing:
+
+Total & Unique Views
+Returning Visitors
+Saves, Favorites, and Shares
+Link-Ups and Messages
+Phone & WhatsApp Clicks
+Bookings
+Calendar Availability
+Average Viewing Time
+Bounce Rate
+Interest Score
+Engagement Score
+Popularity Ranking
+Performance Trends
+
+Visualize property performance with daily, weekly, monthly, and yearly charts, including a conversion funnel:
+Views → Saved → Liked → Link-Up Requested → Link-Up Confirmed → Calendar Unavailable (Rented) → Property Rented
+
+Financial Analytics
+
+Track:
+
+Current Subscription Plan
+Renewal Date
+Amount Paid
+Next Payment
+Invoices
+Estimated Revenue
+
+For rentals:
+
+Monthly & Annual Revenue
+Occupancy Rate
+Vacancy Rate
+Property Earnings
+
+For sales:
+
+Properties Sold
+Estimated Sales Value
+Average Selling Price
+Visitor Insights
+
+Provide anonymous visitor analytics including:
+
+Country, County, and City
+Device (Mobile/Desktop)
+Browser
+Time Spent
+Returning Visitors
+Traffic Source
+Property Rankings
+
+Highlight best-performing properties based on:
+
+Views
+Link-Ups
+Revenue
+Favorites
+Shares
+Rental Occupancy Analytics
+
+Show:
+
+Occupancy Percentage
+Booked Dates
+Available Dates
+Average Stay Duration
+Peak Booking Months
+Inquiry & Lead Analytics
+
+Monitor:
+
+Pending, Responded, and Closed Messages
+Average Response Time
+Response Rate
+Qualified, Pending, Converted, and Rejected Leads
+Lead Conversion Rate
+Reviews & Ratings
+
+Display:
+
+Average Rating
+Total Reviews
+Rating Trends
+Review Sentiment Analysis
+Reporting
+
+Allow owners to export analytics and reports in:
+
+PDF
+Excel
+CSV
+
+Support report generation for:
+
+Daily
+Weekly
+Monthly
+Quarterly
+Yearly periods.

@@ -114,6 +114,33 @@ async function seedDefaultPlans() {
 async function runMigrations() {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`);
+
+  // Property transaction confirmation table
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS property_transactions (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      booking_id VARCHAR REFERENCES bookings(id),
+      property_id VARCHAR NOT NULL REFERENCES properties(id),
+      owner_id VARCHAR NOT NULL REFERENCES users(id),
+      tenant_id VARCHAR NOT NULL REFERENCES users(id),
+      transaction_type TEXT NOT NULL DEFAULT 'rental',
+      property_title TEXT NOT NULL,
+      property_address TEXT,
+      transaction_value INTEGER,
+      owner_confirmation TEXT NOT NULL DEFAULT 'pending',
+      tenant_confirmation TEXT NOT NULL DEFAULT 'pending',
+      status TEXT NOT NULL DEFAULT 'pending_confirmation',
+      owner_confirmed_at TIMESTAMP,
+      tenant_confirmed_at TIMESTAMP,
+      reminder_1_sent_at TIMESTAMP,
+      reminder_3_sent_at TIMESTAMP,
+      admin_resolved_by VARCHAR,
+      admin_resolved_at TIMESTAMP,
+      admin_notes TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+
   logger.info("Schema migrations applied");
 }
 

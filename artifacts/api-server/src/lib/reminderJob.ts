@@ -5,11 +5,11 @@
  */
 
 import { db } from "@workspace/db";
-import { subscriptions, subscriptionPlans, users, notifications } from "@workspace/db";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { subscriptions, subscriptionPlans, users, notifications, propertyTransactions } from "@workspace/db";
+import { and, eq, inArray, ne, isNull, lte, or } from "drizzle-orm";
 import { logger } from "./logger";
 import { sendSms } from "./sms";
-import { sendSubscriptionReminderEmail } from "./email";
+import { sendSubscriptionReminderEmail, sendTransactionConfirmationEmail } from "./email";
 
 const REMIND_DAYS = [7, 3, 2, 1];
 
@@ -112,6 +112,96 @@ export async function runSubscriptionReminders(): Promise<void> {
   logger.info("Subscription renewal reminder check complete");
 }
 
+// ─── Transaction Confirmation Reminders ───────────────────────────────────────
+
+const PENDING_TX_STATUSES = [
+  "pending_confirmation",
+  "confirmed_by_owner_only",
+  "confirmed_by_tenant_only",
+];
+
+function daysAgo(n: number): Date {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+export async function runTransactionConfirmationReminders(): Promise<void> {
+  logger.info("Running transaction confirmation reminder check…");
+
+  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+  const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+  const dashboardUrl = `${baseUrl}/#/dashboard`;
+
+  for (const days of [1, 3] as const) {
+    const cutoff = daysAgo(days);
+    const nextCutoff = daysAgo(days - 1);
+
+    // Find transactions created approximately `days` days ago that haven't had this reminder sent
+    const rows = await db
+      .select()
+      .from(propertyTransactions)
+      .where(
+        and(
+          lte(propertyTransactions.createdAt, cutoff),
+          ...(days === 1
+            ? [isNull(propertyTransactions.reminder1SentAt)]
+            : [isNull(propertyTransactions.reminder3SentAt)])
+        )
+      );
+
+    const pending = rows.filter(r => PENDING_TX_STATUSES.includes(r.status));
+    if (pending.length === 0) continue;
+
+    logger.info({ daysElapsed: days, count: pending.length }, "Sending transaction confirmation reminders");
+
+    for (const tx of pending) {
+      // Determine who still needs to confirm
+      const needsOwner = tx.ownerConfirmation === "pending";
+      const needsTenant = tx.tenantConfirmation === "pending";
+      const targets: string[] = [];
+      if (needsOwner) targets.push(tx.ownerId);
+      if (needsTenant) targets.push(tx.tenantId);
+      if (targets.length === 0) continue;
+
+      const msg = `⏰ Reminder: Please confirm the ${tx.transactionType} for "${tx.propertyTitle}" on your dashboard (${days} day${days === 1 ? "" : "s"} after link-up).`;
+
+      for (const uid of targets) {
+        try {
+          await db.insert(notifications).values({
+            userId: uid,
+            type: "transaction_confirmation_prompt",
+            message: msg,
+            isRead: false,
+          });
+          const [u] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, uid));
+          if (u?.phone) sendSms(u.phone, msg).catch(() => {});
+          if (u?.email) {
+            sendTransactionConfirmationEmail({
+              toEmail: u.email,
+              toName: u.name ?? "User",
+              propertyTitle: tx.propertyTitle,
+              transactionType: tx.transactionType as "rental" | "sale",
+              eventType: "reminder",
+              dashboardUrl,
+              daysElapsed: days,
+            }).catch(() => {});
+          }
+        } catch (err) {
+          logger.error({ err, txId: tx.id, userId: uid }, "Failed to send transaction reminder");
+        }
+      }
+
+      // Mark reminder as sent
+      const updateField = days === 1 ? { reminder1SentAt: new Date() } : { reminder3SentAt: new Date() };
+      await db.update(propertyTransactions).set(updateField).where(eq(propertyTransactions.id, tx.id)).catch(() => {});
+    }
+  }
+
+  logger.info("Transaction confirmation reminder check complete");
+}
+
 /** Schedules the reminder job to run at 08:00 UTC every day. */
 export function startSubscriptionReminderJob(): void {
   function msUntilNext8amUtc(): number {
@@ -134,6 +224,9 @@ export function startSubscriptionReminderJob(): void {
   setTimeout(function tick() {
     runSubscriptionReminders().catch((err: unknown) =>
       logger.error({ err }, "Subscription reminder job failed")
+    );
+    runTransactionConfirmationReminders().catch((err: unknown) =>
+      logger.error({ err }, "Transaction confirmation reminder job failed")
     );
     // Re-schedule for the next day
     setTimeout(tick, msUntilNext8amUtc());

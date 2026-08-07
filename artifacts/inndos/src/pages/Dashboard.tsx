@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
+import { TransactionConfirmations } from "@/components/dashboard/TransactionConfirmations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/lib/language";
 
@@ -1860,6 +1861,9 @@ export default function Dashboard() {
               )}
             </TabsTrigger>
           )}
+          <TabsTrigger value="transactions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Transactions
+          </TabsTrigger>
           {user.role === 'admin' && (
             <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.properties")}
@@ -1954,6 +1958,11 @@ export default function Dashboard() {
                 )}
                 </TabsTrigger>
             )}
+            {(user.role === 'owner' || user.role === 'host' || user.role === 'tenant' || user.role === 'guest') && (
+                <TabsTrigger value="transactions" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <ShieldCheck className="w-5 h-5 mr-3" /> Transactions
+                </TabsTrigger>
+            )}
             {user.role === 'admin' && (
                 <TabsTrigger value="all-properties" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Home className="w-5 h-5 mr-3" /> {t("dash.all_properties")}
@@ -1977,6 +1986,11 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="sms-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <MessageSquare className="w-5 h-5 mr-3" /> {t("dash.sms_settings")}
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="transactions" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <ShieldCheck className="w-5 h-5 mr-3" /> Transactions
                 </TabsTrigger>
             )}
             </TabsList>
@@ -2313,6 +2327,14 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Transaction Confirmations — compact prompt for owner */}
+                <TransactionConfirmations
+                  userId={user.id}
+                  userRole={user.role as "owner" | "host"}
+                  token={token}
+                  compact={true}
+                />
               </TabsContent>
 
               <TabsContent value="listings" className="space-y-6">
@@ -2688,6 +2710,14 @@ export default function Dashboard() {
                 </Card>
               </div>
 
+              {/* Transaction Confirmations — compact prompt for tenant/guest */}
+              <TransactionConfirmations
+                userId={user.id}
+                userRole={user.role as "tenant" | "guest"}
+                token={token}
+                compact={true}
+              />
+
               <h2 className="text-xl font-bold mt-8 mb-4">Saved Properties</h2>
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border rounded-lg bg-white">
                 <Heart className="h-8 w-8 mb-3 text-gray-300" />
@@ -2877,8 +2907,34 @@ export default function Dashboard() {
                 </Card>
 
               </div>
+
+              {/* Transaction Confirmations — compact disputed view for admin overview */}
+              <TransactionConfirmations
+                userId={user.id}
+                userRole="admin"
+                token={token}
+                compact={true}
+              />
             </TabsContent>
           )}
+
+          {/* TRANSACTIONS TAB — Full view for all roles */}
+          <TabsContent value="transactions" className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-bold text-gray-900">Transaction Confirmations</h2>
+              <p className="text-sm text-gray-500">
+                {user.role === 'admin'
+                  ? "Review, resolve and analyse all platform rental and sale transactions"
+                  : "Confirm whether your rentals or sales were completed via inndos — this powers platform analytics"}
+              </p>
+            </div>
+            <TransactionConfirmations
+              userId={user.id}
+              userRole={user.role as "owner" | "host" | "tenant" | "guest" | "admin"}
+              token={token}
+              compact={false}
+            />
+          </TabsContent>
 
           {user.role === 'admin' && (
             <TabsContent value="all-properties" className="space-y-6">

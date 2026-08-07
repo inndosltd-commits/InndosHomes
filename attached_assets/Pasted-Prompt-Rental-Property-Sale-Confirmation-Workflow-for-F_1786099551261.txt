@@ -1,0 +1,140 @@
+Prompt: Rental & Property Sale Confirmation Workflow for Financial Analytics
+
+Design and implement a Property Transaction Confirmation System for the INNDOS platform. This feature will improve platform analytics by allowing verified confirmation of successful rentals and property sales, enabling accurate financial reporting and marketplace performance insights.
+
+1. Rental Confirmation Workflow
+
+Create a workflow that allows Hosts, Agencies, Tenants, and Super Admins to confirm when a rental transaction has been successfully completed after a Link-Up.
+
+This should apply to the following listing categories:
+
+Houses for Rent
+Apartments for Rent
+Shops for Rent
+Stores for Rent
+Godowns/Warehouses for Rent
+Office Spaces
+BnB & Short Stay
+Hostels
+Hotels
+Workflow
+A Link-Up must first exist between the tenant and the property owner/agency.
+After the tenant moves in or the booking is finalized, both the Host/Agency and the Tenant should receive a prompt to confirm the transaction.
+The rental should only be marked as Confirmed when both parties approve.
+If only one party confirms, the transaction should remain Pending Confirmation until the other party responds.
+Super Admins should have the ability to review and manually resolve disputes or confirm transactions when necessary.
+Upon Successful Confirmation
+
+The system should automatically:
+
+Mark the property's calendar as Unavailable.
+Update the property's occupancy status.
+Record a successful rental transaction.
+Remove the property from active availability if applicable.
+Update the host's analytics and dashboard.
+Update tenant history.
+Include the transaction in platform rental analytics and reports.
+2. Property Sale Confirmation Workflow
+
+Create a workflow that allows Hosts, Agencies, Buyers, and Super Admins to confirm whether a property sale was successfully completed after a Link-Up.
+
+This should apply to:
+
+Land for Sale
+Houses & Homes for Sale
+Apartments for Sale
+Workflow
+
+After a Link-Up, both the seller and buyer should be able to indicate one of the following outcomes:
+
+Successfully Sold via INNDOS
+Not Sold via INNDOS
+
+Both the Seller (Host/Agency) and the Buyer (Tenant/User) must confirm the outcome to ensure authenticity.
+
+If both confirm Successfully Sold via INNDOS, the system should:
+
+Mark the property as Sold.
+Remove the property from all public listings and search results.
+Prevent any further inquiries or Link-Ups.
+Archive the listing.
+Record the successful sale in platform analytics.
+Update the seller's dashboard and transaction history.
+
+If both parties confirm Not Sold via INNDOS, the property should remain active and continue accepting inquiries.
+
+If the responses conflict, the transaction should remain Pending Verification until reviewed by a Super Admin.
+
+3. Verification Status
+
+Every rental or sale transaction should have one of the following statuses:
+
+Pending Confirmation
+Confirmed by Owner Only
+Confirmed by Tenant/Buyer Only
+Fully Confirmed
+Disputed
+Cancelled
+Not Completed
+Confirmed Outside INNDOS
+Sold via INNDOS
+Rented via INNDOS
+4. Analytics Integration
+
+Once a transaction is fully confirmed, automatically update analytics for all dashboards.
+
+Admin Analytics
+
+Total Confirmed Rentals
+Total Confirmed Property Sales
+Monthly Rental Trends
+Monthly Sales Trends
+Property Conversion Rates
+Link-Up Success Rate
+Most Successful Property Categories
+Top Performing Locations
+
+Host/Agency Analytics
+
+Confirmed Rentals
+Confirmed Sales
+Occupancy Rate
+Property Status
+Link-Up Conversion Rate
+Rental History
+Sales History
+
+Tenant Analytics
+
+Rental History
+Purchase History
+Completed Link-Ups
+Booking Timeline
+Favorite Property Types
+5. Estimated Financial Analytics
+
+Use only fully confirmed transactions for financial calculations.
+
+Rental Analytics
+Estimate rental marketplace activity using:
+
+Monthly Rent × Number of Confirmed Rentals
+Monthly Rental Trends
+Annual Rental Trends
+Average Rental Value
+Highest Rental Value
+Rental Volume by County
+Rental Volume by Property Type
+
+Property Sales Analytics
+Estimate marketplace sales activity using:
+
+Selling Price × Number of Confirmed Sales
+Monthly Sales Trends
+Annual Sales Trends
+Average Selling Price
+Highest Sale Value
+Sales by County
+Sales by Property Type
+
+Only include transactions that have been confirmed by both parties (or verified by a Super Admin) to ensure the analytics remain accurate, reliable, and resistant to fraudulent reporting.

@@ -1,0 +1,118 @@
+Tenant / User Analytics (Summary Prompt)
+
+Create a personalized analytics dashboard for tenants/users that helps them track their property search activity, engagement, and preferences. Exclude any revenue or financial metrics.
+
+Dashboard Overview
+
+Display key metrics including:
+
+Recently Viewed Properties
+Saved Properties
+Liked/Favorited Properties
+Link-Up Requests Sent
+Pending Link-Ups
+Confirmed Link-Ups
+Rejected Requests
+Compared Properties
+Total Messages
+Favorite Locations
+Recommended Properties
+Activity Timeline
+
+Provide a chronological timeline of user activity, including:
+
+Recently Viewed Properties
+Saved & Liked Properties
+Shared Properties
+Messages Sent
+Contacted Property Owners
+Appointments/Property Visits Booked
+Link-Up Requests
+Search Insights
+
+Analyze user search behavior by showing:
+
+Search Frequency
+Favorite Counties, Cities, and Estates
+Most Searched Property Types
+Preferred Rental or Sale Listings
+Preferred Price Range
+Bedrooms Searched
+Amenities Frequently Searched
+Search History & Trends
+Browsing Time and Activity Patterns
+Recommendation Analytics
+
+Display personalized recommendations based on user activity, including:
+
+Suggested Properties
+Recently Matched Properties
+Match Percentage
+Recommendation Accuracy
+Similar Properties You May Like
+Trending Properties in Preferred Locations
+Tenant KPI Cards
+
+Show quick statistics such as:
+
+Saved Properties
+Viewed Properties
+Link-Up Requests
+Messages
+Favorite Areas
+Recommended Listings
+Compared Properties
+Appointments Scheduled
+Charts & Visualizations
+
+Include interactive charts such as:
+
+Line Charts
+Bar Charts
+Area Charts
+Pie Charts
+Geo Maps (Preferred Search Locations)
+Activity Timeline Charts
+Search Trend Charts
+KPI Cards
+Tables
+Calendar Heatmaps
+Trend Indicators
+Sparklines
+Smart Insights
+
+Generate useful AI-powered insights, for example:
+
+Your searches increased by 25% this week.
+Apartments are your most searched property type.
+Most of your searches are in Nairobi and Mombasa.
+Properties in your preferred locations are receiving high demand.
+New listings matching your preferences were recently added.
+Properties with more photos receive higher engagement.
+Evening hours are your most active browsing period.
+You have several saved properties that recently changed status.
+Filters
+
+Allow users to filter analytics by:
+
+Today
+Yesterday
+Last 7 Days
+Last 30 Days
+Last 90 Days
+This Month
+Last Month
+This Year
+Custom Date Range
+County/City
+Property Type
+Rental or Sale
+Link-Up Status
+Reports & Export
+
+Allow users to export their activity and analytics as:
+
+PDF
+Excel (.xlsx)
+CSV
+Print-Friendly Format
