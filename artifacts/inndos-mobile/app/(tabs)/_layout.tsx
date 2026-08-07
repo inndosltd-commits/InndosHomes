@@ -38,6 +38,10 @@ function NativeTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: bo
         <Icon sf={{ default: "calendar", selected: "calendar" }} />
         <Label>Bookings</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="transactions">
+        <Icon sf={{ default: "arrow.left.arrow.right", selected: "arrow.left.arrow.right.circle.fill" }} />
+        <Label>Transactions</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="my-listings">
         <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
         <Label>My Listings</Label>
@@ -150,6 +154,18 @@ function ClassicTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: b
               <SymbolView name="calendar" tintColor={color} size={24} />
             ) : (
               <Feather name="calendar" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="transactions"
+        options={{
+          title: "Transactions",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="arrow.left.arrow.right" tintColor={color} size={24} />
+            ) : (
+              <Feather name="repeat" size={22} color={color} />
             ),
         }}
       />
