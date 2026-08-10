@@ -213,8 +213,8 @@ export function Analytics() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4 h-full content-center">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
-                <div className="text-3xl font-bold text-blue-700">{totalProperties}</div>
-                <div className="text-sm font-medium text-blue-600 mt-1">Total Properties</div>
+                <div className="text-3xl font-bold text-gray-900">{totalProperties}</div>
+                <div className="text-sm font-medium text-gray-600 mt-1">Total Properties</div>
               </div>
               <div className="bg-amber-50 p-4 rounded-lg border border-amber-100 text-center">
                 <div className="text-3xl font-bold text-amber-700">
@@ -222,17 +222,17 @@ export function Analytics() {
                 </div>
                 <div className="text-sm font-medium text-amber-600 mt-1">Total Bookings (6mo)</div>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
-                <div className="text-3xl font-bold text-green-700">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 text-center">
+                <div className="text-3xl font-bold text-gray-700">
                   {monthlyData.reduce((acc, curr) => acc + curr.views, 0)}
                 </div>
-                <div className="text-sm font-medium text-green-600 mt-1">Total Views (6mo)</div>
+                <div className="text-sm font-medium text-gray-600 mt-1">Total Views (6mo)</div>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-center">
-                <div className="text-3xl font-bold text-purple-700">
+                <div className="text-3xl font-bold text-gray-700">
                   {(monthlyData.reduce((acc, curr) => acc + curr.bookings, 0) / monthlyData.reduce((acc, curr) => acc + curr.inquiries, 0) * 100).toFixed(1)}%
                 </div>
-                <div className="text-sm font-medium text-purple-600 mt-1">Conversion Rate</div>
+                <div className="text-sm font-medium text-gray-600 mt-1">Conversion Rate</div>
               </div>
             </div>
           </CardContent>

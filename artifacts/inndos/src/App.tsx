@@ -64,6 +64,7 @@ function Router() {
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>
       <Route path="/property/:id" component={PropertyDetails}/>
+      <Route path="/properties/:id">{(params) => { window.location.hash = `/property/${params.id}`; return null; }}</Route>
       <Route path="/admin/analytics" component={AdminAnalytics}/>
       <Route component={NotFound} />
     </Switch>

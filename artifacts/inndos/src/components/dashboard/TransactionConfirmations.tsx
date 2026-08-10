@@ -89,16 +89,16 @@ const STATUS_LABEL: Record<TxStatus, string> = {
 };
 
 const STATUS_COLOR: Record<TxStatus, string> = {
-  pending_confirmation: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  confirmed_by_owner_only: "bg-blue-100 text-blue-800 border-blue-300",
-  confirmed_by_tenant_only: "bg-blue-100 text-blue-800 border-blue-300",
-  fully_confirmed: "bg-green-100 text-green-800 border-green-300",
-  disputed: "bg-red-100 text-red-800 border-red-300",
+  pending_confirmation: "bg-gray-100 text-gray-800 border-gray-200",
+  confirmed_by_owner_only: "bg-gray-100 text-gray-800 border-gray-200",
+  confirmed_by_tenant_only: "bg-gray-100 text-gray-800 border-gray-200",
+  fully_confirmed: "bg-gray-100 text-gray-800 border-gray-200",
+  disputed: "bg-gray-100 text-gray-700 border-gray-200",
   cancelled: "bg-gray-100 text-gray-800 border-gray-300",
   not_completed: "bg-gray-100 text-gray-800 border-gray-300",
-  confirmed_outside_inndos: "bg-orange-100 text-orange-800 border-orange-300",
-  sold_via_inndos: "bg-green-100 text-green-800 border-green-300",
-  rented_via_inndos: "bg-green-100 text-green-800 border-green-300",
+  confirmed_outside_inndos: "bg-gray-100 text-gray-700 border-gray-200",
+  sold_via_inndos: "bg-gray-100 text-gray-800 border-gray-200",
+  rented_via_inndos: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
 const PENDING_STATUSES: TxStatus[] = [
@@ -236,21 +236,21 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Confirmed Rentals</p>
               <p className="text-2xl font-bold">{analytics.confirmedRentals}</p>
-              <p className="text-xs text-green-600 mt-0.5">Rented via inndos</p>
+              <p className="text-xs text-gray-600 mt-0.5">Rented via inndos</p>
             </CardContent>
           </Card>
           <Card className="bg-white border-l-4 border-l-blue-500">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Confirmed Sales</p>
               <p className="text-2xl font-bold">{analytics.confirmedSales}</p>
-              <p className="text-xs text-blue-600 mt-0.5">Sold via inndos</p>
+              <p className="text-xs text-gray-600 mt-0.5">Sold via inndos</p>
             </CardContent>
           </Card>
           <Card className="bg-white border-l-4 border-l-yellow-500">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Pending</p>
               <p className="text-2xl font-bold">{analytics.pending}</p>
-              <p className="text-xs text-yellow-700 mt-0.5">Awaiting confirmation</p>
+              <p className="text-xs text-gray-700 mt-0.5">Awaiting confirmation</p>
             </CardContent>
           </Card>
           <Card className="bg-white border-l-4 border-l-purple-500">
@@ -285,7 +285,7 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground mb-1">Disputed</p>
                   <p className="text-2xl font-bold">{analytics.disputed}</p>
-                  <p className="text-xs text-orange-700 mt-0.5">Needs admin review</p>
+                  <p className="text-xs text-gray-700 mt-0.5">Needs admin review</p>
                 </CardContent>
               </Card>
             </>
@@ -299,7 +299,7 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertTriangle className="h-4 w-4 text-gray-600" />
                 {isAdmin ? "Pending / Disputed Transactions" : "Action Required: Confirm Your Transactions"}
                 {pendingTxs.length > 0 && (
                   <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-yellow-500 text-white text-[11px] font-bold">
@@ -354,8 +354,8 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
                           </p>
                         )}
                         <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>Owner: <span className={tx.ownerConfirmation === "pending" ? "text-yellow-700 font-medium" : "text-green-700 font-medium"}>{tx.ownerConfirmation === "pending" ? "⏳ Awaiting" : "✓ " + tx.ownerConfirmation}</span></span>
-                          <span>Tenant: <span className={tx.tenantConfirmation === "pending" ? "text-yellow-700 font-medium" : "text-green-700 font-medium"}>{tx.tenantConfirmation === "pending" ? "⏳ Awaiting" : "✓ " + tx.tenantConfirmation}</span></span>
+                          <span>Owner: <span className={tx.ownerConfirmation === "pending" ? "text-gray-700 font-medium" : "text-gray-700 font-medium"}>{tx.ownerConfirmation === "pending" ? "⏳ Awaiting" : "✓ " + tx.ownerConfirmation}</span></span>
+                          <span>Tenant: <span className={tx.tenantConfirmation === "pending" ? "text-gray-700 font-medium" : "text-gray-700 font-medium"}>{tx.tenantConfirmation === "pending" ? "⏳ Awaiting" : "✓ " + tx.tenantConfirmation}</span></span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">Link-up confirmed {timeAgo(tx.createdAt)}</p>
                       </div>
@@ -458,7 +458,7 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
               </Button>
               <Button
                 variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-50 justify-start gap-2 h-auto py-3 px-4"
+                className="border-orange-300 text-gray-700 hover:bg-orange-50 justify-start gap-2 h-auto py-3 px-4"
                 disabled={confirmingId === confirmDialog?.tx.id}
                 onClick={() => confirmDialog && handleConfirm(confirmDialog.tx, "outside_inndos")}
               >

@@ -4,6 +4,8 @@ import { BedDouble, Bath, Square, Heart, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import { useCurrency } from "@/lib/currency";
 import { resolveAmenityLabel } from "@/lib/amenities";
+import { useAuth } from "@/lib/auth";
+import { useState, useEffect } from "react";
 
 export interface ApiProperty {
   id: string;
@@ -38,6 +40,43 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property }: PropertyCardProps) {
   const { convert } = useCurrency();
+  const { user, token } = useAuth();
+  const [isFaved, setIsFaved] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  // Check existing favourite status on mount
+  useEffect(() => {
+    if (!token || !property.id) return;
+    fetch(`/api/favorites/check/${property.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setIsFaved(d.isFavorited); })
+      .catch(() => {});
+  }, [token, property.id]);
+
+  const toggleFav = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || !token) {
+      window.location.hash = "/login";
+      return;
+    }
+    const next = !isFaved;
+    setIsFaved(next);
+    setFavLoading(true);
+    try {
+      const res = await fetch(`/api/favorites/${property.id}`, {
+        method: next ? "POST" : "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) setIsFaved(!next);
+    } catch {
+      setIsFaved(!next);
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const beds = property.beds ?? property.specs?.beds ?? 0;
   const baths = property.baths ?? property.specs?.baths ?? 0;
@@ -94,12 +133,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
               </Badge>
             )}
           </div>
-          <button
-            className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500 transition-colors z-10"
-            onClick={(e) => { e.preventDefault(); }}
-          >
-            <Heart className="h-4 w-4" />
-          </button>
+          {/* Only show favourite button for guests / tenants (not the property owner) */}
+          {(!user || user.id !== property.ownerId) && (
+            <button
+              className={`absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white transition-colors z-10 ${favLoading ? "opacity-50 cursor-wait" : ""}`}
+              onClick={toggleFav}
+              aria-label={isFaved ? "Remove from favourites" : "Save to favourites"}
+            >
+              <Heart className={`h-4 w-4 transition-colors ${isFaved ? "fill-gray-900 text-gray-900" : "text-gray-400 hover:text-gray-900"}`} />
+            </button>
+          )}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <p className="text-white font-bold text-xl">{priceLabel()}</p>
           </div>

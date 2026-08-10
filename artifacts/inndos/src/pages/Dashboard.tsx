@@ -35,7 +35,7 @@ function IdSideUpload({
       <span className="text-sm font-medium">{label}</span>
       <div
         className={`border-2 border-dashed rounded-xl overflow-hidden transition-colors cursor-pointer
-          ${imgSrc ? "border-green-300 bg-green-50/30" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
+          ${imgSrc ? "border-gray-300 bg-gray-50" : "border-gray-300 bg-gray-50/50 hover:bg-gray-50"}`}
         style={{ minHeight: 160 }}
         onClick={() => !busy && inputRef.current?.click()}
       >
@@ -46,8 +46,8 @@ function IdSideUpload({
           </div>
         ) : isVerifying ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <p className="text-sm text-blue-700 font-medium">Verifying ID with AI…</p>
+            <Loader2 className="h-8 w-8 text-gray-500 animate-spin" />
+            <p className="text-sm text-gray-700 font-medium">Verifying ID with AI…</p>
             <p className="text-xs text-gray-500">Checking Kenyan ID format & name match</p>
           </div>
         ) : imgSrc ? (
@@ -56,7 +56,7 @@ function IdSideUpload({
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
               <span className="text-white text-xs font-medium">Click to replace</span>
             </div>
-            <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5">
+            <span className="absolute top-2 right-2 bg-gray-900 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5">
               <Check className="h-2.5 w-2.5" /> Verified
             </span>
           </div>
@@ -391,7 +391,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
               <div className="relative">
                 <Input id="profile-phone" value={user.phone} readOnly className="bg-gray-50 cursor-not-allowed pr-32" />
                 {user.phoneVerified && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5">
                     <Check className="h-3 w-3" /> {t("dash.verified")}
                   </span>
                 )}
@@ -428,7 +428,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
                       className="bg-white text-sm tracking-widest"
                       onKeyDown={e => e.key === "Enter" && handleVerifyPhone()}
                     />
-                    <Button size="sm" onClick={handleVerifyPhone} disabled={isVerifyingPhone || phoneOtpCode.length < 6} className="shrink-0 bg-green-600 hover:bg-green-700">
+                    <Button size="sm" onClick={handleVerifyPhone} disabled={isVerifyingPhone || phoneOtpCode.length < 6} className="shrink-0 bg-gray-900 hover:bg-gray-800">
                       {isVerifyingPhone ? <Loader2 className="h-3 w-3 animate-spin" /> : "Verify"}
                     </Button>
                   </div>
@@ -443,13 +443,13 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
         {(user as any).isRegisteredFirm ? (
           /* ── Registered Firm / Agency verification ── */
           <div className="space-y-5">
-            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
+            <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-100 rounded-lg">
+              <ShieldCheck className="h-4 w-4 text-gray-600 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-blue-800">
+                <p className="text-sm font-semibold text-gray-800">
                   Registered {(user as any).firmType === "registered_company" ? "Company" : "Business Name"} Verification
                 </p>
-                <p className="text-xs text-blue-600">Upload your business documents below. No National ID required.</p>
+                <p className="text-xs text-gray-600">Upload your business documents below. No National ID required.</p>
               </div>
             </div>
 
@@ -529,7 +529,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
                           <span>Director {idx + 1} ID</span>
                           <button
                             onClick={() => removeFirmDirectorId(idx)}
-                            className="text-red-500 hover:text-red-700 text-xs font-semibold"
+                            className="text-gray-500 hover:text-gray-700 text-xs font-semibold"
                           >
                             Remove
                           </button>
@@ -600,7 +600,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
               />
             </div>
             {(idFrontPath && idBackPath) && (
-              <p className="text-xs text-green-700 flex items-center gap-1">
+              <p className="text-xs text-gray-700 flex items-center gap-1">
                 <Check className="h-3 w-3" /> {t("dash.both_uploaded")}
               </p>
             )}
@@ -1283,7 +1283,7 @@ export default function Dashboard() {
       toast({
         title: "Plan Activated!",
         description: data.message || "Your subscription has been upgraded.",
-        className: "bg-green-50 border-green-200 text-green-800",
+        className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -1369,7 +1369,7 @@ export default function Dashboard() {
       toast({
         title: "Payment successful!",
         description: "Your subscription has been activated. Thank you!",
-        className: "bg-green-50 border-green-200 text-green-800",
+        className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } else if (paymentResult === "failed") {
       toast({
@@ -1441,7 +1441,7 @@ export default function Dashboard() {
       toast({
         title: "Listing Approved",
         description: "Property is now live on the platform.",
-        className: "bg-green-50 border-green-200 text-green-800",
+        className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -1492,7 +1492,7 @@ export default function Dashboard() {
       toast({
         title: "Listing Flagged",
         description: "Owner has been notified with your feedback.",
-        className: "bg-orange-50 border-orange-200 text-orange-800",
+        className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -1517,7 +1517,7 @@ export default function Dashboard() {
       toast({
         title: "Resubmitted for Review",
         description: "Your listing has been sent back to admin for approval.",
-        className: "bg-blue-50 border-blue-200 text-blue-800",
+        className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -1628,7 +1628,7 @@ export default function Dashboard() {
       setAdminUsers(prev => [data, ...prev]);
       setCreateUserDialog(false);
       setCreateUserForm({ name: "", email: "", password: "", role: "tenant" });
-      toast({ title: "User created", description: `${name} (${role}) has been added to the platform.`, className: "bg-green-50 border-green-200 text-green-800" });
+      toast({ title: "User created", description: `${name} (${role}) has been added to the platform.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
     } catch {
       toast({ title: "Network error", variant: "destructive" });
     } finally {
@@ -1654,7 +1654,7 @@ export default function Dashboard() {
         toast({ title: "Failed to reset password", description: err.error || "An error occurred.", variant: "destructive" });
         return;
       }
-      toast({ title: "Password reset", description: `Password for ${resetPasswordDialog.userName} has been updated.`, className: "bg-green-50 border-green-200 text-green-800" });
+      toast({ title: "Password reset", description: `Password for ${resetPasswordDialog.userName} has been updated.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
       setResetPasswordDialog(null);
       setResetPasswordValue("");
     } catch {
@@ -1853,91 +1853,91 @@ export default function Dashboard() {
       {/* Mobile Tabs List (Horizontal scroll) */}
       <div className="md:hidden bg-zinc-800 shrink-0 border-b border-white/10">
         <TabsList className="flex w-full h-auto bg-transparent p-2 overflow-x-auto justify-start no-scrollbar gap-2">
-          <TabsTrigger value="overview" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="overview" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.dashboard")}
           </TabsTrigger>
-          <TabsTrigger value="settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.profile")}
           </TabsTrigger>
-          <TabsTrigger value="messages" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="messages" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.messages")}
           </TabsTrigger>
-          <TabsTrigger value="bookings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="bookings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.bookings")}
             {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+              <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                 {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
               </span>
             )}
           </TabsTrigger>
           {(user.role === 'tenant' || user.role === 'guest') && (
-            <TabsTrigger value="saved" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="saved" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Saved
             </TabsTrigger>
           )}
-          <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.analytics")}
           </TabsTrigger>
           {(user.role === 'owner' || user.role === 'host') && (
-            <TabsTrigger value="subscription" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="subscription" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.subscription")}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
-            <TabsTrigger value="listings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="listings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.listings_short")}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
-            <TabsTrigger value="reservations" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="reservations" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.reservations")}
               {unreadBookingCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                   {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                 </span>
               )}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
-            <TabsTrigger value="notifications" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="notifications" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.notifications")}
               {unreadBookingCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                   {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                 </span>
               )}
             </TabsTrigger>
           )}
           {(user.role === 'owner' || user.role === 'host') && (
-            <TabsTrigger value="property-likes" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="property-likes" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               Property Likes
             </TabsTrigger>
           )}
-          <TabsTrigger value="transactions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+          <TabsTrigger value="transactions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             Transactions
           </TabsTrigger>
           {user.role === 'admin' && (
-            <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="all-properties" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.properties")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
-            <TabsTrigger value="users" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="users" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.users")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
-            <TabsTrigger value="admin-subscriptions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="admin-subscriptions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.subscriptions")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
-            <TabsTrigger value="payment-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="payment-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.payments")}
             </TabsTrigger>
           )}
           {user.role === 'admin' && (
-            <TabsTrigger value="sms-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            <TabsTrigger value="sms-settings" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
               {t("dash.sms")}
             </TabsTrigger>
           )}
@@ -1972,7 +1972,7 @@ export default function Dashboard() {
             <TabsTrigger value="bookings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Calendar className="w-5 h-5 mr-3" /> {t("dash.bookings")}
                 {user.role !== 'owner' && user.role !== 'host' && user.role !== 'admin' && unreadBookingCount > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                   </span>
                 )}
@@ -1980,7 +1980,7 @@ export default function Dashboard() {
             {(user.role === 'tenant' || user.role === 'guest') && (
                 <TabsTrigger value="saved" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Heart className="w-5 h-5 mr-3" /> Saved Properties
-                {favorites.length > 0 && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">{favorites.length}</span>}
+                {favorites.length > 0 && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">{favorites.length}</span>}
                 </TabsTrigger>
             )}
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
@@ -2000,7 +2000,7 @@ export default function Dashboard() {
                 <TabsTrigger value="reservations" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Users className="w-5 h-5 mr-3" /> {t("dash.reservations")}
                 {unreadBookingCount > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                   </span>
                 )}
@@ -2010,7 +2010,7 @@ export default function Dashboard() {
                 <TabsTrigger value="notifications" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Bell className="w-5 h-5 mr-3" /> {t("dash.notifications")}
                 {unreadBookingCount > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                   </span>
                 )}
@@ -2020,7 +2020,7 @@ export default function Dashboard() {
                 <TabsTrigger value="property-likes" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Heart className="w-5 h-5 mr-3" /> Property Likes
                 {propertyLikes.some((p: any) => p.totalLikes > 0) && (
-                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">
                     {propertyLikes.reduce((s: number, p: any) => s + p.totalLikes, 0)}
                   </span>
                 )}
@@ -2276,10 +2276,10 @@ export default function Dashboard() {
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.total_listings")}</p>
-                        <Home className="h-4 w-4 text-blue-500" />
+                        <Home className="h-4 w-4 text-gray-500" />
                       </div>
                       <div className="text-2xl font-bold">{ownerProperties.length}</div>
-                      <p className="text-xs text-green-600 flex items-center mt-1">
+                      <p className="text-xs text-gray-600 flex items-center mt-1">
                         <ArrowUpRight className="h-3 w-3 mr-1" /> {t("dash.active_now")}
                       </p>
                     </CardContent>
@@ -2288,7 +2288,7 @@ export default function Dashboard() {
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.bookings")}</p>
-                        <MessageSquare className="h-4 w-4 text-purple-500" />
+                        <MessageSquare className="h-4 w-4 text-gray-500" />
                       </div>
                       <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : receivedBookingsCount}</div>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -2312,7 +2312,7 @@ export default function Dashboard() {
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.check_ins")}</p>
-                        <Calendar className="h-4 w-4 text-orange-500" />
+                        <Calendar className="h-4 w-4 text-gray-500" />
                       </div>
                       <div className="text-2xl font-bold">{isLoadingReceivedBookings ? '—' : todayCheckIns.length}</div>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -2326,7 +2326,7 @@ export default function Dashboard() {
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">{t("dash.revenue")}</p>
-                        <DollarSign className="h-4 w-4 text-green-500" />
+                        <DollarSign className="h-4 w-4 text-gray-500" />
                       </div>
                       <div className="text-2xl font-bold">KES {isLoadingReceivedBookings ? '—' : receivedRevenue.toLocaleString()}</div>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -2469,11 +2469,11 @@ export default function Dashboard() {
                                 {isSold ? (
                                   <Badge variant="outline" className="bg-gray-200 text-gray-700 border-gray-400 text-xs">Sold</Badge>
                                 ) : isFlagged ? (
-                                  <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 text-xs">Flagged</Badge>
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">Flagged</Badge>
                                 ) : isPending ? (
-                                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">Pending</Badge>
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200 text-xs">Pending</Badge>
                                 ) : p.isVerified ? (
-                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">Verified & Live</Badge>
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300 text-xs">Verified & Live</Badge>
                                 ) : null}
                                 <Badge variant="secondary" className="text-xs">{p.type}</Badge>
                               </div>
@@ -2482,7 +2482,7 @@ export default function Dashboard() {
                           </div>
                           <div className="flex gap-2 flex-wrap">
                             {isFlagged && !isSold && (
-                              <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleOwnerResubmit(p.id)}>
+                              <Button size="sm" className="gap-1 bg-gray-900 hover:bg-gray-800 text-white" onClick={() => handleOwnerResubmit(p.id)}>
                                 <ArrowUpRight className="h-3 w-3" /> Resubmit
                               </Button>
                             )}
@@ -2515,10 +2515,10 @@ export default function Dashboard() {
                             </Button>
                           </div>
                           {isFlagged && p.adminComment && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
-                              <p className="font-semibold text-red-800 mb-1 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Admin Feedback</p>
-                              <p className="text-red-700">{p.adminComment}</p>
-                              <p className="text-xs text-red-500 mt-2">Please address the above issues, then click <strong>Resubmit</strong> to send for re-review.</p>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                              <p className="font-semibold text-gray-800 mb-1 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Admin Feedback</p>
+                              <p className="text-gray-700">{p.adminComment}</p>
+                              <p className="text-xs text-gray-500 mt-2">Please address the above issues, then click <strong>Resubmit</strong> to send for re-review.</p>
                             </div>
                           )}
                         </div>
@@ -2531,7 +2531,7 @@ export default function Dashboard() {
                             <h4 className="font-semibold text-lg truncate text-gray-700">{p.title}</h4>
                             <p className="text-sm text-muted-foreground truncate">Awaiting Approval</p>
                             <div className="flex gap-2 mt-2">
-                              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100">Pending</Badge>
+                              <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200 hover:bg-yellow-100">Pending</Badge>
                               <Badge variant="secondary">{p.type}</Badge>
                             </div>
                           </div>
@@ -2616,7 +2616,7 @@ export default function Dashboard() {
                                 <div className="flex gap-2 mt-1">
                                   <Button
                                     size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                                    className="bg-gray-900 hover:bg-gray-800 text-white gap-1"
                                     disabled={bookingActionLoading[b.id]}
                                     onClick={() => handleBookingStatusUpdate(b.id, "confirmed")}
                                   >
@@ -2626,7 +2626,7 @@ export default function Dashboard() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="border-red-300 text-red-600 hover:bg-red-50 gap-1"
+                                    className="border-red-300 text-gray-600 hover:bg-red-50 gap-1"
                                     disabled={bookingActionLoading[b.id]}
                                     onClick={() => handleBookingStatusUpdate(b.id, "cancelled")}
                                   >
@@ -2692,9 +2692,9 @@ export default function Dashboard() {
                           return (
                             <div
                               key={n.id}
-                              className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${n.isRead ? "bg-white" : "bg-blue-50 border-blue-200"}`}
+                              className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${n.isRead ? "bg-white" : "bg-gray-50 border-gray-200"}`}
                             >
-                              <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-500" : "bg-blue-100 text-blue-600"}`}>
+                              <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? "bg-gray-100 text-gray-500" : "bg-gray-100 text-gray-600"}`}>
                                 <Bell className="h-4 w-4" />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -2720,7 +2720,7 @@ export default function Dashboard() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="shrink-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100 h-7 px-2 text-xs"
+                                  className="shrink-0 text-gray-600 hover:text-gray-700 hover:bg-gray-100 h-7 px-2 text-xs"
                                   onClick={() => markOneNotificationRead(n.id)}
                                 >
                                   Mark read
@@ -2750,7 +2750,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Favorites</p>
-                      <Heart className="h-4 w-4 text-red-500" />
+                      <Heart className="h-4 w-4 text-gray-500" />
                     </div>
                     <div className="text-2xl font-bold">{favorites.length}</div>
                   </CardContent>
@@ -2759,7 +2759,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                        <p className="text-sm font-medium text-muted-foreground">Messages</p>
-                       <MessageSquare className="h-4 w-4 text-blue-500" />
+                       <MessageSquare className="h-4 w-4 text-gray-500" />
                     </div>
                     <div className="text-2xl font-bold">{messages.length}</div>
                   </CardContent>
@@ -2768,7 +2768,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                        <p className="text-sm font-medium text-muted-foreground">{user.role === 'guest' ? 'Upcoming Trips' : 'Scheduled Visits'}</p>
-                       <Clock className="h-4 w-4 text-purple-500" />
+                       <Clock className="h-4 w-4 text-gray-500" />
                     </div>
                     <div className="text-2xl font-bold">{bookings.length}</div>
                     <p className="text-xs text-muted-foreground">Active link-ups</p>
@@ -2850,7 +2850,7 @@ export default function Dashboard() {
                           <div className="h-48 bg-gray-100 relative">
                             <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
                             <div className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize">{p.type}</div>
-                            {p.isVerified && <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Verified</div>}
+                            {p.isVerified && <div className="absolute top-2 right-2 bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded">Verified</div>}
                           </div>
                           <CardContent className="p-4">
                             <p className="font-semibold line-clamp-1">{p.title}</p>
@@ -2870,11 +2870,11 @@ export default function Dashboard() {
                       </Link>
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); unsaveFavorite(p.id); }}
-                        className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white/90 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-600 hover:text-red-600 rounded-full px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all opacity-0 group-hover/card:opacity-100 focus:opacity-100"
+                        className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white/90 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-600 hover:text-gray-600 rounded-full px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all opacity-0 group-hover/card:opacity-100 focus:opacity-100"
                         title="Remove from saved"
                         aria-label="Remove from saved"
                       >
-                        <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+                        <Heart className="h-3 w-3 fill-red-500 text-gray-500" />
                         Unsave
                       </button>
                     </div>
@@ -2908,7 +2908,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Pending Reviews</p>
-                      <FileText className="h-4 w-4 text-yellow-600" />
+                      <FileText className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="text-3xl font-bold">{moderationQueue.length}</div>
                     <p className="text-xs text-muted-foreground mt-1">Properties awaiting verification</p>
@@ -2918,7 +2918,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Total Users</p>
-                      <Users className="h-4 w-4 text-blue-600" />
+                      <Users className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="text-3xl font-bold">{usersCount.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground mt-1">Registered on the platform</p>
@@ -2928,7 +2928,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Platform Revenue</p>
-                      <DollarSign className="h-4 w-4 text-green-600" />
+                      <DollarSign className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="text-3xl font-bold">KES {revenue.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground mt-1">From non-cancelled bookings</p>
@@ -2938,7 +2938,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Total Bookings</p>
-                      <Calendar className="h-4 w-4 text-purple-600" />
+                      <Calendar className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="text-3xl font-bold">{totalBookings.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground mt-1">All-time reservations</p>
@@ -2948,7 +2948,7 @@ export default function Dashboard() {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-sm font-medium text-muted-foreground">Total Properties</p>
-                      <Home className="h-4 w-4 text-red-600" />
+                      <Home className="h-4 w-4 text-gray-600" />
                     </div>
                     <div className="text-3xl font-bold">{totalProperties.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground mt-1">Listed on the platform</p>
@@ -3012,7 +3012,7 @@ export default function Dashboard() {
                                          <Badge>{item.type}</Badge>
                                          <Badge variant="outline" className="text-primary font-bold">KES {item.price?.toLocaleString() || 0}</Badge>
                                          {item.propertyStatus === 'flagged' && (
-                                           <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">Previously Flagged</Badge>
+                                           <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">Previously Flagged</Badge>
                                          )}
                                        </div>
                                        <div className="grid grid-cols-2 gap-4 text-sm border-t pt-4">
@@ -3043,19 +3043,19 @@ export default function Dashboard() {
                                      </div>
                                    </div>
                                    <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
-                                      <Button variant="outline" className="text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
+                                      <Button variant="outline" className="text-gray-600 hover:bg-gray-50 hover:text-gray-700 border-gray-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
                                          <AlertTriangle className="h-4 w-4 mr-2" /> Flag & Return
                                       </Button>
-                                      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
+                                      <Button className="bg-gray-900 hover:bg-gray-800 text-white" onClick={() => handleApprove(item.id)}>
                                          <Check className="h-4 w-4 mr-2" /> Approve & Publish
                                       </Button>
                                    </DialogFooter>
                                  </DialogContent>
                                </Dialog>
-                               <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
+                               <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-orange-200" onClick={() => { setFlagDialogId(item.id); setFlagComment(""); }}>
                                  <AlertTriangle className="h-4 w-4 mr-1" /> Flag
                                </Button>
-                               <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(item.id)}>
+                               <Button size="sm" className="bg-gray-900 hover:bg-gray-800 text-white" onClick={() => handleApprove(item.id)}>
                                  <Check className="h-4 w-4 mr-1" /> Approve
                                </Button>
                              </div>
@@ -3063,7 +3063,7 @@ export default function Dashboard() {
                          ))
                        ) : (
                          <div className="text-center py-12 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
-                           <Check className="h-12 w-12 mx-auto mb-4 text-green-500/20" />
+                           <Check className="h-12 w-12 mx-auto mb-4 text-gray-500/20" />
                            <p className="font-medium">All caught up!</p>
                            <p className="text-xs">No pending properties to review.</p>
                          </div>
@@ -3170,7 +3170,7 @@ export default function Dashboard() {
                           
                           <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                             <div className="flex gap-2">
-                              <Badge variant="outline" className={isDeactivated ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-green-700 border-green-200"}>
+                              <Badge variant="outline" className={isDeactivated ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-gray-700 border-green-200"}>
                                 {isDeactivated ? 'Inactive' : 'Active'}
                               </Badge>
                               <Badge variant="secondary">{p.type}</Badge>
@@ -3242,7 +3242,7 @@ export default function Dashboard() {
                                      <Button
                                        variant="outline"
                                        disabled={isActioning}
-                                       className={isDeactivated ? "text-green-600 hover:bg-green-50 hover:text-green-700 border-green-200" : "text-orange-600 hover:bg-orange-50 hover:text-orange-700 border-orange-200"}
+                                       className={isDeactivated ? "text-gray-600 hover:bg-green-50 hover:text-gray-700 border-green-200" : "text-gray-600 hover:bg-gray-50 hover:text-gray-700 border-gray-200"}
                                        onClick={() => handleAdminToggleProperty(p.id)}
                                      >
                                         {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : (isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />)}
@@ -3251,7 +3251,7 @@ export default function Dashboard() {
                                      <Button
                                        variant="outline"
                                        disabled={isActioning}
-                                       className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                       className="text-gray-600 hover:bg-red-50 hover:text-gray-700 border-red-200"
                                        onClick={() => handleAdminDeleteProperty(p.id)}
                                      >
                                         {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
@@ -3262,7 +3262,7 @@ export default function Dashboard() {
                               </Dialog>
 
                               <Link href={`/property/${p.id}`}>
-                                <Button size="sm" variant="outline" className="gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
+                                <Button size="sm" variant="outline" className="gap-1 text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-200">
                                   <ExternalLink className="h-3 w-3" /> Preview
                                 </Button>
                               </Link>
@@ -3275,7 +3275,7 @@ export default function Dashboard() {
                                 size="sm"
                                 variant="outline"
                                 disabled={isActioning}
-                                className={isDeactivated ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-orange-600 hover:text-orange-700 hover:bg-orange-50"}
+                                className={isDeactivated ? "text-gray-600 hover:text-gray-700 hover:bg-green-50" : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"}
                                 onClick={() => handleAdminToggleProperty(p.id)}
                               >
                                 {isActioning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : (isDeactivated ? <Check className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />)}
@@ -3329,8 +3329,8 @@ export default function Dashboard() {
                     const puFirmDirectorIds: string[] = (pu.firmDirectorIds ?? []).map((p: string) => p.startsWith("/objects/") ? `/api/storage${p}` : p);
                     const puInitials = pu.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                     const statusColor =
-                      pu.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                      pu.status === 'suspended' ? 'bg-red-50 text-red-700 border-red-200' :
+                      pu.status === 'active' ? 'bg-green-50 text-gray-700 border-green-200' :
+                      pu.status === 'suspended' ? 'bg-red-50 text-gray-700 border-red-200' :
                       'bg-amber-50 text-amber-700 border-amber-200';
                     return (
                       <div className="space-y-5 pt-2">
@@ -3358,7 +3358,7 @@ export default function Dashboard() {
                             <p className="font-medium mt-0.5 flex items-center gap-1">
                               {pu.phone || <span className="text-muted-foreground italic">Not set</span>}
                               {pu.phone && pu.phoneVerified && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-green-600 bg-green-50 border border-green-200 rounded-full px-1.5 py-0.5">
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-1.5 py-0.5">
                                   <Check className="h-2.5 w-2.5" /> Verified
                                 </span>
                               )}
@@ -3381,8 +3381,8 @@ export default function Dashboard() {
                         {puIsRegisteredFirm ? (
                           <div className="space-y-4">
                             <p className="text-sm font-semibold flex items-center gap-1.5">
-                              <ShieldCheck className="h-4 w-4 text-blue-600" /> Business Documents
-                              <span className="ml-1 text-[10px] font-normal bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
+                              <ShieldCheck className="h-4 w-4 text-gray-600" /> Business Documents
+                              <span className="ml-1 text-[10px] font-normal bg-blue-50 text-gray-700 border border-gray-200 rounded-full px-2 py-0.5">
                                 {puFirmType === "registered_company" ? "Registered Company" : "Business Name"}
                               </span>
                             </p>
@@ -3462,7 +3462,7 @@ export default function Dashboard() {
                                           <img src={src} alt={`Director ${idx + 1} ID`} className="w-full h-28 object-cover" />
                                           <div className="px-2 py-1 text-[10px] text-gray-600 font-medium bg-white border-t flex items-center justify-between">
                                             <span>Director {idx + 1}</span>
-                                            <a href={src} target="_blank" rel="noopener noreferrer" className="text-blue-600 flex items-center gap-0.5">
+                                            <a href={src} target="_blank" rel="noopener noreferrer" className="text-gray-600 flex items-center gap-0.5">
                                               <ExternalLink className="h-2.5 w-2.5" /> Open
                                             </a>
                                           </div>
@@ -3509,7 +3509,7 @@ export default function Dashboard() {
                               <p className="text-xs text-amber-600 flex items-center gap-1">⚠ Only one side uploaded — verification incomplete</p>
                             )}
                             {puIdFront && puIdBack && (
-                              <p className="text-xs text-green-600 flex items-center gap-1"><Check className="h-3 w-3" /> Both sides submitted</p>
+                              <p className="text-xs text-gray-600 flex items-center gap-1"><Check className="h-3 w-3" /> Both sides submitted</p>
                             )}
                           </div>
                         )}
@@ -3534,7 +3534,7 @@ export default function Dashboard() {
                           Reject / Suspend
                         </Button>
                         <Button
-                          className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
+                          className="flex-1 gap-2 bg-gray-900 hover:bg-gray-800 text-white"
                           disabled={!!userActionLoading[selectedProfileUser.id]}
                           onClick={async () => {
                             await handleUserStatusUpdate(selectedProfileUser.id, 'active');
@@ -3669,8 +3669,8 @@ export default function Dashboard() {
                       }).sort((a: any, b: any) => new Date(b.joinDate ?? 0).getTime() - new Date(a.joinDate ?? 0).getTime()).map((u: any) => {
                         const initials = u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                         const statusColor =
-                          u.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                          u.status === 'suspended' ? 'bg-red-50 text-red-700 border-red-200' :
+                          u.status === 'active' ? 'bg-green-50 text-gray-700 border-green-200' :
+                          u.status === 'suspended' ? 'bg-red-50 text-gray-700 border-red-200' :
                           'bg-amber-50 text-amber-700 border-amber-200';
                         const isBusy = !!userActionLoading[u.id];
                         const isSelf = u.id === user.id;
@@ -3688,7 +3688,7 @@ export default function Dashboard() {
                                 <span className="font-semibold text-sm truncate">{u.name}</span>
                                 {isSelf && <Badge variant="outline" className="text-[10px] px-1.5 h-4">You</Badge>}
                                 {hasId && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5">
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-600 bg-blue-50 border border-gray-200 rounded-full px-1.5 py-0.5">
                                     <ShieldCheck className="h-2.5 w-2.5" /> ID on file
                                   </span>
                                 )}
@@ -3699,7 +3699,7 @@ export default function Dashboard() {
                                 {u.isRegisteredFirm && (
                                   <span
                                     title={u.firmType === "registered_company" ? "Registered Company" : "Business Name"}
-                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-1.5 py-0.5 cursor-default"
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-1.5 py-0.5 cursor-default"
                                   >
                                     <ShieldCheck className="h-2.5 w-2.5" /> Firm
                                   </span>
@@ -3721,13 +3721,13 @@ export default function Dashboard() {
                                 <Crown className="h-3 w-3" /> Assign Plan
                               </Button>
                               {!isSelf && u.status !== 'suspended' ? (
-                                <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-700 hover:bg-red-50 border-red-200"
                                   disabled={isBusy} onClick={() => handleUserStatusUpdate(u.id, 'suspended')}>
                                   {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3 mr-1" />}
                                   Suspend
                                 </Button>
                               ) : !isSelf && (
-                                <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                <Button size="sm" variant="outline" className="text-gray-600 hover:text-gray-700 hover:bg-green-50 border-green-200"
                                   disabled={isBusy} onClick={() => handleUserStatusUpdate(u.id, 'active')}>
                                   {isBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
                                   Reactivate
@@ -3740,7 +3740,7 @@ export default function Dashboard() {
                                 </Button>
                               )}
                               {!isSelf && u.role !== 'admin' && (
-                                <Button size="sm" variant="outline" className="text-red-700 hover:text-red-800 hover:bg-red-50 border-red-300"
+                                <Button size="sm" variant="outline" className="text-gray-700 hover:text-red-800 hover:bg-red-50 border-red-300"
                                   disabled={isBusy} onClick={() => setDeleteUserId(u.id)}>
                                   <Trash2 className="h-3 w-3 mr-1" /> Delete
                                 </Button>
@@ -3861,7 +3861,7 @@ export default function Dashboard() {
           <Dialog open={!!deleteUserId} onOpenChange={open => { if (!open) setDeleteUserId(null); }}>
             <DialogContent className="max-w-sm">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-red-700">
+                <DialogTitle className="flex items-center gap-2 text-gray-700">
                   <Trash2 className="h-5 w-5" /> Permanently Delete User
                 </DialogTitle>
               </DialogHeader>
@@ -3873,7 +3873,7 @@ export default function Dashboard() {
                   <li>Subscriptions</li>
                   <li>Notifications and saved properties</li>
                 </ul>
-                <p className="text-red-600 font-medium pt-1">This action cannot be undone.</p>
+                <p className="text-gray-600 font-medium pt-1">This action cannot be undone.</p>
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setDeleteUserId(null)} disabled={isDeletingUser}>
@@ -3922,11 +3922,11 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
                       <span className="text-gray-600">Profile completion:</span>
-                      <span className={pct === 100 ? "text-green-600" : "text-[#2E5C8A]"}>{pct}%</span>
+                      <span className={pct === 100 ? "text-gray-600" : "text-gray-700"}>{pct}%</span>
                     </div>
                     <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${pct === 100 ? "bg-green-500" : "bg-zinc-900"}`}
+                        className={`h-full rounded-full transition-all ${pct === 100 ? "bg-gray-700" : "bg-zinc-900"}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -3966,7 +3966,7 @@ export default function Dashboard() {
                 <Button 
                   variant="outline" 
                   className="mt-2 font-medium" 
-                  onClick={() => toast({ title: "Password Updated", description: "Your password has been changed successfully.", className: "bg-green-50 border-green-200 text-green-800" })}
+                  onClick={() => toast({ title: "Password Updated", description: "Your password has been changed successfully.", className: "bg-gray-50 border-gray-200 text-gray-800" })}
                 >
                   Change Password
                 </Button>
@@ -4009,9 +4009,9 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { label: "Total", value: adminSubscriptions.length, color: "text-gray-900" },
-                  { label: "Active", value: adminSubscriptions.filter(s => s.status === 'active').length, color: "text-green-600" },
+                  { label: "Active", value: adminSubscriptions.filter(s => s.status === 'active').length, color: "text-gray-600" },
                   { label: "Basic", value: adminSubscriptions.filter(s => s.plan === 'basic' && s.status === 'active').length, color: "text-zinc-500" },
-                  { label: "Pro", value: adminSubscriptions.filter(s => s.plan === 'pro' && s.status === 'active').length, color: "text-yellow-500" },
+                  { label: "Pro", value: adminSubscriptions.filter(s => s.plan === 'pro' && s.status === 'active').length, color: "text-gray-500" },
                 ].map(stat => (
                   <Card key={stat.label}>
                     <CardContent className="py-4 text-center">
@@ -4053,12 +4053,12 @@ export default function Dashboard() {
                                 <div className="text-xs text-gray-400">{sub.userEmail ?? ""}</div>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge className={sub.plan === 'enterprise' ? 'bg-purple-100 text-purple-800 border-purple-300' : sub.plan === 'pro' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : sub.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>
+                                <Badge className={sub.plan === 'enterprise' ? 'bg-gray-100 text-gray-800 border-gray-300' : sub.plan === 'pro' ? 'bg-gray-100 text-gray-800 border-gray-200' : sub.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>
                                   {sub.plan}
                                 </Badge>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className={sub.status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}>
+                                <Badge variant={sub.status === 'active' ? 'default' : 'secondary'} className={sub.status === 'active' ? 'bg-gray-100 text-gray-800 border-gray-200' : 'bg-gray-100 text-gray-600 border-gray-200'}>
                                   {sub.status}
                                 </Badge>
                               </td>
@@ -4081,7 +4081,7 @@ export default function Dashboard() {
                                   {sub.status === 'active' && (
                                     <Button
                                       size="sm" variant="outline"
-                                      className="text-xs h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                      className="text-xs h-7 px-2 text-gray-600 border-red-200 hover:bg-red-50"
                                       onClick={async () => {
                                         if (!token) return;
                                         const r = await fetch(`/api/admin/subscriptions/${sub.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
@@ -4128,14 +4128,14 @@ export default function Dashboard() {
                       <CardContent className="py-5 px-5">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            {plan.name === 'enterprise' && <Crown className="h-5 w-5 text-purple-500" />}
-                            {plan.name === 'pro' && <Crown className="h-5 w-5 text-yellow-500" />}
+                            {plan.name === 'enterprise' && <Crown className="h-5 w-5 text-gray-500" />}
+                            {plan.name === 'pro' && <Crown className="h-5 w-5 text-gray-500" />}
                             {plan.name === 'basic' && <Zap className="h-5 w-5 text-zinc-500" />}
                             {plan.name === 'free' && <Gift className="h-5 w-5 text-gray-400" />}
                             {!['enterprise','pro','basic','free'].includes(plan.name) && <Settings className="h-5 w-5 text-gray-400" />}
                             <span className="font-bold text-base capitalize">{plan.displayName}</span>
                           </div>
-                          {!plan.isActive && <Badge className="bg-red-100 text-red-700 text-xs">Disabled</Badge>}
+                          {!plan.isActive && <Badge className="bg-red-100 text-gray-700 text-xs">Disabled</Badge>}
                         </div>
                         <div className="text-2xl font-bold text-gray-900 mb-1">
                           {plan.pricePerMonth === 0 ? 'Free' : `KES ${plan.pricePerMonth?.toLocaleString()}`}
@@ -4147,7 +4147,7 @@ export default function Dashboard() {
                         <div className="space-y-1 mb-4">
                           {(plan.features ?? []).map((f: string, i: number) => (
                             <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                              <Check className="h-3 w-3 text-green-500 shrink-0" /> {f}
+                              <Check className="h-3 w-3 text-gray-500 shrink-0" /> {f}
                             </div>
                           ))}
                         </div>
@@ -4172,7 +4172,7 @@ export default function Dashboard() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 border-red-200 px-2"
+                            className="text-gray-500 hover:text-gray-700 hover:bg-red-50 border-red-200 px-2"
                             onClick={() => setDeletingPlanName(plan.name)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -4189,8 +4189,8 @@ export default function Dashboard() {
                 <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 capitalize">
-                      {editingPlan?.name === 'enterprise' && <Crown className="h-5 w-5 text-purple-500" />}
-                      {editingPlan?.name === 'pro' && <Crown className="h-5 w-5 text-yellow-500" />}
+                      {editingPlan?.name === 'enterprise' && <Crown className="h-5 w-5 text-gray-500" />}
+                      {editingPlan?.name === 'pro' && <Crown className="h-5 w-5 text-gray-500" />}
                       {editingPlan?.name === 'basic' && <Zap className="h-5 w-5 text-zinc-500" />}
                       {editingPlan?.name === 'free' && <Gift className="h-5 w-5 text-gray-400" />}
                       Edit {editingPlan?.name} Package
@@ -4222,7 +4222,7 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold">
                         Listing Limit
-                        {planForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-green-600">(Unlimited)</span>}
+                        {planForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-gray-600">(Unlimited)</span>}
                       </label>
                       <div className="flex gap-2 items-center">
                         <input
@@ -4263,7 +4263,7 @@ export default function Dashboard() {
                             />
                             <button
                               onClick={() => setPlanForm(f => ({ ...f, features: f.features.filter((_: string, j: number) => j !== i) }))}
-                              className="text-red-400 hover:text-red-600 shrink-0"
+                              className="text-red-400 hover:text-gray-600 shrink-0"
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -4332,7 +4332,7 @@ export default function Dashboard() {
                             await fetchAdminPlans();
                             setEditingPlan(null);
                             setNewFeature("");
-                            toast({ title: "Package updated", description: `${planForm.displayName} plan saved successfully.`, className: "bg-green-50 border-green-200 text-green-800" });
+                            toast({ title: "Package updated", description: `${planForm.displayName} plan saved successfully.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
                           } else {
                             const d = await r.json();
                             toast({ title: "Save failed", description: d.error, variant: "destructive" });
@@ -4390,7 +4390,7 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold">
                         Listing Limit
-                        {createPlanForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-green-600">(Unlimited)</span>}
+                        {createPlanForm.listingLimit >= 999999 && <span className="ml-2 text-xs font-normal text-gray-600">(Unlimited)</span>}
                       </label>
                       <div className="flex gap-2 items-center">
                         <input
@@ -4421,7 +4421,7 @@ export default function Dashboard() {
                               })}
                               className="flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-800"
                             />
-                            <button onClick={() => setCreatePlanForm(f => ({ ...f, features: f.features.filter((_: string, j: number) => j !== i) }))} className="text-red-400 hover:text-red-600 shrink-0">
+                            <button onClick={() => setCreatePlanForm(f => ({ ...f, features: f.features.filter((_: string, j: number) => j !== i) }))} className="text-red-400 hover:text-gray-600 shrink-0">
                               <X className="h-4 w-4" />
                             </button>
                           </div>
@@ -4487,7 +4487,7 @@ export default function Dashboard() {
                             await fetchAdminPlans();
                             setCreatePlanDialog(false);
                             setCreatePlanFeature("");
-                            toast({ title: "Package created", description: `${createPlanForm.displayName} plan created successfully.`, className: "bg-green-50 border-green-200 text-green-800" });
+                            toast({ title: "Package created", description: `${createPlanForm.displayName} plan created successfully.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
                           } else {
                             const d = await r.json();
                             toast({ title: "Create failed", description: d.error, variant: "destructive" });
@@ -4506,7 +4506,7 @@ export default function Dashboard() {
               <Dialog open={!!deletingPlanName} onOpenChange={(open) => { if (!open) setDeletingPlanName(null); }}>
                 <DialogContent className="max-w-sm">
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-red-600">
+                    <DialogTitle className="flex items-center gap-2 text-gray-600">
                       <Trash2 className="h-5 w-5" /> Delete Package
                     </DialogTitle>
                   </DialogHeader>
@@ -4519,7 +4519,7 @@ export default function Dashboard() {
                   <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={() => setDeletingPlanName(null)}>Cancel</Button>
                     <Button
-                      className="bg-red-600 hover:bg-red-700 text-white gap-2"
+                      className="bg-gray-900 hover:bg-gray-800 text-white gap-2"
                       disabled={isDeletingPlan}
                       onClick={async () => {
                         if (!deletingPlanName || !token) return;
@@ -4532,7 +4532,7 @@ export default function Dashboard() {
                           if (r.ok) {
                             await fetchAdminPlans();
                             setDeletingPlanName(null);
-                            toast({ title: "Package deleted", description: "The plan has been removed.", className: "bg-green-50 border-green-200 text-green-800" });
+                            toast({ title: "Package deleted", description: "The plan has been removed.", className: "bg-gray-50 border-gray-200 text-gray-800" });
                           } else {
                             const d = await r.json();
                             toast({ title: "Delete failed", description: d.error, variant: "destructive" });
@@ -4593,7 +4593,7 @@ export default function Dashboard() {
                           if (r.ok) {
                             await fetchAdminSubscriptions();
                             setAssignSubDialog(null);
-                            toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-green-50 border-green-200 text-green-800" });
+                            toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
                           } else {
                             const d = await r.json();
                             toast({ title: "Failed", description: d.error, variant: "destructive" });
@@ -4624,10 +4624,10 @@ export default function Dashboard() {
               </div>
 
               {/* Mode + status banner */}
-              <Card className={`border-2 ${paymentSettings?.pesapalMode === 'live' ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
+              <Card className={`border-2 ${paymentSettings?.pesapalMode === 'live' ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'}`}>
                 <CardContent className="py-4 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <Globe className={`h-6 w-6 ${paymentSettings?.pesapalMode === 'live' ? 'text-green-600' : 'text-yellow-600'}`} />
+                    <Globe className={`h-6 w-6 ${paymentSettings?.pesapalMode === 'live' ? 'text-gray-600' : 'text-gray-600'}`} />
                     <div>
                       <div className="font-semibold text-gray-900">
                         {paymentSettings?.pesapalMode === 'live' ? 'Live Mode (Production)' : 'Sandbox Mode (Testing)'}
@@ -4639,7 +4639,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <Badge className={paymentSettings?.pesapalMode === 'live' ? 'bg-green-100 text-green-800 border-green-300 text-sm' : 'bg-yellow-100 text-yellow-800 border-yellow-300 text-sm'}>
+                  <Badge className={paymentSettings?.pesapalMode === 'live' ? 'bg-gray-100 text-gray-800 border-gray-300 text-sm' : 'bg-gray-100 text-gray-800 border-gray-200 text-sm'}>
                     {paymentSettings?.pesapalMode === 'live' ? '● LIVE' : '◌ SANDBOX'}
                   </Badge>
                 </CardContent>
@@ -4703,7 +4703,7 @@ export default function Dashboard() {
                         });
                         if (r.ok) {
                           await fetchPaymentSettings();
-                          toast({ title: "Settings saved", description: "PesaPal configuration updated.", className: "bg-green-50 border-green-200 text-green-800" });
+                          toast({ title: "Settings saved", description: "PesaPal configuration updated.", className: "bg-gray-50 border-gray-200 text-gray-800" });
                         } else {
                           const d = await r.json();
                           toast({ title: "Save failed", description: d.error, variant: "destructive" });
@@ -4728,7 +4728,7 @@ export default function Dashboard() {
                     {`${window.location.origin}/api/subscriptions/ipn`}
                   </div>
                   {paymentSettings?.pesapalIpnId && (
-                    <div className="flex items-center gap-2 text-sm text-green-700">
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
                       <Check className="h-4 w-4" />
                       <span>IPN Registered — ID: <span className="font-mono">{paymentSettings.pesapalIpnId}</span></span>
                     </div>
@@ -4750,7 +4750,7 @@ export default function Dashboard() {
                         const d = await r.json();
                         if (r.ok) {
                           await fetchPaymentSettings();
-                          toast({ title: "IPN Registered", description: `ID: ${d.ipnId}`, className: "bg-green-50 border-green-200 text-green-800" });
+                          toast({ title: "IPN Registered", description: `ID: ${d.ipnId}`, className: "bg-gray-50 border-gray-200 text-gray-800" });
                         } else {
                           toast({ title: "Registration failed", description: d.error, variant: "destructive" });
                         }
@@ -4801,11 +4801,11 @@ export default function Dashboard() {
                                 <div className="text-xs text-gray-400">{p.userEmail}</div>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge className={p.plan === 'enterprise' ? 'bg-purple-100 text-purple-800' : p.plan === 'pro' ? 'bg-yellow-100 text-yellow-800' : p.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>{p.plan}</Badge>
+                                <Badge className={p.plan === 'enterprise' ? 'bg-gray-100 text-gray-800' : p.plan === 'pro' ? 'bg-gray-100 text-gray-800' : p.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'} style={{ textTransform: 'capitalize' }}>{p.plan}</Badge>
                               </td>
                               <td className="px-4 py-3 font-semibold">KES {p.amount?.toLocaleString()}</td>
                               <td className="px-4 py-3">
-                                <Badge className={p.status === 'completed' ? 'bg-green-100 text-green-800' : p.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}>
+                                <Badge className={p.status === 'completed' ? 'bg-green-100 text-green-800' : p.status === 'pending' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-700'}>
                                   {p.status}
                                 </Badge>
                               </td>
@@ -4837,9 +4837,9 @@ export default function Dashboard() {
               </div>
 
               {/* Status banner */}
-              <Card className={`border-2 ${smsSettings?.configured ? 'border-green-400 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
+              <Card className={`border-2 ${smsSettings?.configured ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'}`}>
                 <CardContent className="py-4 px-6 flex items-center gap-3">
-                  <MessageSquare className={`h-6 w-6 ${smsSettings?.configured ? 'text-green-600' : 'text-yellow-600'}`} />
+                  <MessageSquare className={`h-6 w-6 ${smsSettings?.configured ? 'text-gray-600' : 'text-gray-600'}`} />
                   <div>
                     <div className="font-semibold text-gray-900">
                       {smsSettings?.configured
@@ -4852,7 +4852,7 @@ export default function Dashboard() {
                       {smsSettings?.provider !== 'africastalking' && ` · Username: ${smsSettings?.username || '—'}`}
                     </div>
                   </div>
-                  <Badge className={`ml-auto ${smsSettings?.configured ? 'bg-green-100 text-green-800 border-green-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'} text-sm`}>
+                  <Badge className={`ml-auto ${smsSettings?.configured ? 'bg-gray-100 text-gray-800 border-gray-300' : 'bg-gray-100 text-gray-800 border-gray-200'} text-sm`}>
                     {smsSettings?.configured ? '● Active' : '◌ Unconfigured'}
                   </Badge>
                 </CardContent>
@@ -5083,11 +5083,11 @@ export default function Dashboard() {
               <CardContent className="py-5 px-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    {subscription.plan === 'enterprise' ? <Crown className="h-7 w-7 text-purple-500" /> : subscription.plan === 'pro' ? <Crown className="h-7 w-7 text-yellow-500" /> : subscription.plan === 'basic' ? <Zap className="h-7 w-7 text-zinc-500" /> : <Gift className="h-7 w-7 text-zinc-400" />}
+                    {subscription.plan === 'enterprise' ? <Crown className="h-7 w-7 text-gray-500" /> : subscription.plan === 'pro' ? <Crown className="h-7 w-7 text-gray-500" /> : subscription.plan === 'basic' ? <Zap className="h-7 w-7 text-zinc-500" /> : <Gift className="h-7 w-7 text-zinc-400" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold capitalize">{subscription.plan} Plan</span>
-                        <Badge className={subscription.plan === 'enterprise' ? 'bg-purple-100 text-purple-800 border-purple-300' : subscription.plan === 'pro' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : subscription.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
+                        <Badge className={subscription.plan === 'enterprise' ? 'bg-gray-100 text-gray-800 border-gray-300' : subscription.plan === 'pro' ? 'bg-gray-100 text-gray-800 border-gray-200' : subscription.plan === 'basic' ? 'bg-zinc-200 text-zinc-700' : 'bg-gray-100 text-gray-600'}>
                           {subscription.status}
                         </Badge>
                       </div>
@@ -5139,8 +5139,8 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 3 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No search boost</li>
@@ -5167,11 +5167,11 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 10 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>15 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 10 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>15 photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 featured listing / mo</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Low search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 1 featured listing / mo</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Low search boost</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
                 </ul>
                 <Button
@@ -5188,9 +5188,9 @@ export default function Dashboard() {
             <Card className={`border-2 flex flex-col ${subscription?.plan === 'pro' ? 'border-yellow-400 ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50' : 'border-yellow-300'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Crown className="h-5 w-5 text-yellow-500" />
+                  <Crown className="h-5 w-5 text-gray-500" />
                   <CardTitle className="text-base font-bold">Pro</CardTitle>
-                  <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-300">Popular</Badge>
+                  <Badge className="text-[10px] bg-gray-100 text-gray-800 border-gray-200">Popular</Badge>
                   {subscription?.plan === 'pro' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
@@ -5200,13 +5200,13 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 50 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>30 photos</strong> per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 featured listings / mo</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> High search boost</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Phone support</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Export leads</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 50 active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>30 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 3 featured listings / mo</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> High search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Phone support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Export leads</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"
@@ -5222,7 +5222,7 @@ export default function Dashboard() {
             <Card className={`border-2 flex flex-col ${subscription?.plan === 'enterprise' ? 'border-purple-400 ring-2 ring-purple-400 ring-offset-2 bg-purple-50' : 'border-purple-300'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Crown className="h-5 w-5 text-purple-500" />
+                  <Crown className="h-5 w-5 text-gray-500" />
                   <CardTitle className="text-base font-bold">Enterprise</CardTitle>
                   {subscription?.plan === 'enterprise' && <Badge className="ml-auto text-[10px] bg-purple-500 text-white">Current</Badge>}
                 </div>
@@ -5230,21 +5230,21 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Negotiable featured listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Highest search boost</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 24/7 phone support</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Dedicated account manager</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> API access + Export leads</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Unlimited active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Negotiable featured listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Highest search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 24/7 phone support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Dedicated account manager</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> API access + Export leads</li>
                 </ul>
                 {subscription?.plan === 'enterprise' ? (
                   <Button variant="outline" disabled className="w-full mt-auto">Active Plan</Button>
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full mt-auto border-purple-300 text-purple-700 hover:bg-purple-50"
+                    className="w-full mt-auto border-purple-300 text-gray-700 hover:bg-purple-50"
                     onClick={() => { setUpgradeDialogPlan("enterprise"); setBillingCycle("monthly"); setCustomMonths(3); }}
                   >
                     Contact Admin
@@ -5259,14 +5259,14 @@ export default function Dashboard() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  {upgradeDialogPlan === 'enterprise' ? <Crown className="h-5 w-5 text-purple-500" /> : upgradeDialogPlan === 'pro' ? <Crown className="h-5 w-5 text-yellow-500" /> : <Zap className="h-5 w-5 text-zinc-500" />}
+                  {upgradeDialogPlan === 'enterprise' ? <Crown className="h-5 w-5 text-gray-500" /> : upgradeDialogPlan === 'pro' ? <Crown className="h-5 w-5 text-gray-500" /> : <Zap className="h-5 w-5 text-zinc-500" />}
                   Activate {upgradeDialogPlan === 'enterprise' ? 'Enterprise' : upgradeDialogPlan === 'pro' ? 'Pro' : 'Basic'} Plan
                 </DialogTitle>
               </DialogHeader>
               {upgradeDialogPlan === 'enterprise' ? (
                 <div className="space-y-4 py-2">
                   <p className="text-sm text-muted-foreground">Enterprise pricing is custom and requires admin approval. Contact the inndos team to get started.</p>
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2 text-sm text-purple-800">
+                  <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 space-y-2 text-sm text-purple-800">
                     <p className="font-semibold">Enterprise includes:</p>
                     <ul className="space-y-1 text-xs">
                       <li>• Unlimited listings + unlimited photos</li>
@@ -5300,7 +5300,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                   {billingCycle === 'yearly' && (
-                    <p className="text-xs text-green-600 font-medium">
+                    <p className="text-xs text-gray-600 font-medium">
                       Save KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)} with yearly billing!
                     </p>
                   )}
@@ -5338,7 +5338,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   {billingCycle === 'yearly' && (
-                    <div className="flex justify-between text-sm text-green-600">
+                    <div className="flex justify-between text-sm text-gray-600">
                       <span>Yearly discount (10%)</span>
                       <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)}</span>
                     </div>

@@ -399,6 +399,15 @@ export default function PropertyDetails() {
     }
   }, [property?.id]);
 
+  // Check existing favourite status
+  useEffect(() => {
+    if (!token || !property?.id) return;
+    fetch(`/api/favorites/check/${property.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setIsLiked(d.isFavorited); })
+      .catch(() => {});
+  }, [token, property?.id]);
+
   // Persist isLinkedUp across navigation — check if user already has a booking for this property
   useEffect(() => {
     if (!user || !token || !property?.id) return;
@@ -418,12 +427,29 @@ export default function PropertyDetails() {
     toast({ title: "Link Copied", description: "Property link copied to clipboard." });
   };
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    toast({
-      title: isLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: isLiked ? "Property removed from your saved list." : "Property saved to your favorites.",
-    });
+  const handleLike = async () => {
+    if (!user || !token) { navigate("/login"); return; }
+    if (!property) return;
+    const next = !isLiked;
+    setIsLiked(next);
+    try {
+      const res = await fetch(
+        next
+          ? `/api/favorites/${property.id}`
+          : `/api/favorites/${property.id}`,
+        {
+          method: next ? "POST" : "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!res.ok) { setIsLiked(!next); return; }
+      toast({
+        title: next ? "Saved to Favourites" : "Removed from Favourites",
+        description: next ? "Property saved to your favourites." : "Removed from your saved list.",
+      });
+    } catch {
+      setIsLiked(!next);
+    }
   };
 
   const handleCopyPin = async () => {
@@ -482,6 +508,10 @@ export default function PropertyDetails() {
       return;
     }
     if (!property) return;
+    if (property.ownerId === user.id) {
+      toast({ title: "Cannot link up", description: "You cannot link up your own property.", variant: "destructive" });
+      return;
+    }
     setIsLinkingUp(true);
 
     // Dates: nightly types use the date picker; others use today → +30 days as an enquiry window
@@ -679,6 +709,14 @@ export default function PropertyDetails() {
           {/* Main/hero image */}
           <div className="h-full bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
             <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
+            {/* Mobile photo count badge — inside the hero div so it stays within bounds */}
+            <button
+              className="md:hidden absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10"
+              onClick={(e) => { e.stopPropagation(); openLightbox(0); }}
+            >
+              <Images className="h-3.5 w-3.5" />
+              {allPhotos.length} photos
+            </button>
           </div>
           {/* Thumbnail grid — show up to 4 secondary images */}
           <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-1 h-full">
@@ -712,15 +750,6 @@ export default function PropertyDetails() {
               </div>
             )}
           </div>
-          {/* Mobile: show photo count badge on hero */}
-          <button
-            className="md:hidden absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10"
-            style={{ position: "absolute", bottom: 12, right: 12 }}
-            onClick={() => openLightbox(0)}
-          >
-            <Images className="h-3.5 w-3.5" />
-            {allPhotos.length} photos
-          </button>
         </div>
       )}
 
@@ -778,7 +807,7 @@ export default function PropertyDetails() {
       {/* Sold banner */}
       {property.propertyStatus === 'sold' && (
         <div className="bg-gray-900 text-white text-center py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium">
-          <span className="inline-block w-2 h-2 rounded-full bg-red-400"></span>
+          <span className="inline-block w-2 h-2 rounded-full bg-gray-400"></span>
           This property has been sold and is no longer available.
         </div>
       )}
@@ -795,11 +824,11 @@ export default function PropertyDetails() {
                     <Badge className="bg-gray-700 text-white">Sold</Badge>
                   )}
                   {property.isVerified && property.propertyStatus !== 'sold' && (
-                    <Badge variant="outline" className="border-green-600 bg-green-50 text-green-700 flex items-center gap-1 px-3 py-1 shadow-sm">
+                    <Badge variant="outline" className="border-gray-300 bg-gray-100 text-gray-700 flex items-center gap-1 px-3 py-1 shadow-sm">
                       <ShieldCheck className="h-4 w-4" /> Verified by Inndos
                     </Badge>
                   )}
-                  <div className="flex items-center text-yellow-500 ml-2 text-sm font-medium">
+                  <div className="flex items-center text-gray-700 ml-2 text-sm font-medium">
                     <Star className="h-4 w-4 fill-current mr-1" />
                     {ratingStats.average} ({ratingStats.total} {t("prop.reviews")})
                   </div>
@@ -841,7 +870,7 @@ export default function PropertyDetails() {
                     <Button
                       variant={isLiked ? "default" : "outline"}
                       size="icon"
-                      className={`h-8 w-8 rounded-lg ${isLiked ? "bg-red-500 border-red-500 text-white" : "border-gray-300 bg-white text-gray-700"}`}
+                      className={`h-8 w-8 rounded-lg ${isLiked ? "bg-gray-900 border-gray-900 text-white" : "border-gray-300 bg-white text-gray-700"}`}
                       onClick={handleLike}
                     >
                       <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
@@ -851,7 +880,7 @@ export default function PropertyDetails() {
               </div>
               <div className="hidden sm:flex gap-2 justify-end w-full sm:w-auto">
                 <Button variant="outline" size="icon" onClick={handleShare}><Share2 className="h-4 w-4" /></Button>
-                <Button variant={isLiked ? "default" : "outline"} size="icon" onClick={handleLike} className={isLiked ? "bg-red-500 hover:bg-red-600 border-red-500" : ""}>
+                <Button variant={isLiked ? "default" : "outline"} size="icon" onClick={handleLike} className={isLiked ? "bg-gray-900 hover:bg-gray-800 border-gray-900" : ""}>
                   <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
                 </Button>
               </div>
@@ -884,12 +913,12 @@ export default function PropertyDetails() {
                 <div className="flex items-center gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button key={star} type="button" className="p-1 transition-transform hover:scale-110 focus:outline-none" onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} onClick={() => handleRate(star)}>
-                      <Star className={`h-8 w-8 transition-colors ${(hoverRating || userRating) >= star ? "fill-yellow-500 text-yellow-500" : "text-gray-300"}`} />
+                      <Star className={`h-8 w-8 transition-colors ${(hoverRating || userRating) >= star ? "fill-gray-900 text-gray-900" : "text-gray-300"}`} />
                     </button>
                   ))}
                 </div>
                 {hasRated && (
-                  <p className="text-sm text-green-600 mt-2 font-medium flex items-center gap-1">
+                  <p className="text-sm text-gray-700 mt-2 font-medium flex items-center gap-1">
                     <CheckCircle className="h-4 w-4" /> {t("prop.you_rated")} {userRating} {t("prop.stars")}
                   </p>
                 )}

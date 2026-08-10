@@ -128,7 +128,7 @@ export function MessagingSystem() {
                       <AvatarFallback>{conv.participant.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     {conv.participant.status === 'online' && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-gray-600 border-2 border-white"></span>
                     )}
                   </div>
                   <div className="flex-1 overflow-hidden">

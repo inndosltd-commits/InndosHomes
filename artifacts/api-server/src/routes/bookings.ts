@@ -84,6 +84,11 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  if (prop.ownerId === userId) {
+    res.status(403).json({ error: "You cannot link up your own property." });
+    return;
+  }
+
   const overlapping = await db
     .select({ id: bookings.id })
     .from(bookings)

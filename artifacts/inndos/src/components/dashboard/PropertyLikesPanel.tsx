@@ -141,7 +141,7 @@ function SaverRow({ saver }: { saver: Saver }) {
 
       {/* Date */}
       <div className="text-right flex-shrink-0 flex items-center gap-1.5">
-        <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+        <Heart className="h-3 w-3 fill-gray-900 text-gray-900" />
         <div>
           <p className="text-xs text-gray-600 font-medium">{relDate}</p>
           {relDate !== "Today" && relDate !== "Yesterday" && (
@@ -203,8 +203,8 @@ function PropertySavesCard({ property }: { property: PropertyWithSaves }) {
           {/* Save count + view link + chevron */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="text-right">
-              <div className="flex items-center gap-1 text-red-500 justify-end">
-                <Heart className="h-4 w-4 fill-red-500" />
+              <div className="flex items-center gap-1 text-gray-900 justify-end">
+                <Heart className="h-4 w-4 fill-gray-900" />
                 <span className="font-bold text-lg leading-none">{property.totalLikes}</span>
               </div>
               <p className="text-[10px] text-gray-400 mt-0.5">

@@ -111,7 +111,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
       ["New This Month", stats.newUsersThisMonth],
       ["Total Properties", stats.totalProperties],
       ["Active Properties", stats.activeProperties],
-      ["Confirmed Bookings", stats.confirmedBookings],
+      ["Confirmed Link-Ups", stats.confirmedBookings],
       ["Total Revenue (KES)", stats.totalRevenue],
       ["Active Subscriptions", stats.activeSubscriptions],
       ["Confirmed Rentals", stats.confirmedRentals],
@@ -164,7 +164,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
   if (stats.newUsersThisMonth > 0) insights.push(`${stats.newUsersThisMonth} new users joined this month.`);
   if (stats.confirmedBookings > 0 && stats.totalBookings > 0) {
     const rate = Math.round((stats.confirmedBookings / stats.totalBookings) * 100);
-    insights.push(`Booking confirmation rate is ${rate}%.`);
+    insights.push(`Link-Up confirmation rate is ${rate}%.`);
   }
   if (tx && tx.linkUpSuccessRate > 0) insights.push(`Link-Up success rate: ${tx.linkUpSuccessRate}%.`);
   if (stats.activeProperties > 0 && stats.totalProperties > 0) {
@@ -178,7 +178,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
   const funnelData = [
     { stage: "Registered Users", value: stats.totalUsers },
     { stage: "Active Listings Viewed", value: stats.totalBookings * 5 },
-    { stage: "Bookings Made", value: stats.totalBookings },
+    { stage: "Link-Ups Made", value: stats.totalBookings },
     { stage: "Link-Ups Confirmed", value: stats.confirmedBookings },
     { stage: "Transactions Done", value: (stats.confirmedRentals + stats.confirmedSales) },
   ];
@@ -225,11 +225,11 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
 
       {/* Section: Bookings & Revenue */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Bookings & Revenue</h3>
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Link-Ups & Revenue</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={stats.totalBookings} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Link-Ups" value={stats.totalBookings} onClick={() => onNavigate?.("bookings")} />
           <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Confirmed Link-Ups" value={stats.confirmedBookings} trend="up" onClick={() => onNavigate?.("bookings")} />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Platform Revenue" value={money(stats.totalRevenue)} sub="From confirmed bookings" trend="up" onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Platform Revenue" value={money(stats.totalRevenue)} sub="From confirmed link-ups" trend="up" onClick={() => onNavigate?.("transactions")} />
           <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Marketplace Value" value={money(stats.totalMarketplaceValue)} sub="Confirmed transactions" trend="up" onClick={() => onNavigate?.("transactions")} />
         </div>
       </div>
@@ -303,7 +303,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
         {/* Monthly Bookings */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Monthly Bookings (12 months)</CardTitle>
+            <CardTitle className="text-base">Monthly Link-Ups (12 months)</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.monthlyBookings.length > 0 ? (
@@ -313,11 +313,11 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" name="Bookings" fill="#18181b" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="count" name="Link-Ups" fill="#18181b" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No booking data yet</div>
+              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No link-up data yet</div>
             )}
           </CardContent>
         </Card>
@@ -372,7 +372,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
         {/* Booking Status */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Booking Status Breakdown</CardTitle>
+            <CardTitle className="text-base">Link-Up Status Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             {bookingStatusData.length > 0 ? (
@@ -386,7 +386,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No booking data yet</div>
+              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No link-up data yet</div>
             )}
           </CardContent>
         </Card>

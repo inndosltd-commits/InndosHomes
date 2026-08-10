@@ -80,8 +80,8 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
       ["Metric", "Value"],
       ["Total Properties", data.totalProperties],
       ["Active Properties", data.activeProperties],
-      ["Total Bookings", data.totalBookings],
-      ["Confirmed Bookings", data.confirmedBookings],
+      ["Total Link-Ups", data.totalBookings],
+      ["Confirmed Link-Ups", data.confirmedBookings],
       ["Total Revenue (KES)", data.totalRevenue],
       ["Total Favorites", data.totalFavorites],
       ["Confirmed Rentals", data.confirmedRentals],
@@ -102,13 +102,13 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
 
   const funnelSteps = [
     { stage: "My Listings", value: data.totalProperties },
-    { stage: "Bookings Received", value: data.totalBookings },
+    { stage: "Link-Ups Received", value: data.totalBookings },
     { stage: "Link-Ups Confirmed", value: data.confirmedBookings },
     { stage: "Transactions Confirmed", value: data.confirmedRentals + data.confirmedSales },
   ];
 
   const insights: string[] = [];
-  if (data.totalRevenue > 0) insights.push(`You've earned ${money(data.totalRevenue)} from confirmed bookings.`);
+  if (data.totalRevenue > 0) insights.push(`You've earned ${money(data.totalRevenue)} from confirmed link-ups.`);
   if (data.pendingLinkUps > 0) insights.push(`${data.pendingLinkUps} pending transaction${data.pendingLinkUps > 1 ? "s" : ""} awaiting your confirmation.`);
   if (data.totalFavorites > 0) insights.push(`Your properties have been favorited ${data.totalFavorites} time${data.totalFavorites > 1 ? "s" : ""}.`);
   if (data.activeProperties < data.totalProperties) insights.push(`${data.totalProperties - data.activeProperties} of your listings are pending approval.`);
@@ -137,8 +137,8 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <KpiCard icon={<Home className="h-5 w-5" />} label="My Listings" value={data.totalProperties} sub={`${data.activeProperties} active · ${data.pendingProperties} pending`} onClick={() => onNavigate?.("listings")} />
-          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} onClick={() => onNavigate?.("bookings")} />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Revenue" value={money(data.totalRevenue)} sub="From confirmed bookings" badge="Earned" onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Link-Ups" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Revenue" value={money(data.totalRevenue)} sub="From confirmed link-ups" badge="Earned" onClick={() => onNavigate?.("transactions")} />
           <KpiCard icon={<Heart className="h-5 w-5" />} label="Total Favorites" value={data.totalFavorites} sub="Across all listings" onClick={() => onNavigate?.("property-likes")} />
           <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Confirmed Rentals" value={data.confirmedRentals} sub={`${data.confirmedSales} confirmed sales`} onClick={() => onNavigate?.("transactions")} />
           <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Link-Ups" value={data.pendingLinkUps} sub="Awaiting your confirmation" badge={data.pendingLinkUps > 0 ? "Action" : undefined} onClick={() => onNavigate?.("bookings")} />
@@ -170,7 +170,7 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
         {/* Monthly Booking Trend */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Monthly Bookings & Revenue (6 months)</CardTitle>
+            <CardTitle className="text-base">Monthly Link-Ups & Revenue (6 months)</CardTitle>
           </CardHeader>
           <CardContent>
             {data.monthlyBookings.length > 0 ? (
@@ -182,12 +182,12 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="count" name="Bookings" fill="#18181b" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="count" name="Link-Ups" fill="#18181b" radius={[3, 3, 0, 0]} />
                   <Bar yAxisId="right" dataKey="revenue" name="Revenue (KES)" fill="#a1a1aa" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No booking history yet</div>
+              <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No link-up history yet</div>
             )}
           </CardContent>
         </Card>
@@ -255,7 +255,7 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
                   <tr className="border-b bg-gray-50">
                     <th className="text-left p-3 font-medium text-gray-600">Property</th>
                     <th className="text-center p-3 font-medium text-gray-600">Status</th>
-                    <th className="text-right p-3 font-medium text-gray-600">Bookings</th>
+                    <th className="text-right p-3 font-medium text-gray-600">Link-Ups</th>
                     <th className="text-right p-3 font-medium text-gray-600">Revenue</th>
                     <th className="text-right p-3 font-medium text-gray-600">Favorites</th>
                     <th className="text-right p-3 font-medium text-gray-600">Confirmed</th>

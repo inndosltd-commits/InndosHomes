@@ -151,7 +151,7 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
       toast({
         title: "Dates blocked",
         description: `${startDate} → ${endDate} marked as unavailable.`,
-        className: "bg-orange-50 border-orange-200 text-orange-800",
+        className: "bg-gray-50 border-gray-200 text-gray-700",
       });
     } catch {
       toast({ title: "Network error", variant: "destructive" });
@@ -198,8 +198,8 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
 
   const DAY_STYLES: Record<DayStatus, string> = {
     available: "bg-white hover:bg-emerald-50 hover:border-emerald-300 cursor-pointer text-gray-800",
-    booked: "bg-blue-100 text-blue-700 cursor-default border-blue-200",
-    blocked: "bg-orange-100 text-orange-700 cursor-pointer border-orange-200 hover:bg-orange-200",
+    booked: "bg-gray-100 text-gray-700 cursor-default border-gray-200",
+    blocked: "bg-gray-100 text-gray-700 cursor-pointer border-gray-200 hover:bg-gray-200",
     past: "bg-gray-50 text-gray-300 cursor-default",
     selecting: "bg-emerald-100 text-emerald-800 cursor-pointer border-emerald-300",
   };
@@ -303,7 +303,7 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
           )}
 
           {isSaving && (
-            <div className="flex items-center gap-2 text-sm text-orange-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
               <Loader2 className="h-4 w-4 animate-spin" /> Saving block…
             </div>
           )}
@@ -328,17 +328,17 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
                     className="flex items-center justify-between gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50/60 text-sm"
                   >
                     <div>
-                      <span className="font-medium text-orange-800">
+                      <span className="font-medium text-gray-800">
                         {b.startDate} → {b.endDate}
                       </span>
                       {b.reason && (
-                        <span className="ml-2 text-orange-600 text-xs">{b.reason}</span>
+                        <span className="ml-2 text-gray-600 text-xs">{b.reason}</span>
                       )}
                     </div>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 w-7 p-0 text-orange-600 hover:bg-orange-100"
+                      className="h-7 w-7 p-0 text-gray-600 hover:bg-orange-100"
                       disabled={deletingId === b.id}
                       onClick={() => handleRemoveBlock(b.id)}
                     >
