@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { bookings, properties, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
-import { and, eq, lt, gt, inArray } from "drizzle-orm";
+import { and, eq, lt, gt, inArray, desc } from "drizzle-orm";
 import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
@@ -423,6 +423,44 @@ router.patch("/:id/status", async (req, res) => {
   }
 
   res.json(updated);
+});
+
+// ─── GET /api/bookings/admin — admin sees all bookings/link-ups ────────────────
+router.get("/admin", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (caller?.role !== "admin") {
+    res.status(403).json({ error: "Admin only" });
+    return;
+  }
+
+  const guests = alias(users, "guests");
+  const owners = alias(users, "owners");
+
+  const rows = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      totalPrice: bookings.totalPrice,
+      createdAt: bookings.createdAt,
+      propertyTitle: properties.title,
+      propertyType: properties.type,
+      propertyAddress: properties.address,
+      guestName: guests.name,
+      guestEmail: guests.email,
+      ownerName: owners.name,
+    })
+    .from(bookings)
+    .leftJoin(properties, eq(bookings.propertyId, properties.id))
+    .leftJoin(guests, eq(bookings.userId, guests.id))
+    .leftJoin(owners, eq(properties.ownerId, owners.id))
+    .orderBy(desc(bookings.createdAt));
+
+  res.json(rows);
 });
 
 export default router;

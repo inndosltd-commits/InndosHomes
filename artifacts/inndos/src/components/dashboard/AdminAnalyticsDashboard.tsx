@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ExportModal } from "./ExportModal";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [dateRange, setDateRange] = useState("30d");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const load = async (isRefresh = false) => {
     if (isRefresh) { setRefreshing(true); } else { setLoading(true); }
@@ -193,8 +195,8 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
           <Button variant="outline" size="sm" onClick={() => load(true)} disabled={refreshing} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!stats} className="gap-2">
-            <Download className="h-4 w-4" /> Export CSV
+          <Button onClick={() => setExportOpen(true)} className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2" size="sm">
+            <Download className="h-4 w-4" /> Export Report
           </Button>
         </div>
       </div>
@@ -480,6 +482,8 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
           </CardContent>
         </Card>
       )}
+
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} token={token} role="admin" />
     </div>
   );
 }

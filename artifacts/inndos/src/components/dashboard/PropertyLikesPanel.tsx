@@ -6,7 +6,7 @@
  *   - Summary stat header (total saves across listings)
  */
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   ChevronUp,
   ExternalLink,
   ShieldCheck,
+  Home,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -45,6 +46,29 @@ export interface PropertyWithSaves {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Resolve object-storage paths to full API URLs */
+function resolveUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("/objects/")) return `/api/storage${path}`;
+  return path;
+}
+
+/** Image with React-state error tracking — avoids DOM-mutation blink loop */
+const SafeImg = memo(function SafeImg({
+  src, alt, className, fallback,
+}: { src: string | null; alt: string; className?: string; fallback: React.ReactNode }) {
+  const [errored, setErrored] = useState(false);
+  if (!src || errored) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setErrored(true)}
+    />
+  );
+});
 
 const AVATAR_COLORS = [
   "#6366f1", "#8b5cf6", "#ec4899", "#f59e0b",
@@ -97,24 +121,12 @@ function SaverRow({ saver }: { saver: Saver }) {
         className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-white text-sm font-semibold"
         style={{ backgroundColor: saver.likerAvatar ? undefined : color }}
       >
-        {saver.likerAvatar ? (
-          <img
-            src={saver.likerAvatar}
-            alt={saver.likerName ?? "avatar"}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const el = e.currentTarget;
-              el.style.display = "none";
-              const parent = el.parentElement;
-              if (parent) {
-                parent.style.backgroundColor = color;
-                parent.textContent = initials;
-              }
-            }}
-          />
-        ) : (
-          initials
-        )}
+        <SafeImg
+          src={resolveUrl(saver.likerAvatar)}
+          alt={saver.likerName ?? "avatar"}
+          className="w-full h-full object-cover"
+          fallback={<span>{initials}</span>}
+        />
       </div>
 
       {/* Name + email */}
@@ -159,14 +171,12 @@ function PropertySavesCard({ property }: { property: PropertyWithSaves }) {
           aria-expanded={expanded}
         >
           {/* Thumbnail */}
-          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
-            <img
-              src={property.image ?? ""}
+          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
+            <SafeImg
+              src={resolveUrl(property.image)}
               alt={property.title}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "/placeholder.jpg";
-              }}
+              fallback={<Home className="h-6 w-6 text-gray-400" />}
             />
           </div>
 
