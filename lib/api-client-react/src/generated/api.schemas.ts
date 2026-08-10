@@ -97,6 +97,8 @@ export interface Property {
   createdAt?: string;
   description?: string | null;
   ownerName?: string | null;
+  /** Present when the property is returned from the favorites endpoint */
+  savedAt?: string | null;
 }
 
 export type CreatePropertyInputType =

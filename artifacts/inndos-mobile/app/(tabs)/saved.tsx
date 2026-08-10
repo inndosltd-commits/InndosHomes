@@ -86,6 +86,11 @@ export default function SavedScreen() {
         renderItem={({ item }) => (
           <View style={styles.cardWrapper}>
             <PropertyCard property={item} />
+            {item.savedAt ? (
+              <Text style={[styles.savedDate, { color: colors.mutedForeground }]}>
+                Saved {new Date(item.savedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+              </Text>
+            ) : null}
           </View>
         )}
         contentContainerStyle={{ paddingVertical: 20, paddingBottom: insets.bottom + 100 }}
@@ -155,5 +160,12 @@ const styles = StyleSheet.create({
   cardWrapper: {
     alignItems: "center",
     marginBottom: 16,
+  },
+  savedDate: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    marginTop: 4,
+    alignSelf: "flex-start",
+    paddingHorizontal: 20,
   },
 });
