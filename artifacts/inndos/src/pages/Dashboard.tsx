@@ -885,6 +885,12 @@ export default function Dashboard() {
   const [customMonths, setCustomMonths] = useState(3);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
+  // Admin reviews moderation state
+  const [adminReviews, setAdminReviews] = useState<any[]>([]);
+  const [isLoadingAdminReviews, setIsLoadingAdminReviews] = useState(false);
+  const [adminReviewsSearch, setAdminReviewsSearch] = useState("");
+  const [adminReviewsRatingFilter, setAdminReviewsRatingFilter] = useState<number | null>(null);
+
   // Admin subscription management state
   const [adminSubscriptions, setAdminSubscriptions] = useState<any[]>([]);
   const [isLoadingAdminSubs, setIsLoadingAdminSubs] = useState(false);
@@ -1250,6 +1256,18 @@ export default function Dashboard() {
     } catch { /* non-critical */ } finally { setIsLoadingAdminSubs(false); }
   }, [user, token]);
 
+  const fetchAdminReviews = useCallback(async () => {
+    if (!user || !token || user.role !== 'admin') return;
+    setIsLoadingAdminReviews(true);
+    try {
+      const res = await fetch("/api/reviews/admin", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminReviews(data.reviews ?? []);
+      }
+    } catch { /* non-critical */ } finally { setIsLoadingAdminReviews(false); }
+  }, [user, token]);
+
   const fetchAdminPayments = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
     setIsLoadingAdminPayments(true);
@@ -1390,9 +1408,10 @@ export default function Dashboard() {
         fetchPaymentSettings();
         fetchAdminPlans();
         fetchSmsSettings();
+        fetchAdminReviews();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchPropertyLikes, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans, fetchSmsSettings]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchPropertyLikes, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans, fetchSmsSettings, fetchAdminReviews]);
 
   // Handle return from PesaPal payment
   useEffect(() => {
@@ -1984,6 +2003,11 @@ export default function Dashboard() {
               {t("dash.sms")}
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="admin-reviews" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Reviews
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -2097,6 +2121,11 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="sms-settings" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <MessageSquare className="w-5 h-5 mr-3" /> {t("dash.sms_settings")}
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="admin-reviews" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Star className="w-5 h-5 mr-3" /> Reviews
                 </TabsTrigger>
             )}
             {user.role === 'admin' && (
@@ -5108,6 +5137,153 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* ── Admin: Reviews Moderation Tab ───────────────────────── */}
+          {user.role === 'admin' && (
+            <TabsContent value="admin-reviews" className="space-y-6 mt-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">Review Moderation</h1>
+                  <p className="text-gray-500 text-sm">View and remove inappropriate or spam reviews across all properties</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchAdminReviews} disabled={isLoadingAdminReviews} className="gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isLoadingAdminReviews ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by property or reviewer…"
+                    value={adminReviewsSearch}
+                    onChange={e => setAdminReviewsSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {[null, 1, 2, 3, 4, 5].map(r => (
+                    <button
+                      key={r ?? 'all'}
+                      onClick={() => setAdminReviewsRatingFilter(r)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors
+                        ${adminReviewsRatingFilter === r
+                          ? 'bg-zinc-900 text-white border-zinc-900'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}
+                    >
+                      {r === null ? 'All' : `${r}★`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  { label: "Total Reviews", value: adminReviews.length },
+                  { label: "1–2 Star", value: adminReviews.filter(r => r.rating <= 2).length },
+                  { label: "Avg Rating", value: adminReviews.length > 0 ? (adminReviews.reduce((s, r) => s + r.rating, 0) / adminReviews.length).toFixed(1) : "—" },
+                ].map(stat => (
+                  <Card key={stat.label}>
+                    <CardContent className="py-4 text-center">
+                      <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                      <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Reviews table */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">All Reviews</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {isLoadingAdminReviews ? (
+                    <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+                  ) : (() => {
+                    const filtered = adminReviews.filter(r => {
+                      const searchLower = adminReviewsSearch.toLowerCase();
+                      const matchSearch = !adminReviewsSearch
+                        || r.propertyTitle?.toLowerCase().includes(searchLower)
+                        || r.reviewerName?.toLowerCase().includes(searchLower)
+                        || r.reviewerEmail?.toLowerCase().includes(searchLower)
+                        || r.comment?.toLowerCase().includes(searchLower);
+                      const matchRating = adminReviewsRatingFilter === null || r.rating === adminReviewsRatingFilter;
+                      return matchSearch && matchRating;
+                    });
+                    return filtered.length === 0 ? (
+                      <div className="py-12 text-center text-gray-400">No reviews found</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Reviewer</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Property</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Rating</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Comment</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                              <th className="px-4 py-3 text-right font-semibold text-gray-600">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {filtered.map((review: any) => (
+                              <tr key={review.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-gray-900">{review.reviewerName ?? "—"}</div>
+                                  <div className="text-xs text-gray-400">{review.reviewerEmail ?? ""}</div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-700 max-w-[180px]">
+                                  <div className="truncate">{review.propertyTitle ?? "—"}</div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="flex items-center gap-1">
+                                    <Star className={`h-3.5 w-3.5 ${review.rating <= 2 ? 'text-red-400' : 'text-yellow-400'} fill-current`} />
+                                    <span className={`font-semibold ${review.rating <= 2 ? 'text-red-600' : 'text-gray-800'}`}>{review.rating}</span>
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 max-w-[260px]">
+                                  <p className="line-clamp-2 text-xs">{review.comment || <span className="italic text-gray-400">No comment</span>}</p>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                                  {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                                    onClick={async () => {
+                                      if (!confirm(`Delete this review by ${review.reviewerName ?? "user"}? This cannot be undone.`)) return;
+                                      try {
+                                        const res = await fetch(`/api/reviews/${review.id}`, {
+                                          method: "DELETE",
+                                          headers: { Authorization: `Bearer ${token}` },
+                                        });
+                                        if (!res.ok) throw new Error("Failed to delete");
+                                        setAdminReviews(prev => prev.filter(r => r.id !== review.id));
+                                        toast({ title: "Review deleted", description: "The review has been removed." });
+                                      } catch {
+                                        toast({ title: "Delete failed", description: "Could not delete the review.", variant: "destructive" });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>

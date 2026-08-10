@@ -201,6 +201,37 @@ router.post("/", async (req, res) => {
   res.status(201).json(inserted);
 });
 
+// ── GET /api/reviews/admin ────────────────────────────────────────────────────
+// Auth (admin): all reviews across the platform with reviewer and property info
+router.get("/admin", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (!me || me.role !== "admin") {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      comment: reviews.comment,
+      createdAt: reviews.createdAt,
+      propertyId: reviews.propertyId,
+      propertyTitle: properties.title,
+      reviewerName: users.name,
+      reviewerEmail: users.email,
+    })
+    .from(reviews)
+    .innerJoin(users, eq(reviews.reviewerId, users.id))
+    .innerJoin(properties, eq(reviews.propertyId, properties.id))
+    .orderBy(desc(reviews.createdAt));
+
+  res.json({ reviews: rows, total: rows.length });
+});
+
 // ── DELETE /api/reviews/:reviewId ─────────────────────────────────────────────
 // Auth: reviewer or admin can delete their own review
 router.delete("/:reviewId", async (req, res) => {
