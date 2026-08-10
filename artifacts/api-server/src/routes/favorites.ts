@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { favorites, properties, users } from "@workspace/db";
+import { favorites, properties, users, notifications } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 
@@ -114,6 +114,30 @@ router.post("/", async (req, res) => {
   }
 
   await db.insert(favorites).values({ userId, propertyId });
+
+  // Notify the property owner (skip if the saver IS the owner)
+  try {
+    const [property] = await db
+      .select({ ownerId: properties.ownerId, title: properties.title })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+
+    if (property && property.ownerId !== userId) {
+      const [saver] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      const saverName = saver?.name ?? "Someone";
+      await db.insert(notifications).values({
+        userId: property.ownerId,
+        type: "property_saved",
+        message: `${saverName} saved your listing "${property.title}"`,
+      });
+    }
+  } catch {
+    // Notification failure should not block the save response
+  }
 
   res.status(201).json({ isFavorited: true, propertyId });
 });
