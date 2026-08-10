@@ -48,8 +48,8 @@ router.get("/my-properties", async (req, res) => {
   if (!userId) return;
 
   const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
-  if (!me || !["owner", "host"].includes(me.role)) {
-    res.status(403).json({ error: "Owner/host access required" });
+  if (!me || !["owner", "host", "admin"].includes(me.role)) {
+    res.status(403).json({ error: "Owner/host/admin access required" });
     return;
   }
 

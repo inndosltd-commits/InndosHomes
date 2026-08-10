@@ -5,7 +5,7 @@ import {
 import type { Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -22,6 +22,12 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/utils/imageUrl";
+
+function getApiBase(): string {
+  return process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+    : "";
+}
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -55,9 +61,12 @@ function getPriceLabel(property: Property): string {
 function ListingCard({
   property,
   colors,
+  savesCount,
 }: {
   property: Property;
   colors: ReturnType<typeof useColors>;
+  /** null = saves data not yet loaded or failed; badge is hidden */
+  savesCount: number | null;
 }) {
   const router = useRouter();
   const isPending = !property.isVerified;
@@ -141,6 +150,17 @@ function ListingCard({
           </Text>
         </View>
 
+        {savesCount !== null && (
+          <View style={styles.metaRow}>
+            <View style={styles.savesBadge}>
+              <Feather name="heart" size={12} color="#ef4444" />
+              <Text style={styles.savesBadgeText}>
+                {savesCount} {savesCount === 1 ? "save" : "saves"}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {isPending && (
           <View
             style={[
@@ -164,7 +184,7 @@ export default function MyListingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const OWNER_ROLES = ["owner", "host", "admin"];
@@ -184,6 +204,30 @@ export default function MyListingsScreen() {
       },
     }
   );
+
+  // Fetch saves counts from /api/favorites/my-properties.
+  // null = not yet loaded or failed (badge hidden); Record = successfully loaded.
+  const [savesMap, setSavesMap] = useState<Record<string, number> | null>(null);
+  const fetchSaves = useCallback(async () => {
+    if (!user || !token || !canList) return;
+    try {
+      const base = getApiBase();
+      const res = await fetch(`${base}/api/favorites/my-properties`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return; // leave savesMap null; badge hidden on error
+      const data: { id: string; totalLikes: number }[] = await res.json();
+      const map: Record<string, number> = {};
+      for (const p of data) map[p.id] = p.totalLikes;
+      setSavesMap(map);
+    } catch {
+      // non-critical; leave savesMap null so no false zeros are shown
+    }
+  }, [user, token, canList]);
+
+  useEffect(() => {
+    fetchSaves();
+  }, [fetchSaves]);
 
   const topPadding = isWeb ? 67 : insets.top;
   const bottomPadding = isWeb ? 34 + 84 : insets.bottom + 84;
@@ -294,7 +338,7 @@ export default function MyListingsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={() => refetch()}
+              onRefresh={() => { refetch(); fetchSaves(); }}
               tintColor={colors.primary}
             />
           }
@@ -356,6 +400,7 @@ export default function MyListingsScreen() {
                 key={property.id}
                 property={property}
                 colors={colors}
+                savesCount={savesMap !== null ? (savesMap[property.id] ?? 0) : null}
               />
             ))
           )}
@@ -536,6 +581,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     flex: 1,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  savesBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: "#fee2e2",
+    borderRadius: 4,
+  },
+  savesBadgeText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
+    color: "#ef4444",
   },
   pendingNote: {
     flexDirection: "row",
