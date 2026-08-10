@@ -2128,13 +2128,13 @@ export default function Dashboard() {
             {/* ANALYTICS TAB — role-specific */}
           <TabsContent value="analytics" className="space-y-6">
             {user.role === 'admin' && (
-              <AdminAnalyticsDashboard token={token} />
+              <AdminAnalyticsDashboard token={token} onNavigate={setActiveTab} />
             )}
             {(user.role === 'owner' || user.role === 'host') && (
-              <OwnerAnalytics token={token} />
+              <OwnerAnalytics token={token} onNavigate={setActiveTab} />
             )}
             {(user.role === 'tenant' || user.role === 'guest') && (
-              <TenantAnalytics token={token} />
+              <TenantAnalytics token={token} onNavigate={setActiveTab} />
             )}
           </TabsContent>
 

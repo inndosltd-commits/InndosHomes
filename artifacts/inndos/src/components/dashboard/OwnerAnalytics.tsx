@@ -36,9 +36,9 @@ function money(n: number) { return `KES ${n.toLocaleString()}`; }
 
 const PIE_COLORS = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"];
 
-function KpiCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string }) {
+function KpiCard({ icon, label, value, sub, badge, onClick }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string; onClick?: () => void }) {
   return (
-    <Card>
+    <Card onClick={onClick} className={onClick ? "cursor-pointer hover:shadow-md hover:border-zinc-300 transition-all group" : ""}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="h-10 w-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-700">{icon}</div>
@@ -47,12 +47,13 @@ function KpiCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; la
         <p className="text-2xl font-bold text-gray-900">{typeof value === "number" ? fmt(value) : value}</p>
         <p className="text-xs text-gray-500 mt-1">{label}</p>
         {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        {onClick && <p className="text-[10px] text-zinc-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>}
       </CardContent>
     </Card>
   );
 }
 
-export function OwnerAnalytics({ token }: { token: string }) {
+export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigate?: (tab: string) => void }) {
   const [data, setData] = useState<OwnerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -133,12 +134,12 @@ export function OwnerAnalytics({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KpiCard icon={<Home className="h-5 w-5" />} label="My Listings" value={data.totalProperties} sub={`${data.activeProperties} active · ${data.pendingProperties} pending`} />
-          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Revenue" value={money(data.totalRevenue)} sub="From confirmed bookings" badge="Earned" />
-          <KpiCard icon={<Heart className="h-5 w-5" />} label="Total Favorites" value={data.totalFavorites} sub="Across all listings" />
-          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Confirmed Rentals" value={data.confirmedRentals} sub={`${data.confirmedSales} confirmed sales`} />
-          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Link-Ups" value={data.pendingLinkUps} sub="Awaiting your confirmation" badge={data.pendingLinkUps > 0 ? "Action" : undefined} />
+          <KpiCard icon={<Home className="h-5 w-5" />} label="My Listings" value={data.totalProperties} sub={`${data.activeProperties} active · ${data.pendingProperties} pending`} onClick={() => onNavigate?.("listings")} />
+          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Revenue" value={money(data.totalRevenue)} sub="From confirmed bookings" badge="Earned" onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<Heart className="h-5 w-5" />} label="Total Favorites" value={data.totalFavorites} sub="Across all listings" onClick={() => onNavigate?.("property-likes")} />
+          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Confirmed Rentals" value={data.confirmedRentals} sub={`${data.confirmedSales} confirmed sales`} onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Link-Ups" value={data.pendingLinkUps} sub="Awaiting your confirmation" badge={data.pendingLinkUps > 0 ? "Action" : undefined} onClick={() => onNavigate?.("bookings")} />
         </div>
       </div>
 

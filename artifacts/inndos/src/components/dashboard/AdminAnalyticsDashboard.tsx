@@ -52,11 +52,11 @@ const PIE_COLORS = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"];
 
 interface KpiCardProps {
   icon: React.ReactNode; label: string; value: string | number;
-  sub?: string; trend?: "up" | "down" | "neutral"; badge?: string;
+  sub?: string; trend?: "up" | "down" | "neutral"; badge?: string; onClick?: () => void;
 }
-function KpiCard({ icon, label, value, sub, trend, badge }: KpiCardProps) {
+function KpiCard({ icon, label, value, sub, trend, badge, onClick }: KpiCardProps) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card onClick={onClick} className={`relative overflow-hidden ${onClick ? "cursor-pointer hover:shadow-md hover:border-zinc-300 transition-all group" : ""}`}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="h-10 w-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-700">{icon}</div>
@@ -68,12 +68,13 @@ function KpiCard({ icon, label, value, sub, trend, badge }: KpiCardProps) {
         <p className="text-2xl font-bold text-gray-900">{typeof value === "number" ? fmt(value) : value}</p>
         <p className="text-xs text-gray-500 mt-1">{label}</p>
         {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        {onClick && <p className="text-[10px] text-zinc-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>}
       </CardContent>
     </Card>
   );
 }
 
-export function AdminAnalyticsDashboard({ token }: { token: string }) {
+export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; onNavigate?: (tab: string) => void }) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [tx, setTx] = useState<TxAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -202,10 +203,10 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Platform Growth</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={<Users className="h-5 w-5" />} label="Total Users" value={stats.totalUsers} trend="up" />
-          <KpiCard icon={<Users className="h-5 w-5" />} label="Active Users" value={stats.activeUsers} sub={`${stats.suspendedUsers} suspended`} />
-          <KpiCard icon={<TrendingUp className="h-5 w-5" />} label="New This Month" value={stats.newUsersThisMonth} sub={`${stats.newUsersThisWeek} this week · ${stats.newUsersToday} today`} trend="up" />
-          <KpiCard icon={<Users className="h-5 w-5" />} label="Owners & Hosts" value={stats.usersByRole.owner + stats.usersByRole.host} sub={`${stats.usersByRole.tenant + stats.usersByRole.guest} tenants/guests`} />
+          <KpiCard icon={<Users className="h-5 w-5" />} label="Total Users" value={stats.totalUsers} trend="up" onClick={() => onNavigate?.("users")} />
+          <KpiCard icon={<Users className="h-5 w-5" />} label="Active Users" value={stats.activeUsers} sub={`${stats.suspendedUsers} suspended`} onClick={() => onNavigate?.("users")} />
+          <KpiCard icon={<TrendingUp className="h-5 w-5" />} label="New This Month" value={stats.newUsersThisMonth} sub={`${stats.newUsersThisWeek} this week · ${stats.newUsersToday} today`} trend="up" onClick={() => onNavigate?.("users")} />
+          <KpiCard icon={<Users className="h-5 w-5" />} label="Owners & Hosts" value={stats.usersByRole.owner + stats.usersByRole.host} sub={`${stats.usersByRole.tenant + stats.usersByRole.guest} tenants/guests`} onClick={() => onNavigate?.("users")} />
         </div>
       </div>
 
@@ -213,10 +214,10 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Property Analytics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={<Home className="h-5 w-5" />} label="Total Listings" value={stats.totalProperties} />
-          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Active Listings" value={stats.activeProperties} badge="Live" trend="up" />
-          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Approval" value={stats.pendingProperties} badge="Action needed" />
-          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Sold Properties" value={stats.soldProperties} sub={`${stats.flaggedProperties} flagged`} />
+          <KpiCard icon={<Home className="h-5 w-5" />} label="Total Listings" value={stats.totalProperties} onClick={() => onNavigate?.("all-properties")} />
+          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Active Listings" value={stats.activeProperties} badge="Live" trend="up" onClick={() => onNavigate?.("all-properties")} />
+          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Approval" value={stats.pendingProperties} badge="Action needed" onClick={() => onNavigate?.("all-properties")} />
+          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Sold Properties" value={stats.soldProperties} sub={`${stats.flaggedProperties} flagged`} onClick={() => onNavigate?.("all-properties")} />
         </div>
       </div>
 
@@ -224,10 +225,10 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Bookings & Revenue</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={stats.totalBookings} />
-          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Confirmed Link-Ups" value={stats.confirmedBookings} trend="up" />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Platform Revenue" value={money(stats.totalRevenue)} sub="From confirmed bookings" trend="up" />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Marketplace Value" value={money(stats.totalMarketplaceValue)} sub="Confirmed transactions" trend="up" />
+          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={stats.totalBookings} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Confirmed Link-Ups" value={stats.confirmedBookings} trend="up" onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Platform Revenue" value={money(stats.totalRevenue)} sub="From confirmed bookings" trend="up" onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Marketplace Value" value={money(stats.totalMarketplaceValue)} sub="Confirmed transactions" trend="up" onClick={() => onNavigate?.("transactions")} />
         </div>
       </div>
 
@@ -235,10 +236,10 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">Subscriptions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard icon={<Crown className="h-5 w-5" />} label="Active Subscriptions" value={stats.activeSubscriptions} trend="up" />
-          <KpiCard icon={<XCircle className="h-5 w-5" />} label="Expired" value={stats.expiredSubscriptions} />
-          <KpiCard icon={<Heart className="h-5 w-5" />} label="Total Favorites" value={stats.totalFavorites} />
-          <KpiCard icon={<Star className="h-5 w-5" />} label="Confirmed Transactions" value={stats.confirmedRentals + stats.confirmedSales} sub={`${stats.confirmedRentals} rentals · ${stats.confirmedSales} sales`} />
+          <KpiCard icon={<Crown className="h-5 w-5" />} label="Active Subscriptions" value={stats.activeSubscriptions} trend="up" onClick={() => onNavigate?.("admin-subscriptions")} />
+          <KpiCard icon={<XCircle className="h-5 w-5" />} label="Expired" value={stats.expiredSubscriptions} onClick={() => onNavigate?.("admin-subscriptions")} />
+          <KpiCard icon={<Heart className="h-5 w-5" />} label="Total Favorites" value={stats.totalFavorites} onClick={() => onNavigate?.("all-properties")} />
+          <KpiCard icon={<Star className="h-5 w-5" />} label="Confirmed Transactions" value={stats.confirmedRentals + stats.confirmedSales} sub={`${stats.confirmedRentals} rentals · ${stats.confirmedSales} sales`} onClick={() => onNavigate?.("transactions")} />
         </div>
       </div>
 

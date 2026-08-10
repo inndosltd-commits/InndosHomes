@@ -32,9 +32,9 @@ function fmt(n: number) {
 }
 function money(n: number) { return `KES ${n.toLocaleString()}`; }
 
-function KpiCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string }) {
+function KpiCard({ icon, label, value, sub, badge, onClick }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string; onClick?: () => void }) {
   return (
-    <Card>
+    <Card onClick={onClick} className={onClick ? "cursor-pointer hover:shadow-md hover:border-zinc-300 transition-all group" : ""}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="h-10 w-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-700">{icon}</div>
@@ -43,6 +43,7 @@ function KpiCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; la
         <p className="text-2xl font-bold text-gray-900">{typeof value === "number" ? fmt(value) : value}</p>
         <p className="text-xs text-gray-500 mt-1">{label}</p>
         {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        {onClick && <p className="text-[10px] text-zinc-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>}
       </CardContent>
     </Card>
   );
@@ -54,7 +55,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "destructive",
 };
 
-export function TenantAnalytics({ token }: { token: string }) {
+export function TenantAnalytics({ token, onNavigate }: { token: string; onNavigate?: (tab: string) => void }) {
   const [data, setData] = useState<TenantStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,12 +124,12 @@ export function TenantAnalytics({ token }: { token: string }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3">My Stats</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} />
-          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Spent" value={money(data.totalSpent)} sub={`Avg ${money(data.avgBookingValue)} per booking`} />
-          <KpiCard icon={<Heart className="h-5 w-5" />} label="Favorites Saved" value={data.totalFavorites} />
-          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Confirmed Rentals" value={data.confirmedRentals} sub={`${data.confirmedSales} confirmed purchases`} />
-          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Bookings" value={data.pendingBookings} badge={data.pendingBookings > 0 ? "Active" : undefined} />
-          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Pending Confirmations" value={data.pendingTransactions} badge={data.pendingTransactions > 0 ? "Action" : undefined} />
+          <KpiCard icon={<Calendar className="h-5 w-5" />} label="Total Bookings" value={data.totalBookings} sub={`${data.confirmedBookings} confirmed`} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<DollarSign className="h-5 w-5" />} label="Total Spent" value={money(data.totalSpent)} sub={`Avg ${money(data.avgBookingValue)} per booking`} onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<Heart className="h-5 w-5" />} label="Favorites Saved" value={data.totalFavorites} onClick={() => onNavigate?.("saved")} />
+          <KpiCard icon={<ShieldCheck className="h-5 w-5" />} label="Confirmed Rentals" value={data.confirmedRentals} sub={`${data.confirmedSales} confirmed purchases`} onClick={() => onNavigate?.("transactions")} />
+          <KpiCard icon={<Clock className="h-5 w-5" />} label="Pending Bookings" value={data.pendingBookings} badge={data.pendingBookings > 0 ? "Active" : undefined} onClick={() => onNavigate?.("bookings")} />
+          <KpiCard icon={<CheckCircle className="h-5 w-5" />} label="Pending Confirmations" value={data.pendingTransactions} badge={data.pendingTransactions > 0 ? "Action" : undefined} onClick={() => onNavigate?.("transactions")} />
         </div>
       </div>
 
