@@ -1033,6 +1033,29 @@ export default function Dashboard() {
     } catch { /* silent — stats are non-critical */ }
   }, [user, token]);
 
+  const unsaveFavorite = useCallback(async (propertyId: string) => {
+    if (!token) return;
+    // Optimistically remove from list
+    setFavorites((prev: any[]) => prev.filter((p: any) => p.id !== propertyId));
+    try {
+      const res = await fetch(`/api/favorites/${propertyId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // Revert on failure by re-fetching
+        const favRes = await fetch("/api/favorites", { headers: { Authorization: `Bearer ${token}` } });
+        if (favRes.ok) setFavorites(await favRes.json());
+        toast({ title: "Failed to remove", description: "Could not remove the saved property. Please try again.", variant: "destructive" });
+      }
+    } catch {
+      // Revert on network error
+      const favRes = await fetch("/api/favorites", { headers: { Authorization: `Bearer ${token}` } });
+      if (favRes.ok) setFavorites(await favRes.json());
+      toast({ title: "Failed to remove", description: "Network error. Please try again.", variant: "destructive" });
+    }
+  }, [token, toast]);
+
   const fetchPropertyLikes = useCallback(async () => {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
     setIsLoadingPropertyLikes(true);
@@ -2820,29 +2843,40 @@ export default function Dashboard() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {favorites.map((p: any) => (
-                    <Link key={p.id} href={`/property/${p.id}`}>
-                      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group">
-                        <div className="h-48 bg-gray-100 relative">
-                          <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
-                          <div className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize">{p.type}</div>
-                          {p.isVerified && <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Verified</div>}
-                        </div>
-                        <CardContent className="p-4">
-                          <p className="font-semibold line-clamp-1">{p.title}</p>
-                          <p className="text-xs text-gray-500 line-clamp-1 mt-1">{p.address}</p>
-                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                            {p.beds && <span>{p.beds} bed{p.beds !== 1 ? 's' : ''}</span>}
-                            {p.baths && <span>{p.baths} bath{p.baths !== 1 ? 's' : ''}</span>}
-                            {p.sqft && <span>{p.sqft} sqft</span>}
+                    <div key={p.id} className="relative group/card">
+                      <Link href={`/property/${p.id}`}>
+                        <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group">
+                          <div className="h-48 bg-gray-100 relative">
+                            <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
+                            <div className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize">{p.type}</div>
+                            {p.isVerified && <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Verified</div>}
                           </div>
-                          <div className="flex items-center justify-between mt-3">
-                            <p className="font-bold text-sm">KES {Number(p.price).toLocaleString()}{p.type === 'rent' || p.type === 'bnb' || p.type === 'hotel' || p.type === 'hostel' ? '/mo' : ''}</p>
-                            {p.savedAt && <p className="text-[10px] text-gray-400">❤ {new Date(p.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
-                          </div>
-                          {p.ownerName && <p className="text-[11px] text-gray-400 mt-1">Listed by {p.ownerName}</p>}
-                        </CardContent>
-                      </Card>
-                    </Link>
+                          <CardContent className="p-4">
+                            <p className="font-semibold line-clamp-1">{p.title}</p>
+                            <p className="text-xs text-gray-500 line-clamp-1 mt-1">{p.address}</p>
+                            <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                              {p.beds && <span>{p.beds} bed{p.beds !== 1 ? 's' : ''}</span>}
+                              {p.baths && <span>{p.baths} bath{p.baths !== 1 ? 's' : ''}</span>}
+                              {p.sqft && <span>{p.sqft} sqft</span>}
+                            </div>
+                            <div className="flex items-center justify-between mt-3">
+                              <p className="font-bold text-sm">KES {Number(p.price).toLocaleString()}{p.type === 'rent' || p.type === 'bnb' || p.type === 'hotel' || p.type === 'hostel' ? '/mo' : ''}</p>
+                              {p.savedAt && <p className="text-[10px] text-gray-400">❤ {new Date(p.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
+                            </div>
+                            {p.ownerName && <p className="text-[11px] text-gray-400 mt-1">Listed by {p.ownerName}</p>}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); unsaveFavorite(p.id); }}
+                        className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white/90 hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-600 hover:text-red-600 rounded-full px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all opacity-0 group-hover/card:opacity-100 focus:opacity-100"
+                        title="Remove from saved"
+                        aria-label="Remove from saved"
+                      >
+                        <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+                        Unsave
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
