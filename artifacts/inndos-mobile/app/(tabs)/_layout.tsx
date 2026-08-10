@@ -16,7 +16,7 @@ interface TabLayoutProps {
   savedCount: number;
 }
 
-function NativeTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: boolean }) {
+function NativeTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { isAdmin: boolean; isOwner: boolean }) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -46,6 +46,12 @@ function NativeTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: bo
         <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
         <Label>My Listings</Label>
       </NativeTabs.Trigger>
+      {isOwner && (
+        <NativeTabs.Trigger name="property-saves">
+          <Icon sf={{ default: "heart.text.square", selected: "heart.text.square.fill" }} />
+          <Label>Saves</Label>
+        </NativeTabs.Trigger>
+      )}
       <NativeTabs.Trigger name="list-property">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>List</Label>
@@ -64,7 +70,7 @@ function NativeTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: bo
   );
 }
 
-function ClassicTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: boolean }) {
+function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { isAdmin: boolean; isOwner: boolean }) {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -182,6 +188,19 @@ function ClassicTabLayout({ savedCount, isAdmin }: TabLayoutProps & { isAdmin: b
         }}
       />
       <Tabs.Screen
+        name="property-saves"
+        options={{
+          title: "Saves",
+          href: isOwner ? undefined : null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="heart.text.square" tintColor={color} size={24} />
+            ) : (
+              <Feather name="heart" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
         name="list-property"
         options={{
           title: "List",
@@ -229,9 +248,10 @@ export default function TabLayout() {
   });
   const savedCount = user ? (savedProperties?.length ?? 0) : 0;
   const isAdmin = user?.role === "admin";
+  const isOwner = user != null && ["owner", "host", "admin"].includes(user.role);
 
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout savedCount={savedCount} isAdmin={isAdmin} />;
+    return <NativeTabLayout savedCount={savedCount} isAdmin={isAdmin} isOwner={isOwner} />;
   }
-  return <ClassicTabLayout savedCount={savedCount} isAdmin={isAdmin} />;
+  return <ClassicTabLayout savedCount={savedCount} isAdmin={isAdmin} isOwner={isOwner} />;
 }
