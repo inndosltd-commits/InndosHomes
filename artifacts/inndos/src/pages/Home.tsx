@@ -289,13 +289,13 @@ export default function Home() {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-14">
-            <p className="text-green-600 font-bold uppercase tracking-widest text-sm mb-3">How inndos Works</p>
+            <p className="text-zinc-900 font-bold uppercase tracking-widest text-sm mb-3">How inndos Works</p>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
               Everything starts with the right place.
             </h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">
               From discovering a property to{" "}
-              <span className="text-green-600 font-semibold">linking up</span>{" "}
+              <span className="text-zinc-900 font-semibold">linking up</span>{" "}
               with the right person,<br className="hidden md:block" />
               Inndos makes finding your next place simpler.
             </p>
@@ -306,7 +306,7 @@ export default function Home() {
             {[
               {
                 num: "01",
-                icon: <Search className="h-6 w-6 text-green-600" />,
+                icon: <Search className="h-6 w-6 text-zinc-900" />,
                 title: "Discover",
                 desc: "Explore homes, rentals and stays in places you actually want to live.",
                 img: "/images/process-explore.jpeg",
@@ -314,7 +314,7 @@ export default function Home() {
               },
               {
                 num: "02",
-                icon: <ClipboardList className="h-6 w-6 text-green-600" />,
+                icon: <ClipboardList className="h-6 w-6 text-zinc-900" />,
                 title: "Compare",
                 desc: "Compare features, prices and locations to choose the best fit.",
                 img: "/images/process-evaluate.jpeg",
@@ -322,7 +322,7 @@ export default function Home() {
               },
               {
                 num: "03",
-                icon: <Link2 className="h-6 w-6 text-green-600" />,
+                icon: <Link2 className="h-6 w-6 text-zinc-900" />,
                 title: "Link Up",
                 desc: "Talk directly with property owners and managers.",
                 img: "/images/process-connect.jpeg",
@@ -330,7 +330,7 @@ export default function Home() {
               },
               {
                 num: "04",
-                icon: <HomeIcon className="h-6 w-6 text-green-600" />,
+                icon: <HomeIcon className="h-6 w-6 text-zinc-900" />,
                 title: "Move In",
                 desc: "Complete the process and step into your new space with confidence.",
                 img: "/images/process-settle.jpeg",
@@ -343,10 +343,10 @@ export default function Home() {
               >
                 {/* Top content */}
                 <div className="p-6 pb-4">
-                  <div className="h-14 w-14 bg-green-50 rounded-full flex items-center justify-center mb-4">
+                  <div className="h-14 w-14 bg-zinc-100 rounded-full flex items-center justify-center mb-4">
                     {step.icon}
                   </div>
-                  <p className="text-green-600 font-bold text-sm mb-1">{step.num}</p>
+                  <p className="text-zinc-900 font-bold text-sm mb-1">{step.num}</p>
                   <h3 className="font-bold text-lg text-gray-900 mb-2">{step.title}</h3>
                   <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
                 </div>
