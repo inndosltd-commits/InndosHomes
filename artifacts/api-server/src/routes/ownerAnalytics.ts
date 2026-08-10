@@ -95,7 +95,7 @@ router.get("/", async (req, res) => {
   const totalFavorites = propertyIds.length > 0
     ? await db.select({ count: count() }).from(favorites).where(
         sql`${favorites.propertyId} = ANY(ARRAY[${sql.join(propertyIds.map(id => sql`${id}`), sql`, `)}]::text[])`
-      ).then(r => Number(r[0].count))
+      ).then(r => Number(r[0].count)).catch(() => 0)
     : 0;
 
   // --- Per-property breakdown ---
@@ -105,7 +105,7 @@ router.get("/", async (req, res) => {
         db.select({ count: count() }).from(bookings).where(eq(bookings.propertyId, prop.id)),
         db.select({ count: count() }).from(bookings).where(and(eq(bookings.propertyId, prop.id), eq(bookings.status, "confirmed"))),
         db.select({ total: sum(bookings.totalPrice) }).from(bookings).where(and(eq(bookings.propertyId, prop.id), eq(bookings.status, "confirmed"))),
-        db.select({ count: count() }).from(favorites).where(eq(favorites.propertyId, prop.id)),
+        db.select({ count: count() }).from(favorites).where(eq(favorites.propertyId, prop.id)).catch(() => [{ count: 0 }]),
         db.select({ count: count() }).from(propertyTransactions).where(and(eq(propertyTransactions.propertyId, prop.id), eq(propertyTransactions.status, "rented_via_inndos"))),
         db.select({ count: count() }).from(propertyTransactions).where(and(eq(propertyTransactions.propertyId, prop.id), eq(propertyTransactions.status, "sold_via_inndos"))),
       ]);

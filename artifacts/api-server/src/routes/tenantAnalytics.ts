@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
   ]);
 
   // --- Favorites ---
-  const [favCount] = await db.select({ count: count() }).from(favorites).where(eq(favorites.userId, userId));
+  const [favCount] = await db.select({ count: count() }).from(favorites).where(eq(favorites.userId, userId)).catch(() => [{ count: 0 }]);
 
   // --- Recent bookings with property details ---
   const recentBookings = await db

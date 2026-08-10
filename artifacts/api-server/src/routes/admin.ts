@@ -82,7 +82,7 @@ router.get("/stats", async (req, res) => {
     db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "pro")),
     db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "enterprise")),
     db.select({ total: sum(payments.amount) }).from(payments).where(eq(payments.status, "completed")),
-    db.select({ count: count() }).from(favorites),
+    db.select({ count: count() }).from(favorites).catch(() => [{ count: 0 }]),
     db.select({ count: count() }).from(propertyTransactions).where(eq(propertyTransactions.status, "rented_via_inndos")),
     db.select({ count: count() }).from(propertyTransactions).where(eq(propertyTransactions.status, "sold_via_inndos")),
     db.select({ total: sum(propertyTransactions.transactionValue) }).from(propertyTransactions).where(
