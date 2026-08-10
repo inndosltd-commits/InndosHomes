@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ExportModal } from "./ExportModal";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -10,7 +11,7 @@ import {
 import {
   Home, Calendar, DollarSign, Heart, CheckCircle, Clock, Crown, Loader2,
   Download, RefreshCw, ArrowUpRight, TrendingUp, Lightbulb, BarChart3,
-  ShieldCheck, Users, XCircle, Star
+  ShieldCheck, Users, XCircle, Star, MessageSquare, Send, X
 } from "lucide-react";
 
 interface OwnerStats {
@@ -51,6 +52,92 @@ function KpiCard({ icon, label, value, sub, badge, onClick }: { icon: React.Reac
         {onClick && <p className="text-[10px] text-zinc-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Click to view →</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function ReviewReplyInline({ reviewId, token, existingReply, onReplied }: {
+  reviewId: string;
+  token: string;
+  existingReply: { reply: string; createdAt: string } | null;
+  onReplied: (reply: { reply: string; createdAt: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(existingReply?.reply ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleOpen = () => {
+    setText(existingReply?.reply ?? "");
+    setError("");
+    setOpen(true);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  const handleSubmit = async () => {
+    if (!text.trim()) { setError("Reply cannot be empty."); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reply: text.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Failed to submit reply.");
+        return;
+      }
+      const saved = await res.json();
+      onReplied({ reply: saved.reply, createdAt: saved.createdAt });
+      setOpen(false);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={handleOpen}
+        className="mt-1.5 flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 transition-colors"
+      >
+        <MessageSquare className="h-3 w-3" />
+        {existingReply ? "Edit reply" : "Reply"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {existingReply && (
+        <div className="ml-2 pl-3 border-l-2 border-gray-200 bg-gray-50 rounded-r-lg py-1.5 pr-2">
+          <p className="text-[10px] font-semibold text-gray-500 mb-0.5">Current reply</p>
+          <p className="text-xs text-gray-600">{existingReply.reply}</p>
+        </div>
+      )}
+      <Textarea
+        ref={textareaRef}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Write a reply to this review…"
+        className="text-sm min-h-[72px] resize-none"
+        disabled={submitting}
+      />
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={handleSubmit} disabled={submitting} className="h-7 text-xs gap-1 bg-zinc-900 hover:bg-zinc-800 text-white">
+          {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+          {existingReply ? "Update reply" : "Post reply"}
+        </Button>
+        <button onClick={() => setOpen(false)} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5">
+          <X className="h-3 w-3" /> Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -355,6 +442,29 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
                     </div>
                     {r.comment && <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{r.comment}</p>}
                     <p className="text-[10px] text-gray-400 mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
+                    {/* Existing reply preview */}
+                    {r.ownerReply && (
+                      <div className="mt-1.5 ml-2 pl-2.5 border-l-2 border-gray-200 bg-gray-50 rounded-r py-1 pr-2">
+                        <p className="text-[10px] font-semibold text-gray-500">Your reply</p>
+                        <p className="text-xs text-gray-600 leading-relaxed">{r.ownerReply.reply}</p>
+                      </div>
+                    )}
+                    <ReviewReplyInline
+                      reviewId={r.id}
+                      token={token}
+                      existingReply={r.ownerReply ?? null}
+                      onReplied={(newReply) => {
+                        setRatingsData((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            reviews: prev.reviews.map((rev) =>
+                              rev.id === r.id ? { ...rev, ownerReply: newReply } : rev
+                            ),
+                          };
+                        });
+                      }}
+                    />
                   </div>
                 </div>
               ))}

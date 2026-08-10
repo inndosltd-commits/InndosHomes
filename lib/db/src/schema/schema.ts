@@ -362,6 +362,25 @@ export const reviews = pgTable("reviews", {
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 
+// ─── Review Replies ───────────────────────────────────────────────────────────
+export const reviewReplies = pgTable("review_replies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reviewId: varchar("review_id")
+    .notNull()
+    .references(() => reviews.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  reply: text("reply").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+},
+(t) => ({
+  uniqueReplyPerReview: uniqueIndex("review_replies_review_unique").on(t.reviewId),
+}));
+
+export type ReviewReply = typeof reviewReplies.$inferSelect;
+export type InsertReviewReply = typeof reviewReplies.$inferInsert;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;

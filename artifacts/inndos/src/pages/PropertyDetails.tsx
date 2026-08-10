@@ -370,6 +370,14 @@ function PropertyReviews({ propertyId }: { propertyId: string }) {
                 ))}
               </div>
               {r.comment && <p className="text-sm text-gray-600 mt-1 leading-relaxed">{r.comment}</p>}
+              {/* Owner reply */}
+              {r.ownerReply && (
+                <div className="mt-2 ml-2 pl-3 border-l-2 border-gray-200 bg-gray-50 rounded-r-lg py-2 pr-2">
+                  <p className="text-xs font-semibold text-gray-700 mb-0.5">Owner's response</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{r.ownerReply.reply}</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{new Date(r.ownerReply.createdAt).toLocaleDateString()}</p>
+                </div>
+              )}
             </div>
           </div>
         ))}

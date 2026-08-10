@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { reviews, bookings, properties, users, notifications } from "@workspace/db";
+import { reviews, reviewReplies, bookings, properties, users, notifications } from "@workspace/db";
 import { eq, and, desc, avg, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 
 const router = Router();
 
 // ── GET /api/reviews/property/:propertyId ─────────────────────────────────────
-// Public: all reviews for a given property
+// Public: all reviews for a given property (includes owner reply if any)
 router.get("/property/:propertyId", async (req, res) => {
   const { propertyId } = req.params;
 
@@ -30,8 +30,21 @@ router.get("/property/:propertyId", async (req, res) => {
     .from(reviews)
     .where(eq(reviews.propertyId, propertyId));
 
+  // Fetch replies for all reviews in one query
+  const reviewIds = rows.map((r) => r.id);
+  const repliesMap: Record<string, { reply: string; createdAt: Date }> = {};
+  if (reviewIds.length > 0) {
+    const replyRows = await db
+      .select({ reviewId: reviewReplies.reviewId, reply: reviewReplies.reply, createdAt: reviewReplies.createdAt })
+      .from(reviewReplies)
+      .where(inArray(reviewReplies.reviewId, reviewIds));
+    for (const rr of replyRows) {
+      repliesMap[rr.reviewId] = { reply: rr.reply, createdAt: rr.createdAt };
+    }
+  }
+
   res.json({
-    reviews: rows,
+    reviews: rows.map((r) => ({ ...r, ownerReply: repliesMap[r.id] ?? null })),
     averageRating: agg?.avg ? parseFloat(Number(agg.avg).toFixed(1)) : null,
     totalReviews: agg?.total ?? 0,
   });
@@ -90,6 +103,21 @@ router.get("/owner", async (req, res) => {
     .where(inArray(reviews.propertyId, propIds))
     .orderBy(desc(reviews.createdAt));
 
+  // Fetch replies for owner's reviews
+  const reviewIds = rows.map((r) => r.id);
+  const repliesMap: Record<string, { reply: string; createdAt: Date }> = {};
+  if (reviewIds.length > 0) {
+    const replyRows = await db
+      .select({ reviewId: reviewReplies.reviewId, reply: reviewReplies.reply, createdAt: reviewReplies.createdAt })
+      .from(reviewReplies)
+      .where(inArray(reviewReplies.reviewId, reviewIds));
+    for (const rr of replyRows) {
+      repliesMap[rr.reviewId] = { reply: rr.reply, createdAt: rr.createdAt };
+    }
+  }
+
+  const rowsWithReplies = rows.map((r) => ({ ...r, ownerReply: repliesMap[r.id] ?? null }));
+
   // Per-property summary
   const perProperty = myProps.map((p) => {
     const propReviews = rows.filter((r) => r.propertyId === p.id);
@@ -113,7 +141,7 @@ router.get("/owner", async (req, res) => {
       ? parseFloat((rows.reduce((s, r) => s + r.rating, 0) / rows.length).toFixed(1))
       : null;
 
-  res.json({ reviews: rows, perProperty, overallAvg, totalReviews: rows.length });
+  res.json({ reviews: rowsWithReplies, perProperty, overallAvg, totalReviews: rows.length });
 });
 
 // ── POST /api/reviews ─────────────────────────────────────────────────────────
@@ -230,6 +258,67 @@ router.get("/admin", async (req, res) => {
     .orderBy(desc(reviews.createdAt));
 
   res.json({ reviews: rows, total: rows.length });
+});
+
+// ── POST /api/reviews/:reviewId/reply ────────────────────────────────────────
+// Auth (owner/host): post or update an owner reply. One reply per review max.
+router.post("/:reviewId/reply", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const { reviewId } = req.params;
+  const { reply } = req.body as { reply?: string };
+
+  if (!reply?.trim()) {
+    res.status(400).json({ error: "Reply text is required" });
+    return;
+  }
+
+  // Load the review and its property to verify ownership
+  const [review] = await db
+    .select({ id: reviews.id, propertyId: reviews.propertyId })
+    .from(reviews)
+    .where(eq(reviews.id, reviewId));
+
+  if (!review) {
+    res.status(404).json({ error: "Review not found" });
+    return;
+  }
+
+  const [prop] = await db
+    .select({ ownerId: properties.ownerId })
+    .from(properties)
+    .where(eq(properties.id, review.propertyId));
+
+  if (!prop || prop.ownerId !== userId) {
+    // Allow admins too
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (!me || me.role !== "admin") {
+      res.status(403).json({ error: "Only the property owner can reply to this review" });
+      return;
+    }
+  }
+
+  // Upsert: one reply per review
+  const [existing] = await db
+    .select({ id: reviewReplies.id })
+    .from(reviewReplies)
+    .where(eq(reviewReplies.reviewId, reviewId));
+
+  if (existing) {
+    const [updated] = await db
+      .update(reviewReplies)
+      .set({ reply: reply.trim(), createdAt: new Date() })
+      .where(eq(reviewReplies.reviewId, reviewId))
+      .returning();
+    res.json(updated);
+  } else {
+    const [inserted] = await db
+      .insert(reviewReplies)
+      .values({ reviewId, ownerId: userId, reply: reply.trim() })
+      .returning();
+    res.status(201).json(inserted);
+  }
 });
 
 // ── DELETE /api/reviews/:reviewId ─────────────────────────────────────────────
