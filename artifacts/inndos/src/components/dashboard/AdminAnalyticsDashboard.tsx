@@ -77,11 +77,13 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [tx, setTx] = useState<TxAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [dateRange, setDateRange] = useState("30d");
 
-  const load = async () => {
-    setLoading(true); setError("");
+  const load = async (isRefresh = false) => {
+    if (isRefresh) { setRefreshing(true); } else { setLoading(true); }
+    setError("");
     try {
       const [s, t] = await Promise.all([
         fetch("/api/admin/stats", { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
@@ -91,7 +93,7 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
     } catch {
       setError("Failed to load analytics.");
     } finally {
-      setLoading(false);
+      setLoading(false); setRefreshing(false);
     }
   };
 
@@ -187,10 +189,10 @@ export function AdminAnalyticsDashboard({ token }: { token: string }) {
           <p className="text-sm text-gray-500">Real-time overview of the entire inndos platform</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={load} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Refresh
+          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={refreshing} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!stats} className="gap-2">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
         </div>

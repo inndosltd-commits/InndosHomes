@@ -55,16 +55,18 @@ function KpiCard({ icon, label, value, sub, badge }: { icon: React.ReactNode; la
 export function OwnerAnalytics({ token }: { token: string }) {
   const [data, setData] = useState<OwnerStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
-    setLoading(true); setError("");
+  const load = async (isRefresh = false) => {
+    if (isRefresh) { setRefreshing(true); } else { setLoading(true); }
+    setError("");
     try {
       const r = await fetch("/api/owner-analytics", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error();
       setData(await r.json());
     } catch { setError("Failed to load analytics."); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -118,8 +120,12 @@ export function OwnerAnalytics({ token }: { token: string }) {
           <p className="text-sm text-gray-500">Performance data for all your properties</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={load} className="gap-2"><RefreshCw className="h-4 w-4" /> Refresh</Button>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2"><Download className="h-4 w-4" /> Export CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => load(true)} disabled={refreshing} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!data} className="gap-2">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
       </div>
 
