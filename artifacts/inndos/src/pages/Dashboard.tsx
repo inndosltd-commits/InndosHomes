@@ -829,6 +829,10 @@ export default function Dashboard() {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
 
+  // Property likes (for owners — who liked their listings and when)
+  const [propertyLikes, setPropertyLikes] = useState<any[]>([]);
+  const [isLoadingPropertyLikes, setIsLoadingPropertyLikes] = useState(false);
+
   // Bookings state (for tenants/guests)
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
@@ -1027,6 +1031,16 @@ export default function Dashboard() {
       if (favRes.ok) setFavorites(await favRes.json());
       if (msgRes.ok) setMessages(await msgRes.json());
     } catch { /* silent — stats are non-critical */ }
+  }, [user, token]);
+
+  const fetchPropertyLikes = useCallback(async () => {
+    if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
+    setIsLoadingPropertyLikes(true);
+    try {
+      const res = await fetch("/api/favorites/my-properties", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPropertyLikes(await res.json());
+    } catch { /* silent */ }
+    finally { setIsLoadingPropertyLikes(false); }
   }, [user, token]);
 
   const fetchBookings = useCallback(async () => {
@@ -1298,6 +1312,7 @@ export default function Dashboard() {
       fetchUnreadBookingCount();
       fetchSubscription();
       fetchFavoritesAndMessages();
+      fetchPropertyLikes();
       if (user.role === 'admin') {
         fetchAdminStats();
         fetchModerationQueue();
@@ -1310,7 +1325,7 @@ export default function Dashboard() {
         fetchSmsSettings();
       }
     }
-  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans, fetchSmsSettings]);
+  }, [user, token, fetchOwnerProperties, fetchBookings, fetchReceivedBookings, fetchUnreadBookingCount, fetchSubscription, fetchFavoritesAndMessages, fetchPropertyLikes, fetchAdminStats, fetchModerationQueue, fetchAdminUsers, fetchAdminProperties, fetchAdminSubscriptions, fetchAdminPayments, fetchPaymentSettings, fetchAdminPlans, fetchSmsSettings]);
 
   // Handle return from PesaPal payment
   useEffect(() => {
@@ -1831,6 +1846,11 @@ export default function Dashboard() {
               </span>
             )}
           </TabsTrigger>
+          {(user.role === 'tenant' || user.role === 'guest') && (
+            <TabsTrigger value="saved" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Saved
+            </TabsTrigger>
+          )}
           <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.analytics")}
           </TabsTrigger>
@@ -1862,6 +1882,11 @@ export default function Dashboard() {
                   {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
                 </span>
               )}
+            </TabsTrigger>
+          )}
+          {(user.role === 'owner' || user.role === 'host') && (
+            <TabsTrigger value="property-likes" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+              Property Likes
             </TabsTrigger>
           )}
           <TabsTrigger value="transactions" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-blue-100 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
@@ -1928,6 +1953,12 @@ export default function Dashboard() {
                   </span>
                 )}
             </TabsTrigger>
+            {(user.role === 'tenant' || user.role === 'guest') && (
+                <TabsTrigger value="saved" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Heart className="w-5 h-5 mr-3" /> Saved Properties
+                {favorites.length > 0 && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">{favorites.length}</span>}
+                </TabsTrigger>
+            )}
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> {t("dash.analytics")}
             </TabsTrigger>
@@ -1957,6 +1988,16 @@ export default function Dashboard() {
                 {unreadBookingCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
                     {unreadBookingCount > 99 ? "99+" : unreadBookingCount}
+                  </span>
+                )}
+                </TabsTrigger>
+            )}
+            {(user.role === 'owner' || user.role === 'host') && (
+                <TabsTrigger value="property-likes" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Heart className="w-5 h-5 mr-3" /> Property Likes
+                {propertyLikes.some((p: any) => p.totalLikes > 0) && (
+                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {propertyLikes.reduce((s: number, p: any) => s + p.totalLikes, 0)}
                   </span>
                 )}
                 </TabsTrigger>
@@ -2719,14 +2760,169 @@ export default function Dashboard() {
                 compact={true}
               />
 
-              <h2 className="text-xl font-bold mt-8 mb-4">Saved Properties</h2>
-              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border rounded-lg bg-white">
-                <Heart className="h-8 w-8 mb-3 text-gray-300" />
-                <p className="text-sm">You haven't saved any properties yet.</p>
-                <Link href="/">
-                  <Button variant="outline" size="sm" className="mt-4">Browse Listings</Button>
-                </Link>
+              {/* Saved Properties preview in overview — up to 3 */}
+              <div className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Saved Properties</h2>
+                  {favorites.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("saved")}>
+                      View all {favorites.length}
+                    </Button>
+                  )}
+                </div>
+                {favorites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border rounded-lg bg-white">
+                    <Heart className="h-8 w-8 mb-3 text-gray-300" />
+                    <p className="text-sm">You haven't saved any properties yet.</p>
+                    <Link href="/"><Button variant="outline" size="sm" className="mt-4">Browse Listings</Button></Link>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {favorites.slice(0, 3).map((p: any) => (
+                      <Link key={p.id} href={`/property/${p.id}`}>
+                        <Card className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+                          <div className="h-40 bg-gray-100 relative">
+                            <img src={p.image} alt={p.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
+                            <div className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize">{p.type}</div>
+                          </div>
+                          <CardContent className="p-3">
+                            <p className="font-semibold text-sm line-clamp-1">{p.title}</p>
+                            <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.address}</p>
+                            <p className="text-sm font-bold mt-1">KES {Number(p.price).toLocaleString()}</p>
+                            {p.savedAt && <p className="text-[10px] text-gray-400 mt-1">Saved {new Date(p.savedAt).toLocaleDateString()}</p>}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
+            </TabsContent>
+          )}
+
+          {/* SAVED PROPERTIES TAB — tenant/guest */}
+          {(user.role === 'tenant' || user.role === 'guest') && (
+            <TabsContent value="saved" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Saved Properties</h2>
+                  <p className="text-sm text-gray-500 mt-1">{favorites.length} {favorites.length === 1 ? 'property' : 'properties'} saved</p>
+                </div>
+                <Link href="/"><Button variant="outline">Browse More</Button></Link>
+              </div>
+              {favorites.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border rounded-xl bg-white">
+                  <Heart className="h-12 w-12 mb-4 text-gray-200" />
+                  <p className="font-medium">No saved properties yet</p>
+                  <p className="text-sm mt-1">Tap the heart icon on any listing to save it here.</p>
+                  <Link href="/"><Button variant="outline" className="mt-6">Explore Properties</Button></Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {favorites.map((p: any) => (
+                    <Link key={p.id} href={`/property/${p.id}`}>
+                      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group">
+                        <div className="h-48 bg-gray-100 relative">
+                          <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
+                          <div className="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded capitalize">{p.type}</div>
+                          {p.isVerified && <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Verified</div>}
+                        </div>
+                        <CardContent className="p-4">
+                          <p className="font-semibold line-clamp-1">{p.title}</p>
+                          <p className="text-xs text-gray-500 line-clamp-1 mt-1">{p.address}</p>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                            {p.beds && <span>{p.beds} bed{p.beds !== 1 ? 's' : ''}</span>}
+                            {p.baths && <span>{p.baths} bath{p.baths !== 1 ? 's' : ''}</span>}
+                            {p.sqft && <span>{p.sqft} sqft</span>}
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <p className="font-bold text-sm">KES {Number(p.price).toLocaleString()}{p.type === 'rent' || p.type === 'bnb' || p.type === 'hotel' || p.type === 'hostel' ? '/mo' : ''}</p>
+                            {p.savedAt && <p className="text-[10px] text-gray-400">❤ {new Date(p.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
+                          </div>
+                          {p.ownerName && <p className="text-[11px] text-gray-400 mt-1">Listed by {p.ownerName}</p>}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
+
+          {/* PROPERTY LIKES TAB — owner/host */}
+          {(user.role === 'owner' || user.role === 'host') && (
+            <TabsContent value="property-likes" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Property Likes</h2>
+                  <p className="text-sm text-gray-500 mt-1">See who saved your listings and when</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchPropertyLikes} disabled={isLoadingPropertyLikes}>
+                  {isLoadingPropertyLikes ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  <span className="ml-2">Refresh</span>
+                </Button>
+              </div>
+              {isLoadingPropertyLikes ? (
+                <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-gray-300" /></div>
+              ) : propertyLikes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border rounded-xl bg-white">
+                  <Heart className="h-12 w-12 mb-4 text-gray-200" />
+                  <p className="font-medium">No likes yet</p>
+                  <p className="text-sm mt-1">When users save your listings, they'll appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {propertyLikes.map((prop: any) => (
+                    <Card key={prop.id} className="overflow-hidden">
+                      <CardContent className="p-0">
+                        {/* Property header row */}
+                        <div className="flex items-center gap-4 p-4 border-b bg-gray-50">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+                            <img src={prop.image} alt={prop.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate">{prop.title}</p>
+                            <p className="text-xs text-gray-500 truncate mt-0.5">{prop.address}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded capitalize">{prop.type}</span>
+                              {prop.isVerified ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span> : <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Pending</span>}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <div className="flex items-center gap-1 text-red-500">
+                              <Heart className="h-4 w-4 fill-red-500" />
+                              <span className="font-bold text-lg">{prop.totalLikes}</span>
+                            </div>
+                            <p className="text-[10px] text-gray-400">{prop.totalLikes === 1 ? 'person' : 'people'} saved this</p>
+                          </div>
+                        </div>
+                        {/* Who liked it */}
+                        {prop.likedBy.length === 0 ? (
+                          <div className="p-4 text-sm text-gray-400 text-center">No saves yet</div>
+                        ) : (
+                          <div className="divide-y">
+                            {prop.likedBy.map((liker: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 px-4 py-3">
+                                <div className="w-8 h-8 rounded-full bg-zinc-200 flex-shrink-0 overflow-hidden flex items-center justify-center text-zinc-500 text-sm font-medium">
+                                  {liker.likerAvatar ? <img src={liker.likerAvatar} alt={liker.likerName} className="w-full h-full object-cover" /> : (liker.likerName?.[0] ?? '?')}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{liker.likerName ?? 'Anonymous'}</p>
+                                  <p className="text-xs text-gray-400 truncate">{liker.likerEmail}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-xs text-gray-500">{liker.savedAt ? new Date(liker.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
+                                  <p className="text-[10px] text-gray-400">{liker.savedAt ? new Date(liker.savedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           )}
 
