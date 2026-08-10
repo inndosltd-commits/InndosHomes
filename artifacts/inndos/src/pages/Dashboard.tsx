@@ -17,6 +17,7 @@ import { TransactionConfirmations } from "@/components/dashboard/TransactionConf
 import { AdminAnalyticsDashboard } from "@/components/dashboard/AdminAnalyticsDashboard";
 import { OwnerAnalytics } from "@/components/dashboard/OwnerAnalytics";
 import { TenantAnalytics } from "@/components/dashboard/TenantAnalytics";
+import { PropertyLikesPanel } from "@/components/dashboard/PropertyLikesPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/lib/language";
 
@@ -2886,77 +2887,11 @@ export default function Dashboard() {
           {/* PROPERTY LIKES TAB — owner/host */}
           {(user.role === 'owner' || user.role === 'host') && (
             <TabsContent value="property-likes" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Property Likes</h2>
-                  <p className="text-sm text-gray-500 mt-1">See who saved your listings and when</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={fetchPropertyLikes} disabled={isLoadingPropertyLikes}>
-                  {isLoadingPropertyLikes ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  <span className="ml-2">Refresh</span>
-                </Button>
-              </div>
-              {isLoadingPropertyLikes ? (
-                <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-gray-300" /></div>
-              ) : propertyLikes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border rounded-xl bg-white">
-                  <Heart className="h-12 w-12 mb-4 text-gray-200" />
-                  <p className="font-medium">No likes yet</p>
-                  <p className="text-sm mt-1">When users save your listings, they'll appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {propertyLikes.map((prop: any) => (
-                    <Card key={prop.id} className="overflow-hidden">
-                      <CardContent className="p-0">
-                        {/* Property header row */}
-                        <div className="flex items-center gap-4 p-4 border-b bg-gray-50">
-                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
-                            <img src={prop.image} alt={prop.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold truncate">{prop.title}</p>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">{prop.address}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs bg-zinc-100 px-2 py-0.5 rounded capitalize">{prop.type}</span>
-                              {prop.isVerified ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Verified</span> : <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Pending</span>}
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0 text-right">
-                            <div className="flex items-center gap-1 text-red-500">
-                              <Heart className="h-4 w-4 fill-red-500" />
-                              <span className="font-bold text-lg">{prop.totalLikes}</span>
-                            </div>
-                            <p className="text-[10px] text-gray-400">{prop.totalLikes === 1 ? 'person' : 'people'} saved this</p>
-                          </div>
-                        </div>
-                        {/* Who liked it */}
-                        {prop.likedBy.length === 0 ? (
-                          <div className="p-4 text-sm text-gray-400 text-center">No saves yet</div>
-                        ) : (
-                          <div className="divide-y">
-                            {prop.likedBy.map((liker: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-3 px-4 py-3">
-                                <div className="w-8 h-8 rounded-full bg-zinc-200 flex-shrink-0 overflow-hidden flex items-center justify-center text-zinc-500 text-sm font-medium">
-                                  {liker.likerAvatar ? <img src={liker.likerAvatar} alt={liker.likerName} className="w-full h-full object-cover" /> : (liker.likerName?.[0] ?? '?')}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{liker.likerName ?? 'Anonymous'}</p>
-                                  <p className="text-xs text-gray-400 truncate">{liker.likerEmail}</p>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                  <p className="text-xs text-gray-500">{liker.savedAt ? new Date(liker.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
-                                  <p className="text-[10px] text-gray-400">{liker.savedAt ? new Date(liker.savedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+              <PropertyLikesPanel
+                propertyLikes={propertyLikes}
+                isLoading={isLoadingPropertyLikes}
+                onRefresh={fetchPropertyLikes}
+              />
             </TabsContent>
           )}
 
