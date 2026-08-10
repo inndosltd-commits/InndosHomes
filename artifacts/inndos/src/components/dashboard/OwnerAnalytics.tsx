@@ -386,7 +386,7 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
       )}
 
       {/* Ratings & Reviews */}
-      {ratingsData && ratingsData.totalReviews > 0 && (
+      {ratingsData && (
         <Card className="border-zinc-200">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
