@@ -11,6 +11,8 @@ import subscriptionsRouter from "./subscriptions";
 import verifyIdRouter from "./verifyId";
 import contactsRouter from "./contacts";
 import transactionsRouter from "./transactions";
+import ownerAnalyticsRouter from "./ownerAnalytics";
+import tenantAnalyticsRouter from "./tenantAnalytics";
 
 const router: IRouter = Router();
 
@@ -26,5 +28,7 @@ router.use("/subscriptions", subscriptionsRouter);
 router.use(verifyIdRouter);
 router.use(contactsRouter);
 router.use("/transactions", transactionsRouter);
+router.use("/owner-analytics", ownerAnalyticsRouter);
+router.use("/tenant-analytics", tenantAnalyticsRouter);
 
 export default router;

@@ -14,6 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
 import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { TransactionConfirmations } from "@/components/dashboard/TransactionConfirmations";
+import { AdminAnalyticsDashboard } from "@/components/dashboard/AdminAnalyticsDashboard";
+import { OwnerAnalytics } from "@/components/dashboard/OwnerAnalytics";
+import { TenantAnalytics } from "@/components/dashboard/TenantAnalytics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/lib/language";
 
@@ -2057,20 +2060,17 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-            {/* ANALYTICS TAB (Shared Placeholder) */}
+            {/* ANALYTICS TAB — role-specific */}
           <TabsContent value="analytics" className="space-y-6">
-             <Card>
-               <CardHeader>
-                 <CardTitle>{t("dash.analytics_title")}</CardTitle>
-                 <CardDescription>{t("dash.analytics_desc")}</CardDescription>
-               </CardHeader>
-               <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                 <BarChart3 className="h-16 w-16 text-gray-300 mb-4" />
-                 <h3 className="text-lg font-medium text-gray-900 mb-2">{t("dash.no_data")}</h3>
-                 <p className="max-w-md">{t("dash.analytics_empty")}</p>
-                 <Button variant="outline" className="mt-6">{t("dash.download_report")}</Button>
-               </CardContent>
-             </Card>
+            {user.role === 'admin' && (
+              <AdminAnalyticsDashboard token={token} />
+            )}
+            {(user.role === 'owner' || user.role === 'host') && (
+              <OwnerAnalytics token={token} />
+            )}
+            {(user.role === 'tenant' || user.role === 'guest') && (
+              <TenantAnalytics token={token} />
+            )}
           </TabsContent>
 
           {/* BOOKINGS TAB */}

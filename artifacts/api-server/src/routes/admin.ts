@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans, notifications, favorites } from "@workspace/db";
-import { eq, count, sum, ne, asc, desc, and, inArray } from "drizzle-orm";
+import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans, notifications, favorites, propertyTransactions } from "@workspace/db";
+import { eq, count, sum, ne, asc, desc, and, inArray, gte, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
@@ -32,24 +32,151 @@ router.get("/stats", async (req, res) => {
   const userId = await requireAdmin(req, res);
   if (!userId) return;
 
-  const [totalUsersResult] = await db.select({ count: count() }).from(users);
-  const [totalPropertiesResult] = await db.select({ count: count() }).from(properties);
-  const [totalBookingsResult] = await db.select({ count: count() }).from(bookings);
-  const [revenueResult] = await db
-    .select({ total: sum(bookings.totalPrice) })
-    .from(bookings)
-    .where(ne(bookings.status, "cancelled"));
-  const [pendingResult] = await db
-    .select({ count: count() })
-    .from(properties)
-    .where(eq(properties.isVerified, false));
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0]!;
+  const weekAgoStr = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]!;
+  const monthAgoStr = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]!;
+
+  const [
+    totalUsersRes, activeUsersRes, suspendedUsersRes,
+    newTodayRes, newWeekRes, newMonthRes,
+    ownerRes, hostRes, tenantRes, guestRes,
+    totalPropsRes, activePropsRes, pendingPropsRes, soldPropsRes, flaggedPropsRes,
+    rentRes, saleRes, bnbRes, hotelRes, hostelRes,
+    totalBookRes, confirmBookRes, cancelBookRes, pendingBookRes, revenueRes,
+    activeSubsRes, expiredSubsRes, cancelSubsRes,
+    freeSubsRes, basicSubsRes, proSubsRes, enterpriseSubsRes,
+    payRevenueRes, favRes,
+    txRentedRes, txSoldRes, txValueRes,
+  ] = await Promise.all([
+    db.select({ count: count() }).from(users),
+    db.select({ count: count() }).from(users).where(eq(users.status, "active")),
+    db.select({ count: count() }).from(users).where(eq(users.status, "suspended")),
+    db.select({ count: count() }).from(users).where(gte(users.joinDate, todayStr)),
+    db.select({ count: count() }).from(users).where(gte(users.joinDate, weekAgoStr)),
+    db.select({ count: count() }).from(users).where(gte(users.joinDate, monthAgoStr)),
+    db.select({ count: count() }).from(users).where(eq(users.role, "owner")),
+    db.select({ count: count() }).from(users).where(eq(users.role, "host")),
+    db.select({ count: count() }).from(users).where(eq(users.role, "tenant")),
+    db.select({ count: count() }).from(users).where(eq(users.role, "guest")),
+    db.select({ count: count() }).from(properties),
+    db.select({ count: count() }).from(properties).where(and(eq(properties.isVerified, true), eq(properties.propertyStatus, "approved"))),
+    db.select({ count: count() }).from(properties).where(eq(properties.isVerified, false)),
+    db.select({ count: count() }).from(properties).where(eq(properties.propertyStatus, "sold")),
+    db.select({ count: count() }).from(properties).where(eq(properties.propertyStatus, "flagged")),
+    db.select({ count: count() }).from(properties).where(eq(properties.type, "rent")),
+    db.select({ count: count() }).from(properties).where(eq(properties.type, "sale")),
+    db.select({ count: count() }).from(properties).where(eq(properties.type, "bnb")),
+    db.select({ count: count() }).from(properties).where(eq(properties.type, "hotel")),
+    db.select({ count: count() }).from(properties).where(eq(properties.type, "hostel")),
+    db.select({ count: count() }).from(bookings),
+    db.select({ count: count() }).from(bookings).where(eq(bookings.status, "confirmed")),
+    db.select({ count: count() }).from(bookings).where(eq(bookings.status, "cancelled")),
+    db.select({ count: count() }).from(bookings).where(eq(bookings.status, "pending")),
+    db.select({ total: sum(bookings.totalPrice) }).from(bookings).where(eq(bookings.status, "confirmed")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.status, "active")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.status, "expired")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.status, "cancelled")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "free")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "basic")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "pro")),
+    db.select({ count: count() }).from(subscriptions).where(eq(subscriptions.plan, "enterprise")),
+    db.select({ total: sum(payments.amount) }).from(payments).where(eq(payments.status, "completed")),
+    db.select({ count: count() }).from(favorites),
+    db.select({ count: count() }).from(propertyTransactions).where(eq(propertyTransactions.status, "rented_via_inndos")),
+    db.select({ count: count() }).from(propertyTransactions).where(eq(propertyTransactions.status, "sold_via_inndos")),
+    db.select({ total: sum(propertyTransactions.transactionValue) }).from(propertyTransactions).where(
+      sql`${propertyTransactions.status} IN ('rented_via_inndos','sold_via_inndos')`
+    ),
+  ]);
+
+  // Monthly trends (last 12 months)
+  const [monthlyReg, monthlyProps, monthlyRev, monthlyBook] = await Promise.all([
+    db.execute(sql`
+      SELECT TO_CHAR(DATE_TRUNC('month', join_date::date), 'Mon YY') as month,
+             DATE_TRUNC('month', join_date::date) as month_date,
+             COUNT(*)::int as count
+      FROM users WHERE join_date::date >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', join_date::date) ORDER BY month_date ASC
+    `),
+    db.execute(sql`
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YY') as month,
+             DATE_TRUNC('month', created_at) as month_date,
+             COUNT(*)::int as count
+      FROM properties WHERE created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at) ORDER BY month_date ASC
+    `),
+    db.execute(sql`
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YY') as month,
+             DATE_TRUNC('month', created_at) as month_date,
+             COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END),0)::int as revenue
+      FROM payments WHERE created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at) ORDER BY month_date ASC
+    `),
+    db.execute(sql`
+      SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YY') as month,
+             DATE_TRUNC('month', created_at) as month_date,
+             COUNT(*)::int as count
+      FROM bookings WHERE created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', created_at) ORDER BY month_date ASC
+    `),
+  ]);
 
   res.json({
-    totalUsers: Number(totalUsersResult.count),
-    totalProperties: Number(totalPropertiesResult.count),
-    totalBookings: Number(totalBookingsResult.count),
-    totalRevenue: Number(revenueResult.total ?? 0),
-    pendingProperties: Number(pendingResult.count),
+    // Platform Growth
+    totalUsers: Number(totalUsersRes[0]!.count),
+    activeUsers: Number(activeUsersRes[0]!.count),
+    suspendedUsers: Number(suspendedUsersRes[0]!.count),
+    newUsersToday: Number(newTodayRes[0]!.count),
+    newUsersThisWeek: Number(newWeekRes[0]!.count),
+    newUsersThisMonth: Number(newMonthRes[0]!.count),
+    usersByRole: {
+      owner: Number(ownerRes[0]!.count),
+      host: Number(hostRes[0]!.count),
+      tenant: Number(tenantRes[0]!.count),
+      guest: Number(guestRes[0]!.count),
+    },
+    // Property Analytics
+    totalProperties: Number(totalPropsRes[0]!.count),
+    activeProperties: Number(activePropsRes[0]!.count),
+    pendingProperties: Number(pendingPropsRes[0]!.count),
+    soldProperties: Number(soldPropsRes[0]!.count),
+    flaggedProperties: Number(flaggedPropsRes[0]!.count),
+    propertiesByType: {
+      rent: Number(rentRes[0]!.count),
+      sale: Number(saleRes[0]!.count),
+      bnb: Number(bnbRes[0]!.count),
+      hotel: Number(hotelRes[0]!.count),
+      hostel: Number(hostelRes[0]!.count),
+    },
+    // Booking Analytics
+    totalBookings: Number(totalBookRes[0]!.count),
+    confirmedBookings: Number(confirmBookRes[0]!.count),
+    cancelledBookings: Number(cancelBookRes[0]!.count),
+    pendingBookings: Number(pendingBookRes[0]!.count),
+    totalRevenue: Number(revenueRes[0]!.total ?? 0),
+    // Subscriptions & Financial
+    activeSubscriptions: Number(activeSubsRes[0]!.count),
+    expiredSubscriptions: Number(expiredSubsRes[0]!.count),
+    cancelledSubscriptions: Number(cancelSubsRes[0]!.count),
+    subscriptionsByPlan: {
+      free: Number(freeSubsRes[0]!.count),
+      basic: Number(basicSubsRes[0]!.count),
+      pro: Number(proSubsRes[0]!.count),
+      enterprise: Number(enterpriseSubsRes[0]!.count),
+    },
+    totalPaymentRevenue: Number(payRevenueRes[0]!.total ?? 0),
+    // Engagement
+    totalFavorites: Number(favRes[0]!.count),
+    // Transactions
+    confirmedRentals: Number(txRentedRes[0]!.count),
+    confirmedSales: Number(txSoldRes[0]!.count),
+    totalMarketplaceValue: Number(txValueRes[0]!.total ?? 0),
+    // Monthly Trends
+    monthlyRegistrations: monthlyReg.rows.map((r: any) => ({ month: r.month, count: Number(r.count) })),
+    monthlyProperties: monthlyProps.rows.map((r: any) => ({ month: r.month, count: Number(r.count) })),
+    monthlyRevenue: monthlyRev.rows.map((r: any) => ({ month: r.month, revenue: Number(r.revenue) })),
+    monthlyBookings: monthlyBook.rows.map((r: any) => ({ month: r.month, count: Number(r.count) })),
   });
 });
 

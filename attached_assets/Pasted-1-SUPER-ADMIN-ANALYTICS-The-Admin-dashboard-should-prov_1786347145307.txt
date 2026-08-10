@@ -1,0 +1,694 @@
+1. SUPER ADMIN ANALYTICS
+
+The Admin dashboard should provide a complete overview of the platform.
+
+Platform Growth
+
+Show
+
+Total registered users
+Total active users
+New users today
+New users this week
+New users this month
+User growth trend
+Daily active users
+Monthly active users
+Returning users
+User retention rate
+Average session duration
+
+Charts
+
+Daily registrations
+Monthly registrations
+User growth over time
+Property Analytics
+
+Display
+
+Total listed properties
+Active listings
+Pending approval
+Rejected listings
+Expired listings
+Sold properties
+Rented properties
+Hidden properties
+
+Charts
+
+Listings per category
+Listings by county/city
+Listings by property type
+Listings added monthly
+Property Performance
+
+Track
+
+Total property views
+Total unique visitors
+Average views per property
+Most viewed property
+Least viewed property
+
+Top 10
+
+Most viewed listings
+Most saved listings
+Most liked listings
+Most linked-up listings
+
+Heatmap
+
+Most searched locations
+
+Engagement Analytics
+
+Track
+
+Total favorites
+Total saves
+Total shares
+Total link-ups
+Messages exchanged
+Contact button clicks
+Phone reveal clicks
+WhatsApp clicks
+
+Charts
+
+Daily engagement
+
+Search Analytics
+
+Most searched
+
+Cities
+Counties
+Estates
+Property types
+Bedrooms
+Price ranges
+
+Show
+
+Searches with no results
+
+Trending searches
+
+Financial Analytics
+
+Display
+
+Subscription Revenue
+
+Today
+Weekly
+Monthly
+Yearly
+
+Revenue by
+
+Subscription package
+Payment method
+Country
+Currency
+
+Display
+
+Outstanding subscriptions
+
+Expired subscriptions
+
+Renewal rate
+
+Estimated Property Transaction Analytics
+
+Estimate platform transaction value.
+
+Rental
+
+Dashboard should show
+
+Estimated monthly property sales
+
+Estimated annual property sales
+
+Average property selling price
+
+Average rental value
+
+Highest sale
+
+Largest rental
+
+Conversion Funnel
+
+Visitors
+
+↓
+
+Property Views
+
+↓
+
+Saved
+
+↓
+
+Liked
+
+↓
+
+Contacted
+
+↓
+
+Linked Up
+
+↓
+
+Confirmed Rental/Sale
+
+Display conversion percentage at each stage.
+
+Geographic Analytics
+
+Interactive Map
+
+Display
+
+Properties per county
+
+Property density
+
+Hot locations
+
+High demand areas
+
+High performing counties
+
+Platform Health
+
+Track
+
+Failed payments
+
+Failed logins
+
+Server uptime
+
+API response time
+
+Database size
+
+Image storage usage
+
+Email delivery rate
+
+SMS delivery rate
+
+Push notification delivery
+
+Moderation Analytics
+
+Pending approvals
+
+Rejected listings
+
+Reported listings
+
+Blocked users
+
+Spam accounts
+
+Fake listings detected
+
+Marketing Analytics
+
+Traffic source
+
+Google
+
+Facebook
+
+Instagram
+
+TikTok
+
+Direct
+
+Referral
+
+Email campaigns
+
+Display
+
+Conversion rate by traffic source
+
+Downloadable Reports
+
+Generate
+
+PDF
+
+Excel
+
+CSV
+
+Reports
+
+Daily
+
+Weekly
+
+Monthly
+
+Quarterly
+
+Yearly
+
+2. PROPERTY OWNER / HOST ANALYTICS
+
+Each owner should only see analytics related to their own properties.
+
+Overview Cards
+
+Total Properties
+Active Listings
+Total Views
+Unique Visitors
+Saved Properties
+Favorites
+Link Ups
+Revenue Generated
+Pending Link Ups
+Confirmed Rentals
+Sold Properties
+Individual Property Analytics
+
+Every property should have its own analytics page.
+
+Display
+
+Property Name
+
+Views
+
+Unique Visitors
+
+Returning Visitors
+
+Favorites
+
+Saved
+
+Shares
+
+Link Ups
+
+Messages
+
+Phone Clicks
+
+WhatsApp Clicks
+
+Bookings
+
+Calendar Availability
+
+Average Viewing Time
+
+Bounce Rate
+
+Interest Score
+
+Engagement Score
+
+Popularity Ranking
+
+View Trend
+
+Charts
+
+Views
+
+Daily
+
+Weekly
+
+Monthly
+
+Yearly
+
+Engagement Funnel
+
+Views
+
+↓
+
+Saved
+
+↓
+
+Liked
+
+↓
+
+Link Up Requested
+
+↓
+
+Confirmed Link Up
+
+↓
+
+Calendar Unavailable
+
+↓
+
+Property Rented
+
+Financial Analytics
+
+Subscription
+
+Current Package
+
+Renewal Date
+
+Amount Paid
+
+Next Payment
+
+Invoices
+
+Estimated Revenue
+
+Rental
+
+Monthly revenue
+
+Annual revenue
+
+Occupancy rate
+
+Vacancy rate
+
+Property earnings
+
+For Sale
+
+Properties sold
+
+Estimated sales value
+
+Average selling price
+
+Visitor Insights
+
+Anonymous analytics
+
+Show
+
+Country
+
+County
+
+City
+
+Device
+
+Mobile/Desktop
+
+Browser
+
+Time spent
+
+Returning visitor
+
+Traffic source
+
+Best Performing Properties
+
+Rank properties by
+
+Views
+
+Link Ups
+
+Revenue
+
+Favorites
+
+Shares
+
+Occupancy Analytics
+
+Rental only
+
+Occupancy %
+
+Booked dates
+
+Available dates
+
+Average stay
+
+Peak months
+
+Inquiry Analytics
+
+Messages
+
+Pending
+
+Responded
+
+Closed
+
+Average response time
+
+Response rate
+
+Lead Analytics
+
+Qualified leads
+
+Pending leads
+
+Converted leads
+
+Rejected leads
+
+Conversion %
+
+Reviews
+
+Average rating
+
+Number of reviews
+
+Rating trend
+
+Review sentiment
+
+3. TENANT / USER ANALYTICS
+
+Dashboard
+
+Recently viewed
+
+Saved properties
+
+Liked properties
+
+Link Ups sent
+
+Pending approvals
+
+Confirmed link ups
+
+Rejected requests
+
+Properties compared
+
+Search history
+
+Favorite locations
+
+Average property price searched
+
+Most searched property type
+
+Budget trends
+
+Browsing time
+
+Rental vs Sale preference
+
+Activity Timeline
+
+Recently viewed
+
+Messages sent
+
+Properties saved
+
+Properties shared
+
+Properties contacted
+
+Appointments booked
+
+Search Insights
+
+Search frequency
+
+Favorite county
+
+Favorite estate
+
+Average rent searched
+
+Average purchase price searched
+
+Bedrooms searched
+
+Amenities searched
+
+Recommendation Analytics
+
+Suggested properties
+
+Recently matched
+
+Match percentage
+
+Recommendation accuracy
+
+4. AGENT ANALYTICS (Optional)
+
+Listings managed
+
+Properties sold
+
+Properties rented
+
+Commission earned
+
+Pending commission
+
+Conversion rate
+
+Lead pipeline
+
+Average closing time
+
+Top performing locations
+
+5. KPI CARDS
+
+For Admin
+
+Total Users
+Total Owners
+Total Tenants
+Total Listings
+Active Listings
+Total Property Views
+Unique Visitors
+Total Favorites
+Total Saves
+Total Link Ups
+Successful Rentals
+Successful Sales
+Platform Revenue
+Estimated Marketplace Value
+Monthly Growth
+Active Subscriptions
+
+For Owner
+
+My Listings
+Total Views
+Total Favorites
+Total Saves
+Link Ups
+Pending Requests
+Confirmed Rentals
+Sold Properties
+Estimated Earnings
+Subscription Status
+
+For Tenant
+
+Saved
+Viewed
+Link Ups
+Messages
+Favorite Areas
+Recommended Listings
+6. CHARTS
+
+Include
+
+Line Charts
+Bar Charts
+Area Charts
+Pie Charts
+Geo Maps
+Funnel Charts
+KPI Cards
+Tables
+Calendar Heatmaps
+Trend Indicators
+Sparklines
+7. SMART INSIGHTS
+
+Generate AI-powered insights such as:
+
+This property received 34% more views than last week.
+Nairobi properties are generating the highest engagement.
+Apartments convert 2.4x better than standalone houses.
+Listings with more than 10 photos receive 58% more link-ups.
+Properties priced between KES 20,000–40,000 have the highest rental demand.
+Friday evenings generate the most property views.
+Your response time improved by 18%.
+Your occupancy rate is above the platform average.
+Your listing is trending in your location.
+Consider renewing your subscription; your listings receive significantly more visibility on premium plans.
+8. FILTERS
+
+Allow filtering analytics by:
+
+Today
+Yesterday
+Last 7 Days
+Last 30 Days
+Last 90 Days
+This Month
+Last Month
+This Year
+Custom Date Range
+Property
+City
+County
+Property Type
+Rental/Sale
+Subscription Plan
+9. EXPORTS
+
+Support exporting dashboards and reports to:
+
+PDF
+Excel (.xlsx)
+CSV
+Print-friendly format
+
+Schedule automatic reports via:
+
+Email
+SMS summary
+In-app notifications
