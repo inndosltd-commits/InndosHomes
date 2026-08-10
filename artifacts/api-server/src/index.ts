@@ -141,6 +141,17 @@ async function runMigrations() {
     )
   `);
 
+  // Favorites table
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS favorites (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      property_id TEXT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, property_id)
+    )
+  `);
+
   logger.info("Schema migrations applied");
 }
 
