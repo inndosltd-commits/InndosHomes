@@ -10,7 +10,7 @@ import {
 import {
   Home, Calendar, DollarSign, Heart, CheckCircle, Clock, Crown, Loader2,
   Download, RefreshCw, ArrowUpRight, TrendingUp, Lightbulb, BarChart3,
-  ShieldCheck, Users, XCircle
+  ShieldCheck, Users, XCircle, Star
 } from "lucide-react";
 
 interface OwnerStats {
@@ -60,14 +60,19 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
+  const [ratingsData, setRatingsData] = useState<{ reviews: any[]; perProperty: any[]; overallAvg: number | null; totalReviews: number } | null>(null);
 
   const load = async (isRefresh = false) => {
     if (isRefresh) { setRefreshing(true); } else { setLoading(true); }
     setError("");
     try {
-      const r = await fetch("/api/owner-analytics", { headers: { Authorization: `Bearer ${token}` } });
+      const [r, rr] = await Promise.all([
+        fetch("/api/owner-analytics", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/reviews/owner", { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
       if (!r.ok) throw new Error();
       setData(await r.json());
+      if (rr.ok) setRatingsData(await rr.json());
     } catch { setError("Failed to load analytics."); }
     finally { setLoading(false); setRefreshing(false); }
   };
@@ -288,6 +293,74 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
                   ))}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ratings & Reviews */}
+      {ratingsData && ratingsData.totalReviews > 0 && (
+        <Card className="border-zinc-200">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Star className="h-5 w-5 text-zinc-700" /> Ratings & Reviews
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map(s => (
+                    <Star key={s} className={`h-4 w-4 ${s <= Math.round(ratingsData.overallAvg ?? 0) ? "fill-gray-900 text-gray-900" : "text-gray-300"}`} />
+                  ))}
+                </div>
+                <span className="text-sm font-semibold text-gray-900">{ratingsData.overallAvg ?? "—"}</span>
+                <span className="text-xs text-gray-500">({ratingsData.totalReviews} review{ratingsData.totalReviews !== 1 ? "s" : ""})</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Per-property averages */}
+            {ratingsData.perProperty.filter(p => p.totalReviews > 0).length > 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {ratingsData.perProperty.filter(p => p.totalReviews > 0).map((p: any) => (
+                  <div key={p.propertyId} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                    {p.propertyImage && <img src={p.propertyImage.startsWith("/objects") ? `/api/storage${p.propertyImage}` : p.propertyImage} className="h-10 w-10 rounded object-cover shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-gray-800 truncate">{p.propertyTitle}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {[1,2,3,4,5].map(s => (
+                          <Star key={s} className={`h-3 w-3 ${s <= Math.round(p.averageRating ?? 0) ? "fill-gray-700 text-gray-700" : "text-gray-300"}`} />
+                        ))}
+                        <span className="text-xs text-gray-500 ml-1">{p.averageRating} · {p.totalReviews} review{p.totalReviews !== 1 ? "s" : ""}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Recent reviews list */}
+            <div className="space-y-3">
+              {ratingsData.reviews.slice(0, 5).map((r: any) => (
+                <div key={r.id} className="flex gap-3 p-3 rounded-lg border border-gray-100">
+                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-xs font-semibold text-gray-600">
+                    {r.reviewerAvatar ? <img src={r.reviewerAvatar} className="h-8 w-8 rounded-full object-cover" /> : (r.reviewerName?.[0] ?? "?")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-800">{r.reviewerName}</p>
+                      <div className="flex items-center gap-0.5">
+                        {[1,2,3,4,5].map(s => (
+                          <Star key={s} className={`h-3 w-3 ${s <= r.rating ? "fill-gray-800 text-gray-800" : "text-gray-200"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    {r.comment && <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{r.comment}</p>}
+                    <p className="text-[10px] text-gray-400 mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
+              {ratingsData.reviews.length > 5 && (
+                <p className="text-xs text-center text-gray-400">{ratingsData.reviews.length - 5} more review{ratingsData.reviews.length - 5 !== 1 ? "s" : ""} not shown</p>
+              )}
             </div>
           </CardContent>
         </Card>

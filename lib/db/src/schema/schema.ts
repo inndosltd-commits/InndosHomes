@@ -340,6 +340,28 @@ export const insertContactInquirySchema = createInsertSchema(contactInquiries).o
 export type InsertContactInquiry = z.infer<typeof insertContactInquirySchema>;
 export type ContactInquiry = typeof contactInquiries.$inferSelect;
 
+// ─── Reviews / Ratings ────────────────────────────────────────────────────────
+export const reviews = pgTable("reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  reviewerId: varchar("reviewer_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  bookingId: varchar("booking_id")
+    .references(() => bookings.id, { onDelete: "set null" }),
+  rating: integer("rating").notNull(), // 1–5
+  comment: text("comment"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+},
+(t) => ({
+  uniqueReviewPerBooking: uniqueIndex("reviews_booking_unique").on(t.bookingId),
+}));
+
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = typeof reviews.$inferInsert;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;

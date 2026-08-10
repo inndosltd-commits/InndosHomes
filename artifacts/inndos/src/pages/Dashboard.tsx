@@ -837,6 +837,12 @@ export default function Dashboard() {
   // Bookings state (for tenants/guests)
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ open: boolean; booking: any } | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
 
   // Received bookings state (for owners/hosts)
   const [receivedBookings, setReceivedBookings] = useState<any[]>([]);
@@ -1077,6 +1083,19 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setBookings(data);
+        // Load which bookings already have a review
+        const confirmedIds = (data as any[]).filter((b: any) => b.status === "confirmed").map((b: any) => b.id);
+        if (confirmedIds.length > 0) {
+          const checks = await Promise.all(
+            confirmedIds.map((id: string) =>
+              fetch(`/api/reviews/check/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.ok ? r.json() : null)
+            )
+          );
+          const reviewed = new Set<string>();
+          checks.forEach((c, i) => { if (c?.hasReviewed) reviewed.add(confirmedIds[i]); });
+          setReviewedBookingIds(reviewed);
+        }
       } else {
         toast({ title: "Could not load bookings", description: "Failed to fetch your bookings. Please refresh.", variant: "destructive" });
       }
@@ -1086,6 +1105,30 @@ export default function Dashboard() {
       setIsLoadingBookings(false);
     }
   }, [user, token, toast]);
+
+  const submitReview = async () => {
+    if (!reviewModal || !token || reviewRating < 1) return;
+    setIsSubmittingReview(true);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bookingId: reviewModal.booking.id, rating: reviewRating, comment: reviewComment.trim() || undefined }),
+      });
+      if (res.ok) {
+        setReviewedBookingIds(prev => new Set([...prev, reviewModal.booking.id]));
+        setReviewModal(null);
+        toast({ title: "Review submitted", description: "Thank you for rating your stay!" });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Could not submit review", description: err.error ?? "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const fetchReceivedBookings = useCallback(async () => {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
@@ -2242,6 +2285,15 @@ export default function Dashboard() {
                             )}
                             {b.totalPrice != null && (
                               <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
+                            )}
+                            {b.status === "confirmed" && (
+                              reviewedBookingIds.has(b.id) ? (
+                                <span className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500"><Star className="h-3 w-3 fill-gray-400 text-gray-400" /> Reviewed</span>
+                              ) : (
+                                <Button size="sm" variant="outline" className="mt-2 text-xs h-7 px-2 gap-1" onClick={() => { setReviewModal({ open: true, booking: b }); setReviewRating(0); setReviewHover(0); setReviewComment(""); }}>
+                                  <Star className="h-3 w-3" /> Rate Stay
+                                </Button>
+                              )
                             )}
                           </div>
                         </div>
@@ -5464,6 +5516,65 @@ export default function Dashboard() {
             >
               {isFlagging ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
               Flag & Return to Owner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Review Modal ───────────────────────────────────────────────────── */}
+      <Dialog open={!!reviewModal?.open} onOpenChange={(o) => { if (!o) setReviewModal(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5" /> Rate Your Stay</DialogTitle>
+            <DialogDescription>
+              {reviewModal?.booking?.propertyTitle ?? "this property"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 py-2">
+            {/* Star picker */}
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setReviewRating(s)}
+                  onMouseEnter={() => setReviewHover(s)}
+                  onMouseLeave={() => setReviewHover(0)}
+                  className="focus:outline-none"
+                >
+                  <Star
+                    className={`h-9 w-9 transition-colors ${s <= (reviewHover || reviewRating) ? "fill-gray-900 text-gray-900" : "text-gray-300"}`}
+                  />
+                </button>
+              ))}
+            </div>
+            {reviewRating > 0 && (
+              <p className="text-center text-sm text-gray-600 -mt-2">
+                {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
+              </p>
+            )}
+            {/* Comment */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Comment <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-gray-900 min-h-[80px]"
+                placeholder="Tell the owner what you loved or what could be improved…"
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                maxLength={500}
+              />
+              <p className="text-[10px] text-gray-400 text-right">{reviewComment.length}/500</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReviewModal(null)} disabled={isSubmittingReview}>Cancel</Button>
+            <Button
+              disabled={reviewRating < 1 || isSubmittingReview}
+              onClick={submitReview}
+              className="gap-1"
+            >
+              {isSubmittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+              Submit Review
             </Button>
           </DialogFooter>
         </DialogContent>

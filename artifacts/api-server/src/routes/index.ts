@@ -13,6 +13,7 @@ import contactsRouter from "./contacts";
 import transactionsRouter from "./transactions";
 import ownerAnalyticsRouter from "./ownerAnalytics";
 import tenantAnalyticsRouter from "./tenantAnalytics";
+import reviewsRouter from "./reviews";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(contactsRouter);
 router.use("/transactions", transactionsRouter);
 router.use("/owner-analytics", ownerAnalyticsRouter);
 router.use("/tenant-analytics", tenantAnalyticsRouter);
+router.use("/reviews", reviewsRouter);
 
 export default router;

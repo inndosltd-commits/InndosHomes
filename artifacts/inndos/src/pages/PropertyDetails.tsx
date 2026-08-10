@@ -317,6 +317,67 @@ interface PropertyWithOwner extends ApiProperty {
   ownerAvatar?: string | null;
 }
 
+// ── Ratings & Reviews panel shown on the property detail page ─────────────────
+function PropertyReviews({ propertyId }: { propertyId: string }) {
+  const [data, setData] = useState<{ reviews: any[]; averageRating: number | null; totalReviews: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/reviews/property/${propertyId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [propertyId]);
+
+  if (loading) return <div className="flex items-center gap-2 py-4 text-gray-400 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading reviews…</div>;
+  if (!data || data.totalReviews === 0) return (
+    <div className="py-4">
+      <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><Star className="h-5 w-5" /> Reviews</h3>
+      <p className="text-sm text-gray-400">No reviews yet for this property.</p>
+    </div>
+  );
+
+  return (
+    <div className="py-2">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Star className="h-5 w-5" /> Reviews</h3>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
+            {[1,2,3,4,5].map(s => (
+              <Star key={s} className={`h-4 w-4 ${s <= Math.round(data.averageRating ?? 0) ? "fill-gray-900 text-gray-900" : "text-gray-300"}`} />
+            ))}
+          </div>
+          <span className="text-sm font-semibold">{data.averageRating}</span>
+          <span className="text-sm text-gray-500">· {data.totalReviews} review{data.totalReviews !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+      <div className="space-y-4">
+        {data.reviews.map((r: any) => (
+          <div key={r.id} className="flex gap-3">
+            <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-sm font-semibold text-gray-600 overflow-hidden">
+              {r.reviewerAvatar
+                ? <img src={r.reviewerAvatar} alt={r.reviewerName} className="h-9 w-9 object-cover" />
+                : (r.reviewerName?.[0]?.toUpperCase() ?? "?")}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-900">{r.reviewerName}</p>
+                <span className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center gap-0.5 mt-0.5">
+                {[1,2,3,4,5].map(s => (
+                  <Star key={s} className={`h-3 w-3 ${s <= r.rating ? "fill-gray-800 text-gray-800" : "text-gray-200"}`} />
+                ))}
+              </div>
+              {r.comment && <p className="text-sm text-gray-600 mt-1 leading-relaxed">{r.comment}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PropertyDetails() {
   const [, params] = useRoute("/property/:id");
   const [, navigate] = useLocation();
@@ -1185,6 +1246,11 @@ export default function PropertyDetails() {
                     </div>
                   </>
                 )}
+
+                <Separator className="my-6" />
+
+                {/* ── Ratings & Reviews ─────────────────────────────── */}
+                <PropertyReviews propertyId={property.id} />
 
                 <Separator className="my-6" />
                 <div className="text-center">
