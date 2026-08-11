@@ -1017,6 +1017,26 @@ export default function PropertyDetails() {
                 </section>
               )}
 
+              {/* ── Videos ── */}
+              {(property as any).videos && (property as any).videos.length > 0 && (
+                <section>
+                  <h2 className="text-lg font-bold mb-3">Videos</h2>
+                  <div className={`grid gap-3 ${(property as any).videos.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+                    {((property as any).videos as string[]).map((src: string, idx: number) => (
+                      <div key={idx} className="rounded-xl overflow-hidden bg-black border border-gray-200 shadow-sm">
+                        <video
+                          src={src.startsWith("/objects/") ? `/api/storage${src}` : src}
+                          className="w-full aspect-video object-cover"
+                          controls
+                          playsInline
+                          preload="metadata"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <section>
                 <h2 className="text-lg font-bold mb-3">{t("prop.amenities")}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">

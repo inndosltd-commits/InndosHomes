@@ -353,6 +353,8 @@ export default function AddListing() {
   const [videoLimit, setVideoLimit] = useState(0);
   const [uploadingVideoCount, setUploadingVideoCount] = useState(0);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const [editingVideoIdx, setEditingVideoIdx] = useState<number | null>(null);
+  const [editingVideoSrc, setEditingVideoSrc] = useState<string>("");
   const [isLocationPinned, setIsLocationPinned] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
@@ -582,6 +584,38 @@ export default function AddListing() {
     setVideos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const openVideoEditor = (index: number) => {
+    const url = videos[index];
+    const resolved = url.startsWith("/objects/") ? `/api/storage${url}` : url;
+    setEditingVideoIdx(index);
+    setEditingVideoSrc(resolved);
+  };
+
+  const handleVideoEditSave = async ({ file, previewUrl }: VideoEditResult) => {
+    if (editingVideoIdx === null) return;
+    // Close editor first (show optimistic preview)
+    const idx = editingVideoIdx;
+    setEditingVideoIdx(null);
+    setEditingVideoSrc("");
+    // Upload the processed file
+    setUploadingVideoCount(prev => prev + 1);
+    try {
+      const result = await uploadFile(file);
+      const path = result && typeof result === "object" && "objectPath" in result ? result.objectPath as string : null;
+      if (path) {
+        setVideos(prev => prev.map((v, i) => i === idx ? path : v));
+        toast({ title: "Video updated", description: "Your edited video has been saved." });
+      } else {
+        toast({ title: "Upload failed", description: "Could not save the edited video.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Upload failed", description: "Could not save the edited video.", variant: "destructive" });
+    } finally {
+      setUploadingVideoCount(prev => prev - 1);
+      URL.revokeObjectURL(previewUrl);
+    }
+  };
+
   const handleVideoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -608,8 +642,8 @@ export default function AddListing() {
         vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(Infinity); };
         vid.src = URL.createObjectURL(file);
       });
-      if (duration > 30) {
-        toast({ title: "Video too long", description: `"${file.name}" is longer than 30 seconds and was skipped.`, variant: "destructive" });
+      if (duration > 60) {
+        toast({ title: "Video too long", description: `"${file.name}" is longer than 1 minute and was skipped. Use the editor to trim it.`, variant: "destructive" });
       } else {
         validFiles.push(file);
       }
@@ -1434,7 +1468,7 @@ export default function AddListing() {
                       <CardDescription>
                         {videoLimit === 0
                           ? "Video upload requires a Silver or Gold plan"
-                          : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 30 seconds each`}
+                          : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 1 minute each`}
                       </CardDescription>
                     </div>
                     {videoLimit === 0 && (
@@ -1458,7 +1492,7 @@ export default function AddListing() {
                             <Video className="h-5 w-5" />
                           </div>
                           <h3 className="font-semibold text-sm pointer-events-none">Upload Video</h3>
-                          <p className="text-xs text-muted-foreground pointer-events-none">{videos.length}/{videoLimit} used · max 30 seconds</p>
+                          <p className="text-xs text-muted-foreground pointer-events-none">{videos.length}/{videoLimit} used · max 1 minute</p>
                           <input
                             type="file"
                             accept="video/*"
@@ -1479,12 +1513,22 @@ export default function AddListing() {
                                 controls
                                 preload="metadata"
                               />
+                              {/* Remove */}
                               <button
                                 type="button"
                                 onClick={() => removeVideo(i)}
                                 className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <X className="h-4 w-4" />
+                              </button>
+                              {/* Edit */}
+                              <button
+                                type="button"
+                                onClick={() => openVideoEditor(i)}
+                                className="absolute top-2 right-10 bg-gray-900/80 hover:bg-gray-900 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Edit video (trim, crop, caption)"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Video {i + 1}</span>
                             </div>
@@ -1501,6 +1545,15 @@ export default function AddListing() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Video Edit Modal */}
+              {editingVideoIdx !== null && editingVideoSrc && (
+                <VideoEditModal
+                  videoSrc={editingVideoSrc}
+                  onSave={handleVideoEditSave}
+                  onClose={() => { setEditingVideoIdx(null); setEditingVideoSrc(""); }}
+                />
+              )}
 
               <div className="flex gap-4 justify-end">
                 <Button variant="outline" type="button" onClick={() => setLocation("/dashboard")}>
