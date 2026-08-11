@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle } from "lucide-react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle, Pencil } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
