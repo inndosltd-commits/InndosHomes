@@ -934,4 +934,123 @@ router.post("/settings/register-ipn", async (req, res) => {
   }
 });
 
+
+// ── Notification Templates ────────────────────────────────────────────────────
+
+// GET /api/admin/notification-templates
+router.get("/notification-templates", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { category, channel } = req.query as Record<string, string>;
+  try {
+    const catFilter  = category ? sql` AND category = ${category}` : sql``;
+    const chanFilter = channel  ? sql` AND channel  = ${channel}`  : sql``;
+    const result = await db.execute(sql`
+      SELECT id, key, category, channel, label, subject, body, cta_label,
+             default_subject, default_body, default_cta_label,
+             variables, is_active, updated_by, updated_at
+      FROM notification_templates
+      WHERE 1=1 ${catFilter} ${chanFilter}
+      ORDER BY category, channel, key
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    req.log?.error({ err }, "Failed to list notification templates");
+    res.status(500).json({ error: "Failed to fetch templates" });
+  }
+});
+
+// GET /api/admin/notification-templates/:key
+router.get("/notification-templates/:key", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  try {
+    const result = await db.execute(sql`
+      SELECT id, key, category, channel, label, subject, body, cta_label,
+             default_subject, default_body, default_cta_label,
+             variables, is_active, updated_by, updated_at
+      FROM notification_templates WHERE key = ${req.params.key} LIMIT 1
+    `);
+    if (!result.rows.length) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    req.log?.error({ err }, "Failed to get notification template");
+    res.status(500).json({ error: "Failed to fetch template" });
+  }
+});
+
+// PUT /api/admin/notification-templates/:key
+router.put("/notification-templates/:key", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const { subject, body, ctaLabel } = req.body as {
+    subject?: string | null;
+    body?: string;
+    ctaLabel?: string | null;
+  };
+
+  if (!body || !body.trim()) {
+    res.status(400).json({ error: "body is required" });
+    return;
+  }
+
+  try {
+    const result = await db.execute(sql`
+      UPDATE notification_templates
+      SET subject   = ${subject ?? null},
+          body      = ${body.trim()},
+          cta_label = ${ctaLabel ?? null},
+          updated_by = ${adminId},
+          updated_at = NOW()
+      WHERE key = ${req.params.key}
+      RETURNING id, key, category, channel, label, subject, body, cta_label,
+                default_subject, default_body, default_cta_label,
+                variables, is_active, updated_by, updated_at
+    `);
+    if (!result.rows.length) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    req.log?.error({ err }, "Failed to update notification template");
+    res.status(500).json({ error: "Failed to update template" });
+  }
+});
+
+// POST /api/admin/notification-templates/:key/reset
+router.post("/notification-templates/:key/reset", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  try {
+    const result = await db.execute(sql`
+      UPDATE notification_templates
+      SET subject   = default_subject,
+          body      = default_body,
+          cta_label = default_cta_label,
+          updated_by = ${adminId},
+          updated_at = NOW()
+      WHERE key = ${req.params.key}
+      RETURNING id, key, category, channel, label, subject, body, cta_label,
+                default_subject, default_body, default_cta_label,
+                variables, is_active, updated_by, updated_at
+    `);
+    if (!result.rows.length) {
+      res.status(404).json({ error: "Template not found" });
+      return;
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    req.log?.error({ err }, "Failed to reset notification template");
+    res.status(500).json({ error: "Failed to reset template" });
+  }
+});
+
 export default router;

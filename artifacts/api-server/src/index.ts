@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { subscriptionPlans } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { startSubscriptionReminderJob } from "./lib/reminderJob";
+import { seedNotificationTemplates } from "./lib/notificationTemplateSeeds";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) {
@@ -152,6 +153,28 @@ async function runMigrations() {
     )
   `);
 
+  // Notification templates table (admin-editable content)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS notification_templates (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      key TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL,
+      channel TEXT NOT NULL,
+      label TEXT NOT NULL,
+      subject TEXT,
+      body TEXT NOT NULL DEFAULT '',
+      cta_label TEXT,
+      default_subject TEXT,
+      default_body TEXT NOT NULL DEFAULT '',
+      default_cta_label TEXT,
+      variables JSONB NOT NULL DEFAULT '[]',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      updated_by TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   logger.info("Schema migrations applied");
 }
 
@@ -170,6 +193,11 @@ app.listen(port, async (err) => {
     await seedDefaultPlans();
   } catch (e) {
     logger.error({ err: e }, "Failed to seed default subscription plans");
+  }
+  try {
+    await seedNotificationTemplates();
+  } catch (e) {
+    logger.error({ err: e }, "Failed to seed notification templates");
   }
   try {
     startSubscriptionReminderJob();

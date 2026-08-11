@@ -10,6 +10,7 @@ import { and, eq, inArray, ne, isNull, lte, or, count } from "drizzle-orm";
 import { logger } from "./logger";
 import { sendSms } from "./sms";
 import { sendSubscriptionReminderEmail, sendTransactionConfirmationEmail, sendSubscriptionExpiredEmail, sendSubscriptionRenewalConfirmationEmail } from "./email";
+import { resolveTemplates } from "./templateEngine";
 
 const REMIND_DAYS = [7, 3, 1];
 
@@ -82,19 +83,19 @@ export async function runSubscriptionReminders(): Promise<void> {
       const expiryFmt     = formatDate(row.endDate);
       const activeListings = listingCounts[row.userId] ?? 0;
 
-      // Per-urgency SMS copy
-      const smsMsg = days === 1
-        ? `🚨 FINAL WARNING inndos: Your subscription expires TOMORROW (${expiryFmt}). Renew immediately to keep your ${activeListings} listing${activeListings === 1 ? "" : "s"} active: ${renewalUrl}`
-        : days <= 3
-        ? `⚠️ URGENT inndos: Your ${planName} subscription expires in ${days} days (${expiryFmt}). Renew now – your listings will be hidden after expiry: ${renewalUrl}`
-        : `🏠 inndos: Your ${planName} subscription expires in ${days} days on ${expiryFmt}. Renew to keep your listings visible to seekers: ${renewalUrl}`;
-
-      // Per-urgency bell copy
-      const bellMsg = days === 1
-        ? `🚨 Final warning: Your subscription expires tomorrow. Renew immediately to keep your listings active.`
-        : days <= 3
-        ? `⚠️ Urgent: Your subscription expires in ${days} days on ${expiryFmt}. Renew now to avoid losing active leads.`
-        : `Your ${planName} subscription expires in ${days} days (${expiryFmt}). Tap to renew and keep your listings visible.`;
+      // Resolve per-urgency SMS/bell from DB templates
+      const tmplKey = days === 1 ? "subscription.reminder.1day" : days <= 3 ? "subscription.reminder.3day" : "subscription.reminder.7day";
+      const tmplVars = { ownerName: clientName, planName, expiryDate: expiryFmt, amount: String(amount), activeListings: String(activeListings), daysLeft: String(days), dashboardUrl: renewalUrl };
+      const resolved = await resolveTemplates(
+        [`${tmplKey}.sms`, `${tmplKey}.bell`],
+        tmplVars,
+        {
+          [`${tmplKey}.sms`]:  days === 1 ? `🚨 FINAL WARNING inndos: Your subscription expires TOMORROW (${expiryFmt}). Renew immediately: ${renewalUrl}` : days <= 3 ? `⚠️ URGENT inndos: Your ${planName} subscription expires in ${days} days. Renew now: ${renewalUrl}` : `🏠 inndos: Your ${planName} subscription expires in ${days} days on ${expiryFmt}. Renew: ${renewalUrl}`,
+          [`${tmplKey}.bell`]: days === 1 ? `🚨 Final warning: Your subscription expires tomorrow. Renew immediately.` : days <= 3 ? `⚠️ Urgent: Your subscription expires in ${days} days on ${expiryFmt}. Renew now.` : `Your ${planName} subscription expires in ${days} days (${expiryFmt}). Tap to renew.`,
+        }
+      );
+      const smsMsg  = resolved[`${tmplKey}.sms`];
+      const bellMsg = resolved[`${tmplKey}.bell`];
 
       // 1 — Bell notification
       try {
@@ -172,8 +173,17 @@ export async function runSubscriptionReminders(): Promise<void> {
         activeListings = Number(c);
       } catch { /* ignore */ }
 
-      const bellMsg = `⚠️ Your subscription has expired. Your ${activeListings} listing${activeListings === 1 ? " is" : "s are"} now hidden. Reactivate from your dashboard to go live again.`;
-      const smsMsg  = `⚠️ inndos: Your subscription has EXPIRED. Your listings are now hidden from seekers. Reactivate immediately: ${reactivateUrl}`;
+      const expVars = { ownerName, planName, expiryDate: expiryFmt, activeListings: String(activeListings), dashboardUrl: reactivateUrl };
+      const expResolved = await resolveTemplates(
+        ["subscription.expired.bell", "subscription.expired.sms"],
+        expVars,
+        {
+          "subscription.expired.bell": `⚠️ Your subscription has expired. Your ${activeListings} listing(s) are now hidden. Reactivate from your dashboard.`,
+          "subscription.expired.sms":  `⚠️ inndos: Your subscription has EXPIRED. Reactivate immediately: ${reactivateUrl}`,
+        }
+      );
+      const bellMsg = expResolved["subscription.expired.bell"];
+      const smsMsg  = expResolved["subscription.expired.sms"];
 
       try {
         await db.insert(notifications).values({

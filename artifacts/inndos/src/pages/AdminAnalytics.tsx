@@ -204,6 +204,7 @@ export default function AdminAnalytics() {
     { icon: Handshake, label: 'Transactions', path: '/#/admin/transactions' },
     { icon: ShieldCheck, label: 'Moderation', path: '/#/admin/moderation' },
     { icon: BarChart3, label: 'Analytics', path: '/#/admin/analytics', active: true },
+    { icon: Bell, label: 'Notifications', path: '/#/admin/notifications' },
   ];
 
   // ─── Render ────────────────────────────────────────────────────────────────

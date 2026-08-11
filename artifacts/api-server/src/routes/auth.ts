@@ -9,6 +9,7 @@ import { eq, and, gt, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendSms, normalizePhone } from "../lib/sms";
 import { sendPasswordResetEmail } from "../lib/email";
+import { resolveTemplates } from "../lib/templateEngine";
 
 const router = Router();
 
@@ -154,16 +155,24 @@ router.post("/signup", async (req, res) => {
   // Notify all admins of new registration (fire-and-forget)
   try {
     const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
-    const adminMsg = `New user registered: ${name} (${email}) joined as ${allowedRole}.`;
+    const signupVars = { userName: name, userEmail: email, userRole: allowedRole };
+    const signupTmpl = await resolveTemplates(
+      ["auth.signup.admin.bell", "auth.signup.admin.sms"],
+      signupVars,
+      {
+        "auth.signup.admin.bell": `New user registered: ${name} (${email}) joined as ${allowedRole}.`,
+        "auth.signup.admin.sms":  `📋 inndos Admin: New user registered — ${name} (${email}) joined as ${allowedRole}.`,
+      }
+    );
     for (const admin of adminUsers) {
       await db.insert(notifications).values({
         userId: admin.id,
         type: "new_user",
-        message: adminMsg,
+        message: signupTmpl["auth.signup.admin.bell"],
         isRead: false,
       });
       if (admin.phone) {
-        sendSms(admin.phone, adminMsg).catch(() => {});
+        sendSms(admin.phone, signupTmpl["auth.signup.admin.sms"]).catch(() => {});
       }
     }
   } catch (err) {

@@ -6,6 +6,7 @@ import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
 import { sendNewBookingEmail, sendBookingStatusEmail, sendGuestCancelledEmail, sendTransactionConfirmationEmail } from "../lib/email";
+import { resolveTemplates } from "../lib/templateEngine";
 
 const router = Router();
 
@@ -122,44 +123,51 @@ router.post("/", async (req, res) => {
   const guestName = guest?.name ?? "A guest";
 
   try {
-    const ownerMsg = `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`;
+    const domains0 = process.env.REPLIT_DOMAINS?.split(",")[0];
+    const baseUrl0 = domains0 ? `https://${domains0}` : "https://inndos.com";
+    const bkVars = { guestName, propertyTitle: prop.title, startDate, endDate, dashboardUrl: `${baseUrl0}/#/dashboard` };
+    const bkTmpl = await resolveTemplates(
+      ["booking.new.owner.bell", "booking.new.owner.sms", "booking.new.admin.bell", "booking.new.admin.sms"],
+      bkVars,
+      {
+        "booking.new.owner.bell": `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`,
+        "booking.new.owner.sms":  `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`,
+        "booking.new.admin.bell": `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`,
+        "booking.new.admin.sms":  `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`,
+      }
+    );
     await db.insert(notifications).values({
       userId: prop.ownerId,
       type: "new_booking",
-      message: ownerMsg,
+      message: bkTmpl["booking.new.owner.bell"],
       bookingId: booking.id,
       isRead: false,
     });
     const [ownerUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, prop.ownerId));
     if (ownerUser?.phone) {
-      sendSms(ownerUser.phone, ownerMsg).catch((e: unknown) =>
+      sendSms(ownerUser.phone, bkTmpl["booking.new.owner.sms"]).catch((e: unknown) =>
         req.log.error({ e }, "Owner booking SMS failed")
       );
     }
-  } catch (err) {
-    req.log.error({ err, bookingId: booking.id }, "Failed to create owner notification for booking");
-  }
 
-  // Notify all admins of the new booking
-  try {
-    const adminMsg = `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`;
+    // Notify all admins of the new booking
     const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
     for (const admin of adminUsers) {
       await db.insert(notifications).values({
         userId: admin.id,
         type: "new_booking",
-        message: adminMsg,
+        message: bkTmpl["booking.new.admin.bell"],
         bookingId: booking.id,
         isRead: false,
       });
       if (admin.phone) {
-        sendSms(admin.phone, adminMsg).catch((e: unknown) =>
+        sendSms(admin.phone, bkTmpl["booking.new.admin.sms"]).catch((e: unknown) =>
           req.log.error({ e }, "Admin booking SMS failed")
         );
       }
     }
   } catch (err) {
-    req.log.error({ err, bookingId: booking.id }, "Failed to notify admins of new booking");
+    req.log.error({ err, bookingId: booking.id }, "Failed to create booking notifications");
   }
 
   try {
@@ -230,19 +238,29 @@ router.patch("/:id/cancel", async (req, res) => {
   try {
     const [guest] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
     const guestName = guest?.name ?? "A guest";
-    const cancelMsg = `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`;
+    const cancelVars = { guestName, propertyTitle: booking.propertyTitle, startDate: booking.startDate, endDate: booking.endDate, dashboardUrl: "" };
+    const cancelTmpl = await resolveTemplates(
+      ["booking.cancelled.owner.bell", "booking.cancelled.owner.sms", "booking.cancelled.admin.bell", "booking.cancelled.admin.sms"],
+      cancelVars,
+      {
+        "booking.cancelled.owner.bell": `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`,
+        "booking.cancelled.owner.sms":  `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`,
+        "booking.cancelled.admin.bell": `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`,
+        "booking.cancelled.admin.sms":  `${guestName} cancelled their link-up for "${booking.propertyTitle}" (${booking.startDate} → ${booking.endDate}).`,
+      }
+    );
 
     if (booking.ownerId) {
       await db.insert(notifications).values({
         userId: booking.ownerId,
         type: "booking_cancelled_by_guest",
-        message: cancelMsg,
+        message: cancelTmpl["booking.cancelled.owner.bell"],
         bookingId: booking.id,
         isRead: false,
       });
       const [ownerUser] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.ownerId));
       if (ownerUser?.phone) {
-        sendSms(ownerUser.phone, cancelMsg).catch((e: unknown) =>
+        sendSms(ownerUser.phone, cancelTmpl["booking.cancelled.owner.sms"]).catch((e: unknown) =>
           req.log.error({ e }, "Owner cancel SMS failed")
         );
       }
@@ -262,17 +280,17 @@ router.patch("/:id/cancel", async (req, res) => {
     }
 
     // Also notify admins
-    const adminUsers = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
-    for (const admin of adminUsers) {
+    const adminUsers2 = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.role, "admin"));
+    for (const admin of adminUsers2) {
       await db.insert(notifications).values({
         userId: admin.id,
         type: "booking_cancelled_by_guest",
-        message: cancelMsg,
+        message: cancelTmpl["booking.cancelled.admin.bell"],
         bookingId: booking.id,
         isRead: false,
       });
       if (admin.phone) {
-        sendSms(admin.phone, cancelMsg).catch((e: unknown) =>
+        sendSms(admin.phone, cancelTmpl["booking.cancelled.admin.sms"]).catch((e: unknown) =>
           req.log.error({ e }, "Admin cancel SMS failed")
         );
       }
@@ -325,20 +343,30 @@ router.patch("/:id/status", async (req, res) => {
     .where(eq(bookings.id, req.params.id))
     .returning();
 
-  const statusLabel = status === "confirmed" ? "confirmed" : "declined";
-  const notificationMessage = `Your link-up for "${booking.propertyTitle}" has been ${statusLabel}.`;
+  const isConfirmed = status === "confirmed";
+  const statusTmplKey = isConfirmed ? "booking.confirmed.guest" : "booking.declined.guest";
+  const statusVars = { guestName: "there", propertyTitle: booking.propertyTitle, startDate: booking.startDate ?? "", endDate: booking.endDate ?? "", dashboardUrl: "" };
+  const statusTmpl = await resolveTemplates(
+    [`${statusTmplKey}.bell`, `${statusTmplKey}.sms`],
+    statusVars,
+    {
+      [`${statusTmplKey}.bell`]: `Your link-up for "${booking.propertyTitle}" has been ${isConfirmed ? "confirmed" : "declined"}.`,
+      [`${statusTmplKey}.sms`]:  `inndos: Your link-up for "${booking.propertyTitle}" has been ${isConfirmed ? "confirmed" : "declined"}.`,
+    }
+  );
+  const notificationMessage = statusTmpl[`${statusTmplKey}.bell`];
 
   try {
     await db.insert(notifications).values({
       userId: booking.guestId,
-      type: status === "confirmed" ? "booking_confirmed" : "booking_cancelled",
+      type: isConfirmed ? "booking_confirmed" : "booking_cancelled",
       message: notificationMessage,
       bookingId: booking.id,
       isRead: false,
     });
     const [guestUser] = await db.select({ phone: users.phone, email: users.email, name: users.name }).from(users).where(eq(users.id, booking.guestId));
     if (guestUser?.phone) {
-      sendSms(guestUser.phone, notificationMessage).catch((e: unknown) =>
+      sendSms(guestUser.phone, statusTmpl[`${statusTmplKey}.sms`]).catch((e: unknown) =>
         req.log.error({ e }, "Guest booking SMS failed")
       );
     }
