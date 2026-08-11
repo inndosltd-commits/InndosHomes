@@ -795,7 +795,7 @@ export default function PropertyDetails() {
       <Navbar />
 
       {/* ── Photo Gallery ── compact hero carousel + thumbnail strip */}
-      <div className="h-[220px] sm:h-[290px] flex gap-[3px] bg-black overflow-hidden">
+      <div className="h-[250px] sm:h-[320px] flex gap-[3px] bg-white overflow-hidden">
         {/* Hero / Carousel */}
         <div
           className="relative flex-1 overflow-hidden cursor-pointer group"
@@ -850,7 +850,7 @@ export default function PropertyDetails() {
               const photo = allPhotos[idx + 1];
               const isLastCell = idx === 3;
               const extraCount = allPhotos.length - 5;
-              if (!photo) return <div key={idx} className="bg-gray-900" />;
+              if (!photo) return <div key={idx} className="bg-gray-100" />;
               return (
                 <div key={photo} className="relative overflow-hidden cursor-pointer group/thumb" onClick={() => openLightbox(idx + 1)}>
                   <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90" />
