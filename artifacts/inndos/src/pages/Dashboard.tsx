@@ -2572,7 +2572,7 @@ export default function Dashboard() {
                                 {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
                               </Button>
                             )}
-                            {p.isVerified && !isSold && (
+                            {p.isVerified && !isSold && (p.confirmedBookings ?? 0) > 0 && (
                               <Button
                                 size="sm" variant="outline"
                                 className="gap-1 text-primary border-primary/30 hover:bg-primary/5"

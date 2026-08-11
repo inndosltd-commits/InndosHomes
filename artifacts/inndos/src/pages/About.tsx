@@ -20,7 +20,7 @@ export default function About() {
               House hunting in Kenya is broken. Agents take 1-2 months' rent in fees. Listings are fake or hidden. You waste weeks calling numbers that never answer.
             </p>
             <p className="text-lg mb-6">
-              <strong className="text-primary">Inndos fixes that.</strong>
+              <strong className="text-primary">inndos fixes that.</strong>
             </p>
             <p className="mb-6">
               We connect you directly to property owners — no middlemen, no commissions, no drama.
@@ -39,7 +39,7 @@ export default function About() {
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 hover:border-primary/30 transition-colors">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">B&B – Stay Tonight</h2>
             <p className="text-gray-600 mb-4">Late out? Flight delayed? Need a safe spot right now?</p>
-            <p className="text-gray-600 mb-4">Inndos shows available B&Bs the moment you open the app.</p>
+            <p className="text-gray-600 mb-4">inndos shows available B&Bs the moment you open the app.</p>
             <ul className="list-disc pl-5 space-y-2 text-gray-600 mb-6">
               <li>Map lights up with options near you</li>
               <li>Filter: clean bedding, WiFi, hot shower, secure parking</li>
@@ -47,14 +47,14 @@ export default function About() {
               <li>Book and pay via M-Pesa instantly</li>
             </ul>
             <p className="font-medium text-gray-900 mb-2">No crazy mark-ups. No middlemen.</p>
-            <p className="text-sm text-gray-500">List your extra room as a B&B and earn extra cash with zero fees. Inndos — your spot tonight, direct from the owner.</p>
+            <p className="text-sm text-gray-500">List your extra room as a B&B and earn extra cash with zero fees. inndos — your spot tonight, direct from the owner.</p>
           </div>
 
           {/* Rent */}
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 hover:border-primary/30 transition-colors">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">Rent – Find Your Keja</h2>
             <p className="text-gray-600 mb-4">Tired of agents eating your money?</p>
-            <p className="text-gray-600 mb-4">Inndos lets you find bedsitters, 1-2 bedroom units straight from the owner.</p>
+            <p className="text-gray-600 mb-4">inndos lets you find bedsitters, 1-2 bedroom units straight from the owner.</p>
             <ul className="list-disc pl-5 space-y-2 text-gray-600 mb-6">
               <li>Instant map with units around you</li>
               <li>Filter exactly what you want: water tank, WiFi, gym, parking, security</li>
@@ -69,7 +69,7 @@ export default function About() {
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 hover:border-primary/30 transition-colors">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">Buy – Direct from Owner</h2>
             <p className="text-gray-600 mb-4">Want to buy a house, apartment or plot without agent fees?</p>
-            <p className="text-gray-600 mb-4">Inndos connects you straight to real owners.</p>
+            <p className="text-gray-600 mb-4">inndos connects you straight to real owners.</p>
             <ul className="list-disc pl-5 space-y-2 text-gray-600 mb-6">
               <li>Verified listings</li>
               <li>Filter by location, size, amenities and price</li>
@@ -84,7 +84,7 @@ export default function About() {
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 hover:border-primary/30 transition-colors">
             <h2 className="text-2xl font-bold text-gray-900 mb-4 font-heading">Hostels – Affordable Stays</h2>
             <p className="text-gray-600 mb-4">Student or on a tight budget?</p>
-            <p className="text-gray-600 mb-4">Inndos has hostels listed directly by owners.</p>
+            <p className="text-gray-600 mb-4">inndos has hostels listed directly by owners.</p>
             <ul className="list-disc pl-5 space-y-2 text-gray-600 mb-6">
               <li>See hostels near universities instantly</li>
               <li>Filter by price, WiFi, security, meals, room type</li>

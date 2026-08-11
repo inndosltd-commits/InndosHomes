@@ -32,13 +32,13 @@ export default function Terms() {
           <p>To use the Platform, you must be at least 18 years old or the age of majority in your jurisdiction, whichever is higher, and capable of forming a binding contract. You must provide accurate and complete information during registration.</p>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">2.1 Account Creation and Verification</h3>
-          <p className="mb-4">All Users must voluntarily provide Verification Documents for account approval. This includes your contact details, email, ID or passport, and a passport-sized photo. For companies, users must provide up to date documentation for account creation and verification, including a copy of your business permit, company registration certificate, KRA Pin, CR12 for registered business. Inndos shall conduct background screening and vetting before account approvals.</p>
+          <p className="mb-4">All Users must voluntarily provide Verification Documents for account approval. This includes your contact details, email, ID or passport, and a passport-sized photo. For companies, users must provide up to date documentation for account creation and verification, including a copy of your business permit, company registration certificate, KRA Pin, CR12 for registered business. inndos shall conduct background screening and vetting before account approvals.</p>
           <p className="mb-4">Contact information provided will be made available to other Users viewing your Listings or profiles to facilitate direct communication.</p>
           <p className="mb-4">Accounts without complete and verifiable Verification Documents will not be approved or activated.</p>
           <p className="mb-4">You are responsible for maintaining the confidentiality of your account credentials and for all activities occurring under your account.</p>
-          <p className="mb-4">Inndos reserves the right to suspend or terminate accounts where there is reasonable suspicion of fraud, violation of these terms or failure to comply with verification requirements.</p>
-          <p className="mb-4">While Inndos may undertake basic verification procedures, it does not guarantee the authenticity, legality or accuracy of any listing.</p>
-          <p className="mb-6">Inndos reserves the right to introduce service fees, listing fees or commission charges upon prior notice to users.</p>
+          <p className="mb-4">inndos reserves the right to suspend or terminate accounts where there is reasonable suspicion of fraud, violation of these terms or failure to comply with verification requirements.</p>
+          <p className="mb-4">While inndos may undertake basic verification procedures, it does not guarantee the authenticity, legality or accuracy of any listing.</p>
+          <p className="mb-6">inndos reserves the right to introduce service fees, listing fees or commission charges upon prior notice to users.</p>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">2.2 Onboarding and Compliance</h3>
           <p className="mb-4">Successfully on-boarded Users must abide by all Platform requirements, including quality standards for images and content.</p>
@@ -47,10 +47,10 @@ export default function Terms() {
 
           <h2 className="text-xl font-bold mt-8 mb-4">3. Use of the Platform</h2>
           <p className="mb-4">The Platform acts as a marketplace to connect Users, such as landlords with tenants, sellers with buyers, or agents with clients. inndos does not own, control, or endorse any properties or transactions; it merely facilitates connections.</p>
-          <p className="mb-4">Inndos does not act as a real estate broker, agent or property Manager and does not participate in negotiations or transactions between users.</p>
-          <p className="mb-4">Inndos does not verify ownership of properties, legal title or authority to list properties. Users are responsible for conducting their own due diligence before entering into any transaction.</p>
+          <p className="mb-4">inndos does not act as a real estate broker, agent or property Manager and does not participate in negotiations or transactions between users.</p>
+          <p className="mb-4">inndos does not verify ownership of properties, legal title or authority to list properties. Users are responsible for conducting their own due diligence before entering into any transaction.</p>
           <p className="mb-4">Property owners and agents are solely responsible for ensuring that their listings comply with applicable tenancy laws and regulations.</p>
-          <p className="mb-6">Inndos reserves the right to remove or modify listings that are inaccurate, misleading, fraudulent, unlawful or inconsistent with platform policies.</p>
+          <p className="mb-6">inndos reserves the right to remove or modify listings that are inaccurate, misleading, fraudulent, unlawful or inconsistent with platform policies.</p>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">3.1 Listings and Transactions</h3>
           <ul className="list-disc pl-6 space-y-2 mb-6">
@@ -58,7 +58,7 @@ export default function Terms() {
             <li>Prices listed on the platform must be the exact prices that will be charged. To avoid user conflicts and transparency, property listers are advised to review and update their prices reguraly.</li>
             <li>Apartment Owners, Property Owners, Hotel Owners, Shop Owners, and Property Agents may list properties for rental (daily, monthly, quarterly, yearly), lease, or sale.</li>
             <li>Tenants and buyers may browse and contact listers directly using the provided contact information.</li>
-            <li>All transactions (e.g., rentals, sales) are between Users and are governed by separate contracts and agreements outside the Platform. Inndos is not a party to these transactions. Therefore, any payments and refunds shall be conducted directly by the users of the platform.</li>
+            <li>All transactions (e.g., rentals, sales) are between Users and are governed by separate contracts and agreements outside the Platform. inndos is not a party to these transactions. Therefore, any payments and refunds shall be conducted directly by the users of the platform.</li>
           </ul>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">3.2 User Conduct</h3>
@@ -72,7 +72,7 @@ export default function Terms() {
           </ul>
           <p className="mb-4">Any User found scamming or misusing the Platform will be investigated, and if verified as a scammer, may be reported and handed over to relevant law enforcement agencies.</p>
           <p className="mb-4">You must comply with all applicable laws in your jurisdiction regarding property transactions, rentals, and data sharing.</p>
-          <p className="mb-4">Users are responsible for ensuring the authenticity of the information they provide. Inndos shall not be liable for any misrepresentation by Users.</p>
+          <p className="mb-4">Users are responsible for ensuring the authenticity of the information they provide. inndos shall not be liable for any misrepresentation by Users.</p>
           <p className="mb-6">By creating a listing, users consent to their contact information being displayed to other users for purpose of facilitating transactions.</p>
 
           <h2 className="text-xl font-bold mt-8 mb-4">4. Company Responsibilities and Liabilities</h2>
@@ -110,10 +110,10 @@ export default function Terms() {
           <p className="mb-6">In no event shall inndos be liable for indirect, incidental, special, or consequential damages arising from your use of the Platform, even if advised of the possibility of such damages. Our total liability shall not exceed the fees paid by you to inndos in the preceding 12 months.</p>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">Indemnity</h3>
-          <p className="mb-6">You agree to indemnify Inndos and its officers, directors, employees and agents harmless from any and all claims, demands, losses, liabilities, and expenses (including attorneys' fees) arising out of or in connection with: (i) your use of the Services or services or goods obtained through your use of the Services; (ii) your breach or violation of any of these Terms; (iii) Inndo's use of your User Content; or (iv) your violation of the rights of any third party.</p>
+          <p className="mb-6">You agree to indemnify inndos and its officers, directors, employees and agents harmless from any and all claims, demands, losses, liabilities, and expenses (including attorneys' fees) arising out of or in connection with: (i) your use of the Services or services or goods obtained through your use of the Services; (ii) your breach or violation of any of these Terms; (iii) Inndo's use of your User Content; or (iv) your violation of the rights of any third party.</p>
 
           <h3 className="text-lg font-semibold mt-6 mb-3">Force Majeure</h3>
-          <p className="mb-6">Inndos shall not be liable for failure or delay in performance due to events beyond its reasonable control e.g Natural disasters, Acts of God, Terrorism, Acts of War, internet outages, strikes, governmental actions etc.</p>
+          <p className="mb-6">inndos shall not be liable for failure or delay in performance due to events beyond its reasonable control e.g Natural disasters, Acts of God, Terrorism, Acts of War, internet outages, strikes, governmental actions etc.</p>
 
           <h2 className="text-xl font-bold mt-8 mb-4">10. Governing Law and Dispute Resolution</h2>
           <p className="mb-6">These Terms are governed by the laws of Kenya. Any disputes arising from these Terms shall be resolved through binding arbitration in Kenya or in a court of competent jurisdiction if arbitration is not enforceable.</p>

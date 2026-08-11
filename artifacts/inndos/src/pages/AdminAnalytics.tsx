@@ -136,7 +136,7 @@ export default function AdminAnalytics() {
     const doc = new jsPDF();
 
     doc.setFontSize(20);
-    doc.text('INNDOS — Analytics & Reports', 14, 22);
+    doc.text('inndos — Analytics & Reports', 14, 22);
     doc.setFontSize(11);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
 
@@ -190,7 +190,7 @@ export default function AdminAnalytics() {
         { name: 'Confirmed Sales', value: analytics.confirmedSales },
         { name: 'Pending', value: analytics.pending },
         { name: 'Disputed', value: analytics.disputed },
-        { name: 'Outside INNDOS', value: analytics.outside },
+        { name: 'Outside inndos', value: analytics.outside },
         { name: 'Not Completed', value: analytics.notCompleted },
       ].filter(d => d.value > 0)
     : [];

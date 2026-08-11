@@ -289,7 +289,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-14">
-            <p className="text-zinc-900 font-bold uppercase tracking-widest text-sm mb-3">How inndos Works</p>
+            <p className="text-zinc-900 font-bold uppercase tracking-widest text-sm mb-3">How <span className="normal-case">inndos</span> Works</p>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
               Everything starts with the right place.
             </h2>
@@ -297,16 +297,16 @@ export default function Home() {
               From discovering a property to{" "}
               <span className="text-zinc-900 font-semibold">linking up</span>{" "}
               with the right person,<br className="hidden md:block" />
-              Inndos makes finding your next place simpler.
+              inndos makes finding your next place simpler.
             </p>
           </div>
 
           {/* Process Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
               {
                 num: "01",
-                icon: <Search className="h-6 w-6 text-zinc-900" />,
+                icon: <Search className="h-5 w-5 text-zinc-900" />,
                 title: "Discover",
                 desc: "Explore homes, rentals and stays in places you actually want to live.",
                 img: "/images/process-explore.jpeg",
@@ -314,7 +314,7 @@ export default function Home() {
               },
               {
                 num: "02",
-                icon: <ClipboardList className="h-6 w-6 text-zinc-900" />,
+                icon: <ClipboardList className="h-5 w-5 text-zinc-900" />,
                 title: "Compare",
                 desc: "Compare features, prices and locations to choose the best fit.",
                 img: "/images/process-evaluate.jpeg",
@@ -322,7 +322,7 @@ export default function Home() {
               },
               {
                 num: "03",
-                icon: <Link2 className="h-6 w-6 text-zinc-900" />,
+                icon: <Link2 className="h-5 w-5 text-zinc-900" />,
                 title: "Link Up",
                 desc: "Talk directly with property owners and managers.",
                 img: "/images/process-connect.jpeg",
@@ -330,7 +330,7 @@ export default function Home() {
               },
               {
                 num: "04",
-                icon: <HomeIcon className="h-6 w-6 text-zinc-900" />,
+                icon: <HomeIcon className="h-5 w-5 text-zinc-900" />,
                 title: "Move In",
                 desc: "Complete the process and step into your new space with confidence.",
                 img: "/images/process-settle.jpeg",
@@ -339,23 +339,26 @@ export default function Home() {
             ].map((step) => (
               <div
                 key={step.num}
-                className="flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="flex flex-row sm:flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
-                {/* Top content */}
-                <div className="p-6 pb-4">
-                  <div className="h-14 w-14 bg-zinc-100 rounded-full flex items-center justify-center mb-4">
-                    {step.icon}
+                {/* Text content — left on mobile, top on sm+ */}
+                <div className="flex-1 p-4 sm:p-6 sm:pb-4 flex flex-col justify-center sm:justify-start">
+                  <div className="flex items-center gap-2 mb-2 sm:mb-4">
+                    <div className="h-9 w-9 sm:h-14 sm:w-14 bg-zinc-100 rounded-full flex items-center justify-center shrink-0">
+                      {step.icon}
+                    </div>
+                    <p className="text-zinc-900 font-bold text-xs sm:hidden">{step.num}</p>
                   </div>
-                  <p className="text-zinc-900 font-bold text-sm mb-1">{step.num}</p>
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{step.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
+                  <p className="hidden sm:block text-zinc-900 font-bold text-sm mb-1">{step.num}</p>
+                  <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-1 sm:mb-2">{step.title}</h3>
+                  <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{step.desc}</p>
                 </div>
-                {/* Photo */}
-                <div className="mt-auto">
+                {/* Photo — right on mobile (fixed width), bottom on sm+ (full width) */}
+                <div className="w-28 shrink-0 sm:w-auto sm:mt-auto">
                   <img
                     src={step.img}
                     alt={step.alt}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-full sm:h-44 object-cover"
                     loading="lazy"
                   />
                 </div>

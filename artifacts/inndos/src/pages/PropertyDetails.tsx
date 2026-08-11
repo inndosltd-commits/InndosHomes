@@ -407,8 +407,11 @@ export default function PropertyDetails() {
 
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [hasRated, setHasRated] = useState(false);
-  const [ratingStats] = useState({ average: 4.8, total: 24 });
+  const [reviewSummary, setReviewSummary] = useState<{ averageRating: number | null; totalReviews: number }>({ averageRating: null, totalReviews: 0 });
+  const [linkedUpBookingId, setLinkedUpBookingId] = useState<string | null>(null);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewAlreadySubmitted, setReviewAlreadySubmitted] = useState(false);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -477,17 +480,39 @@ export default function PropertyDetails() {
       .catch(() => {});
   }, [token, property?.id]);
 
-  // Persist isLinkedUp across navigation — check if user already has a booking for this property
+  // Fetch review summary (real average + count) for this property
+  useEffect(() => {
+    if (!property?.id) return;
+    fetch(`/api/reviews/property/${property.id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setReviewSummary({ averageRating: d.averageRating, totalReviews: d.totalReviews }); })
+      .catch(() => {});
+  }, [property?.id]);
+
+  // Persist isLinkedUp — check if user has a confirmed booking for this property & store bookingId
   useEffect(() => {
     if (!user || !token || !property?.id) return;
     fetch("/api/bookings", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : []))
-      .then((list: { propertyId: string; status: string }[]) => {
-        const has = list.some(
-          (b) => b.propertyId === property.id && b.status !== "cancelled"
+      .then((list: { id: string; propertyId: string; status: string }[]) => {
+        const confirmed = list.find(
+          (b) => b.propertyId === property.id && b.status === "confirmed"
         );
-        if (has) setIsLinkedUp(true);
+        if (confirmed) { setIsLinkedUp(true); setLinkedUpBookingId(confirmed.id); }
+        else {
+          const any = list.find(b => b.propertyId === property.id && b.status !== "cancelled");
+          if (any) setIsLinkedUp(true);
+        }
       })
+      .catch(() => {});
+  }, [user?.id, token, property?.id]);
+
+  // Check if user already reviewed this property via their confirmed booking
+  useEffect(() => {
+    if (!linkedUpBookingId || !token) return;
+    fetch(`/api/reviews/check/${linkedUpBookingId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.hasReviewed) setReviewAlreadySubmitted(true); })
       .catch(() => {});
   }, [user?.id, token, property?.id]);
 
@@ -649,16 +674,7 @@ export default function PropertyDetails() {
     setLightboxIndex((i) => (i + 1) % allPhotos.length);
   }, []);
 
-  const handleRate = (rating: number) => {
-    if (!isLinkedUp && !hasRated) {
-      toast({ title: "Action Required", description: "You need to book or stay at this property first.", variant: "destructive" });
-      return;
-    }
-    setUserRating(rating);
-    setHasRated(true);
-    if (property) localStorage.setItem(`rating_${property.id}`, String(rating));
-    toast({ title: "Rating Submitted", description: `Thank you for rating ${rating} stars!` });
-  };
+
 
   if (isLoading) {
     return (
@@ -885,7 +901,7 @@ export default function PropertyDetails() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main Content */}
           <div className="flex-1">
-            <div className="flex flex-col lg:flex-row justify-between items-start mb-6 gap-4 mt-2 sm:mt-0">
+            <div className="flex flex-col lg:flex-row justify-between items-start mb-6 gap-4 mt-4 sm:mt-2">
               <div className="w-full lg:w-auto">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge className="bg-primary">{getTypeBadgeLabel()}</Badge>
@@ -894,15 +910,17 @@ export default function PropertyDetails() {
                   )}
                   {property.isVerified && property.propertyStatus !== 'sold' && (
                     <Badge variant="outline" className="border-gray-300 bg-gray-100 text-gray-700 flex items-center gap-1 px-3 py-1 shadow-sm">
-                      <ShieldCheck className="h-4 w-4" /> Verified by Inndos
+                      <ShieldCheck className="h-4 w-4" /> Verified by inndos
                     </Badge>
                   )}
-                  <div className="flex items-center text-gray-700 ml-2 text-sm font-medium">
-                    <Star className="h-4 w-4 fill-current mr-1" />
-                    {ratingStats.average} ({ratingStats.total} {t("prop.reviews")})
-                  </div>
+                  {reviewSummary.totalReviews > 0 && (
+                    <div className="flex items-center text-gray-700 ml-1 text-sm font-medium">
+                      <Star className="h-4 w-4 fill-current mr-1" />
+                      {reviewSummary.averageRating} ({reviewSummary.totalReviews} {t("prop.reviews")})
+                    </div>
+                  )}
                 </div>
-                <h1 className="text-3xl font-bold font-heading text-gray-900 mb-2">{property.title}</h1>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-heading text-gray-900 mb-2 leading-tight line-clamp-3">{property.title}</h1>
                 <div className="flex items-center text-muted-foreground">
                   <MapPin className="h-4 w-4 mr-1" />
                   {property.address}
@@ -965,31 +983,73 @@ export default function PropertyDetails() {
 
               <section>
                 <h2 className="text-xl font-bold mb-4">{t("prop.amenities")}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
                   {(property.tags || []).concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map((tag) => (
-                    <div key={tag} className="flex items-center gap-2 text-gray-600">
-                      <CheckCircle className="h-4 w-4 text-primary/60" />
+                    <div key={tag} className="flex items-center gap-1.5 text-gray-600 text-sm">
+                      <CheckCircle className="h-3.5 w-3.5 text-primary/60 shrink-0" />
                       {resolveAmenityLabel(tag)}
                     </div>
                   ))}
                 </div>
               </section>
 
-              {/* Rating Section */}
-              <section className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                <h2 className="text-xl font-bold mb-2">{t("prop.rate_stay")}</h2>
-                <p className="text-sm text-gray-500 mb-4">{t("prop.rate_desc")}</p>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} type="button" className="p-1 transition-transform hover:scale-110 focus:outline-none" onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} onClick={() => handleRate(star)}>
-                      <Star className={`h-8 w-8 transition-colors ${(hoverRating || userRating) >= star ? "fill-gray-900 text-gray-900" : "text-gray-300"}`} />
-                    </button>
-                  ))}
-                </div>
-                {hasRated && (
-                  <p className="text-sm text-gray-700 mt-2 font-medium flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4" /> {t("prop.you_rated")} {userRating} {t("prop.stars")}
+              {/* Review Section — wired to real API */}
+              <section className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                <h2 className="text-xl font-bold mb-1">{t("prop.rate_stay")}</h2>
+                {reviewAlreadySubmitted ? (
+                  <p className="text-sm text-gray-600 flex items-center gap-1.5 mt-2">
+                    <CheckCircle className="h-4 w-4 text-gray-500" /> You've already reviewed this property. Thank you!
                   </p>
+                ) : linkedUpBookingId ? (
+                  <div className="space-y-3 mt-3">
+                    <div className="flex items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} type="button" className="p-0.5 transition-transform hover:scale-110 focus:outline-none" onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} onClick={() => setUserRating(star)}>
+                          <Star className={`h-8 w-8 transition-colors ${(hoverRating || userRating) >= star ? "fill-gray-900 text-gray-900" : "text-gray-300"}`} />
+                        </button>
+                      ))}
+                      {userRating > 0 && <span className="text-sm text-gray-500 ml-1">{["","Poor","Fair","Good","Great","Excellent"][userRating]}</span>}
+                    </div>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-gray-900 min-h-[70px] bg-white"
+                      placeholder="Share what you loved or what could be improved… (optional)"
+                      value={reviewComment}
+                      onChange={e => setReviewComment(e.target.value)}
+                      maxLength={500}
+                    />
+                    <button
+                      disabled={userRating < 1 || isSubmittingReview}
+                      onClick={async () => {
+                        if (!linkedUpBookingId || userRating < 1) return;
+                        setIsSubmittingReview(true);
+                        try {
+                          const r = await fetch("/api/reviews", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ bookingId: linkedUpBookingId, rating: userRating, comment: reviewComment.trim() || undefined }),
+                          });
+                          if (r.ok) {
+                            setReviewAlreadySubmitted(true);
+                            setReviewSummary(prev => ({
+                              totalReviews: prev.totalReviews + 1,
+                              averageRating: prev.totalReviews === 0 ? userRating : parseFloat(((prev.averageRating! * prev.totalReviews + userRating) / (prev.totalReviews + 1)).toFixed(1)),
+                            }));
+                            toast({ title: "Review submitted", description: "Thank you for rating your stay!" });
+                          } else {
+                            const err = await r.json().catch(() => ({}));
+                            toast({ title: "Could not submit", description: err.error ?? "Please try again.", variant: "destructive" });
+                          }
+                        } catch { toast({ title: "Network error", variant: "destructive" }); }
+                        finally { setIsSubmittingReview(false); }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isSubmittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                      Submit Review
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-2">{user ? "Complete a confirmed link-up at this property first to leave a review." : "Sign in and complete a stay to leave a review."}</p>
                 )}
               </section>
 
