@@ -1,0 +1,824 @@
+LISTING SUBSCRIPTION EXPIRY & RENEWAL MESSAGES
+
+FORTISEC INNDOS LTD
+
+---
+
+1. EXPIRY NOTIFICATION MESSAGES
+
+---
+
+1.1 7-Days Before Expiry (Reminder)
+
+---
+
+SMS/WhatsApp Message:
+
+
+🏠 INNDOS: Your listing "PROPERTY_TITLE" expires in 7 days!
+
+Renew now to keep your property visible to thousands of potential tenants and buyers.
+
+📱 Renew here: https://inndos.com/renew/LISTING_ID
+📞 Need help? Call 0700-000-000
+
+Don't let your listing expire!
+
+
+---
+
+Email Message:
+
+Subject: ⏰ Reminder: Your Inndos Listing "PROPERTY_TITLE" Expires in 7 Days
+
+---
+
+Dear [OWNER_NAME],
+
+We hope this message finds you well.
+
+This is a friendly reminder that your property listing "[PROPERTY_TITLE]" on Inndos will expire in 7 days on [EXPIRY_DATE].
+
+Your Listing Details:
+
+· 📍 Location: [LOCATION]
+· 💰 Price: KES [PRICE]/[TERM]
+· 👀 Views This Month: [VIEW_COUNT]
+· 💬 Inquiries Received: [INQUIRY_COUNT]
+
+Why Renew?
+✅ Keep your property visible to thousands of active seekers
+✅ Continue receiving inquiries from qualified tenants/buyers
+✅ Maintain your verified status and search ranking
+✅ Avoid the hassle of creating a new listing
+
+Renew Now in 3 Easy Steps:
+
+1. Click the link below
+2. Choose your subscription package
+3. Complete payment via M-Pesa or Card
+
+👉 RENEW NOW: https://inndos.com/renew/[LISTING_ID]
+
+Need Assistance?
+📞 Call us: 0700-000-000
+💬 WhatsApp: 0712-345-678
+📧 Email: support@inndos.com
+
+Don't let your listing disappear – renew today and continue connecting with your next tenant or buyer!
+
+Warm regards,
+The Inndos Team
+
+---
+
+1.2 3-Days Before Expiry (Urgent Reminder)
+
+---
+
+SMS/WhatsApp Message:
+
+
+⚠️ URGENT: Your Inndos listing "PROPERTY_TITLE" expires in 3 days!
+
+Your property has received [VIEW_COUNT] views and [INQUIRY_COUNT] inquiries this month. Don't lose these opportunities!
+
+🔗 Renew now: https://inndos.com/renew/LISTING_ID
+
+Act fast – only 3 days left!
+
+
+---
+
+Email Message:
+
+Subject: ⚠️ URGENT: "PROPERTY_TITLE" Expires in 3 Days – Renew Now!
+
+---
+
+Dear [OWNER_NAME],
+
+This is an urgent reminder that your property listing "[PROPERTY_TITLE]" will expire in just 3 days on [EXPIRY_DATE].
+
+Your Listing Performance:
+
+· 📊 Total Views: [VIEW_COUNT]
+· 💬 Total Inquiries: [INQUIRY_COUNT]
+· ⭐ User Engagement: [ENGAGEMENT_RATE]%
+· 🔥 Search Ranking: [RANKING_POSITION]
+
+Don't Let Your Listing Disappear!
+
+When your listing expires:
+❌ It will no longer appear in search results
+❌ You will stop receiving inquiries
+❌ You will lose your verified status badge
+❌ You will lose your listing history and analytics
+
+Renew Today and Keep Your Property Active!
+
+🔗 RENEW NOW (takes 2 minutes): https://inndos.com/renew/[LISTING_ID]
+
+Special Offer for Prompt Renewal:
+Renew within 48 hours and receive:
+🎁 7 Days FREE Featured Listing (Value KES 500)
+🎁 Priority Support for 30 Days
+
+Need Help?
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Don't wait until it's too late. Renew your listing now!
+
+Best regards,
+The Inndos Team
+
+---
+
+1.3 1-Day Before Expiry (Final Warning)
+
+---
+
+SMS/WhatsApp Message:
+
+
+🚨 FINAL WARNING: Your Inndos listing "PROPERTY_TITLE" expires TOMORROW!
+
+Your property has been viewed [VIEW_COUNT] times with [INQUIRY_COUNT] inquiries. Renew NOW to keep these leads coming!
+
+🔗 Renew immediately: https://inndos.com/renew/LISTING_ID
+
+This is your last chance!
+
+
+---
+
+Email Message:
+
+Subject: 🚨 FINAL WARNING: "PROPERTY_TITLE" Expires Tomorrow – Renew NOW!
+
+---
+
+Dear [OWNER_NAME],
+
+This is your FINAL WARNING. Your property listing "[PROPERTY_TITLE]" will expire TOMORROW on [EXPIRY_DATE].
+
+Your Listing at a Glance:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📍 Location: [LOCATION]
+  💰 Price: KES [PRICE]
+  👀 Views: [VIEW_COUNT]
+  💬 Inquiries: [INQUIRY_COUNT]
+  📅 Expiry: [EXPIRY_DATE] (TOMORROW)
+─────────────────────────────────────────
+
+
+What Happens After Expiry?
+
+· Your listing will be deactivated
+· It will disappear from search results
+· You will stop receiving inquiries
+· All leads will be lost permanently
+· Your verified status will be removed
+
+Renew NOW to Continue Benefiting!
+
+👉 RENEW NOW: https://inndos.com/renew/[LISTING_ID]
+
+URGENT OFFER:
+Renew within 24 hours and get:
+✅ Free Featured Listing (7 days)
+✅ Free Premium Support (30 days)
+✅ Bonus: 50% off your next listing
+
+Emergency Support:
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Don't lose all the momentum you've built. Renew your listing NOW!
+
+Sincerely,
+The Inndos Team
+Your Trusted Property Partner
+
+---
+
+2. EXPIRY CONFIRMATION MESSAGES
+
+---
+
+2.1 Listing Expired Notification
+
+---
+
+SMS/WhatsApp Message:
+
+
+⚠️ Your Inndos listing "PROPERTY_TITLE" has EXPIRED!
+
+Your property is no longer visible to seekers. But don't worry – you can reactivate it instantly!
+
+🔗 Reactivate now: https://inndos.com/reactivate/LISTING_ID
+
+🚀 Special Offer: Reactivate within 7 days and get 15% off!
+
+
+---
+
+Email Message:
+
+Subject: ⚠️ Your Inndos Listing "PROPERTY_TITLE" Has Expired
+
+---
+
+Dear [OWNER_NAME],
+
+We regret to inform you that your property listing "[PROPERTY_TITLE]" has now EXPIRED.
+
+What This Means:
+
+· ❌ Your property is no longer visible in search results
+· ❌ Potential tenants and buyers cannot find your property
+· ❌ You will not receive new inquiries
+· ❌ Your listing statistics are now paused
+
+But It's Not Too Late!
+
+You can reactivate your listing immediately and continue benefiting from all Inndos features.
+
+Reactivate Now:
+👉 https://inndos.com/reactivate/[LISTING_ID]
+
+Special Reactivation Offer:
+If you reactivate within 7 days, you will receive:
+🎁 15% discount on your subscription
+🎁 Free Featured Listing for 7 days
+🎁 Extended visibility in search results
+
+Why Reactivate?
+
+· ✅ Pick up where you left off
+· ✅ Keep your verified status
+· ✅ Retain all your listing history
+· ✅ Continue receiving leads
+
+Need Help?
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Don't wait – reactivate today and reconnect with seekers!
+
+Warm regards,
+The Inndos Team
+
+---
+
+2.2 Automatic Renewal Confirmation
+
+---
+
+SMS/WhatsApp Message:
+
+
+✅ Your Inndos listing "PROPERTY_TITLE" has been AUTO-RENEWED!
+
+Your subscription has been renewed successfully. Your property remains active and visible.
+
+📅 New Expiry: [NEW_EXPIRY_DATE]
+💳 Amount: KES [AMOUNT]
+
+Thank you for being a valued Inndos user!
+
+
+---
+
+Email Message:
+
+Subject: ✅ Your Inndos Listing "PROPERTY_TITLE" Has Been Auto-Renewed
+
+---
+
+Dear [OWNER_NAME],
+
+Good news! Your property listing "[PROPERTY_TITLE]" has been automatically renewed.
+
+Renewal Details:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Previous Expiry: [OLD_EXPIRY_DATE]
+  📅 New Expiry: [NEW_EXPIRY_DATE]
+  💳 Amount Paid: KES [AMOUNT]
+  📋 Package: [PACKAGE_NAME]
+  ✅ Status: Active
+─────────────────────────────────────────
+
+
+Your Listing Is Now Active!
+
+· ✅ Visible in search results
+· ✅ Receiving inquiries
+· ✅ Featured status maintained
+· ✅ Verified badge active
+
+What's Next?
+
+1. Continue responding to inquiries promptly
+2. Keep your availability calendar updated
+3. Monitor your listing performance in the dashboard
+4. Contact us if you need any assistance
+
+Quick Links:
+
+· 📊 Dashboard: https://inndos.com/dashboard
+· 📋 Edit Listing: https://inndos.com/edit/[LISTING_ID]
+· 📞 Support: https://inndos.com/support
+
+Thank you for choosing Inndos!
+
+Best regards,
+The Inndos Team
+
+---
+
+3. RENEWAL REMINDER MESSAGES
+
+---
+
+3.1 Renewal Confirmation
+
+---
+
+SMS/WhatsApp Message:
+
+
+✅ Inndos renewal successful!
+
+Your listing "PROPERTY_TITLE" is now active until [NEW_EXPIRY_DATE].
+
+📊 View your dashboard: https://inndos.com/dashboard
+📞 Support: 0700-000-000
+
+Thank you for choosing Inndos!
+
+
+---
+
+Email Message:
+
+Subject: ✅ Inndos Renewal Confirmation – "PROPERTY_TITLE" is Now Active
+
+---
+
+Dear [OWNER_NAME],
+
+Thank you for renewing your Inndos subscription! Your listing is now active and visible to thousands of seekers.
+
+Renewal Confirmation:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Expiry Date: [NEW_EXPIRY_DATE]
+  💳 Amount Paid: KES [AMOUNT]
+  📋 Package: [PACKAGE_NAME]
+  🔥 Featured Status: [FEATURED_YES/NO]
+─────────────────────────────────────────
+
+
+What You Get:
+
+· ✅ Full visibility in search results
+· ✅ Access to all package features
+· ✅ Verified status badge
+· ✅ Real-time inquiries
+· ✅ Analytics dashboard
+
+Make the Most of Your Listing:
+
+1. Add More Photos – Properties with 10+ photos get 50% more views
+2. Update Availability – Keep your calendar current
+3. Respond Quickly – Reply to inquiries within 1 hour for best results
+4. Share Your Listing – Share on social media for extra visibility
+
+Get Started:
+
+· 🏠 Manage Listing: https://inndos.com/dashboard
+· 📸 Upload Photos: https://inndos.com/photos/[LISTING_ID]
+· 👥 View Inquiries: https://inndos.com/inquiries/[LISTING_ID]
+
+Need help? Contact our support team.
+
+Best regards,
+The Inndos Team
+
+---
+
+3.2 Failed Renewal Notification
+
+---
+
+SMS/WhatsApp Message:
+
+
+⚠️ Inndos renewal FAILED for "PROPERTY_TITLE"
+
+We couldn't process your renewal payment. Your listing may expire soon.
+
+🔗 Retry payment: https://inndos.com/pay/[LISTING_ID]
+📞 Support: 0700-000-000
+
+Don't let your listing expire!
+
+
+---
+
+Email Message:
+
+Subject: ⚠️ Action Required: Inndos Renewal Payment Failed
+
+---
+
+Dear [OWNER_NAME],
+
+We encountered an issue processing your renewal payment for "[PROPERTY_TITLE]".
+
+Issue Details:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Expiry Date: [EXPIRY_DATE]
+  💳 Amount Due: KES [AMOUNT]
+  ⚠️ Issue: [PAYMENT_ISSUE]
+  📋 Status: Pending
+─────────────────────────────────────────
+
+
+Common Reasons for Failure:
+
+· ❌ Insufficient M-Pesa balance
+· ❌ Card expired or declined
+· ❌ Incorrect payment details
+· ❌ Network timeout
+
+Please Retry Payment:
+
+👉 PAY NOW: https://inndos.com/pay/[LISTING_ID]
+
+Alternative Payment Options:
+
+· 📱 M-Pesa Paybill: [PAYBILL_NUMBER] – Account: [ACCOUNT_CODE]
+· 💳 Credit/Debit Card: Visit your dashboard
+· 🏦 Bank Transfer: Details available on request
+
+Need Assistance?
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Please resolve this issue before [EXPIRY_DATE] to avoid listing deactivation.
+
+Sincerely,
+The Inndos Team
+
+---
+
+4. RENEWAL OFFER & PROMOTION MESSAGES
+
+---
+
+4.1 Expiring Soon – Special Offer
+
+---
+
+SMS/WhatsApp Message:
+
+
+🎉 INNDOS SPECIAL OFFER: Renew "PROPERTY_TITLE" NOW and get 20% OFF!
+
+Your listing expires in [DAYS] days. Renew today and save!
+
+🔗 Claim offer: https://inndos.com/renew/LISTING_ID?offer=EXPIRY20
+
+Hurry – offer expires in 48 hours!
+
+
+---
+
+Email Message:
+
+Subject: 🎉 SPECIAL OFFER: Renew "PROPERTY_TITLE" and Get 20% OFF!
+
+---
+
+Dear [OWNER_NAME],
+
+We appreciate you being part of the Inndos community! As a valued user, we are offering you a special discount to renew your listing.
+
+Your Offer:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Expiry: [EXPIRY_DATE] (in [DAYS] days)
+  💰 Regular Price: KES [REGULAR_PRICE]
+  🎉 DISCOUNT: 20% OFF
+  💳 Your Price: KES [DISCOUNTED_PRICE]
+  🔥 Status: ACTIVE OFFER
+─────────────────────────────────────────
+
+
+Why Renew Now?
+
+· ✅ Save 20% on your subscription
+· ✅ Keep your property visible
+· ✅ Continue receiving leads
+· ✅ Maintain your verified status
+
+Claim Your Discount:
+
+👉 RENEW NOW: https://inndos.com/renew/[LISTING_ID]?offer=EXPIRY20
+
+This offer expires in 48 hours!
+
+What You'll Continue to Get:
+
+· 📊 Analytics dashboard
+· 💬 Direct messaging with seekers
+· 📍 Map-based visibility
+· ✅ Verified badge
+· 🔥 Priority search ranking
+
+Not Ready to Renew?
+You can also:
+
+· 📅 Pause your listing (freeze visibility temporarily)
+· 📋 Downgrade to a lower package
+· 🗓️ Schedule renewal for later
+
+Need Help Choosing?
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Take advantage of this exclusive offer and renew today!
+
+Best regards,
+The Inndos Team
+
+---
+
+4.2 Post-Expiry Reactivation Offer
+
+---
+
+SMS/WhatsApp Message:
+
+
+🔄 REACTIVATE "PROPERTY_TITLE" on Inndos with 25% OFF!
+
+Your listing expired [DAYS] days ago. Reactivate now and save!
+
+🔗 Reactivate: https://inndos.com/reactivate/LISTING_ID
+
+Don't miss out on potential tenants!
+
+
+---
+
+Email Message:
+
+Subject: 🔄 REACTIVATE Your Listing – Special 25% OFF Offer!
+
+---
+
+Dear [OWNER_NAME],
+
+We noticed your listing "[PROPERTY_TITLE]" expired [DAYS] days ago. We want to help you get back online!
+
+Your Reactivation Offer:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Expired On: [EXPIRY_DATE]
+  ⏳ Days Expired: [DAYS] days
+  💰 Regular Price: KES [REGULAR_PRICE]
+  🎉 SPECIAL: 25% OFF
+  💳 Your Price: KES [DISCOUNTED_PRICE]
+  🔥 Status: EXPIRED – REACTIVATE NOW
+─────────────────────────────────────────
+
+
+Why Reactivate?
+
+· ✅ New seekers are searching daily
+· ✅ Your property could be found today
+· ✅ Don't lose your listing history
+· ✅ Save 25% with this exclusive offer
+· ✅ Get back on the map instantly
+
+Reactivate in 2 Minutes:
+
+👉 REACTIVATE NOW: https://inndos.com/reactivate/[LISTING_ID]
+
+Offer Valid For:
+
+· ⏰ Next 7 days only
+· 📋 All packages (Free, Basic, Pro, Enterprise)
+· 🎁 Free Featured Listing included
+
+What You Missed While Expired:
+
+· ❌ [NUMBER] potential inquiries
+· ❌ [NUMBER] property views
+· ❌ [NUMBER] search appearances
+
+Don't Let Your Listing Stay Hidden!
+
+Need Help?
+📞 Call: 0700-000-000
+💬 WhatsApp: 0712-345-678
+
+Reactivate today and reconnect with seekers!
+
+Warm regards,
+The Inndos Team
+
+---
+
+5. AUTOMATED NOTIFICATION TEMPLATES
+
+---
+
+5.1 Notification Settings Confirmation
+
+---
+
+Email Message:
+
+Subject: ✅ Inndos Notification Settings Updated
+
+---
+
+Dear [OWNER_NAME],
+
+Your notification preferences for "[PROPERTY_TITLE]" have been updated.
+
+Current Notification Settings:
+
+
+─────────────────────────────────────────
+  📧 Email Notifications: [ENABLED/DISABLED]
+  📱 SMS Notifications: [ENABLED/DISABLED]
+  💬 WhatsApp Notifications: [ENABLED/DISABLED]
+  🔔 Push Notifications: [ENABLED/DISABLED]
+  ⏰ Reminder Timing: [DAYS] days before expiry
+─────────────────────────────────────────
+
+
+You Will Receive:
+
+· ✅ Renewal reminders
+· ✅ Expiry warnings
+· ✅ Payment confirmations
+· ✅ Subscription updates
+· ✅ Special offers
+
+Manage Your Preferences:
+👉 https://inndos.com/notifications
+
+Need help? Contact support.
+
+Best regards,
+The Inndos Team
+
+---
+
+5.2 Upcoming Payment Reminder
+
+---
+
+SMS/WhatsApp Message:
+
+
+💳 INNDOS: Upcoming renewal payment for "PROPERTY_TITLE"
+
+Amount: KES [AMOUNT]
+Date: [PAYMENT_DATE]
+
+Ensure your payment method has sufficient funds.
+
+Manage payments: https://inndos.com/payments
+
+
+---
+
+Email Message:
+
+Subject: 💳 Upcoming Inndos Renewal Payment for "PROPERTY_TITLE"
+
+---
+
+Dear [OWNER_NAME],
+
+Your payment for "[PROPERTY_TITLE]" is scheduled for [PAYMENT_DATE] .
+
+Payment Details:
+
+
+─────────────────────────────────────────
+  🏠 Property: [PROPERTY_TITLE]
+  📅 Payment Date: [PAYMENT_DATE]
+  💳 Amount: KES [AMOUNT]
+  📋 Package: [PACKAGE_NAME]
+  🔄 Auto-Renew: [ENABLED/DISABLED]
+─────────────────────────────────────────
+
+
+Please Ensure:
+
+· ✅ Sufficient balance in your M-Pesa account
+· ✅ Valid card details if using card payment
+· ✅ Payment method is up to date
+
+Update Payment Method:
+👉 https://inndos.com/payments
+
+Need to Pause?
+If you wish to pause your subscription, please do so before the payment date.
+
+Questions?
+📞 Call: 0700-000-000
+
+Thank you for choosing Inndos!
+
+Best regards,
+The Inndos Team
+
+---
+
+6. QUICK REFERENCE TABLE
+
+---
+
+Message Type Timing Channel Template ID
+Renewal Reminder 7 days before Email + SMS + WhatsApp EXP-001
+Urgent Reminder 3 days before Email + SMS + WhatsApp EXP-002
+Final Warning 1 day before Email + SMS + WhatsApp EXP-003
+Expired Notification On expiry Email + SMS EXP-004
+Auto-Renewal Confirmation On renewal Email + SMS REN-001
+Manual Renewal Confirmation On renewal Email + SMS REN-002
+Failed Renewal On failure Email + SMS REN-003
+Special Offer Varies Email + SMS OFF-001
+Reactivation Offer Post-expiry Email + SMS OFF-002
+Payment Reminder 3 days before payment Email + SMS PAY-001
+
+---
+
+7. MESSAGE CONFIGURATION GUIDE
+
+---
+
+Placeholder Variables
+
+Placeholder Description Example
+[OWNER_NAME] Owner's full name Jane Mwangi
+[PROPERTY_TITLE] Property title Modern 2-Bed Apartment
+[LOCATION] Property location Kilimani, Nairobi
+[PRICE] Rental/Sale price KES 35,000
+[TERM] Rental term month
+[VIEW_COUNT] Number of views 245
+[INQUIRY_COUNT] Number of inquiries 12
+[EXPIRY_DATE] Expiry date 30th June 2026
+[NEW_EXPIRY_DATE] New expiry after renewal 30th July 2026
+[OLD_EXPIRY_DATE] Previous expiry 30th May 2026
+[LISTING_ID] Unique listing identifier LIS-7890
+[AMOUNT] Payment amount KES 999
+[PACKAGE_NAME] Subscription package Basic
+[DAYS] Number of days 5
+[PAYMENT_DATE] Scheduled payment date 25th June 2026
+[PAYMENT_ISSUE] Reason for payment failure Insufficient funds
+[REGULAR_PRICE] Regular subscription price KES 999
+[DISCOUNTED_PRICE] Discounted price KES 799
+[FEATURED_YES/NO] Featured status Yes/No
+[ENGAGEMENT_RATE] User engagement percentage 65%
+[RANKING_POSITION] Search ranking position 3
+
+---
+
+Channel Recommendations
+
+Message Type SMS Email WhatsApp Push
+7-Day Reminder ✅ ✅ ✅ ✅
+3-Day Urgent ✅ ✅ ✅ ✅
+1-Day Final ✅ ✅ ✅ ✅
+Expired Notification ✅ ✅ ✅ ❌
+Renewal Confirmation ✅ ✅ ✅ ✅
+Failed Renewal ✅ ✅ ✅ ❌
+Special Offers ✅ ✅ ✅ ✅
+Reactivation Offer ✅ ✅ ✅ ❌
+Payment Reminder ✅ ✅ ✅ ✅

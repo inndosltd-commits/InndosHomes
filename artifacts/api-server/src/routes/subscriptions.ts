@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { subscriptions, users, properties, payments, settings, subscriptionPlans } from "@workspace/db";
 import { eq, and, desc, count } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
+import { sendSubscriptionRenewalConfirmationEmail } from "../lib/email";
 import {
   submitOrder,
   getTransactionStatus,
@@ -195,6 +196,25 @@ router.post("/upgrade", async (req, res) => {
     })
     .returning();
 
+  // Send renewal confirmation email (best-effort)
+  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+  const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
+  const [usr] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).catch(() => [null]);
+  if (usr?.email) {
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const expiryParts = newSub.endDate.split("-");
+    const expiryFmt = `${parseInt(expiryParts[2], 10)} ${months[parseInt(expiryParts[1], 10) - 1]} ${expiryParts[0]}`;
+    sendSubscriptionRenewalConfirmationEmail({
+      toEmail:      usr.email,
+      ownerName:    usr.name ?? "Valued Customer",
+      planName:     plan.charAt(0).toUpperCase() + plan.slice(1),
+      amount:       newSub.amountPaid ?? 0,
+      newExpiryDate: expiryFmt,
+      billingCycle: newSub.billingCycle ?? "monthly",
+      dashboardUrl: `${baseUrl}/#/dashboard?tab=subscription`,
+    }).catch(() => {});
+  }
+
   res.status(201).json({
     ...newSub,
     listingLimit: getPlanLimit(plan),
@@ -367,6 +387,25 @@ router.get("/callback", async (req, res) => {
             updatedAt: new Date(),
           })
           .where(eq(payments.id, paymentId));
+
+        // Send renewal confirmation email
+        const domains2 = process.env.REPLIT_DOMAINS?.split(",")[0];
+        const baseUrl2 = domains2 ? `https://${domains2}` : "https://inndos.com";
+        const [ppUser] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, payment.userId)).catch(() => [null]);
+        if (ppUser?.email && newSub) {
+          const months2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const ep = newSub.endDate.split("-");
+          const expiryFmt2 = `${parseInt(ep[2], 10)} ${months2[parseInt(ep[1], 10) - 1]} ${ep[0]}`;
+          sendSubscriptionRenewalConfirmationEmail({
+            toEmail:       ppUser.email,
+            ownerName:     ppUser.name ?? "Valued Customer",
+            planName:      (payment.plan ?? "subscription").charAt(0).toUpperCase() + (payment.plan ?? "subscription").slice(1),
+            amount:        payment.amount ?? 0,
+            newExpiryDate: expiryFmt2,
+            billingCycle:  billingCycle,
+            dashboardUrl:  `${baseUrl2}/#/dashboard?tab=subscription`,
+          }).catch(() => {});
+        }
       }
 
       res.redirect("/#/dashboard?tab=subscription&payment=success");

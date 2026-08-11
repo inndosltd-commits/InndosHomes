@@ -447,96 +447,101 @@ export interface SubscriptionReminderEmailParams {
   renewalUrl: string;
   helpUrl: string;
   daysLeft: number;
+  activeListings?: number;
 }
 
 export async function sendSubscriptionReminderEmail(params: SubscriptionReminderEmailParams): Promise<void> {
-  const { toEmail, clientName, planName, amount, expiryDate, renewalUrl, helpUrl, daysLeft } = params;
+  const { toEmail, clientName, planName, amount, expiryDate, renewalUrl, helpUrl, daysLeft, activeListings } = params;
 
-  const urgencyColor = daysLeft === 1 ? "#dc2626" : daysLeft <= 3 ? "#d97706" : "#1a1a2e";
-  const urgencyLabel = daysLeft === 1 ? "⚠️ Expires Tomorrow" : daysLeft <= 3 ? `⚠️ ${daysLeft} Days Left` : `${daysLeft} Days Left`;
+  const isFinal  = daysLeft === 1;
+  const isUrgent = daysLeft <= 3;
+  const bannerBg = isFinal ? "#991b1b" : isUrgent ? "#92400e" : "#1a1a2e";
+  const ctaBg    = isFinal ? "#b91c1c" : isUrgent ? "#d97706" : "#1a1a2e";
+
+  const urgencyBadge = isFinal
+    ? "🚨 FINAL WARNING — Expires Tomorrow"
+    : isUrgent
+    ? `⚠️ URGENT — ${daysLeft} Days Left`
+    : `⏰ ${daysLeft} Days Remaining`;
+
+  const subject = isFinal
+    ? `🚨 FINAL WARNING: Your inndos subscription expires TOMORROW`
+    : isUrgent
+    ? `⚠️ URGENT: Your inndos subscription expires in ${daysLeft} days – Renew Now`
+    : `⏰ Reminder: Your inndos ${planName} subscription expires in ${daysLeft} days`;
+
+  const headline = isFinal
+    ? "Your subscription expires tomorrow"
+    : isUrgent
+    ? `Only ${daysLeft} days left — act now`
+    : "Time to renew your subscription";
+
+  const intro = isFinal
+    ? `Hi ${clientName}, this is your <strong>final warning</strong>. Your inndos subscription expires <strong>tomorrow (${expiryDate})</strong>. After expiry your listings will be hidden and you will stop receiving link-up requests.`
+    : isUrgent
+    ? `Hi ${clientName}, your inndos subscription expires in just <strong>${daysLeft} days on ${expiryDate}</strong>. Renew now to keep your properties visible and your leads flowing.`
+    : `Hi ${clientName}, this is a friendly reminder that your inndos <strong>${planName}</strong> subscription expires on <strong>${expiryDate}</strong>. Renew to stay connected with seekers.`;
+
+  const listingsRow = (activeListings != null && activeListings > 0)
+    ? `<tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Active Listings</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${activeListings} listing${activeListings === 1 ? "" : "s"} affected</p></td></tr>`
+    : "";
+
+  const consequencesHtml = isFinal ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border-radius:8px;border:1px solid #fecaca;margin-bottom:24px;">
+                <tr><td style="padding:16px 20px;"><p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#b91c1c;">What happens after expiry:</p><p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">❌ Listings disappear from search<br/>❌ Seekers can no longer find your properties<br/>❌ You stop receiving link-up requests<br/>❌ Verified status is paused</p></td></tr>
+              </table>` : "";
+
+  const benefitsHtml = !isFinal ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:24px;">
+                <tr><td style="padding:16px 20px;"><p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#15803d;">Why renew?</p><p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">✅ Stay visible to thousands of active seekers<br/>✅ Keep receiving link-up requests and inquiries<br/>✅ Maintain your verified badge and search ranking<br/>✅ Avoid rebuilding your listing from scratch</p></td></tr>
+              </table>` : "";
 
   const { error } = await resend.emails.send({
     from: EMAIL_FROM,
     to: toEmail,
-    subject: `Reminder: Your inndos ${planName} subscription expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+    subject,
     html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Subscription Renewal Reminder</title>
+  <title>${subject}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#1a1a2e;padding:28px 32px;">
-              <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
-              <p style="margin:6px 0 0;font-size:13px;color:#9b9bb4;">Property Management Platform</p>
-            </td>
-          </tr>
-          <!-- Urgency banner -->
-          <tr>
-            <td style="background-color:${urgencyColor};padding:10px 32px;">
-              <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;text-align:center;letter-spacing:0.3px;">${urgencyLabel}</p>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 20px;font-size:16px;color:#374151;">Dear <strong>${clientName}</strong>,</p>
-              <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.6;">
-                This is a friendly reminder from <strong>inndos</strong> that your <strong>${planName}</strong> subscription payment of <strong>KES ${amount.toLocaleString()}</strong> is due on <strong>${expiryDate}</strong>.
-                To avoid interruption, please renew your subscription below.
-              </p>
-
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:28px;">
-                <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Plan</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${planName}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Amount Due</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">KES ${amount.toLocaleString()}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Expiry Date</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:${urgencyColor};">${expiryDate}</p>
-                  </td>
-                </tr>
-              </table>
-
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-                <tr>
-                  <td align="center">
-                    <a href="${renewalUrl}" style="display:inline-block;background-color:${urgencyColor};color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:8px;letter-spacing:0.2px;">Renew My Subscription</a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:0 0 4px;font-size:14px;color:#4b5563;line-height:1.6;">
-                Thank you for being part of <strong>inndos</strong>. Let us know if you need help — <a href="${helpUrl}" style="color:#1a1a2e;font-weight:600;">contact us here</a>.
-              </p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an active subscription on inndos.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <tr><td style="background-color:${bannerBg};padding:28px 32px;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Property Management Platform</p>
+        </td></tr>
+        <tr><td style="background-color:${ctaBg};padding:10px 32px;">
+          <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;text-align:center;letter-spacing:0.5px;">${urgencyBadge}</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">${headline}</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.7;">${intro}</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;">
+            ${listingsRow}
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Plan</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${planName}</p></td></tr>
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Renewal Amount</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">KES ${amount.toLocaleString()}</p></td></tr>
+            <tr><td style="padding:14px 20px;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Expiry Date</p><p style="margin:4px 0 0;font-size:15px;font-weight:700;color:${ctaBg};">${expiryDate}</p></td></tr>
+          </table>
+          ${consequencesHtml}
+          ${benefitsHtml}
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td align="center">
+              <a href="${renewalUrl}" style="display:inline-block;background-color:${ctaBg};color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:8px;">Renew My Subscription</a>
+            </td></tr>
+          </table>
+          <p style="margin:0;font-size:13px;color:#6b7280;">Need help? <a href="${helpUrl}" style="color:${bannerBg};font-weight:600;">Contact our support team</a>.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you have an active subscription on inndos. © Fortisec inndos Ltd.</p>
+        </td></tr>
+      </table>
+    </td></tr>
   </table>
 </body>
 </html>
@@ -545,6 +550,163 @@ export async function sendSubscriptionReminderEmail(params: SubscriptionReminder
 
   if (error) {
     logger.error({ error }, "Failed to send subscription reminder email");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
+
+// ─── Subscription Expired Email ───────────────────────────────────────────────
+
+export interface SubscriptionExpiredEmailParams {
+  toEmail: string;
+  ownerName: string;
+  planName: string;
+  expiryDate: string;
+  activeListings: number;
+  reactivateUrl: string;
+}
+
+export async function sendSubscriptionExpiredEmail(params: SubscriptionExpiredEmailParams): Promise<void> {
+  const { toEmail, ownerName, planName, expiryDate, activeListings, reactivateUrl } = params;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject: `⚠️ Your inndos subscription has expired – Reactivate now`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Expired</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <tr><td style="background-color:#7f1d1d;padding:28px 32px;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Property Management Platform</p>
+        </td></tr>
+        <tr><td style="background-color:#b91c1c;padding:10px 32px;">
+          <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;text-align:center;">⚠️ SUBSCRIPTION EXPIRED</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">Your subscription has expired</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.7;">Hi ${ownerName}, your inndos <strong>${planName}</strong> subscription expired on <strong>${expiryDate}</strong>. Your ${activeListings} listing${activeListings === 1 ? " is" : "s are"} now hidden from search and you are no longer receiving link-up requests.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border-radius:8px;border:1px solid #fecaca;margin-bottom:24px;">
+            <tr><td style="padding:16px 20px;">
+              <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#b91c1c;">What this means:</p>
+              <p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">❌ Properties no longer appear in search<br/>❌ Seekers cannot contact you<br/>❌ Link-up requests have stopped<br/>❌ Verified status is paused</p>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:28px;">
+            <tr><td style="padding:16px 20px;">
+              <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#15803d;">Reactivate and get back instantly:</p>
+              <p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">✅ Listings go live the moment you renew<br/>✅ Keep your verified status and history<br/>✅ Resume receiving link-up requests<br/>✅ Retain all analytics and performance data</p>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td align="center">
+              <a href="${reactivateUrl}" style="display:inline-block;background-color:#b91c1c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:8px;">Reactivate My Subscription</a>
+            </td></tr>
+          </table>
+          <p style="margin:0;font-size:13px;color:#6b7280;">Questions? Visit your <a href="${reactivateUrl}" style="color:#111827;font-weight:600;">inndos dashboard</a>.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you had an active subscription on inndos. © Fortisec inndos Ltd.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send subscription expired email");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
+
+// ─── Subscription Renewal Confirmation Email ──────────────────────────────────
+
+export interface SubscriptionRenewalConfirmationEmailParams {
+  toEmail: string;
+  ownerName: string;
+  planName: string;
+  amount: number;
+  newExpiryDate: string;
+  billingCycle: string;
+  dashboardUrl: string;
+}
+
+export async function sendSubscriptionRenewalConfirmationEmail(params: SubscriptionRenewalConfirmationEmailParams): Promise<void> {
+  const { toEmail, ownerName, planName, amount, newExpiryDate, billingCycle, dashboardUrl } = params;
+  const cycleLabel = billingCycle === "yearly" ? "12 months" : billingCycle === "monthly" ? "1 month" : billingCycle;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: toEmail,
+    subject: `✅ Subscription renewed – Your inndos ${planName} plan is active`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Renewed</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <tr><td style="background-color:#14532d;padding:28px 32px;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">inndos</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Property Management Platform</p>
+        </td></tr>
+        <tr><td style="background-color:#16a34a;padding:10px 32px;">
+          <p style="margin:0;font-size:13px;font-weight:700;color:#ffffff;text-align:center;">✅ SUBSCRIPTION RENEWED SUCCESSFULLY</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">You're all set, ${ownerName}!</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#4b5563;line-height:1.7;">Your inndos <strong>${planName}</strong> subscription has been renewed. Your listings are live and visible to seekers.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;">
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Plan</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${planName}</p></td></tr>
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Amount Paid</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">KES ${amount.toLocaleString()}</p></td></tr>
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Billing Period</p><p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${cycleLabel}</p></td></tr>
+            <tr><td style="padding:14px 20px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Next Renewal</p><p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#15803d;">${newExpiryDate}</p></td></tr>
+            <tr><td style="padding:14px 20px;"><p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Status</p><p style="margin:4px 0 0;font-size:15px;font-weight:700;color:#16a34a;">✅ Active</p></td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;margin-bottom:28px;">
+            <tr><td style="padding:16px 20px;">
+              <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#15803d;">Your active benefits:</p>
+              <p style="margin:0;font-size:13px;color:#374151;line-height:1.8;">✅ Full visibility in search results<br/>✅ Verified badge maintained<br/>✅ Link-up requests enabled<br/>✅ Analytics dashboard access<br/>✅ Direct messaging with seekers</p>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#111827;">Make the most of your listing:</p>
+          <p style="margin:0 0 24px;font-size:13px;color:#4b5563;line-height:1.8;">📸 Add more photos — properties with 10+ photos get more views<br/>📅 Keep your availability updated<br/>💬 Respond to requests within the hour for best results<br/>📊 Track your performance in the analytics dashboard</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td align="center">
+              <a href="${dashboardUrl}" style="display:inline-block;background-color:#16a34a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:8px;">Go to My Dashboard</a>
+            </td></tr>
+          </table>
+          <p style="margin:0;font-size:13px;color:#6b7280;">Thank you for choosing inndos. We're excited to keep connecting you with seekers.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">You're receiving this because you renewed your inndos subscription. © Fortisec inndos Ltd.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error }, "Failed to send subscription renewal confirmation email");
     throw new Error(`Resend error: ${error.message}`);
   }
 }

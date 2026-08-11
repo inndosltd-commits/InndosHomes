@@ -5,13 +5,13 @@
  */
 
 import { db } from "@workspace/db";
-import { subscriptions, subscriptionPlans, users, notifications, propertyTransactions } from "@workspace/db";
-import { and, eq, inArray, ne, isNull, lte, or } from "drizzle-orm";
+import { subscriptions, subscriptionPlans, users, notifications, propertyTransactions, properties } from "@workspace/db";
+import { and, eq, inArray, ne, isNull, lte, or, count } from "drizzle-orm";
 import { logger } from "./logger";
 import { sendSms } from "./sms";
-import { sendSubscriptionReminderEmail, sendTransactionConfirmationEmail } from "./email";
+import { sendSubscriptionReminderEmail, sendTransactionConfirmationEmail, sendSubscriptionExpiredEmail, sendSubscriptionRenewalConfirmationEmail } from "./email";
 
-const REMIND_DAYS = [7, 3, 2, 1];
+const REMIND_DAYS = [7, 3, 1];
 
 /** Returns a YYYY-MM-DD date string for today + n days (UTC). */
 function utcDatePlusDays(n: number): string {
@@ -64,21 +64,45 @@ export async function runSubscriptionReminders(): Promise<void> {
     if (rows.length === 0) continue;
     logger.info({ daysLeft: days, count: rows.length, targetDate }, "Sending subscription reminders");
 
+    // Fetch active listing counts per user for context
+    const listingCounts: Record<string, number> = {};
     for (const row of rows) {
-      const clientName = row.userName ?? "Valued Customer";
-      const planName   = row.planDisplay ?? row.plan ?? "Subscription";
-      const amount     = row.amountPaid ?? 0;
-      const expiryFmt  = formatDate(row.endDate);
-      const smsMsg     = `Dear ${clientName}, your inndos ${planName} subscription (KES ${amount.toLocaleString()}) expires on ${expiryFmt}. Renew now to avoid interruption: ${renewalUrl}`;
-      const bellMsg    = `Your ${planName} subscription expires on ${expiryFmt} (${days} day${days === 1 ? "" : "s"} left). Tap to renew now.`;
+      try {
+        const [{ c }] = await db.select({ c: count() }).from(properties).where(
+          and(eq(properties.ownerId, row.userId), ne(properties.propertyStatus, "sold"))
+        );
+        listingCounts[row.userId] = Number(c);
+      } catch { listingCounts[row.userId] = 0; }
+    }
+
+    for (const row of rows) {
+      const clientName    = row.userName ?? "Valued Customer";
+      const planName      = row.planDisplay ?? row.plan ?? "Subscription";
+      const amount        = row.amountPaid ?? 0;
+      const expiryFmt     = formatDate(row.endDate);
+      const activeListings = listingCounts[row.userId] ?? 0;
+
+      // Per-urgency SMS copy
+      const smsMsg = days === 1
+        ? `🚨 FINAL WARNING inndos: Your subscription expires TOMORROW (${expiryFmt}). Renew immediately to keep your ${activeListings} listing${activeListings === 1 ? "" : "s"} active: ${renewalUrl}`
+        : days <= 3
+        ? `⚠️ URGENT inndos: Your ${planName} subscription expires in ${days} days (${expiryFmt}). Renew now – your listings will be hidden after expiry: ${renewalUrl}`
+        : `🏠 inndos: Your ${planName} subscription expires in ${days} days on ${expiryFmt}. Renew to keep your listings visible to seekers: ${renewalUrl}`;
+
+      // Per-urgency bell copy
+      const bellMsg = days === 1
+        ? `🚨 Final warning: Your subscription expires tomorrow. Renew immediately to keep your listings active.`
+        : days <= 3
+        ? `⚠️ Urgent: Your subscription expires in ${days} days on ${expiryFmt}. Renew now to avoid losing active leads.`
+        : `Your ${planName} subscription expires in ${days} days (${expiryFmt}). Tap to renew and keep your listings visible.`;
 
       // 1 — Bell notification
       try {
         await db.insert(notifications).values({
-          userId:   row.userId,
-          type:     "subscription_reminder",
-          message:  bellMsg,
-          isRead:   false,
+          userId:  row.userId,
+          type:    "subscription_reminder",
+          message: bellMsg,
+          isRead:  false,
         });
       } catch (err) {
         logger.error({ err, userId: row.userId }, "Failed to insert subscription reminder notification");
@@ -94,16 +118,85 @@ export async function runSubscriptionReminders(): Promise<void> {
       // 3 — Email
       if (row.userEmail) {
         sendSubscriptionReminderEmail({
-          toEmail:    row.userEmail,
+          toEmail:       row.userEmail,
           clientName,
           planName,
           amount,
-          expiryDate: expiryFmt,
+          expiryDate:    expiryFmt,
           renewalUrl,
           helpUrl,
-          daysLeft:   days,
+          daysLeft:      days,
+          activeListings,
         }).catch((err: unknown) =>
           logger.error({ err, userId: row.userId }, "Failed to send subscription reminder email")
+        );
+      }
+    }
+  }
+
+
+  // ── Expiry-on-day notification (EXP-004) ──
+  const todayDate = utcDatePlusDays(0);
+  const expiredRows = await db
+    .select({
+      userId:      subscriptions.userId,
+      plan:        subscriptions.plan,
+      endDate:     subscriptions.endDate,
+      planDisplay: subscriptionPlans.displayName,
+      amountPaid:  subscriptions.amountPaid,
+      userName:    users.name,
+      userEmail:   users.email,
+      userPhone:   users.phone,
+    })
+    .from(subscriptions)
+    .leftJoin(subscriptionPlans, eq(subscriptions.plan, subscriptionPlans.name))
+    .leftJoin(users, eq(subscriptions.userId, users.id))
+    .where(
+      and(
+        eq(subscriptions.endDate, todayDate),
+        eq(subscriptions.status, "active"),
+        ne(subscriptions.plan, "free")
+      )
+    );
+
+  if (expiredRows.length > 0) {
+    logger.info({ count: expiredRows.length }, "Sending expiry-on-day notifications");
+    for (const row of expiredRows) {
+      const ownerName     = row.userName ?? "Valued Customer";
+      const planName      = row.planDisplay ?? row.plan ?? "Subscription";
+      const expiryFmt     = formatDate(row.endDate);
+      const reactivateUrl = renewalUrl;
+      let activeListings  = 0;
+      try {
+        const [{ c }] = await db.select({ c: count() }).from(properties).where(eq(properties.ownerId, row.userId));
+        activeListings = Number(c);
+      } catch { /* ignore */ }
+
+      const bellMsg = `⚠️ Your subscription has expired. Your ${activeListings} listing${activeListings === 1 ? " is" : "s are"} now hidden. Reactivate from your dashboard to go live again.`;
+      const smsMsg  = `⚠️ inndos: Your subscription has EXPIRED. Your listings are now hidden from seekers. Reactivate immediately: ${reactivateUrl}`;
+
+      try {
+        await db.insert(notifications).values({
+          userId: row.userId, type: "subscription_expired", message: bellMsg, isRead: false,
+        });
+      } catch (err) {
+        logger.error({ err, userId: row.userId }, "Failed to insert expiry notification");
+      }
+
+      if (row.userPhone) {
+        sendSms(row.userPhone, smsMsg).catch(() => {});
+      }
+
+      if (row.userEmail) {
+        sendSubscriptionExpiredEmail({
+          toEmail:       row.userEmail,
+          ownerName,
+          planName,
+          expiryDate:    expiryFmt,
+          activeListings,
+          reactivateUrl,
+        }).catch((err: unknown) =>
+          logger.error({ err, userId: row.userId }, "Failed to send subscription expired email")
         );
       }
     }
