@@ -289,7 +289,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-14">
-            <p className="text-zinc-900 font-bold uppercase tracking-widest text-sm mb-3">How <span className="normal-case">inndos</span> Works</p>
+            <p className="text-zinc-900 font-bold tracking-widest text-sm mb-3">how inndos works</p>
             <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-5 leading-tight">
               Everything starts with the right place.
             </h2>
