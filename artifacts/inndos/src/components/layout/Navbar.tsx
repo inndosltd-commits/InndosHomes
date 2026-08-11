@@ -75,7 +75,7 @@ export function Navbar() {
               <div className="h-px bg-gray-100 my-1" />
               <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Commercial</div>
               <Link href="/search?type=rent-business">
-                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Business Spaces</div>
+                <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Office Space</div>
               </Link>
               <Link href="/search?type=rent-godown">
                 <div className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors">Godowns</div>
