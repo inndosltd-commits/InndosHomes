@@ -415,6 +415,7 @@ export default function PropertyDetails() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [carouselIdx, setCarouselIdx] = useState(0);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -659,6 +660,15 @@ export default function PropertyDetails() {
     }
   };
 
+  // Auto-advance carousel every 5 s (paused when lightbox is open)
+  useEffect(() => {
+    if (lightboxOpen) return;
+    const allPhotosLen = ((property?.images && property.images.length > 0) ? property.images : [property?.image]).filter(Boolean).length;
+    if (allPhotosLen <= 1) return;
+    const timer = setInterval(() => setCarouselIdx(i => (i + 1) % allPhotosLen), 5000);
+    return () => clearInterval(timer);
+  }, [lightboxOpen, property]);
+
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
@@ -784,59 +794,85 @@ export default function PropertyDetails() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
 
-      {/* Image Gallery */}
-      {allPhotos.length === 1 ? (
-        <div className="h-[250px] sm:h-[400px] md:h-[500px] bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
-          <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
+      {/* ── Photo Gallery ── compact hero carousel + thumbnail strip */}
+      <div className="h-[220px] sm:h-[290px] flex gap-[3px] bg-black overflow-hidden">
+        {/* Hero / Carousel */}
+        <div
+          className="relative flex-1 overflow-hidden cursor-pointer group"
+          onClick={() => openLightbox(carouselIdx)}
+        >
+          <img
+            key={carouselIdx}
+            src={getImageUrl(allPhotos[carouselIdx])}
+            alt={property.title}
+            className="w-full h-full object-cover transition-opacity duration-500 group-hover:brightness-95"
+          />
+
+          {/* Prev / Next arrows — appear on hover */}
+          {allPhotos.length > 1 && (
+            <>
+              <button
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/55 hover:bg-black/80 text-white rounded-full p-1.5 z-10 transition-all opacity-0 group-hover:opacity-100 shadow"
+                onClick={e => { e.stopPropagation(); setCarouselIdx(i => (i - 1 + allPhotos.length) % allPhotos.length); }}
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                className="absolute right-2 md:right-[calc(37%+10px)] top-1/2 -translate-y-1/2 bg-black/55 hover:bg-black/80 text-white rounded-full p-1.5 z-10 transition-all opacity-0 group-hover:opacity-100 shadow"
+                onClick={e => { e.stopPropagation(); setCarouselIdx(i => (i + 1) % allPhotos.length); }}
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </>
+          )}
+
+          {/* Dot indicators (≤8 photos) or counter */}
+          {allPhotos.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 pointer-events-none">
+              {allPhotos.length <= 8
+                ? allPhotos.map((_, i) => (
+                    <span key={i}
+                      className={`rounded-full transition-all ${i === carouselIdx ? "bg-white w-4 h-1.5" : "bg-white/50 w-1.5 h-1.5"}`}
+                    />
+                  ))
+                : <span className="bg-black/50 text-white text-xs px-2.5 py-0.5 rounded-full font-medium">{carouselIdx + 1} / {allPhotos.length}</span>
+              }
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 h-[250px] sm:h-[400px] md:h-[500px] gap-1">
-          {/* Main/hero image */}
-          <div className="h-full bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(0)}>
-            <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover hover:brightness-110 transition-all" alt={property.title} />
-            {/* Mobile photo count badge — inside the hero div so it stays within bounds */}
-            <button
-              className="md:hidden absolute bottom-3 right-3 bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 z-10"
-              onClick={(e) => { e.stopPropagation(); openLightbox(0); }}
-            >
-              <Images className="h-3.5 w-3.5" />
-              {allPhotos.length} photos
-            </button>
-          </div>
-          {/* Thumbnail grid — show up to 4 secondary images */}
-          <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-1 h-full">
-            {allPhotos.slice(1, 5).map((photo, idx) => {
-              const isLast = idx === 3 && allPhotos.length > 5;
+
+        {/* Thumbnail 2×2 strip — desktop only */}
+        {allPhotos.length > 1 && (
+          <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-[3px] w-[37%] shrink-0">
+            {Array.from({ length: 4 }).map((_, idx) => {
+              const photo = allPhotos[idx + 1];
+              const isLastCell = idx === 3;
+              const extraCount = allPhotos.length - 5;
+              if (!photo) return <div key={idx} className="bg-gray-900" />;
               return (
-                <div key={photo} className="bg-gray-200 relative cursor-pointer" onClick={() => openLightbox(idx + 1)}>
-                  <img src={getImageUrl(photo)} className="w-full h-full object-cover hover:brightness-110 transition-all" alt="" />
-                  {isLast && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white font-bold gap-1 hover:bg-black/60 transition-colors">
-                      <Images className="h-5 w-5" />
-                      <span className="text-sm">+{allPhotos.length - 5} more</span>
+                <div key={photo} className="relative overflow-hidden cursor-pointer group/thumb" onClick={() => openLightbox(idx + 1)}>
+                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90" />
+                  {isLastCell && extraCount > 0 && (
+                    <div className="absolute inset-0 bg-black/55 hover:bg-black/65 transition-colors flex flex-col items-center justify-center text-white gap-1">
+                      <Images className="h-4 w-4" />
+                      <span className="text-xs font-semibold">+{extraCount} more</span>
+                    </div>
+                  )}
+                  {isLastCell && extraCount <= 0 && (
+                    <div className="absolute bottom-1.5 right-1.5 pointer-events-none">
+                      <span className="bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1">
+                        <Images className="h-2.5 w-2.5" /> All Photos
+                      </span>
                     </div>
                   )}
                 </div>
               );
             })}
-            {/* Fill empty cells if fewer than 4 secondary photos */}
-            {allPhotos.length < 3 && (
-              <div className="bg-gray-100" />
-            )}
-            {allPhotos.length < 4 && (
-              <div className="bg-gray-100" />
-            )}
-            {allPhotos.length < 5 && allPhotos.length >= 4 && (
-              <div className="bg-gray-100 relative cursor-pointer" onClick={() => openLightbox(0)}>
-                <img src={getImageUrl(allPhotos[0])} className="w-full h-full object-cover opacity-60 hover:opacity-80 transition-all" alt="" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm bg-black/40 px-3 py-1 rounded-full">{t("prop.view_all_photos")}</span>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Lightbox */}
       {lightboxOpen && (
@@ -897,11 +933,11 @@ export default function PropertyDetails() {
         </div>
       )}
 
-      <div className="flex-1 container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex-1 container mx-auto px-4 py-5">
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Main Content */}
           <div className="flex-1">
-            <div className="flex flex-col lg:flex-row justify-between items-start mb-6 gap-4 mt-4 sm:mt-2">
+            <div className="flex flex-col lg:flex-row justify-between items-start mb-3 gap-2 mt-2 sm:mt-1">
               <div className="w-full lg:w-auto">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge className="bg-primary">{getTypeBadgeLabel()}</Badge>
@@ -931,7 +967,7 @@ export default function PropertyDetails() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 sm:py-6 border-y border-gray-200 mb-8 gap-4 sm:gap-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 sm:py-4 border-y border-gray-200 mb-4 gap-3 sm:gap-0">
               <div className="flex items-center justify-between w-full sm:w-auto sm:gap-8">
                 <div className="text-center flex-1 sm:flex-none">
                   <div className="font-bold text-lg sm:text-xl flex items-center justify-center gap-1 sm:gap-2"><BedDouble className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> {beds}</div>
@@ -973,16 +1009,16 @@ export default function PropertyDetails() {
               </div>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-5">
               {property.description && (
                 <section>
-                  <h2 className="text-xl font-bold mb-4">{t("prop.description")}</h2>
-                  <p className="text-gray-600 leading-relaxed">{property.description}</p>
+                  <h2 className="text-lg font-bold mb-2">{t("prop.description")}</h2>
+                  <p className="text-gray-600 leading-relaxed text-sm">{property.description}</p>
                 </section>
               )}
 
               <section>
-                <h2 className="text-xl font-bold mb-4">{t("prop.amenities")}</h2>
+                <h2 className="text-lg font-bold mb-3">{t("prop.amenities")}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
                   {(property.tags || []).concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map((tag) => (
                     <div key={tag} className="flex items-center gap-1.5 text-gray-600 text-sm">
@@ -994,8 +1030,8 @@ export default function PropertyDetails() {
               </section>
 
               {/* Review Section — wired to real API */}
-              <section className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                <h2 className="text-xl font-bold mb-1">{t("prop.rate_stay")}</h2>
+              <section className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <h2 className="text-lg font-bold mb-1">{t("prop.rate_stay")}</h2>
                 {reviewAlreadySubmitted ? (
                   <p className="text-sm text-gray-600 flex items-center gap-1.5 mt-2">
                     <CheckCircle className="h-4 w-4 text-gray-500" /> You've already reviewed this property. Thank you!
@@ -1054,9 +1090,9 @@ export default function PropertyDetails() {
               </section>
 
               <section>
-                <h2 className="text-xl font-bold mb-4">{t("prop.location")}</h2>
+                <h2 className="text-lg font-bold mb-2">{t("prop.location")}</h2>
                 <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                  <div className="relative h-72">
+                  <div className="relative h-52">
                     <PropertyLocationMap lat={lat} lng={lng} />
                   </div>
                   <div className="bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 border-t border-gray-100">
