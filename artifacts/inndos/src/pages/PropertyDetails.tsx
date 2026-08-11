@@ -1039,7 +1039,7 @@ export default function PropertyDetails() {
 
               <section>
                 <h2 className="text-lg font-bold mb-3">{t("prop.amenities")}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
                   {(property.tags || []).concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map((tag) => (
                     <div key={tag} className="flex items-center gap-1.5 text-gray-600 text-sm">
                       <CheckCircle className="h-3.5 w-3.5 text-primary/60 shrink-0" />
