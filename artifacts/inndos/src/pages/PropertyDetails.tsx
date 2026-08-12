@@ -849,16 +849,34 @@ export default function PropertyDetails() {
             </div>
           )}
 
-          {/* Mobile video button — only shown when a video exists (desktop uses the grid slot) */}
-          {hasPropertyVideo && (
-            <button
-              className="md:hidden absolute bottom-2 right-2 z-10 flex items-center gap-1.5 bg-black/65 hover:bg-black/80 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full transition-colors"
-              onClick={e => { e.stopPropagation(); setVideoExpanded(true); }}
-            >
-              <Play className="h-3.5 w-3.5" fill="currentColor" />
-              Watch Video
-            </button>
-          )}
+          {/* Mobile video PiP thumbnail — bottom-right corner, desktop uses the grid slot */}
+          {hasPropertyVideo && (() => {
+            const vSrc = propertyVideos[0].startsWith("/objects/")
+              ? `/api/storage${propertyVideos[0]}`
+              : propertyVideos[0];
+            return (
+              <div
+                className="md:hidden absolute bottom-2 right-2 z-10 w-28 h-[62px] rounded-lg overflow-hidden cursor-pointer bg-black shadow-lg ring-2 ring-white/40 group/pip"
+                onClick={e => { e.stopPropagation(); setVideoExpanded(true); }}
+              >
+                <video
+                  src={vSrc}
+                  className="w-full h-full object-cover opacity-75"
+                  muted
+                  preload="metadata"
+                  playsInline
+                />
+                {/* Play button overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-white/90 group-hover/pip:scale-110 flex items-center justify-center transition-transform shadow">
+                    <Play className="h-3.5 w-3.5 text-gray-900 ml-0.5" fill="currentColor" />
+                  </div>
+                </div>
+                {/* Badge */}
+                <div className="absolute top-1 left-1 bg-black/65 text-white text-[8px] px-1 py-0.5 rounded font-bold tracking-widest uppercase">Video</div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Thumbnail 2×2 strip — desktop only */}
