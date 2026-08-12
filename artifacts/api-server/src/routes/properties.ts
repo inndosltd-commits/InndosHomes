@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { properties, users, bookings, propertyBlocks, insertPropertySchema } from "@workspace/db";
+import { properties, users, bookings, propertyBlocks, insertPropertySchema, subscriptions } from "@workspace/db";
 import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit } from "./subscriptions";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
@@ -108,6 +108,42 @@ router.get("/", async (req, res) => {
     : await baseQuery;
 
   res.json(rows);
+});
+
+// ── Lister search ─────────────────────────────────────────────────────────────
+// Returns users who have an active paid subscription (non-free) AND at least
+// one verified, non-sold property. Only these listers are searchable by name.
+router.get("/listers", async (req, res) => {
+  try {
+    const q       = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const today   = new Date().toISOString().slice(0, 10);
+    const pattern = `%${q}%`;
+
+    const rows = await db.execute(drizzleSql`
+      SELECT u.id, u.name, u.avatar,
+             MAX(s.plan) AS plan,
+             COUNT(DISTINCT p.id)::integer AS "propertyCount"
+      FROM users u
+      INNER JOIN subscriptions s
+        ON  s."userId" = u.id
+        AND s.status   = 'active'
+        AND s.plan    != 'free'
+        AND s."endDate" >= ${today}
+      INNER JOIN properties p
+        ON  p."ownerId"       = u.id
+        AND p."isVerified"    = true
+        AND p."propertyStatus" != 'sold'
+      WHERE u.name ILIKE ${pattern}
+      GROUP BY u.id, u.name, u.avatar
+      ORDER BY u.name
+      LIMIT 20
+    `);
+
+    res.json((rows as any).rows ?? rows);
+  } catch (err) {
+    console.error("Lister search error:", err);
+    res.status(500).json({ error: "Failed to load listers" });
+  }
 });
 
 router.get("/:id", async (req, res) => {

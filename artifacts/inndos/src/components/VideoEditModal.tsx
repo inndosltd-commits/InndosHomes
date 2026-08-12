@@ -299,6 +299,12 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
           </button>
         </div>
 
+        {/* Limits info banner */}
+        <div className="shrink-0 bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-2 text-xs text-amber-800">
+          <span className="text-base leading-none">📹</span>
+          <span>Upload up to <strong>5 minutes</strong> for editing · Saved clip must be at least <strong>1 minute</strong></span>
+        </div>
+
         {/* Video preview */}
         <div className="relative bg-black flex items-center justify-center shrink-0" style={{ minHeight: 180 }}>
           <video

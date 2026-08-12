@@ -4,8 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X, Map, LayoutList } from "lucide-react";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Search as SearchIcon, LocateFixed, Loader2, SlidersHorizontal, X, Map, LayoutList, User } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+
+interface Lister {
+  id: string;
+  name: string;
+  avatar: string | null;
+  plan: string;
+  propertyCount: number;
+}
 import { useLanguage } from "@/lib/language";
 import PropertyMap from "@/components/ui/PropertyMap";
 
@@ -178,6 +186,23 @@ export default function Search() {
   const [userLocation, setUserLocation]       = useState<{ lat: number; lng: number } | null>(null);
   const prevType = useRef(queryType);
 
+  // ── Lister search state ──────────────────────────────────────────────────────
+  const [listerSearchMode,  setListerSearchMode]  = useState(false);
+  const [listerQuery,       setListerQuery]        = useState("");
+  const [listerSuggestions, setListerSuggestions] = useState<Lister[]>([]);
+  const [selectedLister,    setSelectedLister]     = useState<Lister | null>(null);
+  const [listerDropdownOpen,setListerDropdownOpen] = useState(false);
+  const [isLoadingListers,  setIsLoadingListers]   = useState(false);
+  const listerDropRef = useRef<HTMLDivElement>(null);
+
+  const clearListerMode = useCallback(() => {
+    setListerSearchMode(false);
+    setSelectedLister(null);
+    setListerQuery("");
+    setListerSuggestions([]);
+    setListerDropdownOpen(false);
+  }, []);
+
   useEffect(() => {
     if (prevType.current !== queryType) {
       setPriceRange([0, maxPrice]);
@@ -194,6 +219,40 @@ export default function Search() {
       .then((data) => setProperties(Array.isArray(data) ? data : []))
       .catch(() => setProperties([]))
       .finally(() => setIsLoadingProps(false));
+  }, []);
+
+  // ── Debounced lister autocomplete ────────────────────────────────────────────
+  useEffect(() => {
+    if (!listerSearchMode || !listerQuery.trim()) {
+      setListerSuggestions([]);
+      setListerDropdownOpen(false);
+      return;
+    }
+    setIsLoadingListers(true);
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/listers?q=${encodeURIComponent(listerQuery.trim())}`);
+        const data = await r.json();
+        setListerSuggestions(Array.isArray(data) ? data : []);
+        setListerDropdownOpen(true);
+      } catch {
+        setListerSuggestions([]);
+      } finally {
+        setIsLoadingListers(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [listerQuery, listerSearchMode]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (listerDropRef.current && !listerDropRef.current.contains(e.target as Node)) {
+        setListerDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const commitMin = (v: string) => {
@@ -257,6 +316,12 @@ export default function Search() {
   };
 
   const filteredProperties = useMemo(() => {
+    // Lister mode: bypass all type/price filters — show the full portfolio
+    if (selectedLister) {
+      return [...properties.filter(p => p.ownerId === selectedLister.id)]
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    }
+
     let list = properties.filter((p) => {
       const pType = (p.type || "").toLowerCase();
       // Commercial subcategories: all stored as type="rent", differentiated by subtype
@@ -313,7 +378,7 @@ export default function Search() {
     if (sortBy === "price-desc") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
     if (sortBy === "newest")     list = [...list].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     return list;
-  }, [properties, queryType, queryFilter, queryCategory, priceRange, selectedBedrooms, selectedAmenities, sortBy, searchQuery, isGeofencingActive, userLocation, isPriceFiltered]);
+  }, [properties, selectedLister, queryType, queryFilter, queryCategory, priceRange, selectedBedrooms, selectedAmenities, sortBy, searchQuery, isGeofencingActive, userLocation, isPriceFiltered]);
 
   const activeCatIndex = RENT_CATEGORIES.findIndex(
     (c) => c.type === queryType && c.filter === queryFilter
@@ -477,6 +542,15 @@ export default function Search() {
             </div>
             <div className="flex gap-2 w-full md:w-auto">
               <Button
+                variant={listerSearchMode ? "default" : "outline"}
+                className="gap-2 transition-all shrink-0"
+                onClick={() => listerSearchMode ? clearListerMode() : setListerSearchMode(true)}
+                title="Search by owner or agency name"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{listerSearchMode ? "Cancel" : "By Owner"}</span>
+              </Button>
+              <Button
                 variant={isGeofencingActive ? "default" : "outline"}
                 className="gap-2 transition-all"
                 onClick={handleGeofenceClick}
@@ -501,6 +575,75 @@ export default function Search() {
               <Button className="flex-1 md:flex-none bg-primary">{t("search.search_btn")}</Button>
             </div>
           </div>
+
+          {/* Owner / Agency search row */}
+          {listerSearchMode && (
+            <div className="mt-3 relative" ref={listerDropRef}>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4 z-10 pointer-events-none" />
+                <Input
+                  autoFocus
+                  placeholder="Type owner or agency name…"
+                  className="pl-10 pr-8 bg-amber-50 border-amber-200 focus-visible:ring-amber-400"
+                  value={listerQuery}
+                  onChange={e => { setListerQuery(e.target.value); setSelectedLister(null); }}
+                  onFocus={() => listerSuggestions.length > 0 && setListerDropdownOpen(true)}
+                />
+                {isLoadingListers && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-amber-500" />
+                )}
+                {!isLoadingListers && listerQuery && (
+                  <button
+                    onClick={() => { setListerQuery(""); setSelectedLister(null); setListerSuggestions([]); setListerDropdownOpen(false); }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Autocomplete dropdown */}
+              {listerDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl z-50 mt-1 overflow-hidden divide-y divide-gray-50">
+                  {listerSuggestions.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500">
+                      No subscribed owners/agencies found for &ldquo;{listerQuery}&rdquo;
+                    </div>
+                  ) : (
+                    listerSuggestions.map(l => (
+                      <button
+                        key={l.id}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setSelectedLister(l); setListerQuery(l.name); setListerDropdownOpen(false); }}
+                      >
+                        {l.avatar
+                          ? <img
+                              src={l.avatar.startsWith("/objects/") ? `/api/storage${l.avatar}` : l.avatar}
+                              className="w-9 h-9 rounded-full object-cover shrink-0 border border-gray-100"
+                              alt={l.name}
+                            />
+                          : <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <span className="text-primary font-bold text-sm">{l.name.charAt(0).toUpperCase()}</span>
+                            </div>
+                        }
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm truncate">{l.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {l.propertyCount} propert{l.propertyCount === 1 ? "y" : "ies"} &middot; {l.plan} plan
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <p className="mt-1.5 text-xs text-amber-700/70">
+                Only owners and agencies with an active subscription appear in this search.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Horizontal category bar — Rent only */}
@@ -586,11 +729,16 @@ export default function Search() {
                   : `${filteredProperties.length} ${t("search.properties_found")}`}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {t("search.showing")} <strong>{pageTitle()}</strong>
-                {searchQuery && <span> {t("search.matching")} &ldquo;<strong>{searchQuery}</strong>&rdquo;</span>}
-                {isPriceFiltered && (
-                  <span> &middot; {t("search.price_lbl")} {formatKES(priceRange[0])} – {formatKES(priceRange[1])}{priceRange[1] >= maxPrice ? "+" : ""}</span>
-                )}
+                {selectedLister
+                  ? <>All properties by <strong>{selectedLister.name}</strong></>
+                  : <>
+                      {t("search.showing")} <strong>{pageTitle()}</strong>
+                      {searchQuery && <span> {t("search.matching")} &ldquo;<strong>{searchQuery}</strong>&rdquo;</span>}
+                      {isPriceFiltered && (
+                        <span> &middot; {t("search.price_lbl")} {formatKES(priceRange[0])} – {formatKES(priceRange[1])}{priceRange[1] >= maxPrice ? "+" : ""}</span>
+                      )}
+                    </>
+                }
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -620,6 +768,36 @@ export default function Search() {
               </select>
             </div>
           </div>
+
+          {/* Lister profile banner */}
+          {selectedLister && (
+            <div className="mb-6 flex items-center gap-4 bg-white rounded-2xl border border-amber-100 shadow-sm p-4">
+              {selectedLister.avatar
+                ? <img
+                    src={selectedLister.avatar.startsWith("/objects/") ? `/api/storage${selectedLister.avatar}` : selectedLister.avatar}
+                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-200 shadow-sm"
+                    alt={selectedLister.name}
+                  />
+                : <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-primary font-bold text-lg">{selectedLister.name.charAt(0).toUpperCase()}</span>
+                  </div>
+              }
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-lg leading-tight truncate">{selectedLister.name}</h2>
+                <p className="text-sm text-gray-500">
+                  {selectedLister.propertyCount} propert{selectedLister.propertyCount === 1 ? "y" : "ies"} listed &middot;{" "}
+                  <span className="capitalize">{selectedLister.plan}</span> member
+                </p>
+              </div>
+              <button
+                onClick={() => { setSelectedLister(null); setListerQuery(""); }}
+                className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-full hover:bg-gray-100"
+                title="Clear lister filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {viewMode === "map" ? (
             <div className="h-[70vh] rounded-xl overflow-hidden border border-gray-200 shadow-sm">

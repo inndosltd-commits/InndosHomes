@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images, Download } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images, Download, Play, Minimize2 } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -417,6 +417,7 @@ export default function PropertyDetails() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIdx, setCarouselIdx] = useState(0);
+  const [videoExpanded, setVideoExpanded] = useState(false);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -791,6 +792,9 @@ export default function PropertyDetails() {
     ? property.images
     : [property.image];
 
+  const propertyVideos: string[] = (property as any).videos ?? [];
+  const hasPropertyVideo = propertyVideos.length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
@@ -847,16 +851,50 @@ export default function PropertyDetails() {
         </div>
 
         {/* Thumbnail 2×2 strip — desktop only */}
-        {allPhotos.length > 1 && (
+        {(allPhotos.length > 1 || hasPropertyVideo) && (
           <div className="hidden md:grid grid-cols-2 grid-rows-2 gap-[3px] w-[37%] shrink-0">
-            {Array.from({ length: 4 }).map((_, idx) => {
-              const photo = allPhotos[idx + 1];
-              const isLastCell = idx === 3;
-              const extraCount = allPhotos.length - 5;
-              if (!photo) return <div key={idx} className="bg-gray-100" />;
+            {Array.from({ length: 4 }).map((_, gridIdx) => {
+              // Slot 2 (bottom-left) is reserved for video when available
+              if (hasPropertyVideo && gridIdx === 2) {
+                const vSrc = propertyVideos[0].startsWith("/objects/")
+                  ? `/api/storage${propertyVideos[0]}`
+                  : propertyVideos[0];
+                return (
+                  <div key="video-slot"
+                    className="relative overflow-hidden cursor-pointer group/video bg-black"
+                    onClick={() => setVideoExpanded(true)}>
+                    <video src={vSrc} className="w-full h-full object-cover opacity-70"
+                      muted preload="metadata" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-white/90 group-hover/video:scale-110 flex items-center justify-center shadow-lg transition-transform">
+                        <Play className="h-5 w-5 text-gray-900 ml-0.5" fill="currentColor" />
+                      </div>
+                    </div>
+                    <div className="absolute top-1.5 left-1.5 bg-black/65 text-white text-[9px] px-1.5 py-0.5 rounded font-bold tracking-widest uppercase">Video</div>
+                  </div>
+                );
+              }
+
+              // Map grid indices to photo indices
+              // With video:    slot 0→photo[1], slot 1→photo[2], slot 2→VIDEO, slot 3→photo[3]
+              // Without video: slot 0→photo[1], slot 1→photo[2], slot 2→photo[3], slot 3→photo[4]
+              const photoIdx = hasPropertyVideo
+                ? (gridIdx <= 1 ? gridIdx + 1 : gridIdx)
+                : gridIdx + 1;
+
+              const photo = allPhotos[photoIdx];
+              const isLastCell = gridIdx === 3;
+              // Photos shown in entire hero: hero(1) + visible grid photo slots
+              const photosShownTotal = hasPropertyVideo ? 4 : 5;
+              const extraCount = allPhotos.length - photosShownTotal;
+
+              if (!photo) return <div key={gridIdx} className="bg-gray-100" />;
               return (
-                <div key={photo} className="relative overflow-hidden cursor-pointer group/thumb" onClick={() => openLightbox(idx + 1)}>
-                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90" onContextMenu={e => e.preventDefault()} draggable={false} />
+                <div key={photo} className="relative overflow-hidden cursor-pointer group/thumb"
+                  onClick={() => openLightbox(photoIdx)}>
+                  <img src={getImageUrl(photo)} alt=""
+                    className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90"
+                    onContextMenu={e => e.preventDefault()} draggable={false} />
                   {isLastCell && extraCount > 0 && (
                     <div className="absolute inset-0 bg-black/55 hover:bg-black/65 transition-colors flex flex-col items-center justify-center text-white gap-1">
                       <Images className="h-4 w-4" />
@@ -988,6 +1026,37 @@ export default function PropertyDetails() {
         </div>
       )}
 
+      {/* Expanded video player overlay */}
+      {videoExpanded && hasPropertyVideo && (
+        <div className="fixed inset-0 z-[998] bg-black/85 flex items-center justify-center p-4"
+          onClick={() => setVideoExpanded(false)}>
+          <div className="relative w-full max-w-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-white text-sm font-semibold truncate mr-4">{property.title}</span>
+              <button
+                className="shrink-0 text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors"
+                onClick={() => setVideoExpanded(false)}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+              <video
+                src={propertyVideos[0].startsWith("/objects/") ? `/api/storage${propertyVideos[0]}` : propertyVideos[0]}
+                className="w-full aspect-video"
+                controls
+                autoPlay
+                playsInline
+              />
+            </div>
+            <button
+              className="mt-3 flex items-center gap-1.5 text-white/60 hover:text-white text-xs transition-colors mx-auto"
+              onClick={() => setVideoExpanded(false)}>
+              <Minimize2 className="h-3.5 w-3.5" /> Minimize
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sold banner */}
       {property.propertyStatus === 'sold' && (
         <div className="bg-gray-900 text-white text-center py-3 px-4 flex items-center justify-center gap-2 text-sm font-medium">
@@ -1077,26 +1146,6 @@ export default function PropertyDetails() {
                 <section>
                   <h2 className="text-lg font-bold mb-2">{t("prop.description")}</h2>
                   <p className="text-gray-600 leading-relaxed text-sm">{property.description}</p>
-                </section>
-              )}
-
-              {/* ── Videos ── */}
-              {(property as any).videos && (property as any).videos.length > 0 && (
-                <section>
-                  <h2 className="text-lg font-bold mb-3">Videos</h2>
-                  <div className={`grid gap-3 ${(property as any).videos.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
-                    {((property as any).videos as string[]).map((src: string, idx: number) => (
-                      <div key={idx} className="rounded-xl overflow-hidden bg-black border border-gray-200 shadow-sm">
-                        <video
-                          src={src.startsWith("/objects/") ? `/api/storage${src}` : src}
-                          className="w-full aspect-video object-cover"
-                          controls
-                          playsInline
-                          preload="metadata"
-                        />
-                      </div>
-                    ))}
-                  </div>
                 </section>
               )}
 
