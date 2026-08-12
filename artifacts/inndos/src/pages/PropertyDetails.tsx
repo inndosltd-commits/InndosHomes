@@ -406,6 +406,7 @@ export default function PropertyDetails() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const [userRating, setUserRating] = useState(0);
+  const [hasRated, setHasRated] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewSummary, setReviewSummary] = useState<{ averageRating: number | null; totalReviews: number }>({ averageRating: null, totalReviews: 0 });
   const [linkedUpBookingId, setLinkedUpBookingId] = useState<string | null>(null);
