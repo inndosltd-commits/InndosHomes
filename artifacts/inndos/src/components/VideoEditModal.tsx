@@ -69,7 +69,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
     if (!vid) return;
     const onMeta = () => {
       setDuration(vid.duration);
-      setTrimEnd(Math.min(vid.duration, 60));
+      setTrimEnd(Math.min(vid.duration, 300));
       setVideoW(vid.videoWidth);
       setVideoH(vid.videoHeight);
     };
@@ -268,7 +268,8 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────────
-  const isModified = trimStart > 0 || (trimEnd < duration && trimEnd < 60) || cropAspect !== "original" || caption.trim() !== "";
+  const isModified = trimStart > 0 || (trimEnd < duration && trimEnd < 300) || cropAspect !== "original" || caption.trim() !== "";
+  const tooShort   = trimEnd - trimStart < 60; // final clip must be ≥ 1 minute
 
   // Crop overlay (as % of displayed video size)
   const { x: cx, y: cy, w: cw, h: ch } = getCropRect();
@@ -331,7 +332,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
             {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </button>
           <span className="absolute bottom-2 right-2 bg-black/55 text-white text-[11px] px-2 py-0.5 rounded font-mono">
-            {fmt(currentTime)} / {fmt(Math.min(duration, 60))}
+            {fmt(currentTime)} / {fmt(Math.min(duration, 300))}
           </span>
         </div>
 
@@ -373,17 +374,17 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
           {/* ── TRIM ── */}
           {activeTab === "trim" && (
             <div className="space-y-4">
-              <p className="text-xs text-gray-500">Set where the video starts and ends. Maximum 1 minute (60 seconds).</p>
+              <p className="text-xs text-gray-500">Set where the video starts and ends. Upload up to 5 minutes — saved clip must be at least 1 minute.</p>
 
               {/* Timeline visualization */}
               {duration > 0 && (
                 <div className="relative h-8 bg-gray-100 rounded-lg overflow-hidden">
                   {/* Selected range */}
                   <div className="absolute top-0 bottom-0 bg-blue-200 rounded"
-                    style={{ left: `${(trimStart / Math.min(duration, 60)) * 100}%`, width: `${((trimEnd - trimStart) / Math.min(duration, 60)) * 100}%` }} />
+                    style={{ left: `${(trimStart / Math.min(duration, 300)) * 100}%`, width: `${((trimEnd - trimStart) / Math.min(duration, 300)) * 100}%` }} />
                   {/* Playhead */}
                   <div className="absolute top-0 bottom-0 w-0.5 bg-blue-600 z-10 pointer-events-none"
-                    style={{ left: `${(currentTime / Math.min(duration, 60)) * 100}%` }} />
+                    style={{ left: `${(currentTime / Math.min(duration, 300)) * 100}%` }} />
                   <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400 pointer-events-none select-none">
                     Drag sliders below
                   </div>
@@ -396,7 +397,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
                   <label className="font-semibold text-gray-700">Start</label>
                   <span className="font-mono text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{fmt(trimStart)}</span>
                 </div>
-                <input type="range" min={0} max={Math.min(duration, 60)} step={0.1}
+                <input type="range" min={0} max={Math.min(duration, 300)} step={0.1}
                   value={trimStart}
                   disabled={isProcessing}
                   onChange={e => {
@@ -414,12 +415,12 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
                   <label className="font-semibold text-gray-700">End</label>
                   <span className="font-mono text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{fmt(trimEnd)}</span>
                 </div>
-                <input type="range" min={0} max={Math.min(duration, 60)} step={0.1}
+                <input type="range" min={0} max={Math.min(duration, 300)} step={0.1}
                   value={trimEnd}
                   disabled={isProcessing}
                   onChange={e => {
                     const v = Math.max(+e.target.value, trimStart + 0.5);
-                    setTrimEnd(Math.min(v, 60));
+                    setTrimEnd(Math.min(v, 300));
                     if (videoRef.current) videoRef.current.currentTime = Math.max(trimStart, v - 0.1);
                   }}
                   className="w-full accent-blue-600 cursor-pointer disabled:opacity-50"
@@ -427,26 +428,29 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
               </div>
 
               {/* Summary */}
-              <div className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-3 py-2.5">
-                <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span className="text-gray-600">Clip length: <strong>{fmt(Math.max(0, trimEnd - trimStart))}</strong></span>
-                {trimStart > 0 && <span className="text-gray-400 ml-2">cuts first {fmt(trimStart)}</span>}
-                {trimEnd < duration && <span className="text-gray-400 ml-1">· cuts last {fmt(duration - trimEnd)}</span>}
+              <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2.5 border ${tooShort ? "bg-red-50 border-red-200" : "bg-gray-50 border-transparent"}`}>
+                <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${tooShort ? "text-red-400" : "text-gray-400"}`} />
+                <span className={tooShort ? "text-red-700" : "text-gray-600"}>
+                  Clip length: <strong>{fmt(Math.max(0, trimEnd - trimStart))}</strong>
+                  {tooShort && <span className="ml-1 font-normal">— must be at least 1:00 to save</span>}
+                </span>
+                {!tooShort && trimStart > 0 && <span className="text-gray-400 ml-2">cuts first {fmt(trimStart)}</span>}
+                {!tooShort && trimEnd < duration && <span className="text-gray-400 ml-1">· cuts last {fmt(duration - trimEnd)}</span>}
               </div>
 
               {/* Quick presets */}
               <div>
                 <p className="text-[11px] text-gray-400 mb-2">Quick presets — keep from start:</p>
                 <div className="flex gap-2 flex-wrap">
-                  {[15, 30, 45, 60].filter(s => s < duration).map(s => (
+                  {[60, 90, 120, 180, 240, 300].filter(s => s <= Math.min(duration, 300)).map(s => (
                     <button key={s} disabled={isProcessing}
                       onClick={() => { setTrimStart(0); setTrimEnd(s); }}
                       className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
-                      {s}s
+                      {`${Math.floor(s / 60)}m${s % 60 ? `${s % 60}s` : ""}`}
                     </button>
                   ))}
                   <button disabled={isProcessing}
-                    onClick={() => { setTrimStart(0); setTrimEnd(Math.min(duration, 60)); }}
+                    onClick={() => { setTrimStart(0); setTrimEnd(Math.min(duration, 300)); }}
                     className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
                     Full
                   </button>
@@ -525,16 +529,18 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
         {/* Footer */}
         <div className="px-4 py-3 border-t flex items-center justify-between gap-3 shrink-0">
           <div className="text-xs">
-            {isModified
-              ? <span className="text-amber-600 font-medium">Changes ready · processing plays video in real-time</span>
-              : <span className="text-gray-400">No changes yet</span>}
+            {tooShort && isModified
+              ? <span className="text-red-600 font-medium">Clip must be at least 1 minute to save</span>
+              : isModified
+                ? <span className="text-amber-600 font-medium">Changes ready · processing plays video in real-time</span>
+                : <span className="text-gray-400">No changes yet</span>}
           </div>
           <div className="flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={onClose} disabled={isProcessing} className="text-xs h-8">
               Cancel
             </Button>
             <Button size="sm" onClick={handleProcess}
-              disabled={isProcessing || !isModified}
+              disabled={isProcessing || !isModified || tooShort}
               className="gap-1.5 bg-gray-900 hover:bg-gray-800 text-xs h-8">
               {isProcessing
                 ? <><Loader2 className="h-3 w-3 animate-spin" /> Processing…</>

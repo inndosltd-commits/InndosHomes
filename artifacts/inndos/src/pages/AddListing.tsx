@@ -633,7 +633,7 @@ export default function AddListing() {
       toast({ title: "Too many videos", description: `Only ${remaining} slot${remaining === 1 ? "" : "s"} remaining. Extra files skipped.`, variant: "destructive" });
     }
 
-    // Validate each video is ≤30 seconds
+    // Validate each video is ≤5 minutes
     const validFiles: File[] = [];
     for (const file of toUpload) {
       const duration = await new Promise<number>((resolve) => {
@@ -643,8 +643,8 @@ export default function AddListing() {
         vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(Infinity); };
         vid.src = URL.createObjectURL(file);
       });
-      if (duration > 60) {
-        toast({ title: "Video too long", description: `"${file.name}" is longer than 1 minute and was skipped. Use the editor to trim it.`, variant: "destructive" });
+      if (duration > 300) {
+        toast({ title: "Video too long", description: `"${file.name}" is longer than 5 minutes and was skipped. Trim it before uploading.`, variant: "destructive" });
       } else {
         validFiles.push(file);
       }
