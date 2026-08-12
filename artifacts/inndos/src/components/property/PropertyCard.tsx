@@ -123,6 +123,8 @@ export function PropertyCard({ property }: PropertyCardProps) {
               src={property.image?.startsWith("/objects/") ? `/api/storage${property.image}` : property.image}
               alt={property.title}
               className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+              onContextMenu={e => e.preventDefault()}
+              draggable={false}
             />
             <div className="absolute top-3 left-3 flex gap-2">
               <Badge className="bg-primary text-white hover:bg-opacity-90">

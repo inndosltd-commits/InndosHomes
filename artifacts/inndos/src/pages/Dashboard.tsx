@@ -2008,6 +2008,11 @@ export default function Dashboard() {
               Reviews
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <a href="/#/admin/notifications" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 hover:bg-white/20 hover:text-white border-none transition-colors flex items-center gap-1.5">
+              <Bell className="w-4 h-4" /> Notifications
+            </a>
+          )}
         </TabsList>
       </div>
 
@@ -2132,6 +2137,11 @@ export default function Dashboard() {
                 <TabsTrigger value="transactions" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <ShieldCheck className="w-5 h-5 mr-3" /> Transactions
                 </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <a href="/#/admin/notifications" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] hover:bg-white/5 hover:text-white transition-colors flex items-center">
+                <Bell className="w-5 h-5 mr-3" /> Notification Templates
+                </a>
             )}
             </TabsList>
         </div>

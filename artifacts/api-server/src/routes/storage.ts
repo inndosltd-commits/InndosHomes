@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
+import sharp from "sharp";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -125,6 +126,92 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     }
     req.log.error({ err: error }, "Error serving object");
     res.status(500).json({ error: "Failed to serve object" });
+  }
+});
+
+/**
+ * GET /storage/watermark/*
+ *
+ * Serve an image with an inndos.com watermark tiled diagonally.
+ * Used for downloads so the watermark only appears on saved files.
+ */
+router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
+  try {
+    const raw = req.params.path;
+    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath = `/objects/${wildcardPath}`;
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const response = await objectStorageService.downloadObject(objectFile);
+
+    if (!response.body) {
+      res.status(404).json({ error: "No content" });
+      return;
+    }
+
+    // Buffer the image
+    const chunks: Uint8Array[] = [];
+    const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+    await new Promise<void>((resolve, reject) => {
+      nodeStream.on("data", (chunk) => chunks.push(chunk));
+      nodeStream.on("end", resolve);
+      nodeStream.on("error", reject);
+    });
+    const inputBuffer = Buffer.concat(chunks);
+
+    // Get image metadata
+    const meta = await sharp(inputBuffer).metadata();
+    const w = meta.width ?? 800;
+    const h = meta.height ?? 600;
+
+    // Build an SVG watermark layer tiled across the image
+    const text = "inndos.com";
+    const fontSize = Math.max(16, Math.round(w / 22));
+    const tileW = Math.round(fontSize * 7);
+    const tileH = Math.round(fontSize * 4);
+    const cols = Math.ceil(w / tileW) + 2;
+    const rows = Math.ceil(h / tileH) + 2;
+
+    let svgTiles = "";
+    for (let r = -1; r < rows; r++) {
+      for (let c = -1; c < cols; c++) {
+        const x = c * tileW + (r % 2 === 0 ? 0 : tileW / 2);
+        const y = r * tileH;
+        svgTiles += `<text x="${x}" y="${y}" transform="rotate(-30,${x},${y})">${text}</text>`;
+      }
+    }
+
+    const svgOverlay = Buffer.from(`
+      <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          text {
+            font-family: Arial, sans-serif;
+            font-size: ${fontSize}px;
+            font-weight: bold;
+            fill: rgba(255,255,255,0.32);
+            stroke: rgba(0,0,0,0.12);
+            stroke-width: 0.8px;
+          }
+        </style>
+        ${svgTiles}
+      </svg>
+    `);
+
+    const watermarked = await sharp(inputBuffer)
+      .composite([{ input: svgOverlay, blend: "over" }])
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Content-Disposition", 'attachment; filename="inndos-photo.jpg"');
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.send(watermarked);
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Object not found" });
+      return;
+    }
+    req.log?.error({ err: error }, "Error serving watermarked object");
+    res.status(500).json({ error: "Failed to serve watermarked object" });
   }
 });
 

@@ -806,6 +806,8 @@ export default function PropertyDetails() {
             src={getImageUrl(allPhotos[carouselIdx])}
             alt={property.title}
             className="w-full h-full object-cover transition-opacity duration-500 group-hover:brightness-95"
+            onContextMenu={e => e.preventDefault()}
+            draggable={false}
           />
 
           {/* Prev / Next arrows — appear on hover */}
@@ -853,7 +855,7 @@ export default function PropertyDetails() {
               if (!photo) return <div key={idx} className="bg-gray-100" />;
               return (
                 <div key={photo} className="relative overflow-hidden cursor-pointer group/thumb" onClick={() => openLightbox(idx + 1)}>
-                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90" />
+                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover transition-all group-hover/thumb:brightness-90" onContextMenu={e => e.preventDefault()} draggable={false} />
                   {isLastCell && extraCount > 0 && (
                     <div className="absolute inset-0 bg-black/55 hover:bg-black/65 transition-colors flex flex-col items-center justify-center text-white gap-1">
                       <Images className="h-4 w-4" />
@@ -889,7 +891,18 @@ export default function PropertyDetails() {
             title="Download photo"
             onClick={async (e) => {
               e.stopPropagation();
-              const url = getImageUrl(allPhotos[lightboxIndex]);
+              const rawPath = allPhotos[lightboxIndex];
+              // Use server-side watermark for object-storage images
+              if (rawPath?.startsWith("/objects/")) {
+                const wildcardPath = rawPath.replace(/^\/objects\//, "");
+                const a = document.createElement("a");
+                a.href = `/api/storage/watermark/${wildcardPath}`;
+                a.download = `inndos-photo-${lightboxIndex + 1}.jpg`;
+                a.click();
+                return;
+              }
+              // Fallback: client-side canvas watermark for external URLs
+              const url = getImageUrl(rawPath);
               try {
                 const res = await fetch(url, { mode: "cors" });
                 const blob = await res.blob();
@@ -899,7 +912,6 @@ export default function PropertyDetails() {
                 canvas.height = bmp.height;
                 const ctx = canvas.getContext("2d")!;
                 ctx.drawImage(bmp, 0, 0);
-                // Diagonal watermark
                 const repeat = Math.ceil(Math.max(bmp.width, bmp.height) / 220);
                 ctx.save();
                 ctx.font = `bold ${Math.max(18, Math.round(bmp.width / 28))}px sans-serif`;
@@ -927,7 +939,6 @@ export default function PropertyDetails() {
                   URL.revokeObjectURL(a.href);
                 }, "image/jpeg", 0.92);
               } catch {
-                // fallback: open in new tab
                 window.open(url, "_blank");
               }
             }}
