@@ -163,13 +163,14 @@ router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
     const w = meta.width ?? 800;
     const h = meta.height ?? 600;
 
-    // Single large diagonal watermark — stock-photo style (like the reference)
-    const text = "inndos.com";
-    // Font size scales so the text spans ~65% of the image diagonal
-    const diagonal = Math.sqrt(w * w + h * h);
-    const fontSize = Math.round(diagonal / 7);
+    // Single large diagonal watermark — stock-photo style
+    // textLength pins the rendered width to 85% of the image width so the
+    // full text always fits within the frame after the -30° rotation.
     const cx = w / 2;
     const cy = h / 2;
+    const textLength = Math.round(w * 0.85);
+    // Font-size drives the text height; a good height is ~10% of the shorter edge
+    const fontSize = Math.round(Math.min(w, h) * 0.10);
 
     const svgOverlay = Buffer.from(`
       <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
@@ -183,8 +184,9 @@ router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
           font-size="${fontSize}"
           font-weight="bold"
           fill="rgba(160,160,160,0.55)"
-          letter-spacing="${Math.round(fontSize * 0.04)}"
-        >${text}</text>
+          textLength="${textLength}"
+          lengthAdjust="spacingAndGlyphs"
+        >inndos.com</text>
       </svg>
     `);
 
