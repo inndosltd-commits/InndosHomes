@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images, Download } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -882,6 +882,57 @@ export default function PropertyDetails() {
             onClick={closeLightbox}
           >
             <X className="h-6 w-6" />
+          </button>
+          {/* Download with watermark */}
+          <button
+            className="absolute top-4 right-16 text-white bg-white/10 hover:bg-white/20 rounded-full p-2 z-10 transition-colors"
+            title="Download photo"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const url = getImageUrl(allPhotos[lightboxIndex]);
+              try {
+                const res = await fetch(url, { mode: "cors" });
+                const blob = await res.blob();
+                const bmp = await createImageBitmap(blob);
+                const canvas = document.createElement("canvas");
+                canvas.width = bmp.width;
+                canvas.height = bmp.height;
+                const ctx = canvas.getContext("2d")!;
+                ctx.drawImage(bmp, 0, 0);
+                // Diagonal watermark
+                const repeat = Math.ceil(Math.max(bmp.width, bmp.height) / 220);
+                ctx.save();
+                ctx.font = `bold ${Math.max(18, Math.round(bmp.width / 28))}px sans-serif`;
+                ctx.fillStyle = "rgba(255,255,255,0.30)";
+                ctx.strokeStyle = "rgba(0,0,0,0.15)";
+                ctx.lineWidth = 1;
+                ctx.translate(bmp.width / 2, bmp.height / 2);
+                ctx.rotate(-Math.PI / 6);
+                const step = 200;
+                for (let row = -repeat; row <= repeat; row++) {
+                  for (let col = -repeat; col <= repeat; col++) {
+                    const x = col * step;
+                    const y = row * step;
+                    ctx.strokeText("inndos.com", x, y);
+                    ctx.fillText("inndos.com", x, y);
+                  }
+                }
+                ctx.restore();
+                canvas.toBlob((outBlob) => {
+                  if (!outBlob) return;
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(outBlob);
+                  a.download = `inndos-photo-${lightboxIndex + 1}.jpg`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }, "image/jpeg", 0.92);
+              } catch {
+                // fallback: open in new tab
+                window.open(url, "_blank");
+              }
+            }}
+          >
+            <Download className="h-6 w-6" />
           </button>
           <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/40 px-4 py-1.5 rounded-full">
             {lightboxIndex + 1} / {allPhotos.length}

@@ -339,26 +339,25 @@ export default function Home() {
             ].map((step) => (
               <div
                 key={step.num}
-                className="flex flex-row sm:flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                className="flex flex-row bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
-                {/* Text content — left on mobile, top on sm+ */}
-                <div className="flex-1 p-4 sm:p-6 sm:pb-4 flex flex-col justify-center sm:justify-start">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-4">
-                    <div className="h-9 w-9 sm:h-14 sm:w-14 bg-zinc-100 rounded-full flex items-center justify-center shrink-0">
+                {/* Text + icon — always on left */}
+                <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-9 w-9 bg-zinc-100 rounded-full flex items-center justify-center shrink-0">
                       {step.icon}
                     </div>
-                    <p className="text-zinc-900 font-bold text-xs sm:hidden">{step.num}</p>
+                    <p className="text-zinc-900 font-bold text-xs">{step.num}</p>
                   </div>
-                  <p className="hidden sm:block text-zinc-900 font-bold text-sm mb-1">{step.num}</p>
-                  <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-1 sm:mb-2">{step.title}</h3>
-                  <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">{step.desc}</p>
+                  <h3 className="font-bold text-sm text-gray-900 mb-1 leading-snug">{step.title}</h3>
+                  <p className="text-gray-500 text-xs leading-relaxed">{step.desc}</p>
                 </div>
-                {/* Photo — right on mobile (fixed width), bottom on sm+ (full width) */}
-                <div className="w-28 shrink-0 sm:w-auto sm:mt-auto">
+                {/* Photo — always on right, fixed width */}
+                <div className="w-28 sm:w-32 shrink-0">
                   <img
                     src={step.img}
                     alt={step.alt}
-                    className="w-full h-full sm:h-44 object-cover"
+                    className="w-full h-full object-cover"
                     loading="lazy"
                   />
                 </div>

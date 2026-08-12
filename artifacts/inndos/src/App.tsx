@@ -35,7 +35,10 @@ function useHashLocationWithQuery(): [string, (to: string) => void] {
   const [path, setPath] = useState(getPath);
 
   useEffect(() => {
-    const onHashChange = () => setPath(getPath());
+    const onHashChange = () => {
+      setPath(getPath());
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
