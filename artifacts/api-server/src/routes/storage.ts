@@ -163,36 +163,28 @@ router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
     const w = meta.width ?? 800;
     const h = meta.height ?? 600;
 
-    // Build an SVG watermark layer tiled across the image
+    // Single large diagonal watermark — stock-photo style (like the reference)
     const text = "inndos.com";
-    const fontSize = Math.max(16, Math.round(w / 22));
-    const tileW = Math.round(fontSize * 7);
-    const tileH = Math.round(fontSize * 4);
-    const cols = Math.ceil(w / tileW) + 2;
-    const rows = Math.ceil(h / tileH) + 2;
-
-    let svgTiles = "";
-    for (let r = -1; r < rows; r++) {
-      for (let c = -1; c < cols; c++) {
-        const x = c * tileW + (r % 2 === 0 ? 0 : tileW / 2);
-        const y = r * tileH;
-        svgTiles += `<text x="${x}" y="${y}" transform="rotate(-30,${x},${y})">${text}</text>`;
-      }
-    }
+    // Font size scales so the text spans ~65% of the image diagonal
+    const diagonal = Math.sqrt(w * w + h * h);
+    const fontSize = Math.round(diagonal / 7);
+    const cx = w / 2;
+    const cy = h / 2;
 
     const svgOverlay = Buffer.from(`
       <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          text {
-            font-family: Arial, sans-serif;
-            font-size: ${fontSize}px;
-            font-weight: bold;
-            fill: rgba(255,255,255,0.32);
-            stroke: rgba(0,0,0,0.12);
-            stroke-width: 0.8px;
-          }
-        </style>
-        ${svgTiles}
+        <text
+          x="${cx}"
+          y="${cy}"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          transform="rotate(-30, ${cx}, ${cy})"
+          font-family="Arial, Helvetica, sans-serif"
+          font-size="${fontSize}"
+          font-weight="bold"
+          fill="rgba(160,160,160,0.55)"
+          letter-spacing="${Math.round(fontSize * 0.04)}"
+        >${text}</text>
       </svg>
     `);
 
