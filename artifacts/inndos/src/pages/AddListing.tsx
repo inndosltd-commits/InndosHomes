@@ -1513,20 +1513,22 @@ export default function AddListing() {
                                 className="w-full aspect-video object-cover"
                                 controls
                                 preload="metadata"
+                                playsInline
                               />
-                              {/* Remove */}
+                              {/* Remove — always visible on mobile, hover-revealed on desktop */}
                               <button
                                 type="button"
                                 onClick={() => removeVideo(i)}
-                                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full transition-opacity sm:opacity-0 sm:group-hover:opacity-100 shadow"
+                                title="Remove video"
                               >
-                                <X className="h-4 w-4" />
+                                <X className="h-3.5 w-3.5" />
                               </button>
-                              {/* Edit */}
+                              {/* Edit — always visible on mobile, hover-revealed on desktop */}
                               <button
                                 type="button"
                                 onClick={() => openVideoEditor(i)}
-                                className="absolute top-2 right-10 bg-gray-900/80 hover:bg-gray-900 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-10 bg-gray-900/80 hover:bg-gray-900 text-white p-1.5 rounded-full transition-opacity sm:opacity-0 sm:group-hover:opacity-100 shadow"
                                 title="Edit video (trim, crop, caption)"
                               >
                                 <Pencil className="h-3.5 w-3.5" />

@@ -848,6 +848,17 @@ export default function PropertyDetails() {
               }
             </div>
           )}
+
+          {/* Mobile video button — only shown when a video exists (desktop uses the grid slot) */}
+          {hasPropertyVideo && (
+            <button
+              className="md:hidden absolute bottom-2 right-2 z-10 flex items-center gap-1.5 bg-black/65 hover:bg-black/80 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full transition-colors"
+              onClick={e => { e.stopPropagation(); setVideoExpanded(true); }}
+            >
+              <Play className="h-3.5 w-3.5" fill="currentColor" />
+              Watch Video
+            </button>
+          )}
         </div>
 
         {/* Thumbnail 2×2 strip — desktop only */}

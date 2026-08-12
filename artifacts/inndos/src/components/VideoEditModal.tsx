@@ -269,7 +269,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
 
   // ── Derived ──────────────────────────────────────────────────────────────────
   const isModified = trimStart > 0 || (trimEnd < duration && trimEnd < 300) || cropAspect !== "original" || caption.trim() !== "";
-  const tooShort   = trimEnd - trimStart < 60; // final clip must be ≥ 1 minute
+  const tooLong    = trimEnd - trimStart > 60; // final clip must be ≤ 1 minute
 
   // Crop overlay (as % of displayed video size)
   const { x: cx, y: cy, w: cw, h: ch } = getCropRect();
@@ -302,7 +302,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
         {/* Limits info banner */}
         <div className="shrink-0 bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-2 text-xs text-amber-800">
           <span className="text-base leading-none">📹</span>
-          <span>Upload up to <strong>5 minutes</strong> for editing · Saved clip must be at least <strong>1 minute</strong></span>
+          <span>Upload up to <strong>5 minutes</strong> for editing · Saved clip must be at most <strong>1 minute</strong></span>
         </div>
 
         {/* Video preview */}
@@ -380,7 +380,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
           {/* ── TRIM ── */}
           {activeTab === "trim" && (
             <div className="space-y-4">
-              <p className="text-xs text-gray-500">Set where the video starts and ends. Upload up to 5 minutes — saved clip must be at least 1 minute.</p>
+              <p className="text-xs text-gray-500">Set where the video starts and ends. Upload up to 5 minutes — saved clip must be at most 1 minute (60 s).</p>
 
               {/* Timeline visualization */}
               {duration > 0 && (
@@ -434,14 +434,14 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
               </div>
 
               {/* Summary */}
-              <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2.5 border ${tooShort ? "bg-red-50 border-red-200" : "bg-gray-50 border-transparent"}`}>
-                <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${tooShort ? "text-red-400" : "text-gray-400"}`} />
-                <span className={tooShort ? "text-red-700" : "text-gray-600"}>
+              <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2.5 border ${tooLong ? "bg-red-50 border-red-200" : "bg-gray-50 border-transparent"}`}>
+                <ChevronRight className={`h-3.5 w-3.5 shrink-0 ${tooLong ? "text-red-400" : "text-gray-400"}`} />
+                <span className={tooLong ? "text-red-700" : "text-gray-600"}>
                   Clip length: <strong>{fmt(Math.max(0, trimEnd - trimStart))}</strong>
-                  {tooShort && <span className="ml-1 font-normal">— must be at least 1:00 to save</span>}
+                  {tooLong && <span className="ml-1 font-normal">— must be at most 1:00 to save</span>}
                 </span>
-                {!tooShort && trimStart > 0 && <span className="text-gray-400 ml-2">cuts first {fmt(trimStart)}</span>}
-                {!tooShort && trimEnd < duration && <span className="text-gray-400 ml-1">· cuts last {fmt(duration - trimEnd)}</span>}
+                {!tooLong && trimStart > 0 && <span className="text-gray-400 ml-2">cuts first {fmt(trimStart)}</span>}
+                {!tooLong && trimEnd < duration && <span className="text-gray-400 ml-1">· cuts last {fmt(duration - trimEnd)}</span>}
               </div>
 
               {/* Quick presets */}
@@ -535,8 +535,8 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
         {/* Footer */}
         <div className="px-4 py-3 border-t flex items-center justify-between gap-3 shrink-0">
           <div className="text-xs">
-            {tooShort && isModified
-              ? <span className="text-red-600 font-medium">Clip must be at least 1 minute to save</span>
+            {tooLong && isModified
+              ? <span className="text-red-600 font-medium">Clip must be at most 1 minute to save</span>
               : isModified
                 ? <span className="text-amber-600 font-medium">Changes ready · processing plays video in real-time</span>
                 : <span className="text-gray-400">No changes yet</span>}
@@ -546,7 +546,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
               Cancel
             </Button>
             <Button size="sm" onClick={handleProcess}
-              disabled={isProcessing || !isModified || tooShort}
+              disabled={isProcessing || !isModified || tooLong}
               className="gap-1.5 bg-gray-900 hover:bg-gray-800 text-xs h-8">
               {isProcessing
                 ? <><Loader2 className="h-3 w-3 animate-spin" /> Processing…</>
