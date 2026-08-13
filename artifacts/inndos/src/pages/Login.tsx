@@ -92,12 +92,32 @@ export default function Login() {
       sessionStorage.setItem("inndos_ref", ref);
       setReferralCode(ref);
       setIsSignUp(true); // referral links should land on signup, not login
-      // Track the visit so the marketer sees link-click analytics
+      // Track the visit so the marketer sees link-click analytics; surface a
+      // brief note if the marketer's account has since been deactivated.
       fetch("/api/marketing/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ referralCode: ref, landingPage: window.location.href }),
-      }).catch(() => {/* fire-and-forget */});
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            // 404 means the code doesn't exist at all
+            toast({
+              title: "Invalid referral link",
+              description: "This referral code doesn't exist. You can still sign up normally.",
+              variant: "destructive",
+            });
+            return;
+          }
+          const data = await res.json().catch(() => ({})) as { marketerInactive?: boolean };
+          if (data.marketerInactive) {
+            toast({
+              title: "Referral link inactive",
+              description: "This referral link belongs to an account that is no longer active. Your signup will still be credited.",
+            });
+          }
+        })
+        .catch(() => {/* network error — silent */});
     }
   }, [location]);
 

@@ -116,8 +116,9 @@ router.post("/visit", async (req, res) => {
   const { referralCode, landingPage } = req.body as { referralCode?: string; landingPage?: string };
   if (!referralCode) { res.status(400).json({ error: "referralCode required" }); return; }
 
+  // Look up marketer regardless of status so we can distinguish "not found" from "inactive"
   const [marketer] = await db.select().from(marketers).where(
-    and(eq(marketers.referralCode, referralCode), eq(marketers.status, "active"))
+    eq(marketers.referralCode, referralCode)
   );
   if (!marketer) { res.status(404).json({ error: "Invalid referral code" }); return; }
 
@@ -131,7 +132,14 @@ router.post("/visit", async (req, res) => {
     landingPage: landingPage ?? req.headers["referer"] ?? "",
   });
 
-  res.json({ ok: true });
+  // Still return ok so the visit is tracked; surface inactive status so the
+  // frontend can display a brief note to the visitor.
+  if (marketer.status !== "active") {
+    res.json({ ok: true, marketerInactive: true });
+    return;
+  }
+
+  res.json({ ok: true, marketerInactive: false });
 });
 
 // ── Marketer: My profile & stats ──────────────────────────────────────────────

@@ -183,10 +183,12 @@ router.post("/signup", async (req, res) => {
   const { referralCode } = req.body as { referralCode?: string };
   if (referralCode) {
     try {
+      // Look up marketer regardless of status so a deactivated marketer still
+      // gets credited for referrals earned before their account was deactivated.
       const [mktr] = await db
         .select()
         .from(marketers)
-        .where(and(eq(marketers.referralCode, referralCode), eq(marketers.status, "active")));
+        .where(eq(marketers.referralCode, referralCode));
       if (mktr) {
         // prevent duplicate: one user = one successful referral
         const [existingRef] = await db
