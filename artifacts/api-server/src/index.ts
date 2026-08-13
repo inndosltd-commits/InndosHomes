@@ -175,6 +175,58 @@ async function runMigrations() {
     )
   `);
 
+  // Marketing / Referral Module tables
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS marketers (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+      marketer_code TEXT NOT NULL UNIQUE,
+      referral_code TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS referrals (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      marketer_id VARCHAR NOT NULL REFERENCES marketers(id),
+      referred_user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+      referral_code TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS referral_visits (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      marketer_id VARCHAR NOT NULL REFERENCES marketers(id),
+      referral_code TEXT NOT NULL,
+      session_id TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      landing_page TEXT,
+      visited_at TIMESTAMP NOT NULL DEFAULT now(),
+      converted BOOLEAN NOT NULL DEFAULT false,
+      converted_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS marketing_audit_log (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      admin_id VARCHAR REFERENCES users(id),
+      action TEXT NOT NULL,
+      target_marketer_id VARCHAR REFERENCES marketers(id),
+      target_user_id VARCHAR REFERENCES users(id),
+      details TEXT,
+      ip_address TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referrals_marketer_id ON referrals(marketer_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referrals_created_at ON referrals(created_at)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referral_visits_marketer_id ON referral_visits(marketer_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_marketers_referral_code ON marketers(referral_code)`);
+
   logger.info("Schema migrations applied");
 }
 

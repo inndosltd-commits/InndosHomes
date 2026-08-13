@@ -30,7 +30,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string, preexistingToken?: string) => Promise<void>;
-  signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string }) => Promise<void>;
+  signup: (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string; referralCode?: string }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isLoading: boolean;
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLocation("/dashboard");
   };
 
-  const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string }) => {
+  const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string; referralCode?: string }) => {
     setError(null);
     if (!role) return;
     const res = await apiFetch("/auth/signup", {

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import { db } from "@workspace/db";
-import { users, insertUserSchema, otpCodes, notifications } from "@workspace/db";
+import { users, insertUserSchema, otpCodes, notifications, marketers, referrals, referralVisits } from "@workspace/db";
 import { eq, and, gt, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendSms, normalizePhone } from "../lib/sms";
@@ -178,6 +178,39 @@ router.post("/signup", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to notify admins of new user registration");
   }
+
+  // ── Referral attribution (fire-and-forget) ────────────────────────────────
+  const { referralCode } = req.body as { referralCode?: string };
+  if (referralCode) {
+    try {
+      const [mktr] = await db
+        .select()
+        .from(marketers)
+        .where(and(eq(marketers.referralCode, referralCode), eq(marketers.status, "active")));
+      if (mktr) {
+        // prevent duplicate: one user = one successful referral
+        const [existingRef] = await db
+          .select({ id: referrals.id })
+          .from(referrals)
+          .where(eq(referrals.referredUserId, user.id));
+        if (!existingRef) {
+          await db.insert(referrals).values({
+            marketerId: mktr.id,
+            referredUserId: user.id,
+            referralCode,
+          });
+          // mark any visit records as converted
+          await db
+            .update(referralVisits)
+            .set({ converted: true, convertedAt: new Date() })
+            .where(and(eq(referralVisits.marketerId, mktr.id), eq(referralVisits.referralCode, referralCode), eq(referralVisits.converted, false)));
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Failed to attribute referral");
+    }
+  }
+  // ── End referral attribution ───────────────────────────────────────────────
 
   const token = signToken(user.id);
   const { password: _pw, ...safeUser } = user;

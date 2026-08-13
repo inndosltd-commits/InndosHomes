@@ -381,6 +381,55 @@ export const reviewReplies = pgTable("review_replies", {
 export type ReviewReply = typeof reviewReplies.$inferSelect;
 export type InsertReviewReply = typeof reviewReplies.$inferInsert;
 
+// ── Marketing / Referral Module ─────────────────────────────────────────────
+
+export const marketers = pgTable("marketers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id),
+  marketerCode: text("marketer_code").notNull().unique(), // MKT-00001
+  referralCode: text("referral_code").notNull().unique(), // e.g. JOHN25
+  status: text("status").$type<"active" | "inactive">().notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  marketerId: varchar("marketer_id").notNull().references(() => marketers.id),
+  referredUserId: varchar("referred_user_id").notNull().unique().references(() => users.id),
+  referralCode: text("referral_code").notNull(), // historical snapshot
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const referralVisits = pgTable("referral_visits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  marketerId: varchar("marketer_id").notNull().references(() => marketers.id),
+  referralCode: text("referral_code").notNull(),
+  sessionId: text("session_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  landingPage: text("landing_page"),
+  visitedAt: timestamp("visited_at").notNull().defaultNow(),
+  converted: boolean("converted").notNull().default(false),
+  convertedAt: timestamp("converted_at"),
+});
+
+export const marketingAuditLog = pgTable("marketing_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").references(() => users.id),
+  action: text("action").notNull(),
+  targetMarketerId: varchar("target_marketer_id").references(() => marketers.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  details: text("details"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Marketer = typeof marketers.$inferSelect;
+export type Referral = typeof referrals.$inferSelect;
+
+// ── End of Marketing Module ──────────────────────────────────────────────────
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;

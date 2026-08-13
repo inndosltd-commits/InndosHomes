@@ -69,6 +69,11 @@ export default function Login() {
 
   const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
 
+  // Capture referral code from URL (?ref=CODE) and persist across page loads
+  const [referralCode, setReferralCode] = useState<string | null>(() => {
+    return sessionStorage.getItem("inndos_ref") ?? null;
+  });
+
   useEffect(() => {
     const hash = window.location.hash;
     const resetMatch = hash.match(/reset-password\?token=([^&]+)/);
@@ -79,6 +84,14 @@ export default function Login() {
     }
     const isSignupUrl = window.location.search.includes("signup=true") || hash.includes("signup=true");
     setIsSignUp(isSignupUrl);
+
+    // Extract ?ref= from hash query string (e.g. /#/login?ref=JOHN1234)
+    const hashQuery = hash.split("?")[1] ?? "";
+    const ref = new URLSearchParams(hashQuery).get("ref");
+    if (ref) {
+      sessionStorage.setItem("inndos_ref", ref);
+      setReferralCode(ref);
+    }
   }, [location]);
 
   useEffect(() => { resetOtpState(); }, [isSignUp]);
@@ -186,7 +199,11 @@ export default function Login() {
         toast({ title: "Missing fields", description: "Please fill in name, email, and password.", variant: "destructive" });
         return;
       }
-      await signup(role, name, email, password, phoneToken, role === "host" ? { isRegisteredFirm, firmType: isRegisteredFirm ? firmType : undefined } : undefined);
+      const extraOpts: Record<string, unknown> = { ...(role === "host" ? { isRegisteredFirm, firmType: isRegisteredFirm ? firmType : undefined } : {}) };
+      if (referralCode) extraOpts.referralCode = referralCode;
+      await signup(role, name, email, password, phoneToken, extraOpts as any);
+      // clear referral code after successful signup
+      sessionStorage.removeItem("inndos_ref");
     } catch (err) {
       toast({ title: "Sign up failed", description: err instanceof Error ? err.message : "Something went wrong.", variant: "destructive" });
     } finally {

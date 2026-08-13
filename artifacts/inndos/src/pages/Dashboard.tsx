@@ -16,6 +16,8 @@ import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
 import { TransactionConfirmations } from "@/components/dashboard/TransactionConfirmations";
 import { AdminAnalyticsDashboard } from "@/components/dashboard/AdminAnalyticsDashboard";
 import { NotificationTemplatesPanel } from "@/pages/AdminNotifications";
+import { AdminMarketingDashboard } from "@/components/marketing/AdminMarketingDashboard";
+import { MarketerDashboard } from "@/components/marketing/MarketerDashboard";
 import { OwnerAnalytics } from "@/components/dashboard/OwnerAnalytics";
 import { TenantAnalytics } from "@/components/dashboard/TenantAnalytics";
 import { PropertyLikesPanel } from "@/components/dashboard/PropertyLikesPanel";
@@ -885,6 +887,15 @@ export default function Dashboard() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [customMonths, setCustomMonths] = useState(3);
   const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // Marketer check — runs once on mount for any non-admin user
+  const [isMarketer, setIsMarketer] = useState(false);
+  useEffect(() => {
+    if (!user || !token || user.role === "admin") return;
+    fetch("/api/marketing/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (r.ok) setIsMarketer(true); })
+      .catch(() => {});
+  }, [user, token]);
 
   // Admin reviews moderation state
   const [adminReviews, setAdminReviews] = useState<any[]>([]);
@@ -2014,6 +2025,16 @@ export default function Dashboard() {
               <Bell className="w-4 h-4" /> Notifications
             </TabsTrigger>
           )}
+          {user.role === 'admin' && (
+            <TabsTrigger value="admin-marketing" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none flex items-center gap-1.5">
+              <Users className="w-4 h-4" /> Marketing
+            </TabsTrigger>
+          )}
+          {isMarketer && (
+            <TabsTrigger value="my-marketing" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none flex items-center gap-1.5">
+              <BarChart3 className="w-4 h-4" /> My Marketing
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
 
@@ -2142,6 +2163,16 @@ export default function Dashboard() {
             {user.role === 'admin' && (
                 <TabsTrigger value="notif-templates" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Bell className="w-5 h-5 mr-3" /> Notification Templates
+                </TabsTrigger>
+            )}
+            {user.role === 'admin' && (
+                <TabsTrigger value="admin-marketing" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <Users className="w-5 h-5 mr-3" /> Marketing
+                </TabsTrigger>
+            )}
+            {isMarketer && (
+                <TabsTrigger value="my-marketing" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+                <BarChart3 className="w-5 h-5 mr-3" /> My Marketing
                 </TabsTrigger>
             )}
             </TabsList>
@@ -3990,6 +4021,20 @@ export default function Dashboard() {
           <TabsContent value="notif-templates" className="flex flex-col" style={{ minHeight: "70vh" }}>
             <NotificationTemplatesPanel token={token} />
           </TabsContent>
+
+          {/* ADMIN MARKETING TAB */}
+          {user.role === 'admin' && (
+            <TabsContent value="admin-marketing" className="space-y-6">
+              <AdminMarketingDashboard token={token} />
+            </TabsContent>
+          )}
+
+          {/* MARKETER DASHBOARD TAB */}
+          {isMarketer && (
+            <TabsContent value="my-marketing" className="space-y-6">
+              <MarketerDashboard token={token} />
+            </TabsContent>
+          )}
 
           {/* SETTINGS TAB (Shared) */}
           <TabsContent value="settings" className="space-y-6">

@@ -1,0 +1,982 @@
+Below is a comprehensive development prompt you can give to your AI coding/development agent to build the initial Marketing/Referral Module for INNDOS. It keeps the first version focused on referral tracking and marketer analytics, without adding unnecessary marketing features.
+
+:::
+
+INNDOS Marketing & Marketer Referral Tracking Module — Development Prompt
+
+Build a Marketing/Referral Management Module for the existing INNDOS platform at inndos.com.
+
+The first version of this module must focus specifically on allowing the Admin to assign existing INNDOS users as Marketers, generate unique marketing/referral links or promo codes for them, track users who register through those links, and provide detailed analytics to both Admin and the respective Marketer.
+
+Do not build advanced advertising, campaign management, email marketing, SMS marketing, social media automation, or paid advertising features at this stage. This module is primarily a referral/affiliate tracking and marketer performance monitoring system.
+
+1. MARKETER ROLE MANAGEMENT
+Admin: Convert User to Marketer
+
+Add functionality to the Admin Dashboard that allows an administrator to:
+
+Search for any existing INNDOS user.
+View the user's basic profile information.
+Convert the user from a normal user into a Marketer.
+Assign a unique marketer identification/reference.
+Activate or deactivate the marketer.
+View when the user was converted into a marketer.
+View the marketer's current status.
+
+The system should NOT create a duplicate user account.
+
+An existing INNDOS user should simply receive the additional Marketer role/permissions.
+
+Example:
+
+User
+↓
+Admin converts user
+↓
+User + Marketer Role
+↓
+Marketer Dashboard becomes available
+
+The existing user's normal INNDOS functionality must remain unchanged.
+
+2. MARKETER PROFILE
+
+Each marketer should have a marketing profile containing:
+
+Marketer ID
+User ID
+Name
+Email
+Phone number
+Profile photo, if available
+Date appointed as marketer
+Marketer status
+Unique referral code
+Unique referral URL
+Total registrations
+Active registrations
+Inactive registrations
+Latest registration date
+
+Example:
+
+Marketer ID: MKT-00025
+
+Name: John Doe
+Status: Active
+
+Referral Code:
+JOHN25
+
+Referral Link:
+https://inndos.com/register?ref=JOHN25
+
+The referral code must be unique across the entire platform.
+
+3. UNIQUE MARKETING / REFERRAL LINK
+
+When an Admin converts a user into a marketer, automatically generate a unique referral code and referral link.
+
+Example:
+
+https://inndos.com/register?ref=MKT00025
+
+or
+
+https://inndos.com/register?promo=MKT00025
+
+The exact URL structure should follow the existing INNDOS routing architecture.
+
+The system must be able to identify that:
+
+New User → Registered through → Marketer X
+
+The referral relationship must be stored permanently in the database.
+
+4. REFERRAL TRACKING
+
+When somebody visits a marketer's referral link:
+
+https://inndos.com/register?ref=MKT00025
+
+the system should capture the referral information.
+
+At minimum, track:
+
+Referral/Marketer ID
+Referral code
+Landing page
+Date
+Time
+Visitor session
+Registration status
+
+If technically appropriate, use a secure cookie/session mechanism so that the referral is retained while the visitor completes registration.
+
+The referral should only become a successful referral/registration once the person successfully creates an INNDOS account.
+
+Do not count someone merely opening the referral link as a registered user.
+
+5. NEW USER REGISTRATION ATTRIBUTION
+
+When a new user registers through a marketer's link, save the relationship in the database.
+
+Example:
+
+New User:
+Name: Ahmed Ali
+Email: ahmed@example.com
+Phone: +254...
+
+Registered:
+12 August 2026
+Time:
+14:35
+
+Referred By:
+John Doe
+
+Marketer ID:
+MKT-00025
+
+Referral Code:
+JOHN25
+
+The referral attribution should be permanent and should not be lost after the user logs out or changes devices.
+
+6. PREVENT DUPLICATE REFERRAL COUNTING
+
+A user must not be counted multiple times as a successful referral.
+
+For example:
+
+If Ahmed clicks John's referral link five times and eventually registers:
+
+John's successful referrals = 1
+
+NOT:
+
+5
+
+The system should associate the registration with the appropriate marketer only once.
+
+Use the user's unique account/user ID as the primary basis for successful referral counting.
+
+7. MARKETER DASHBOARD
+
+Create a dedicated Marketer Dashboard.
+
+A marketer should only be able to see their own marketing/referral data.
+
+They must NOT be able to see:
+
+Other marketers
+Other marketers' referral links
+Other marketers' statistics
+Platform-wide confidential Admin analytics
+Sensitive information belonging to users outside their referrals
+Marketer Dashboard Summary Cards
+
+Display cards such as:
+
+Total People Joined
+
+Number of users who successfully registered using the marketer's referral link.
+
+New Today
+
+Number of users who joined through the marketer's link today.
+
+New This Week
+
+Number of users who joined through the marketer's link this week.
+
+New This Month
+
+Number of users who joined through the marketer's link this month.
+
+Total Active Users
+
+Number of referred users who currently have active accounts.
+
+Total Inactive Users
+
+Number of referred users who currently have inactive accounts.
+
+8. MARKETER REFERRAL TABLE
+
+The marketer should have a table showing all people who joined through their referral link.
+
+Columns:
+
+Field
+User ID
+Name
+Email
+Phone
+Registration Date
+Registration Time
+Referral Code
+Registration Status
+Account Status
+
+Example:
+
+Ahmed Ali
+ahmed@example.com
++254...
+12 Aug 2026
+14:35
+JOHN25
+Successful Referral
+Active
+
+The marketer should be able to search and filter this table.
+
+Filters should include:
+
+Today
+Yesterday
+This week
+This month
+Custom date range
+Active users
+Inactive users
+9. ADMIN MARKETING DASHBOARD
+
+Create a dedicated Marketing Dashboard inside the Admin Panel.
+
+The Admin should have a complete overview of the entire referral/marketing system.
+
+Display:
+
+Total Marketers
+
+Number of users currently assigned the Marketer role.
+
+Active Marketers
+
+Number of active marketers.
+
+Total Referral Registrations
+
+Total users who have joined through all marketer referral links.
+
+New Registrations Today
+
+Number of users referred today.
+
+New Registrations This Week
+
+Number of users referred this week.
+
+New Registrations This Month
+
+Number of users referred this month.
+
+Top Marketer
+
+Marketer who has generated the highest number of successful registrations.
+
+10. ADMIN MARKETER PERFORMANCE TABLE
+
+Create a table showing all marketers.
+
+Columns should include:
+
+Field
+Marketer
+Marketer ID
+Referral Code
+Referral Link
+Date Assigned
+Status
+Total Referrals
+Today
+This Week
+This Month
+Active Referrals
+Inactive Referrals
+Last Referral
+Actions
+
+Example:
+
+John Doe
+MKT-00025
+JOHN25
+Active
+
+Total: 125
+Today: 5
+This Week: 22
+This Month: 67
+
+Active: 112
+Inactive: 13
+
+Last Referral:
+12 Aug 2026, 14:35
+11. INDIVIDUAL MARKETER ANALYTICS
+
+When Admin clicks:
+
+View Marketer
+
+open a detailed marketer analytics page.
+
+Show:
+
+Marketer Information
+Name
+Email
+Phone
+Marketer ID
+Referral code
+Referral link
+Date assigned
+Status
+Performance Statistics
+Total people referred
+Total successful registrations
+Registrations today
+Registrations yesterday
+Registrations this week
+Registrations this month
+Registrations this year
+Active referred users
+Inactive referred users
+12. REFERRAL GROWTH CHART
+
+Provide visual analytics showing registrations over time.
+
+Admin should be able to switch between:
+
+Last 7 days
+Last 30 days
+Last 3 months
+Last 6 months
+Last 12 months
+Custom date range
+
+Example chart:
+
+Registrations
+
+30 |                         █
+25 |                    █    █
+20 |              █     █    █
+15 |        █     █     █    █
+10 |   █    █     █     █    █
+ 5 |   █    █     █     █    █
+ 0 |____________________________
+     Mon  Tue  Wed  Thu  Fri
+
+The chart should show the number of successful registrations generated during each period.
+
+13. DATE AND TIME TRACKING
+
+The system must store the exact registration timestamp for every referred user.
+
+At minimum:
+
+registration_date
+registration_time
+created_at
+
+The Admin and respective Marketer should be able to see:
+
+12 August 2026
+14:35:21
+
+Use the platform's configured timezone consistently.
+
+Do not rely only on formatted frontend dates; store timestamps properly in the database.
+
+14. REFERRED USER DETAILS
+
+Admin should be able to click on a referral record and view the appropriate user details already permitted by the existing INNDOS admin system.
+
+At minimum:
+
+User ID
+Name
+Email
+Phone
+Registration date
+Registration time
+Account status
+Marketer who referred them
+Referral code used
+
+Do not expose passwords or other sensitive authentication information.
+
+15. REFERRAL LINK MANAGEMENT
+
+Admin should be able to:
+
+View marketer referral link
+Copy referral link
+Regenerate referral code if necessary
+Activate/deactivate referral link
+View total registrations generated by the link
+
+If a referral code is regenerated, carefully preserve historical referral records.
+
+Do NOT change historical referrals from the old code.
+
+16. MARKETER ACTIVATION / DEACTIVATION
+
+Admin should be able to deactivate a marketer.
+
+When deactivated:
+
+Existing referral records remain intact.
+Historical statistics remain intact.
+Previously referred users remain associated with that marketer.
+The marketer cannot generate new successful referrals through a disabled referral link.
+The marketer should no longer have access to the Marketer Dashboard if the role is disabled.
+
+The system should clearly show:
+
+Active
+Inactive
+17. ADMIN FILTERING AND SEARCH
+
+Admin should be able to search marketers by:
+
+Name
+Email
+Phone
+Marketer ID
+Referral code
+
+Admin should be able to filter by:
+
+Active marketers
+Inactive marketers
+Highest referrals
+Lowest referrals
+Date assigned
+Registration performance
+Date range
+18. REFERRAL REGISTRATION LOG
+
+Create a detailed referral activity log.
+
+Example:
+
+Referral Activity
+
+John Doe
+JOHN25
+
+Ahmed Ali
+Registered
+12 Aug 2026
+14:35
+
+Fatima Hassan
+Registered
+12 Aug 2026
+13:12
+
+Mohamed Yusuf
+Registered
+11 Aug 2026
+18:47
+
+This should allow Admin to understand exactly when registrations happened and which marketer generated them.
+
+19. ADMIN ANALYTICS
+
+The Admin should have platform-wide analytics including:
+
+Overall
+Total marketers
+Active marketers
+Total referral registrations
+Referral registrations today
+Referral registrations this week
+Referral registrations this month
+Referral registrations this year
+Marketer Performance
+Top performing marketer
+Lowest performing marketer
+Average referrals per marketer
+Number of marketers with zero referrals
+Number of marketers with at least one referral
+Registration Trends
+Daily registrations
+Weekly registrations
+Monthly registrations
+Yearly registrations
+Individual Marketer Comparison
+
+Allow Admin to compare marketer performance.
+
+Example:
+
+Marketer       Total Referrals
+
+John Doe             125
+Ahmed Ali             98
+Fatima Hassan         76
+Mohamed Yusuf         43
+20. REFERRAL CONVERSION FUNNEL
+
+Prepare the database and architecture so the module can later support a full marketing funnel.
+
+For the initial version, track:
+
+Referral Link Visit
+        ↓
+Registration Started
+        ↓
+Registration Completed
+        ↓
+Successful Referral
+
+For now, the most important metric is successful completed registration.
+
+If tracking visits is implemented, Admin should be able to distinguish between:
+
+Link Clicks
+Registrations Started
+Successful Registrations
+
+This will allow future conversion-rate analytics.
+
+21. CONVERSION RATE
+
+If referral visits are tracked, calculate:
+
+Conversion Rate =
+Successful Registrations ÷ Referral Link Visits × 100
+
+Example:
+
+Referral Link Visits: 500
+Successful Registrations: 75
+
+Conversion Rate: 15%
+
+If visit tracking is not available in the current INNDOS architecture, build the system so it can be added without redesigning the referral database.
+
+22. DATABASE DESIGN
+
+Design the database using proper relational relationships.
+
+Suggested tables:
+
+marketers
+id
+user_id
+marketer_code
+referral_code
+status
+created_at
+updated_at
+referrals
+id
+marketer_id
+referred_user_id
+referral_code
+registration_date
+registration_time
+created_at
+updated_at
+referral_visits
+
+If link-visit tracking is implemented:
+
+id
+marketer_id
+referral_code
+session_id
+ip_address
+user_agent
+landing_page
+visited_at
+converted
+converted_at
+Important Relationships
+users
+   │
+   └── marketers
+          │
+          ├── referral_visits
+          │
+          └── referrals
+                    │
+                    └── referred user
+
+Use foreign keys and indexes appropriately.
+
+A referred user should be associated with the marketer using the internal user ID rather than relying solely on name, email, or phone number.
+
+23. SECURITY AND ACCESS CONTROL
+
+Implement strict role-based access control.
+
+Admin
+
+Admin can:
+
+Create marketers
+Convert users to marketers
+Deactivate marketers
+View all marketers
+View all referral data
+View all analytics
+View individual marketer performance
+View referred users
+Manage referral codes
+Marketer
+
+Marketer can:
+
+View their own dashboard
+View their own referral link
+Copy their referral link
+View their own referral statistics
+View people referred through their own link
+View referral dates/times
+View permitted referred-user details
+Normal User
+
+Normal users should have no access to the marketing dashboard unless explicitly converted to a marketer.
+
+24. EXISTING USER SYSTEM INTEGRATION
+
+Do not create a separate authentication system for marketers.
+
+Use the existing INNDOS:
+
+users
+roles
+permissions
+authentication
+
+system.
+
+The Marketer role should be an additional role/permission attached to an existing user account.
+
+The existing Admin Dashboard and User Dashboard must continue working normally.
+
+25. UI/UX
+
+The module should look and feel like a native part of INNDOS.
+
+Follow the existing:
+
+Colors
+Typography
+Buttons
+Cards
+Tables
+Navigation
+Responsive layout
+Icons
+Dashboard design
+
+Do not introduce a completely different visual design.
+
+Admin Navigation
+
+Add:
+
+Marketing
+    ├── Dashboard
+    ├── Marketers
+    ├── Referral Registrations
+    └── Analytics
+Marketer Navigation
+
+Add:
+
+Marketing
+    ├── Dashboard
+    ├── My Referral Link
+    └── My Referrals
+26. REFERRAL LINK SHARING
+
+On the Marketer Dashboard, provide:
+
+My Referral Link
+
+https://inndos.com/register?ref=MKT00025
+
+[Copy Link]
+
+Optionally provide:
+
+Share
+
+using the browser/device's native sharing functionality.
+
+Do not build social media advertising automation yet.
+
+27. EXPORT FUNCTIONALITY
+
+Admin should eventually be able to export referral data.
+
+At minimum prepare for:
+
+CSV
+Excel
+PDF
+
+The first implementation can prioritize CSV/Excel if necessary.
+
+Export should support the currently selected filters/date range.
+
+Example:
+
+Export:
+All Marketers
+Date: 01 Aug 2026 - 12 Aug 2026
+28. AUDIT LOG
+
+Record important marketing administration actions.
+
+Examples:
+
+Admin converted user John Doe to Marketer
+Admin deactivated marketer MKT-00025
+Admin regenerated referral code
+Admin viewed marketer analytics
+
+Include:
+
+Admin/user ID
+Action
+Target marketer/user
+Date
+Time
+IP where appropriate
+
+This will make the module easier to audit later.
+
+29. PERFORMANCE REQUIREMENTS
+
+The referral system must be designed for scalability.
+
+Do not calculate every marketer's statistics by loading every referral record into the frontend.
+
+Use:
+
+Database indexes
+Efficient SQL aggregation
+Pagination
+Server-side filtering
+Server-side sorting
+Cached statistics where appropriate
+
+Important indexes should exist for fields such as:
+
+user_id
+marketer_id
+referral_code
+referred_user_id
+created_at
+registration_date
+status
+30. IMPORTANT BUSINESS RULES
+
+Implement these rules carefully:
+
+Every marketer must have a unique referral code.
+Every marketer must have a unique referral URL.
+One user account should only count once as a successful referral.
+Historical referral relationships must never be deleted simply because a marketer becomes inactive.
+Deactivating a marketer must not delete historical data.
+A normal user can become a marketer without creating a second account.
+A marketer can only see their own referral information.
+Admin can see all referral information.
+Referral statistics must be calculated from actual database records.
+Registration date/time must be stored accurately.
+Referral attribution must survive logout/login.
+Referral codes must not be easily duplicated or guessed in a way that compromises the system.
+Historical referral records must remain associated with the original marketer even if the referral code is later changed.
+Do not expose authentication credentials or passwords through marketing analytics.
+Existing INNDOS user functionality must not be broken by introducing the marketer role.
+31. FUTURE-READY ARCHITECTURE
+
+Although this first release should remain simple, structure the module so that future versions can add:
+
+Marketing campaigns
+Multiple referral links per marketer
+Different promo codes
+Campaign-specific links
+QR codes
+Marketing commissions
+Marketer earnings
+Commission rules
+Referral rewards
+Subscription conversion tracking
+Paid advertising tracking
+UTM parameters
+Facebook/Instagram campaign tracking
+SMS campaign tracking
+Email campaigns
+Push notification campaigns
+Conversion funnel analytics
+Revenue generated by each marketer
+Customer lifetime value per marketer
+Marketer leaderboards
+Automated marketer reports
+
+Do not implement these future features now unless they are required for the basic referral architecture.
+
+32. DEVELOPMENT APPROACH
+
+Before changing the code:
+
+Inspect the existing INNDOS codebase.
+Identify the existing users table/model.
+Identify the existing authentication system.
+Identify the existing roles and permissions system.
+Identify the Admin Dashboard architecture.
+Identify the User Dashboard architecture.
+Identify the registration workflow.
+Identify the existing database structure.
+Identify the frontend component/design system.
+Identify the backend/API architecture.
+
+Then integrate the Marketing Module into the existing architecture instead of creating a parallel system.
+
+Do not duplicate existing authentication, users, dashboards, or database structures unnecessarily.
+
+33. IMPLEMENTATION PHASES
+
+Build the module in the following order:
+
+Phase 1 — Marketer Role
+Add marketer role/permission.
+Allow Admin to convert existing users to marketers.
+Add marketer status.
+Add marketer profile.
+Phase 2 — Referral System
+Generate unique referral code.
+Generate referral URL.
+Capture referral code.
+Attribute successful registration to marketer.
+Prevent duplicate referral counting.
+Phase 3 — Marketer Dashboard
+Statistics cards.
+Referral link.
+Referral table.
+Date/time tracking.
+Search/filter.
+Phase 4 — Admin Dashboard
+Marketing overview.
+Marketer list.
+Referral statistics.
+Individual marketer analytics.
+Registration trends.
+Phase 5 — Analytics
+Daily/weekly/monthly/yearly statistics.
+Marketer performance comparison.
+Referral growth charts.
+Conversion statistics where visit tracking is available.
+Phase 6 — Security & Optimization
+Role-based access control.
+Data validation.
+Database indexes.
+Pagination.
+Audit logs.
+Secure referral attribution.
+Performance optimization.
+34. ACCEPTANCE CRITERIA
+
+The module should be considered successfully implemented when the following workflow works:
+
+Scenario 1
+
+Admin searches for an existing INNDOS user:
+
+John Doe
+
+Admin clicks:
+
+Convert to Marketer
+
+System creates:
+
+Marketer ID: MKT-00025
+Referral Code: JOHN25
+Referral Link: https://inndos.com/register?ref=JOHN25
+Scenario 2
+
+John shares his referral link.
+
+A new person opens:
+
+https://inndos.com/register?ref=JOHN25
+
+and creates an account.
+
+The system records:
+
+New User
+↓
+Registered successfully
+↓
+Referred by John Doe
+↓
+Referral Code JOHN25
+↓
+Date + Time recorded
+Scenario 3
+
+John logs into INNDOS.
+
+He can see:
+
+Total Referrals: 25
+New Today: 3
+This Week: 8
+This Month: 17
+
+He can open his referral list and see the people who joined through his link.
+
+Scenario 4
+
+Admin logs into the Admin Dashboard.
+
+Admin can see:
+
+Total Marketers: 15
+Total Referral Registrations: 342
+Today's Referrals: 18
+This Month: 127
+
+Admin can then select:
+
+John Doe
+
+and see John's complete marketing performance.
+
+Scenario 5
+
+Admin compares marketers:
+
+1. John Doe       125 referrals
+2. Ahmed Ali       98 referrals
+3. Fatima Hassan   76 referrals
+4. Mohamed Yusuf   43 referrals
+
+Admin can drill down into any marketer and see exactly who joined, and when they joined.
+
+FINAL DEVELOPMENT INSTRUCTION
+
+Build this as a production-ready Marketing/Referral Module for INNDOS, integrated into the existing platform.
+
+The primary purpose of Version 1 is:
+
+Admin assigns users as marketers → each marketer gets a unique referral/promo link → people register through that link → INNDOS records the marketer attribution → marketer sees their own referrals → Admin sees all marketers, referrals and complete analytics.
+
+Keep the implementation clean, secure, scalable, responsive, and consistent with the existing INNDOS architecture and UI.
+
+Do not introduce unnecessary marketing features in Version 1. Focus on making the marketer referral tracking, attribution, dashboard, administration and analytics reliable and accurate.

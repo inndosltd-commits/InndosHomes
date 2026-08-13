@@ -14,6 +14,7 @@ import transactionsRouter from "./transactions";
 import ownerAnalyticsRouter from "./ownerAnalytics";
 import tenantAnalyticsRouter from "./tenantAnalytics";
 import reviewsRouter from "./reviews";
+import marketingRouter from "./marketing";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use("/transactions", transactionsRouter);
 router.use("/owner-analytics", ownerAnalyticsRouter);
 router.use("/tenant-analytics", tenantAnalyticsRouter);
 router.use("/reviews", reviewsRouter);
+router.use("/marketing", marketingRouter);
 
 export default router;
