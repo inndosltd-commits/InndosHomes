@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   Users, UserPlus, Link2, Copy, BarChart3, TrendingUp, Activity, Search,
-  ChevronRight, Check, RefreshCw, Power, PowerOff, Download, Eye, Filter,
-  Calendar, Award, AlertCircle, CheckCircle2, Clock,
+  Check, RefreshCw, Power, PowerOff, Download, Eye, Filter,
+  Calendar, Award, ChevronRight,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
@@ -20,8 +20,10 @@ interface Props { token: string; }
 type Tab = "overview" | "marketers" | "referrals" | "analytics" | "audit";
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, color = "primary" }: {
-  icon: any; label: string; value: number | string; sub?: string; color?: string;
+function StatCard({
+  icon: Icon, label, value, sub, color = "primary", onClick,
+}: {
+  icon: any; label: string; value: number | string; sub?: string; color?: string; onClick?: () => void;
 }) {
   const colors: Record<string, string> = {
     primary: "bg-blue-50 text-blue-700",
@@ -31,16 +33,20 @@ function StatCard({ icon: Icon, label, value, sub, color = "primary" }: {
     purple:  "bg-purple-50 text-purple-700",
   };
   return (
-    <Card>
+    <Card
+      className={onClick ? "cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" : ""}
+      onClick={onClick}
+    >
       <CardContent className="p-5 flex items-center gap-4">
         <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${colors[color] ?? colors.primary}`}>
           <Icon className="h-6 w-6" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
           <p className="text-2xl font-bold leading-tight">{value}</p>
           {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
         </div>
+        {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
       </CardContent>
     </Card>
   );
@@ -76,8 +82,6 @@ export function AdminMarketingDashboard({ token }: Props) {
   const [marketerDetail, setMarketerDetail] = useState<any>(null);
   const [marketerReferrals, setMarketerReferrals] = useState<any[]>([]);
   const [marketerReferralsTotal, setMarketerReferralsTotal] = useState(0);
-  const [marketerReferralsFilter, setMarketerReferralsFilter] = useState("all");
-  const [marketerReferralsSearch, setMarketerReferralsSearch] = useState("");
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // analytics chart
@@ -100,6 +104,9 @@ export function AdminMarketingDashboard({ token }: Props) {
 
   // comparison
   const [comparison, setComparison] = useState<any[]>([]);
+
+  // recent referrals (overview)
+  const [recentReferrals, setRecentReferrals] = useState<any[]>([]);
 
   const authH = { Authorization: `Bearer ${token}` };
   const jsonH = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
@@ -145,6 +152,13 @@ export function AdminMarketingDashboard({ token }: Props) {
     } finally { setLoadingAllReferrals(false); }
   }, [token, allReferralsPage, allReferralsSearch]);
 
+  const fetchRecentReferrals = useCallback(async () => {
+    try {
+      const r = await fetch("/api/marketing/admin/referrals?limit=5&page=1", { headers: authH });
+      if (r.ok) { const d = await r.json(); setRecentReferrals(d.data ?? []); }
+    } catch { /* non-critical */ }
+  }, [token]);
+
   const fetchAuditLog = useCallback(async () => {
     const params = new URLSearchParams({ page: String(auditPage), limit: "30" });
     const r = await fetch(`/api/marketing/admin/audit-log?${params}`, { headers: authH });
@@ -161,21 +175,21 @@ export function AdminMarketingDashboard({ token }: Props) {
     try {
       const [detailRes, refRes] = await Promise.all([
         fetch(`/api/marketing/admin/marketers/${id}`, { headers: authH }),
-        fetch(`/api/marketing/admin/marketers/${id}/referrals?limit=50`, { headers: authH }),
+        fetch(`/api/marketing/admin/marketers/${id}/referrals?limit=100`, { headers: authH }),
       ]);
       if (detailRes.ok) setMarketerDetail(await detailRes.json());
       if (refRes.ok) { const d = await refRes.json(); setMarketerReferrals(d.data); setMarketerReferralsTotal(d.total); }
     } finally { setLoadingDetail(false); }
   }, [token]);
 
-  useEffect(() => { fetchOverview(); fetchChart(); fetchComparison(); }, []);
+  useEffect(() => { fetchOverview(); fetchChart(); fetchComparison(); fetchRecentReferrals(); }, []);
   useEffect(() => { if (tab === "marketers") fetchMarketers(); }, [tab, marketersPage, marketersSearch, marketersStatus, marketersSortBy]);
   useEffect(() => { if (tab === "analytics") fetchChart(); }, [chartRange, chartMarketerId]);
   useEffect(() => { if (tab === "referrals") fetchAllReferrals(); }, [tab, allReferralsPage, allReferralsSearch]);
   useEffect(() => { if (tab === "audit") fetchAuditLog(); }, [tab, auditPage]);
   useEffect(() => {
     if (selectedMarketer) fetchMarketerDetail(selectedMarketer.id);
-  }, [selectedMarketer, marketerReferralsFilter, marketerReferralsSearch]);
+  }, [selectedMarketer]);
 
   // ── User search for convert ──────────────────────────────────────────────────
   useEffect(() => {
@@ -184,13 +198,28 @@ export function AdminMarketingDashboard({ token }: Props) {
       setSearching(true);
       try {
         const r = await fetch(`/api/marketing/admin/search-users?q=${encodeURIComponent(searchUsers)}`, { headers: authH });
-        if (r.ok) { const d = await r.json(); setUserResults(d.data); }
+        if (r.ok) {
+          const d = await r.json();
+          setUserResults(d.data ?? []);
+        } else {
+          const err = await r.json().catch(() => ({}));
+          toast({ title: "Search failed", description: (err as any).error ?? "Could not search users.", variant: "destructive" });
+        }
+      } catch (e) {
+        toast({ title: "Search error", description: "Network error — check your connection.", variant: "destructive" });
       } finally { setSearching(false); }
     }, 300);
     return () => clearTimeout(t);
   }, [searchUsers]);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
+
+  const openMarketerDetail = (m: any) => {
+    setSelectedMarketer(m);
+    setMarketerDetail(null);
+    setMarketerReferrals([]);
+    setMarketerReferralsTotal(0);
+  };
 
   const convertUser = async (targetUserId: string) => {
     setConvertingUserId(targetUserId);
@@ -199,10 +228,19 @@ export function AdminMarketingDashboard({ token }: Props) {
         method: "POST", headers: jsonH, body: JSON.stringify({ targetUserId }),
       });
       const d = await r.json();
-      if (!r.ok) { toast({ title: "Error", description: d.error, variant: "destructive" }); return; }
-      toast({ title: "Marketer created", description: `${d.user.name} is now a marketer (${d.marketer.marketerCode})` });
-      setShowConvert(false); setSearchUsers(""); setUserResults([]);
-      fetchMarketers(); fetchOverview();
+      if (!r.ok) {
+        toast({ title: "Could not add marketer", description: d.error ?? "Something went wrong.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Marketer added!", description: `${d.user.name} is now a marketer (${d.marketer.marketerCode})` });
+      setShowConvert(false);
+      setSearchUsers("");
+      setUserResults([]);
+      fetchMarketers();
+      fetchOverview();
+      fetchRecentReferrals();
+    } catch {
+      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
     } finally { setConvertingUserId(null); }
   };
 
@@ -219,14 +257,15 @@ export function AdminMarketingDashboard({ token }: Props) {
   };
 
   const regenerateCode = async (marketer: any) => {
-    if (!confirm(`Regenerate referral code for ${marketer.user?.name}? Historical referrals are preserved.`)) return;
+    if (!confirm(`Regenerate referral code for ${marketer.user?.name ?? marketer.name}? Historical referrals are preserved.`)) return;
     const r = await fetch(`/api/marketing/admin/marketers/${marketer.id}`, {
       method: "PATCH", headers: jsonH, body: JSON.stringify({ regenerateCode: true }),
     });
     if (r.ok) { toast({ title: "Referral code regenerated" }); fetchMarketerDetail(marketer.id); fetchMarketers(); }
   };
 
-  const copyLink = (code: string) => {
+  const copyLink = (code: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     navigator.clipboard.writeText(`https://inndos.com/#/login?ref=${code}`);
     toast({ title: "Link copied!" });
   };
@@ -257,24 +296,35 @@ export function AdminMarketingDashboard({ token }: Props) {
         <div className="flex items-center justify-center h-40"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : overview ? (
         <>
+          {/* Primary stats — clickable */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard icon={Users}     label="Total Marketers"       value={overview.totalMarketers}   color="primary" />
-            <StatCard icon={Activity}  label="Active Marketers"      value={overview.activeMarketers}  color="green" />
-            <StatCard icon={Link2}     label="Total Referrals"       value={overview.totalReferrals}   color="purple" />
-            <StatCard icon={TrendingUp} label="This Month"           value={overview.monthReferrals}   color="amber" />
+            <StatCard icon={Users}     label="Total Marketers"  value={overview.totalMarketers}  color="primary"
+              onClick={() => setTab("marketers")} />
+            <StatCard icon={Activity}  label="Active Marketers" value={overview.activeMarketers} color="green"
+              onClick={() => { setMarketersStatus("active"); setTab("marketers"); }} />
+            <StatCard icon={Link2}     label="Total Referrals"  value={overview.totalReferrals}  color="purple"
+              onClick={() => setTab("referrals")} />
+            <StatCard icon={TrendingUp} label="This Month"      value={overview.monthReferrals}  color="amber"
+              onClick={() => setTab("referrals")} />
           </div>
+
+          {/* Secondary stats — clickable */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard icon={Calendar} label="Today"         value={overview.todayReferrals}  color="primary" />
-            <StatCard icon={Calendar} label="This Week"     value={overview.weekReferrals}   color="primary" />
-            <StatCard icon={Calendar} label="This Year"     value={overview.yearReferrals}   color="primary" />
-            <StatCard icon={BarChart3} label="Avg / Marketer" value={overview.avgReferrals} color="purple" />
+            <StatCard icon={Calendar} label="Today"          value={overview.todayReferrals}  color="primary"
+              onClick={() => setTab("referrals")} />
+            <StatCard icon={Calendar} label="This Week"      value={overview.weekReferrals}   color="primary"
+              onClick={() => setTab("referrals")} />
+            <StatCard icon={Calendar} label="This Year"      value={overview.yearReferrals}   color="primary"
+              onClick={() => setTab("referrals")} />
+            <StatCard icon={BarChart3} label="Avg / Marketer" value={overview.avgReferrals}   color="purple"
+              onClick={() => setTab("analytics")} />
           </div>
 
           {/* Top marketer */}
           {overview.topMarketer && (
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openMarketerDetail({ id: overview.topMarketer.id, ...overview.topMarketer })}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-amber-500" /> Top Performer</CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-amber-500" /> Top Performer — click to see their referrals</CardTitle>
               </CardHeader>
               <CardContent className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-lg shrink-0 overflow-hidden">
@@ -290,6 +340,47 @@ export function AdminMarketingDashboard({ token }: Props) {
                   <p className="text-2xl font-bold text-amber-600">{overview.topMarketerCount}</p>
                   <p className="text-xs text-muted-foreground">referrals</p>
                 </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recent referrals mini-table */}
+          {recentReferrals.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Recent Referrals</CardTitle>
+                <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => setTab("referrals")}>
+                  View all <ChevronRight className="h-3 w-3 ml-1" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        {["Referred User", "Marketer", "Date"].map(h => (
+                          <th key={h} className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {recentReferrals.map((r: any) => (
+                        <tr key={r.id} className="hover:bg-muted/20">
+                          <td className="px-4 py-2.5">
+                            <p className="font-medium">{r.referredUser?.name ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">{r.referredUser?.email ?? ""}</p>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <p className="font-medium">{r.marketerUser?.name ?? "—"}</p>
+                            <span className="text-[10px] font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{r.referralCode}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -297,15 +388,27 @@ export function AdminMarketingDashboard({ token }: Props) {
           {/* Comparison chart */}
           {comparison.length > 0 && (
             <Card>
-              <CardHeader><CardTitle className="text-sm">Marketer Comparison</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">Marketer Comparison — click a bar to see their referrals</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={comparison.slice(0, 10)} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <BarChart
+                    data={comparison.slice(0, 10)}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16 }}
+                    onClick={(data: any) => {
+                      if (data?.activePayload?.[0]) {
+                        const name = data.activePayload[0].payload?.name;
+                        const found = marketers.find((m: any) => m.user?.name === name);
+                        if (found) openMarketerDetail(found);
+                        else { fetchMarketers(); setTab("marketers"); }
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={90} />
                     <Tooltip formatter={(v: any) => [`${v} referrals`, "Total"]} />
-                    <Bar dataKey="totalReferrals" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="totalReferrals" fill="#2563eb" radius={[0, 4, 4, 0]} cursor="pointer" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -314,18 +417,24 @@ export function AdminMarketingDashboard({ token }: Props) {
 
           {/* Performance breakdown */}
           <div className="grid grid-cols-3 gap-4">
-            <Card><CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{overview.atLeastOne}</p>
-              <p className="text-xs text-muted-foreground mt-1">With ≥1 referral</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{overview.zeroReferrals}</p>
-              <p className="text-xs text-muted-foreground mt-1">Zero referrals</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{overview.avgReferrals}</p>
-              <p className="text-xs text-muted-foreground mt-1">Avg / marketer</p>
-            </CardContent></Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTab("marketers")}>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{overview.atLeastOne}</p>
+                <p className="text-xs text-muted-foreground mt-1">With ≥1 referral</p>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setMarketersSortBy("totalReferralsAsc"); setTab("marketers"); }}>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-amber-600">{overview.zeroReferrals}</p>
+                <p className="text-xs text-muted-foreground mt-1">Zero referrals</p>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setTab("analytics")}>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-blue-600">{overview.avgReferrals}</p>
+                <p className="text-xs text-muted-foreground mt-1">Avg / marketer</p>
+              </CardContent>
+            </Card>
           </div>
         </>
       ) : (
@@ -361,24 +470,27 @@ export function AdminMarketingDashboard({ token }: Props) {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => exportCSV("marketers")}>
-            <Download className="h-3.5 w-3.5 mr-1" /> Export
-          </Button>
-          <Button size="sm" onClick={() => setShowConvert(true)}>
-            <UserPlus className="h-3.5 w-3.5 mr-1" /> Add Marketer
-          </Button>
-        </div>
+        <Button size="sm" variant="outline" onClick={() => exportCSV("marketers")}>
+          <Download className="h-3.5 w-3.5 mr-1" /> Export
+        </Button>
       </div>
 
       {loadingMarketers ? (
         <div className="flex justify-center py-12"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : marketers.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No marketers found.</div>
+        <div className="text-center py-12 text-muted-foreground">
+          <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No marketers found.</p>
+          <p className="text-sm mt-1">Use the "Add Marketer" button in the header to convert a user.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {marketers.map((m: any) => (
-            <Card key={m.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={m.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => openMarketerDetail(m)}
+            >
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -402,7 +514,10 @@ export function AdminMarketingDashboard({ token }: Props) {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-4 text-center shrink-0">
-                    <div><p className="text-lg font-bold">{m.totalReferrals}</p><p className="text-[10px] text-muted-foreground">Total</p></div>
+                    <div>
+                      <p className="text-lg font-bold text-primary">{m.totalReferrals}</p>
+                      <p className="text-[10px] text-muted-foreground">Total</p>
+                    </div>
                     <div><p className="text-base font-semibold text-blue-600">{m.todayReferrals}</p><p className="text-[10px] text-muted-foreground">Today</p></div>
                     <div><p className="text-base font-semibold text-green-600">{m.weekReferrals}</p><p className="text-[10px] text-muted-foreground">Week</p></div>
                     <div><p className="text-base font-semibold text-purple-600">{m.monthReferrals}</p><p className="text-[10px] text-muted-foreground">Month</p></div>
@@ -410,15 +525,13 @@ export function AdminMarketingDashboard({ token }: Props) {
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => copyLink(m.referralCode)} title="Copy link">
+                    <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); copyLink(m.referralCode); }} title="Copy referral link">
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setSelectedMarketer(m); setMarketerDetail(null); setMarketerReferrals([]); }} title="View detail">
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => toggleStatus(m)} title={m.status === "active" ? "Deactivate" : "Activate"}>
+                    <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); toggleStatus(m); }} title={m.status === "active" ? "Deactivate" : "Activate"}>
                       {m.status === "active" ? <PowerOff className="h-3.5 w-3.5 text-red-500" /> : <Power className="h-3.5 w-3.5 text-green-500" />}
                     </Button>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
               </CardContent>
@@ -444,7 +557,7 @@ export function AdminMarketingDashboard({ token }: Props) {
       <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Name, email, code…" className="pl-9" value={allReferralsSearch}
+          <Input placeholder="Name, email, marketer, code…" className="pl-9" value={allReferralsSearch}
             onChange={e => { setAllReferralsSearch(e.target.value); setAllReferralsPage(1); }} />
         </div>
         <Button size="sm" variant="outline" onClick={() => exportCSV("referrals")}>
@@ -459,7 +572,7 @@ export function AdminMarketingDashboard({ token }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {["User", "Email", "Phone", "Marketer", "Code", "Date", "Status"].map(h => (
+                {["Referred User", "Email", "Phone", "Brought By", "Code", "Date", "Status"].map(h => (
                   <th key={h} className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -468,9 +581,9 @@ export function AdminMarketingDashboard({ token }: Props) {
               {allReferrals.map((r: any) => (
                 <tr key={r.id} className="hover:bg-muted/20">
                   <td className="px-3 py-2.5 font-medium whitespace-nowrap">{r.referredUser?.name ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{r.referredUser?.email ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.referredUser?.phone ?? "—"}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">{r.marketerUser?.name ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground text-xs">{r.referredUser?.email ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-xs">{r.referredUser?.phone ?? "—"}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap font-medium">{r.marketerUser?.name ?? "—"}</td>
                   <td className="px-3 py-2.5"><span className="font-mono text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{r.referralCode}</span></td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">{fmtDateTime(r.createdAt)}</td>
                   <td className="px-3 py-2.5">
@@ -539,11 +652,18 @@ export function AdminMarketingDashboard({ token }: Props) {
       {/* Comparison table */}
       {comparison.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-sm">Marketer Performance Comparison</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Marketer Performance — click to see their referrals</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {comparison.map((m: any, i: number) => (
-                <div key={m.marketerCode} className="flex items-center gap-3">
+                <div
+                  key={m.marketerCode}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors"
+                  onClick={() => {
+                    const found = marketers.find((mk: any) => mk.marketerCode === m.marketerCode);
+                    if (found) openMarketerDetail(found);
+                  }}
+                >
                   <span className="text-xs font-bold text-muted-foreground w-5 text-right">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -555,6 +675,7 @@ export function AdminMarketingDashboard({ token }: Props) {
                     </div>
                   </div>
                   <span className="text-sm font-bold shrink-0 w-10 text-right">{m.totalReferrals}</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
               ))}
             </div>
@@ -603,12 +724,12 @@ export function AdminMarketingDashboard({ token }: Props) {
     </div>
   );
 
-  // ── Marketer detail modal ─────────────────────────────────────────────────────
+  // ── Marketer detail modal — shows WHO they brought ───────────────────────────
   const DetailModal = () => {
-    const mk = marketerDetail?.marketer;
+    const mk  = marketerDetail?.marketer;
     const usr = marketerDetail?.user;
     const stats = marketerDetail?.stats;
-    const link = marketerDetail?.referralLink;
+    const link  = marketerDetail?.referralLink;
 
     return (
       <Dialog open={!!selectedMarketer} onOpenChange={o => { if (!o) setSelectedMarketer(null); }}>
@@ -620,7 +741,7 @@ export function AdminMarketingDashboard({ token }: Props) {
               </div>
               <div>
                 <p>{usr?.name ?? "Loading…"}</p>
-                {mk && <p className="text-sm font-normal text-muted-foreground">{mk.marketerCode}</p>}
+                {mk && <p className="text-sm font-normal text-muted-foreground">{mk.marketerCode} · {marketerReferralsTotal} people brought</p>}
               </div>
             </DialogTitle>
           </DialogHeader>
@@ -652,13 +773,17 @@ export function AdminMarketingDashboard({ token }: Props) {
               {stats && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {[
-                    { l: "Total", v: stats.total }, { l: "Today", v: stats.today },
-                    { l: "Yesterday", v: stats.yesterday }, { l: "This Week", v: stats.thisWeek },
-                    { l: "This Month", v: stats.thisMonth }, { l: "This Year", v: stats.thisYear },
-                    { l: "Active", v: stats.activeCount }, { l: "Inactive", v: stats.inactiveCount },
-                  ].map(({ l, v }) => (
-                    <div key={l} className="bg-muted/50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold">{v}</p>
+                    { l: "Total Brought", v: stats.total, bold: true },
+                    { l: "Today", v: stats.today },
+                    { l: "Yesterday", v: stats.yesterday },
+                    { l: "This Week", v: stats.thisWeek },
+                    { l: "This Month", v: stats.thisMonth },
+                    { l: "This Year", v: stats.thisYear },
+                    { l: "Active Users", v: stats.activeCount },
+                    { l: "Inactive Users", v: stats.inactiveCount },
+                  ].map(({ l, v, bold }) => (
+                    <div key={l} className={`rounded-lg p-3 text-center ${bold ? "bg-primary/10" : "bg-muted/50"}`}>
+                      <p className={`text-xl font-bold ${bold ? "text-primary" : ""}`}>{v}</p>
                       <p className="text-xs text-muted-foreground">{l}</p>
                     </div>
                   ))}
@@ -687,35 +812,45 @@ export function AdminMarketingDashboard({ token }: Props) {
                 </Button>
               </div>
 
-              {/* Referral list */}
+              {/* ── People this marketer brought ── */}
               <div>
-                <h3 className="font-semibold text-sm mb-3">Referral List ({marketerReferralsTotal})</h3>
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        {["Name", "Email", "Phone", "Code", "Date", "Status"].map(h => (
-                          <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {marketerReferrals.map((r: any) => (
-                        <tr key={r.referralId} className="hover:bg-muted/20">
-                          <td className="px-3 py-2 font-medium">{r.user?.name ?? "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground text-xs">{r.user?.email ?? "—"}</td>
-                          <td className="px-3 py-2 text-xs">{r.user?.phone ?? "—"}</td>
-                          <td className="px-3 py-2"><span className="font-mono text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{r.referralCode}</span></td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                          <td className="px-3 py-2"><Badge variant={r.user?.status === "active" ? "default" : "secondary"} className="text-[10px]">{r.user?.status ?? "?"}</Badge></td>
-                        </tr>
-                      ))}
-                      {marketerReferrals.length === 0 && (
-                        <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">No referrals yet.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-sm">People {usr?.name?.split(" ")[0] ?? "this marketer"} brought ({marketerReferralsTotal})</h3>
                 </div>
+                {marketerReferrals.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm border rounded-lg">
+                    No referrals yet — share the referral link to start bringing users.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          {["#", "Name", "Email", "Phone", "Joined", "Status"].map(h => (
+                            <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {marketerReferrals.map((r: any, idx: number) => (
+                          <tr key={r.referralId ?? idx} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 text-muted-foreground text-xs">{idx + 1}</td>
+                            <td className="px-3 py-2 font-medium">{r.user?.name ?? "—"}</td>
+                            <td className="px-3 py-2 text-muted-foreground text-xs">{r.user?.email ?? "—"}</td>
+                            <td className="px-3 py-2 text-xs">{r.user?.phone ?? "—"}</td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(r.createdAt)}</td>
+                            <td className="px-3 py-2">
+                              <Badge variant={r.user?.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                                {r.user?.status ?? "?"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -726,43 +861,69 @@ export function AdminMarketingDashboard({ token }: Props) {
 
   // ── Convert user modal ────────────────────────────────────────────────────────
   const ConvertModal = () => (
-    <Dialog open={showConvert} onOpenChange={setShowConvert}>
+    <Dialog open={showConvert} onOpenChange={open => { setShowConvert(open); if (!open) { setSearchUsers(""); setUserResults([]); } }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Convert User to Marketer</DialogTitle>
-          <DialogDescription>Search for an existing INNDOS user and assign them the Marketer role. Their normal account will remain unchanged.</DialogDescription>
+          <DialogTitle>Add Marketer</DialogTitle>
+          <DialogDescription>
+            Search for an existing INNDOS user by name, email, or phone. Their account role stays unchanged — they simply get a referral link.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by name, email or phone…" className="pl-9" value={searchUsers}
-              onChange={e => setSearchUsers(e.target.value)} />
+            <Input
+              placeholder="Type name, email or phone…"
+              className="pl-9"
+              value={searchUsers}
+              onChange={e => setSearchUsers(e.target.value)}
+              autoFocus
+            />
           </div>
-          {searching && <p className="text-xs text-center text-muted-foreground">Searching…</p>}
+          {searching && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Searching…
+            </div>
+          )}
           <div className="space-y-2 max-h-72 overflow-y-auto">
             {userResults.map((u: any) => (
-              <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40">
+              <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors">
                 <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden">
                   {avatarSrc(u) ? <img src={avatarSrc(u)} alt="" className="h-full w-full object-cover" /> : initials(u.name)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{u.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{u.email} · {u.role}</p>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}{u.phone ? ` · ${u.phone}` : ""} · <span className="capitalize">{u.role}</span></p>
                 </div>
                 {u.isMarketer ? (
-                  <Badge variant="secondary" className="text-[10px] shrink-0"><Check className="h-3 w-3 mr-1" />Marketer</Badge>
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    <Check className="h-3 w-3 mr-1" /> Already a marketer
+                  </Badge>
                 ) : (
-                  <Button size="sm" disabled={convertingUserId === u.id} onClick={() => convertUser(u.id)}>
-                    {convertingUserId === u.id ? "Adding…" : "Add"}
+                  <Button
+                    size="sm"
+                    disabled={convertingUserId === u.id}
+                    onClick={() => convertUser(u.id)}
+                  >
+                    {convertingUserId === u.id ? (
+                      <span className="flex items-center gap-1.5">
+                        <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Adding…
+                      </span>
+                    ) : "Add as Marketer"}
                   </Button>
                 )}
               </div>
             ))}
             {searchUsers.length >= 2 && !searching && userResults.length === 0 && (
-              <p className="text-center text-muted-foreground text-sm py-4">No users found.</p>
+              <div className="text-center text-muted-foreground text-sm py-6">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                No users found for "{searchUsers}"
+              </div>
             )}
             {searchUsers.length < 2 && (
-              <p className="text-center text-muted-foreground text-sm py-4">Type at least 2 characters to search.</p>
+              <p className="text-center text-muted-foreground text-sm py-6">Type at least 2 characters to search.</p>
             )}
           </div>
         </div>
@@ -773,15 +934,20 @@ export function AdminMarketingDashboard({ token }: Props) {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header — Add Marketer always visible regardless of active tab */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-xl font-bold">Marketing & Referrals</h2>
           <p className="text-sm text-muted-foreground">Manage marketers, track referrals, and monitor performance.</p>
         </div>
-        <Button onClick={() => { fetchOverview(); fetchComparison(); fetchChart(); }} variant="outline" size="sm">
-          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => { fetchOverview(); fetchComparison(); fetchChart(); fetchRecentReferrals(); if (tab === "marketers") fetchMarketers(); if (tab === "referrals") fetchAllReferrals(); }} variant="outline" size="sm">
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+          </Button>
+          <Button size="sm" onClick={() => setShowConvert(true)}>
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Add Marketer
+          </Button>
+        </div>
       </div>
 
       {/* Tab navigation */}
