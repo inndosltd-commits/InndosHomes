@@ -83,7 +83,7 @@ export function MarketerDashboard({ token }: Props) {
 
   const shareLink = () => {
     if (navigator.share) {
-      navigator.share({ title: "Join INNDOS via my link", url: profile?.referralLink ?? "" }).catch(() => {});
+      navigator.share({ title: "Join inndos via my link", url: profile?.referralLink ?? "" }).catch(() => {});
     } else copyLink();
   };
 

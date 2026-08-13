@@ -866,7 +866,7 @@ export function AdminMarketingDashboard({ token }: Props) {
         <DialogHeader>
           <DialogTitle>Add Marketer</DialogTitle>
           <DialogDescription>
-            Search for an existing INNDOS user by name, email, or phone. Their account role stays unchanged — they simply get a referral link.
+            Search for an existing inndos user by name, email, or phone. Their account role stays unchanged — they simply get a referral link.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -880,13 +880,17 @@ export function AdminMarketingDashboard({ token }: Props) {
               autoFocus
             />
           </div>
-          {searching && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              Searching…
-            </div>
-          )}
-          <div className="space-y-2 max-h-72 overflow-y-auto">
+          {/* Fixed-height result area — prevents modal from bouncing while typing */}
+          <div className="min-h-[260px] max-h-[260px] overflow-y-auto space-y-2">
+            {/* Searching spinner */}
+            {searching && userResults.length === 0 && (
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground h-24">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Searching…
+              </div>
+            )}
+
+            {/* Results */}
             {userResults.map((u: any) => (
               <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors">
                 <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden">
@@ -901,11 +905,7 @@ export function AdminMarketingDashboard({ token }: Props) {
                     <Check className="h-3 w-3 mr-1" /> Already a marketer
                   </Badge>
                 ) : (
-                  <Button
-                    size="sm"
-                    disabled={convertingUserId === u.id}
-                    onClick={() => convertUser(u.id)}
-                  >
+                  <Button size="sm" disabled={convertingUserId === u.id} onClick={() => convertUser(u.id)}>
                     {convertingUserId === u.id ? (
                       <span className="flex items-center gap-1.5">
                         <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -916,14 +916,18 @@ export function AdminMarketingDashboard({ token }: Props) {
                 )}
               </div>
             ))}
+
+            {/* Empty states — shown inside the fixed box so height is stable */}
             {searchUsers.length >= 2 && !searching && userResults.length === 0 && (
-              <div className="text-center text-muted-foreground text-sm py-6">
-                <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <div className="flex flex-col items-center justify-center text-muted-foreground text-sm h-40 gap-2">
+                <Users className="h-8 w-8 opacity-30" />
                 No users found for "{searchUsers}"
               </div>
             )}
             {searchUsers.length < 2 && (
-              <p className="text-center text-muted-foreground text-sm py-6">Type at least 2 characters to search.</p>
+              <div className="flex items-center justify-center text-muted-foreground text-sm h-40">
+                Type at least 2 characters to search.
+              </div>
             )}
           </div>
         </div>
