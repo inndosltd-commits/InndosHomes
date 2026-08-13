@@ -204,6 +204,34 @@ router.post("/signup", async (req, res) => {
             .update(referralVisits)
             .set({ converted: true, convertedAt: new Date() })
             .where(and(eq(referralVisits.marketerId, mktr.id), eq(referralVisits.referralCode, referralCode), eq(referralVisits.converted, false)));
+
+          // Notify the marketer of their new referral (fire-and-forget)
+          try {
+            const referralVars = { userName: name, userEmail: email };
+            const referralTmpl = await resolveTemplates(
+              ["marketing.referral.marketer.bell", "marketing.referral.marketer.sms"],
+              referralVars,
+              {
+                "marketing.referral.marketer.bell": `🎉 New referral! ${name} just signed up using your referral link.`,
+                "marketing.referral.marketer.sms":  `🎉 inndos: New referral! ${name} signed up using your link. Check your dashboard for details.`,
+              }
+            );
+            await db.insert(notifications).values({
+              userId: mktr.userId,
+              type: "new_referral",
+              message: referralTmpl["marketing.referral.marketer.bell"],
+              isRead: false,
+            });
+            const [marketerUser] = await db
+              .select({ phone: users.phone })
+              .from(users)
+              .where(eq(users.id, mktr.userId));
+            if (marketerUser?.phone) {
+              sendSms(marketerUser.phone, referralTmpl["marketing.referral.marketer.sms"]).catch(() => {});
+            }
+          } catch (err) {
+            logger.error({ err }, "Failed to notify marketer of new referral");
+          }
         }
       }
     } catch (err) {
