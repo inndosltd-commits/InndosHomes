@@ -5,11 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Share2, Users, Link2, TrendingUp, Calendar, CheckCircle2, Clock, Search, Filter, RefreshCw } from "lucide-react";
+import { Copy, Share2, Users, Link2, TrendingUp, Calendar, CheckCircle2, Clock, Search, RefreshCw, ChevronRight } from "lucide-react";
 
 interface Props { token: string; }
 
-function StatCard({ icon: Icon, label, value, color = "primary" }: { icon: any; label: string; value: number | string; color?: string }) {
+function StatCard({
+  icon: Icon, label, value, color = "primary", onClick,
+}: {
+  icon: any; label: string; value: number | string; color?: string; onClick?: () => void;
+}) {
   const colors: Record<string, string> = {
     primary: "bg-blue-50 text-blue-700",
     green:   "bg-green-50 text-green-700",
@@ -17,15 +21,21 @@ function StatCard({ icon: Icon, label, value, color = "primary" }: { icon: any; 
     purple:  "bg-purple-50 text-purple-700",
   };
   return (
-    <Card>
+    <Card
+      className={onClick ? "cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group" : ""}
+      onClick={onClick}
+    >
       <CardContent className="p-5 flex items-center gap-4">
         <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${colors[color]}`}>
           <Icon className="h-5 w-5" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
           <p className="text-2xl font-bold leading-tight">{value}</p>
         </div>
+        {onClick && (
+          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+        )}
       </CardContent>
     </Card>
   );
@@ -150,14 +160,15 @@ export function MarketerDashboard({ token }: Props) {
             </CardContent>
           </Card>
 
-          {/* Stat grid */}
+          {/* Stat grid — each card is clickable and opens the referrals list with the matching filter */}
+          <p className="text-xs text-muted-foreground -mb-2">Tap a card to see who joined</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <StatCard icon={Users}     label="Total People Joined" value={stats.total}       color="primary" />
-            <StatCard icon={Calendar}  label="New Today"           value={stats.today}       color="amber" />
-            <StatCard icon={TrendingUp} label="This Week"          value={stats.thisWeek}    color="purple" />
-            <StatCard icon={Calendar}  label="This Month"          value={stats.thisMonth}   color="primary" />
-            <StatCard icon={CheckCircle2} label="Active Referrals" value={stats.activeCount} color="green" />
-            <StatCard icon={Clock}     label="Inactive Referrals"  value={stats.inactiveCount} color="amber" />
+            <StatCard icon={Users}        label="Total People Joined"  value={stats.total}          color="primary" onClick={() => { setFilter("all");      setTab("referrals"); }} />
+            <StatCard icon={Calendar}     label="New Today"            value={stats.today}          color="amber"   onClick={() => { setFilter("today");     setTab("referrals"); }} />
+            <StatCard icon={TrendingUp}   label="This Week"            value={stats.thisWeek}       color="purple"  onClick={() => { setFilter("week");      setTab("referrals"); }} />
+            <StatCard icon={Calendar}     label="This Month"           value={stats.thisMonth}      color="primary" onClick={() => { setFilter("month");     setTab("referrals"); }} />
+            <StatCard icon={CheckCircle2} label="Active Referrals"     value={stats.activeCount}    color="green"   onClick={() => { setFilter("active");    setTab("referrals"); }} />
+            <StatCard icon={Clock}        label="Inactive Referrals"   value={stats.inactiveCount}  color="amber"   onClick={() => { setFilter("inactive");  setTab("referrals"); }} />
           </div>
 
           {/* Conversion stats if available */}
