@@ -91,6 +91,12 @@ export default function Login() {
     if (ref) {
       sessionStorage.setItem("inndos_ref", ref);
       setReferralCode(ref);
+      // Track the visit so the marketer sees link-click analytics
+      fetch("/api/marketing/visit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralCode: ref, landingPage: window.location.href }),
+      }).catch(() => {/* fire-and-forget */});
     }
   }, [location]);
 

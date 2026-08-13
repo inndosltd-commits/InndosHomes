@@ -725,215 +725,11 @@ export function AdminMarketingDashboard({ token }: Props) {
   );
 
   // ── Marketer detail modal — shows WHO they brought ───────────────────────────
-  const DetailModal = () => {
-    const mk  = marketerDetail?.marketer;
-    const usr = marketerDetail?.user;
-    const stats = marketerDetail?.stats;
-    const link  = marketerDetail?.referralLink;
-
-    return (
-      <Dialog open={!!selectedMarketer} onOpenChange={o => { if (!o) setSelectedMarketer(null); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 overflow-hidden">
-                {avatarSrc(usr) ? <img src={avatarSrc(usr)} alt="" className="h-full w-full object-cover" /> : initials(usr?.name)}
-              </div>
-              <div>
-                <p>{usr?.name ?? "Loading…"}</p>
-                {mk && <p className="text-sm font-normal text-muted-foreground">{mk.marketerCode} · {marketerReferralsTotal} people brought</p>}
-              </div>
-            </DialogTitle>
-          </DialogHeader>
-
-          {loadingDetail ? (
-            <div className="flex justify-center py-12"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
-          ) : marketerDetail && (
-            <div className="space-y-5">
-              {/* Info */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{usr?.email}</span></div>
-                <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{usr?.phone ?? "—"}</span></div>
-                <div><span className="text-muted-foreground">Marketer ID:</span> <span className="font-mono font-medium">{mk?.marketerCode}</span></div>
-                <div><span className="text-muted-foreground">Status:</span> <Badge variant={mk?.status === "active" ? "default" : "secondary"} className="text-[10px]">{mk?.status}</Badge></div>
-                <div><span className="text-muted-foreground">Assigned:</span> <span>{fmtDate(mk?.createdAt)}</span></div>
-                <div><span className="text-muted-foreground">Referral Code:</span> <span className="font-mono font-semibold text-blue-700">{mk?.referralCode}</span></div>
-              </div>
-
-              {/* Referral link */}
-              <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-                <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <p className="text-xs flex-1 truncate font-mono">{link}</p>
-                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(link); toast({ title: "Link copied!" }); }}>
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-
-              {/* Stats */}
-              {stats && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {[
-                    { l: "Total Brought", v: stats.total, bold: true },
-                    { l: "Today", v: stats.today },
-                    { l: "Yesterday", v: stats.yesterday },
-                    { l: "This Week", v: stats.thisWeek },
-                    { l: "This Month", v: stats.thisMonth },
-                    { l: "This Year", v: stats.thisYear },
-                    { l: "Active Users", v: stats.activeCount },
-                    { l: "Inactive Users", v: stats.inactiveCount },
-                  ].map(({ l, v, bold }) => (
-                    <div key={l} className={`rounded-lg p-3 text-center ${bold ? "bg-primary/10" : "bg-muted/50"}`}>
-                      <p className={`text-xl font-bold ${bold ? "text-primary" : ""}`}>{v}</p>
-                      <p className="text-xs text-muted-foreground">{l}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Visits / conversion */}
-              {stats && stats.totalVisits > 0 && (
-                <div className="flex items-center gap-4 text-sm bg-blue-50 rounded-lg px-4 py-3">
-                  <div className="text-center"><p className="font-bold">{stats.totalVisits}</p><p className="text-xs text-muted-foreground">Link Visits</p></div>
-                  <div className="text-center"><p className="font-bold">{stats.total}</p><p className="text-xs text-muted-foreground">Conversions</p></div>
-                  <div className="text-center"><p className="font-bold text-blue-700">{stats.conversionRate}%</p><p className="text-xs text-muted-foreground">Conv. Rate</p></div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2 flex-wrap">
-                <Button size="sm" variant="outline" onClick={() => toggleStatus(mk)}>
-                  {mk?.status === "active" ? <><PowerOff className="h-3.5 w-3.5 mr-1.5" /> Deactivate</> : <><Power className="h-3.5 w-3.5 mr-1.5" /> Activate</>}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => regenerateCode({ ...mk, user: usr })}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Regenerate Code
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => exportCSV(`referrals&marketerId=${mk?.id}`)}>
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Export Referrals
-                </Button>
-              </div>
-
-              {/* ── People this marketer brought ── */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="h-4 w-4 text-primary" />
-                  <h3 className="font-semibold text-sm">People {usr?.name?.split(" ")[0] ?? "this marketer"} brought ({marketerReferralsTotal})</h3>
-                </div>
-                {marketerReferrals.length === 0 ? (
-                  <div className="text-center py-6 text-muted-foreground text-sm border rounded-lg">
-                    No referrals yet — share the referral link to start bringing users.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          {["#", "Name", "Email", "Phone", "Joined", "Status"].map(h => (
-                            <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {marketerReferrals.map((r: any, idx: number) => (
-                          <tr key={r.referralId ?? idx} className="hover:bg-muted/20">
-                            <td className="px-3 py-2 text-muted-foreground text-xs">{idx + 1}</td>
-                            <td className="px-3 py-2 font-medium">{r.user?.name ?? "—"}</td>
-                            <td className="px-3 py-2 text-muted-foreground text-xs">{r.user?.email ?? "—"}</td>
-                            <td className="px-3 py-2 text-xs">{r.user?.phone ?? "—"}</td>
-                            <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(r.createdAt)}</td>
-                            <td className="px-3 py-2">
-                              <Badge variant={r.user?.status === "active" ? "default" : "secondary"} className="text-[10px]">
-                                {r.user?.status ?? "?"}
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-  // ── Convert user modal ────────────────────────────────────────────────────────
-  const ConvertModal = () => (
-    <Dialog open={showConvert} onOpenChange={open => { setShowConvert(open); if (!open) { setSearchUsers(""); setUserResults([]); } }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add Marketer</DialogTitle>
-          <DialogDescription>
-            Search for an existing inndos user by name, email, or phone. Their account role stays unchanged — they simply get a referral link.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Type name, email or phone…"
-              className="pl-9"
-              value={searchUsers}
-              onChange={e => setSearchUsers(e.target.value)}
-              autoFocus
-            />
-          </div>
-          {/* Fixed-height result area — prevents modal from bouncing while typing */}
-          <div className="min-h-[260px] max-h-[260px] overflow-y-auto space-y-2">
-            {/* Searching spinner */}
-            {searching && userResults.length === 0 && (
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground h-24">
-                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                Searching…
-              </div>
-            )}
-
-            {/* Results */}
-            {userResults.map((u: any) => (
-              <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors">
-                <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden">
-                  {avatarSrc(u) ? <img src={avatarSrc(u)} alt="" className="h-full w-full object-cover" /> : initials(u.name)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{u.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{u.email}{u.phone ? ` · ${u.phone}` : ""} · <span className="capitalize">{u.role}</span></p>
-                </div>
-                {u.isMarketer ? (
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                    <Check className="h-3 w-3 mr-1" /> Already a marketer
-                  </Badge>
-                ) : (
-                  <Button size="sm" disabled={convertingUserId === u.id} onClick={() => convertUser(u.id)}>
-                    {convertingUserId === u.id ? (
-                      <span className="flex items-center gap-1.5">
-                        <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Adding…
-                      </span>
-                    ) : "Add as Marketer"}
-                  </Button>
-                )}
-              </div>
-            ))}
-
-            {/* Empty states — shown inside the fixed box so height is stable */}
-            {searchUsers.length >= 2 && !searching && userResults.length === 0 && (
-              <div className="flex flex-col items-center justify-center text-muted-foreground text-sm h-40 gap-2">
-                <Users className="h-8 w-8 opacity-30" />
-                No users found for "{searchUsers}"
-              </div>
-            )}
-            {searchUsers.length < 2 && (
-              <div className="flex items-center justify-center text-muted-foreground text-sm h-40">
-                Type at least 2 characters to search.
-              </div>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+  // ── Marketer detail vars (used directly in JSX below, not in sub-component) ──
+  const _detailMk    = marketerDetail?.marketer;
+  const _detailUsr   = marketerDetail?.user;
+  const _detailStats = marketerDetail?.stats;
+  const _detailLink  = marketerDetail?.referralLink;
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -974,8 +770,194 @@ export function AdminMarketingDashboard({ token }: Props) {
         {tab === "audit"     && <AuditTab />}
       </div>
 
-      <DetailModal />
-      <ConvertModal />
+      {/* ── Marketer detail dialog — inlined to avoid unmount/remount on re-render ── */}
+      <Dialog open={!!selectedMarketer} onOpenChange={o => { if (!o) setSelectedMarketer(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 overflow-hidden">
+                {avatarSrc(_detailUsr) ? <img src={avatarSrc(_detailUsr)} alt="" className="h-full w-full object-cover" /> : initials(_detailUsr?.name)}
+              </div>
+              <div>
+                <p>{_detailUsr?.name ?? "Loading…"}</p>
+                {_detailMk && <p className="text-sm font-normal text-muted-foreground">{_detailMk.marketerCode} · {marketerReferralsTotal} people brought</p>}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingDetail ? (
+            <div className="flex justify-center py-12"><div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
+          ) : marketerDetail && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{_detailUsr?.email}</span></div>
+                <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{_detailUsr?.phone ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Marketer ID:</span> <span className="font-mono font-medium">{_detailMk?.marketerCode}</span></div>
+                <div><span className="text-muted-foreground">Status:</span> <Badge variant={_detailMk?.status === "active" ? "default" : "secondary"} className="text-[10px]">{_detailMk?.status}</Badge></div>
+                <div><span className="text-muted-foreground">Assigned:</span> <span>{fmtDate(_detailMk?.createdAt)}</span></div>
+                <div><span className="text-muted-foreground">Referral Code:</span> <span className="font-mono font-semibold text-blue-700">{_detailMk?.referralCode}</span></div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
+                <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-xs flex-1 truncate font-mono">{_detailLink}</p>
+                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(_detailLink); toast({ title: "Link copied!" }); }}>
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {_detailStats && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {[
+                    { l: "Total Brought", v: _detailStats.total, bold: true },
+                    { l: "Today", v: _detailStats.today },
+                    { l: "Yesterday", v: _detailStats.yesterday },
+                    { l: "This Week", v: _detailStats.thisWeek },
+                    { l: "This Month", v: _detailStats.thisMonth },
+                    { l: "This Year", v: _detailStats.thisYear },
+                    { l: "Active Users", v: _detailStats.activeCount },
+                    { l: "Inactive Users", v: _detailStats.inactiveCount },
+                  ].map(({ l, v, bold }) => (
+                    <div key={l} className={`rounded-lg p-3 text-center ${bold ? "bg-primary/10" : "bg-muted/50"}`}>
+                      <p className={`text-xl font-bold ${bold ? "text-primary" : ""}`}>{v}</p>
+                      <p className="text-xs text-muted-foreground">{l}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {_detailStats && _detailStats.totalVisits > 0 && (
+                <div className="flex items-center gap-4 text-sm bg-blue-50 rounded-lg px-4 py-3">
+                  <div className="text-center"><p className="font-bold">{_detailStats.totalVisits}</p><p className="text-xs text-muted-foreground">Link Visits</p></div>
+                  <div className="text-center"><p className="font-bold">{_detailStats.total}</p><p className="text-xs text-muted-foreground">Conversions</p></div>
+                  <div className="text-center"><p className="font-bold text-blue-700">{_detailStats.conversionRate}%</p><p className="text-xs text-muted-foreground">Conv. Rate</p></div>
+                </div>
+              )}
+
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => toggleStatus(_detailMk)}>
+                  {_detailMk?.status === "active" ? <><PowerOff className="h-3.5 w-3.5 mr-1.5" /> Deactivate</> : <><Power className="h-3.5 w-3.5 mr-1.5" /> Activate</>}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => regenerateCode({ ..._detailMk, user: _detailUsr })}>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Regenerate Code
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => exportCSV(`referrals&marketerId=${_detailMk?.id}`)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Export Referrals
+                </Button>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-sm">People {_detailUsr?.name?.split(" ")[0] ?? "this marketer"} brought ({marketerReferralsTotal})</h3>
+                </div>
+                {marketerReferrals.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground text-sm border rounded-lg">
+                    No referrals yet — share the referral link to start bringing users.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          {["#", "Name", "Email", "Phone", "Joined", "Status"].map(h => (
+                            <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {marketerReferrals.map((r: any, idx: number) => (
+                          <tr key={r.referralId ?? idx} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 text-muted-foreground text-xs">{idx + 1}</td>
+                            <td className="px-3 py-2 font-medium">{r.user?.name ?? "—"}</td>
+                            <td className="px-3 py-2 text-muted-foreground text-xs">{r.user?.email ?? "—"}</td>
+                            <td className="px-3 py-2 text-xs">{r.user?.phone ?? "—"}</td>
+                            <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(r.createdAt)}</td>
+                            <td className="px-3 py-2">
+                              <Badge variant={r.user?.status === "active" ? "default" : "secondary"} className="text-[10px]">
+                                {r.user?.status ?? "?"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Marketer dialog — inlined to avoid unmount/remount on re-render ── */}
+      <Dialog open={showConvert} onOpenChange={open => { setShowConvert(open); if (!open) { setSearchUsers(""); setUserResults([]); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Marketer</DialogTitle>
+            <DialogDescription>
+              Search for an existing inndos user by name, email, or phone. Their account role stays unchanged — they simply get a referral link.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Type name, email or phone…"
+                className="pl-9"
+                value={searchUsers}
+                onChange={e => setSearchUsers(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {/* Fixed-height results area — prevents dialog from jumping while typing */}
+            <div className="min-h-[260px] max-h-[260px] overflow-y-auto space-y-2">
+              {searching && userResults.length === 0 && (
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground h-24">
+                  <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Searching…
+                </div>
+              )}
+              {userResults.map((u: any) => (
+                <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors">
+                  <div className="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-sm shrink-0 overflow-hidden">
+                    {avatarSrc(u) ? <img src={avatarSrc(u)} alt="" className="h-full w-full object-cover" /> : initials(u.name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{u.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email}{u.phone ? ` · ${u.phone}` : ""} · <span className="capitalize">{u.role}</span></p>
+                  </div>
+                  {u.isMarketer ? (
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      <Check className="h-3 w-3 mr-1" /> Already a marketer
+                    </Badge>
+                  ) : (
+                    <Button size="sm" disabled={convertingUserId === u.id} onClick={() => convertUser(u.id)}>
+                      {convertingUserId === u.id ? (
+                        <span className="flex items-center gap-1.5">
+                          <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Adding…
+                        </span>
+                      ) : "Add as Marketer"}
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {searchUsers.length >= 2 && !searching && userResults.length === 0 && (
+                <div className="flex flex-col items-center justify-center text-muted-foreground text-sm h-40 gap-2">
+                  <Users className="h-8 w-8 opacity-30" />
+                  No users found for "{searchUsers}"
+                </div>
+              )}
+              {searchUsers.length < 2 && (
+                <div className="flex items-center justify-center text-muted-foreground text-sm h-40">
+                  Type at least 2 characters to search.
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

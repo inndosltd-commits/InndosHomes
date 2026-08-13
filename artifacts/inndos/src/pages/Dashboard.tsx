@@ -888,12 +888,12 @@ export default function Dashboard() {
   const [customMonths, setCustomMonths] = useState(3);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
-  // Marketer check — runs once on mount for any non-admin user
+  // Marketer check — runs whenever user/token resolves; works for any role including admin
   const [isMarketer, setIsMarketer] = useState(false);
   useEffect(() => {
-    if (!user || !token || user.role === "admin") return;
+    if (!user || !token) return;
     fetch("/api/marketing/me", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (r.ok) setIsMarketer(true); })
+      .then(r => { if (r.ok) setIsMarketer(true); else setIsMarketer(false); })
       .catch(() => {});
   }, [user, token]);
 
