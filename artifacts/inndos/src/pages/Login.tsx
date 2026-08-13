@@ -91,6 +91,7 @@ export default function Login() {
     if (ref) {
       sessionStorage.setItem("inndos_ref", ref);
       setReferralCode(ref);
+      setIsSignUp(true); // referral links should land on signup, not login
       // Track the visit so the marketer sees link-click analytics
       fetch("/api/marketing/visit", {
         method: "POST",
