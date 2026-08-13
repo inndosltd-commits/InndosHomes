@@ -865,6 +865,7 @@ export default function PropertyDetails() {
                   muted
                   preload="metadata"
                   playsInline
+                  onLoadedMetadata={e => { (e.target as HTMLVideoElement).currentTime = 0.1; }}
                 />
                 {/* Play button overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -893,7 +894,8 @@ export default function PropertyDetails() {
                     className="relative overflow-hidden cursor-pointer group/video bg-black"
                     onClick={() => setVideoExpanded(true)}>
                     <video src={vSrc} className="w-full h-full object-cover opacity-70"
-                      muted preload="metadata" />
+                      muted preload="metadata"
+                      onLoadedMetadata={e => { (e.target as HTMLVideoElement).currentTime = 0.1; }} />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-10 h-10 rounded-full bg-white/90 group-hover/video:scale-110 flex items-center justify-center shadow-lg transition-transform">
                         <Play className="h-5 w-5 text-gray-900 ml-0.5" fill="currentColor" />
