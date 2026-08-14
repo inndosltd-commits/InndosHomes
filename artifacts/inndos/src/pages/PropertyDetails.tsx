@@ -516,6 +516,13 @@ export default function PropertyDetails() {
       .catch(() => {});
   }, [user?.id, token, property?.id]);
 
+  // For nightly types: auto-dismiss the unavailability contact card when user picks available dates
+  useEffect(() => {
+    if (isNightlyType && isDateRangeAvailable !== false) {
+      setShowUnavailableContact(false);
+    }
+  }, [isDateRangeAvailable, isNightlyType]);
+
   // Check if user already reviewed this property via their confirmed booking
   useEffect(() => {
     if (!linkedUpBookingId || !token) return;
@@ -627,6 +634,12 @@ export default function PropertyDetails() {
     // Nightly: reveal date picker first; second click confirms
     if (isNightlyType && !showDatePicker) {
       setShowDatePicker(true);
+      return;
+    }
+
+    // Nightly: if selected dates are unavailable, show contacts instead of failing the API call
+    if (isNightlyType && isDateRangeAvailable === false) {
+      setShowUnavailableContact(true);
       return;
     }
 
