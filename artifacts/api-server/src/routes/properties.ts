@@ -40,6 +40,8 @@ const PROPERTY_COLUMNS = {
   ownerEmail: users.email,
   ownerAvatar: users.avatar,
   ownerBusinessName: users.businessName,
+  avgRating: drizzleSql<string | null>`(SELECT ROUND(AVG(r.rating)::numeric,1)::text FROM reviews r WHERE r.property_id = ${properties.id})`,
+  favoritesCount: drizzleSql<number>`(SELECT COUNT(*)::int FROM favorites f WHERE f.property_id = ${properties.id})`,
 } as const;
 
 const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];

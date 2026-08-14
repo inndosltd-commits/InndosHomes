@@ -1168,6 +1168,9 @@ export default function Dashboard() {
         setReviewedBookingIds(prev => new Set([...prev, reviewModal.booking.id]));
         setReviewModal(null);
         toast({ title: "Review submitted", description: "Thank you for rating your stay!" });
+        // Refresh admin state so review list and property ratings stay current
+        fetchAdminReviews();
+        fetchAdminProperties();
       } else {
         const err = await res.json().catch(() => ({}));
         toast({ title: "Could not submit review", description: err.error ?? "Please try again.", variant: "destructive" });
@@ -5365,6 +5368,7 @@ export default function Dashboard() {
                                         });
                                         if (!res.ok) throw new Error("Failed to delete");
                                         setAdminReviews(prev => prev.filter(r => r.id !== review.id));
+                                        fetchAdminProperties();
                                         toast({ title: "Review deleted", description: "The review has been removed." });
                                       } catch {
                                         toast({ title: "Delete failed", description: "Could not delete the review.", variant: "destructive" });

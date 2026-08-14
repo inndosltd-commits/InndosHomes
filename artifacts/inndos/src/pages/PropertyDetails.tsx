@@ -532,12 +532,14 @@ export default function PropertyDetails() {
     setIsLiked(next);
     try {
       const res = await fetch(
-        next
-          ? `/api/favorites/${property.id}`
-          : `/api/favorites/${property.id}`,
+        next ? "/api/favorites" : `/api/favorites/${property.id}`,
         {
           method: next ? "POST" : "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(next ? { "Content-Type": "application/json" } : {}),
+          },
+          ...(next ? { body: JSON.stringify({ propertyId: property.id }) } : {}),
         }
       );
       if (!res.ok) { setIsLiked(!next); return; }

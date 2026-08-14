@@ -117,6 +117,30 @@ async function runMigrations() {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_name TEXT`);
 
+  // Reviews and review replies tables
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      property_id VARCHAR NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      reviewer_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      booking_id VARCHAR REFERENCES bookings(id) ON DELETE SET NULL,
+      rating INTEGER NOT NULL,
+      comment TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS reviews_booking_unique ON reviews(booking_id) WHERE booking_id IS NOT NULL`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS review_replies (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      review_id VARCHAR NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+      owner_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reply TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS review_replies_review_unique ON review_replies(review_id)`);
+
   // Property transaction confirmation table
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS property_transactions (
