@@ -114,7 +114,7 @@ router.post("/signup", async (req, res) => {
   }
 
   const { name, email, password, role } = result.data;
-  const { phoneToken, isRegisteredFirm, firmType } = req.body as { phoneToken?: string; isRegisteredFirm?: boolean; firmType?: string };
+  const { phoneToken, isRegisteredFirm, firmType, businessName } = req.body as { phoneToken?: string; isRegisteredFirm?: boolean; firmType?: string; businessName?: string };
 
   if (!phoneToken) {
     res.status(400).json({ error: "Phone verification is required to create an account" });
@@ -149,6 +149,7 @@ router.post("/signup", async (req, res) => {
       name, email, password: hashed, role: allowedRole, phone: verifiedPhone, phoneVerified: true,
       ...(typeof isRegisteredFirm === "boolean" ? { isRegisteredFirm } : {}),
       ...(typeof firmType === "string" ? { firmType: firmType as "business_name" | "registered_company" } : {}),
+      ...(typeof businessName === "string" && businessName.trim() ? { businessName: businessName.trim() } : {}),
     })
     .returning();
 

@@ -115,6 +115,7 @@ async function seedDefaultPlans() {
 async function runMigrations() {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_name TEXT`);
 
   // Property transaction confirmation table
   await db.execute(sql`

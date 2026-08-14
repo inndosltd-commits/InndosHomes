@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   resetTokenExpiry: timestamp("reset_token_expiry"),
   isRegisteredFirm: boolean("is_registered_firm").notNull().default(false),
   firmType: text("firm_type").$type<"business_name" | "registered_company">(),
+  businessName: text("business_name"),
   firmCertRegistration: text("firm_cert_registration"),
   firmCertIncorporation: text("firm_cert_incorporation"),
   firmCr12: text("firm_cr12"),

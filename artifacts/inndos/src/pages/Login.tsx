@@ -67,6 +67,9 @@ export default function Login() {
   const [isRegisteredFirm, setIsRegisteredFirm] = useState(false);
   const [firmType, setFirmType] = useState<"business_name" | "registered_company">("business_name");
 
+  // Optional business brand name (owner + host)
+  const [businessName, setBusinessName] = useState("");
+
   const resetOtpState = () => { setOtpSent(false); setPhoneVerified(false); setPhoneToken(null); };
 
   // Capture referral code from URL (?ref=CODE) and persist across page loads
@@ -227,6 +230,7 @@ export default function Login() {
         return;
       }
       const extraOpts: Record<string, unknown> = { ...(role === "host" ? { isRegisteredFirm, firmType: isRegisteredFirm ? firmType : undefined } : {}) };
+      if (businessName.trim() && role !== "tenant") extraOpts.businessName = businessName.trim();
       if (referralCode) extraOpts.referralCode = referralCode;
       await signup(role, name, email, password, phoneToken, extraOpts as any);
       // clear referral code after successful signup
@@ -545,6 +549,21 @@ export default function Login() {
                         <div className="space-y-2">
                           <Label htmlFor={`name-${role}`}>Full Name</Label>
                           <Input id={`name-${role}`} placeholder="John Doe" />
+                        </div>
+                      )}
+                      {isSignUp && role !== "tenant" && (
+                        <div className="space-y-2">
+                          <Label htmlFor={`business-name-${role}`} className="flex items-center gap-1.5">
+                            Business Brand Name
+                            <span className="text-[10px] font-normal text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">Optional</span>
+                          </Label>
+                          <Input
+                            id={`business-name-${role}`}
+                            placeholder="e.g. Sunset Properties, Makao Realtors"
+                            value={businessName}
+                            onChange={e => setBusinessName(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">Your trading name or brand — leave blank if you operate under your personal name.</p>
                         </div>
                       )}
                       {isSignUp && (
