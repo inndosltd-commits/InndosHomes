@@ -711,6 +711,10 @@ export default function AddListing() {
       toast({ title: "Upload in progress", description: "Please wait for all photos to finish uploading.", variant: "destructive" });
       return;
     }
+    if (images.length === 0) {
+      toast({ title: "Photo required", description: "Please upload at least one photo of the property before submitting.", variant: "destructive" });
+      return;
+    }
 
     const parsedPrice = parseInt(price, 10);
     const parsedBeds = parseInt(beds, 10);
@@ -1345,8 +1349,8 @@ export default function AddListing() {
               {/* Photos */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Photos</CardTitle>
-                  <CardDescription>Upload or take high quality images of your property</CardDescription>
+                  <CardTitle className="flex items-center gap-1.5">Photos <span className="text-red-500 text-base">*</span></CardTitle>
+                  <CardDescription>At least one photo is required. Upload or take high quality images of your property.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-4 mb-4">
