@@ -316,6 +316,7 @@ interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
   ownerAvatar?: string | null;
   ownerBusinessName?: string | null;
+  activeBookingsCount?: number;
 }
 
 // ── Ratings & Reviews panel shown on the property detail page ─────────────────
@@ -419,6 +420,10 @@ export default function PropertyDetails() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [videoExpanded, setVideoExpanded] = useState(false);
+  // For nightly types: hide dates until user clicks Link Up
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  // For non-nightly types: show "unavailable — contact owner" inline
+  const [showUnavailableContact, setShowUnavailableContact] = useState(false);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -612,6 +617,19 @@ export default function PropertyDetails() {
       toast({ title: "Cannot link up", description: "You cannot link up your own property.", variant: "destructive" });
       return;
     }
+
+    // Non-nightly: if already booked by someone, show unavailability alert with contacts
+    if (!isNightlyType && ((property as PropertyWithOwner).activeBookingsCount ?? 0) > 0) {
+      setShowUnavailableContact(true);
+      return;
+    }
+
+    // Nightly: reveal date picker first; second click confirms
+    if (isNightlyType && !showDatePicker) {
+      setShowDatePicker(true);
+      return;
+    }
+
     setIsLinkingUp(true);
 
     // Dates: nightly types use the date picker; others use today → +30 days as an enquiry window
@@ -1397,8 +1415,8 @@ export default function PropertyDetails() {
                         </p>
                       )}
 
-                      {/* Date picker for nightly types */}
-                      {isNightlyType && (
+                      {/* Date picker for nightly types — only shown after Link Up is clicked */}
+                      {isNightlyType && (showDatePicker || isLinkedUp) && (
                         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm relative z-20">
                           <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Select Dates</label>
                           <div className="grid grid-cols-2 gap-2 mb-3">
@@ -1451,7 +1469,7 @@ export default function PropertyDetails() {
                       )}
 
                       {/* Primary CTA */}
-                      {!isLinkedUp ? (
+                      {!isLinkedUp && !showUnavailableContact ? (
                         <Button
                           className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold tracking-wide gap-2"
                           onClick={handleLinkUp}
@@ -1459,10 +1477,72 @@ export default function PropertyDetails() {
                         >
                           {isLinkingUp ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : isNightlyType && showDatePicker ? (
+                            <>🔗 Confirm Dates &amp; Link Up</>
                           ) : (
                             <>🔗 {t("prop.book_now")}</>
                           )}
                         </Button>
+                      ) : showUnavailableContact && !isLinkedUp ? (
+                        /* Non-nightly: property already linked up — show unavailability alert */
+                        <div className="rounded-xl border border-red-200 overflow-hidden shadow-sm">
+                          <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
+                            <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                            <div>
+                              <p className="text-sm font-bold text-red-700">Currently Unavailable</p>
+                              <p className="text-xs text-red-600 mt-0.5 leading-relaxed">This property is already linked up. Contact the owner to check if it's still available or discuss terms.</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 p-3 bg-white">
+                            {property.ownerPhone && (
+                              <a
+                                href={`tel:${property.ownerPhone}`}
+                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                              >
+                                <PhoneCall className="h-4 w-4 text-primary shrink-0" />
+                                <div>
+                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Call</div>
+                                  <div>{property.ownerPhone}</div>
+                                </div>
+                              </a>
+                            )}
+                            {property.ownerPhone && (
+                              <a
+                                href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I found your property "${property.title}" on inndos. Is it still available?`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 px-4 py-3 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
+                              >
+                                <MessageCircle className="h-4 w-4 shrink-0" />
+                                <div>
+                                  <div className="text-xs text-white/70 leading-none mb-0.5">WhatsApp</div>
+                                  <div>{property.ownerPhone}</div>
+                                </div>
+                              </a>
+                            )}
+                            {property.ownerEmail && (
+                              <a
+                                href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Availability Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on inndos and would like to check if it is still available.\n\nThank you.`)}`}
+                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                              >
+                                <Mail className="h-4 w-4 text-primary shrink-0" />
+                                <div>
+                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Email</div>
+                                  <div>{property.ownerEmail}</div>
+                                </div>
+                              </a>
+                            )}
+                            {!property.ownerPhone && !property.ownerEmail && (
+                              <p className="text-xs text-gray-500 italic px-2">No direct contact listed — try messaging below.</p>
+                            )}
+                          </div>
+                          <button
+                            className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 border-t border-gray-100 bg-white transition-colors"
+                            onClick={() => setShowUnavailableContact(false)}
+                          >
+                            ← Back
+                          </button>
+                        </div>
                       ) : (
                         /* After linking up — show contact options only, no "booked" status */
                         <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
