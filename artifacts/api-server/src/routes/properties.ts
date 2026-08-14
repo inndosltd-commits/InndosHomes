@@ -39,6 +39,7 @@ const PROPERTY_COLUMNS = {
   ownerPhone: users.phone,
   ownerEmail: users.email,
   ownerAvatar: users.avatar,
+  ownerBusinessName: users.businessName,
 } as const;
 
 const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];

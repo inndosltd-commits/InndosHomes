@@ -24,6 +24,7 @@ export interface User {
   firmDirectorIds?: string[];
   businessCertRegistration?: string | null;
   businessPermit?: string | null;
+  businessName?: string | null;
 }
 
 interface AuthContextType {

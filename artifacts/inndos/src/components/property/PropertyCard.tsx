@@ -30,6 +30,7 @@ export interface ApiProperty {
   description?: string | null;
   createdAt?: string;
   ownerName?: string | null;
+  ownerBusinessName?: string | null;
   // Legacy mockData compat (specs object)
   specs?: { beds: number; baths: number; sqft: number; guests?: number };
 }

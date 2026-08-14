@@ -315,6 +315,7 @@ function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
 interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
   ownerAvatar?: string | null;
+  ownerBusinessName?: string | null;
 }
 
 // ── Ratings & Reviews panel shown on the property detail page ─────────────────
@@ -1363,7 +1364,12 @@ export default function PropertyDetails() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h3 className="font-bold">{property.ownerName || "Property Owner"}</h3>
+                          <h3 className="font-bold">
+                            {(property as PropertyWithOwner).ownerBusinessName || property.ownerName || "Property Owner"}
+                          </h3>
+                          {(property as PropertyWithOwner).ownerBusinessName && property.ownerName && (
+                            <p className="text-xs text-muted-foreground">{property.ownerName}</p>
+                          )}
                           <p className="text-sm text-muted-foreground capitalize">Owner / Host</p>
                         </div>
                       </div>

@@ -86,6 +86,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
   const { toast } = useToast();
   const { t } = useLanguage();
   const [profileName, setProfileName] = useState(user.name);
+  const [profileBusinessName, setProfileBusinessName] = useState((user as any).businessName ?? "");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   // Phone OTP state
@@ -386,6 +387,18 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
           <div className="space-y-2">
             <Label htmlFor="profile-email">{t("dash.email_address")}</Label>
             <Input id="profile-email" defaultValue={user.email} readOnly className="bg-gray-50 cursor-not-allowed" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="profile-business-name" className="flex items-center gap-1.5">
+              <Building className="h-3.5 w-3.5 text-gray-500" /> Business / Brand Name
+            </Label>
+            <Input
+              id="profile-business-name"
+              placeholder="e.g. Sunrise Realty"
+              value={profileBusinessName}
+              onChange={e => setProfileBusinessName(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Shown to guests on your listings. Leave blank to use your personal name.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="profile-phone">{t("dash.phone_number")}</Label>
@@ -748,7 +761,7 @@ function ProfileCard({ user, token, refreshUser }: { user: User; token: string |
               const res = await fetch("/api/auth/profile", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ name: profileName }),
+                body: JSON.stringify({ name: profileName, businessName: profileBusinessName }),
               });
               if (!res.ok) throw new Error("Save failed");
               await refreshUser();
@@ -3518,6 +3531,12 @@ export default function Dashboard() {
                               {pu.joinDate ? new Date(pu.joinDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                             </p>
                           </div>
+                          {(pu as any).businessName && (
+                            <div className="col-span-2">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><Building className="h-3 w-3" /> Business / Brand Name</p>
+                              <p className="font-medium mt-0.5">{(pu as any).businessName}</p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Verification Documents — firm or individual */}

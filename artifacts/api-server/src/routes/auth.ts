@@ -305,14 +305,14 @@ router.patch("/profile", async (req, res) => {
   const {
     name, avatar, idDocument, idFront, idBack,
     isRegisteredFirm, firmType, firmCertRegistration, firmCertIncorporation, firmCr12, firmDirectorIds,
-    businessCertRegistration, businessPermit, role,
+    businessCertRegistration, businessPermit, businessName, role,
     phone, phoneVerified, phoneToken,
   } = req.body as {
     name?: string; avatar?: string; idDocument?: string; idFront?: string; idBack?: string;
     isRegisteredFirm?: boolean; firmType?: string;
     firmCertRegistration?: string; firmCertIncorporation?: string; firmCr12?: string;
     firmDirectorIds?: string[];
-    businessCertRegistration?: string; businessPermit?: string;
+    businessCertRegistration?: string; businessPermit?: string; businessName?: string;
     role?: string;
     phone?: string; phoneVerified?: boolean; phoneToken?: string;
   };
@@ -348,6 +348,7 @@ router.patch("/profile", async (req, res) => {
   if (Array.isArray(firmDirectorIds)) updates.firmDirectorIds = firmDirectorIds;
   if (typeof businessCertRegistration === "string") updates.businessCertRegistration = businessCertRegistration;
   if (typeof businessPermit === "string") updates.businessPermit = businessPermit;
+  if (typeof businessName === "string") updates.businessName = businessName.trim() || null;
   // Allow tenant/guest to upgrade to owner or host — fetch current role first to validate
   if (role === "owner" || role === "host") {
     const [cur] = await db.select({ role: users.role }).from(users).where(eq(users.id, payload.userId));
