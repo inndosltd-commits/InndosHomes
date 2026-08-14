@@ -420,7 +420,9 @@ export default function PropertyDetails() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [videoExpanded, setVideoExpanded] = useState(false);
-  // For non-nightly types: show "unavailable — contact owner" inline
+  // Nightly types: calendar hidden until Link Up is first clicked
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  // For all types: show "unavailable — contact owner" inline
   const [showUnavailableContact, setShowUnavailableContact] = useState(false);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -626,6 +628,12 @@ export default function PropertyDetails() {
     // All types: if already booked by someone, show unavailability alert with contacts
     if (((property as PropertyWithOwner).activeBookingsCount ?? 0) > 0) {
       setShowUnavailableContact(true);
+      return;
+    }
+
+    // Nightly: first click reveals the date picker; subsequent clicks submit
+    if (isNightlyType && !showDatePicker) {
+      setShowDatePicker(true);
       return;
     }
 
@@ -1420,8 +1428,8 @@ export default function PropertyDetails() {
                         </p>
                       )}
 
-                      {/* Date picker for nightly types */}
-                      {isNightlyType && (
+                      {/* Date picker — revealed after first Link Up click for nightly types */}
+                      {isNightlyType && (showDatePicker || isLinkedUp) && (
                         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm relative z-20">
                           <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Select Dates</label>
                           <div className="grid grid-cols-2 gap-2 mb-3">
