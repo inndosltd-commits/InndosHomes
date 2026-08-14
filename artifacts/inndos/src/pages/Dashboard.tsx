@@ -865,6 +865,7 @@ export default function Dashboard() {
   // Received bookings state (for owners/hosts)
   const [receivedBookings, setReceivedBookings] = useState<any[]>([]);
   const [isLoadingReceivedBookings, setIsLoadingReceivedBookings] = useState(false);
+  const [linkupsSearch, setLinkupsSearch] = useState("");
 
   // Unread booking notifications count (for owners/hosts)
   const [unreadBookingCount, setUnreadBookingCount] = useState(0);
@@ -921,6 +922,7 @@ export default function Dashboard() {
   // Admin subscription management state
   const [adminSubscriptions, setAdminSubscriptions] = useState<any[]>([]);
   const [isLoadingAdminSubs, setIsLoadingAdminSubs] = useState(false);
+  const [subsSearch, setSubsSearch] = useState("");
   const [adminPayments, setAdminPayments] = useState<any[]>([]);
   const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
   const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
@@ -2741,7 +2743,20 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {receivedBookings.map((b: any) => {
+                        {/* Search bar */}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <input type="text" value={linkupsSearch} onChange={e => setLinkupsSearch(e.target.value)} placeholder="Search by guest, property or status…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-gray-50" />
+                        </div>
+                        {(() => {
+                          const lq = linkupsSearch.toLowerCase();
+                          const filteredLinkups = receivedBookings
+                            .filter(b => !linkupsSearch || (b.guestName ?? "").toLowerCase().includes(lq) || (b.propertyTitle ?? "").toLowerCase().includes(lq) || (b.status ?? "").toLowerCase().includes(lq))
+                            .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+                          if (filteredLinkups.length === 0) return (
+                            <div className="text-center py-8 text-muted-foreground text-sm bg-gray-50 rounded-lg border border-dashed">No link-ups match your search</div>
+                          );
+                          return filteredLinkups.map((b: any) => {
                         const rawCover = (b.propertyImages && b.propertyImages.length > 0) ? b.propertyImages[0] : (b.propertyImage || null);
                         const coverPhoto = resolvePropertyImageUrl(rawCover);
                         return (
@@ -2797,7 +2812,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                         );
-                        })}
+                        }); })()}
                       </div>
                     )}
                   </CardContent>
@@ -3302,7 +3317,7 @@ export default function Dashboard() {
                       if (propStatusFilter === "active" && !p.isVerified) return false;
                       if (propStatusFilter === "inactive" && p.isVerified) return false;
                       return true;
-                    });
+                    }).sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
                     return filteredProps.length === 0 ? (
                       <div className="text-center py-10 text-muted-foreground bg-gray-50 rounded-lg border border-dashed">
                         <p className="font-medium">No properties match your filters</p>
@@ -4272,7 +4287,20 @@ export default function Dashboard() {
                     <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
                   ) : adminSubscriptions.length === 0 ? (
                     <div className="py-12 text-center text-gray-400">No subscriptions yet</div>
-                  ) : (
+                  ) : (() => {
+                    const subsQ = subsSearch.toLowerCase();
+                    const filteredSubs = adminSubscriptions
+                      .filter(s => !subsSearch || (s.userName ?? "").toLowerCase().includes(subsQ) || (s.userEmail ?? "").toLowerCase().includes(subsQ) || (s.plan ?? "").toLowerCase().includes(subsQ))
+                      .sort((a, b) => new Date(b.startDate ?? 0).getTime() - new Date(a.startDate ?? 0).getTime());
+                    return (
+                    <div>
+                      {/* Subscription search */}
+                      <div className="px-4 py-3 border-b bg-gray-50">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <input type="text" value={subsSearch} onChange={e => setSubsSearch(e.target.value)} placeholder="Search by name, email or plan…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-white" />
+                        </div>
+                      </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 border-b">
@@ -4286,7 +4314,9 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {adminSubscriptions.map((sub: any) => (
+                          {filteredSubs.length === 0 ? (
+                            <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">No subscriptions match your search</td></tr>
+                          ) : filteredSubs.map((sub: any) => (
                             <tr key={sub.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3">
                                 <div className="font-medium text-gray-900">{sub.userName ?? "—"}</div>
@@ -4338,7 +4368,9 @@ export default function Dashboard() {
                         </tbody>
                       </table>
                     </div>
-                  )}
+                    </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
@@ -5316,7 +5348,7 @@ export default function Dashboard() {
                         || r.comment?.toLowerCase().includes(searchLower);
                       const matchRating = adminReviewsRatingFilter === null || r.rating === adminReviewsRatingFilter;
                       return matchSearch && matchRating;
-                    });
+                    }).sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
                     return filtered.length === 0 ? (
                       <div className="py-12 text-center text-gray-400">No reviews found</div>
                     ) : (

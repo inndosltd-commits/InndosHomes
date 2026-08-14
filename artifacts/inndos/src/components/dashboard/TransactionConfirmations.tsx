@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, Home, DollarSign, ShieldCheck, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp, Home, DollarSign, ShieldCheck, Loader2, RefreshCw, Search } from "lucide-react";
 
 type TxStatus =
   | "pending_confirmation"
@@ -121,6 +121,7 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [txSearch, setTxSearch] = useState("");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ tx: Transaction } | null>(null);
   const [resolveDialog, setResolveDialog] = useState<{ tx: Transaction } | null>(null);
@@ -201,13 +202,18 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
     }
   };
 
-  const pendingTxs = isAdmin
+  const txQ = txSearch.toLowerCase();
+  const pendingTxs = (isAdmin
     ? transactions.filter(tx => PENDING_STATUSES.includes(tx.status))
-    : transactions.filter(tx => isPendingForUser(tx, userId));
+    : transactions.filter(tx => isPendingForUser(tx, userId)))
+    .filter(tx => !txSearch || (tx.propertyTitle ?? "").toLowerCase().includes(txQ) || (tx.ownerName ?? "").toLowerCase().includes(txQ) || (tx.tenantName ?? "").toLowerCase().includes(txQ))
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
 
-  const historyTxs = isAdmin
+  const historyTxs = (isAdmin
     ? transactions.filter(tx => !PENDING_STATUSES.includes(tx.status))
-    : transactions.filter(tx => !isPendingForUser(tx, userId));
+    : transactions.filter(tx => !isPendingForUser(tx, userId)))
+    .filter(tx => !txSearch || (tx.propertyTitle ?? "").toLowerCase().includes(txQ) || (tx.ownerName ?? "").toLowerCase().includes(txQ) || (tx.tenantName ?? "").toLowerCase().includes(txQ))
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
 
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
@@ -316,6 +322,11 @@ export function TransactionConfirmations({ userId, userRole, token, compact = fa
             <Button variant="ghost" size="sm" onClick={fetchData} className="gap-1.5 text-xs text-muted-foreground">
               <RefreshCw className="h-3 w-3" /> Refresh
             </Button>
+          </div>
+          {/* Search */}
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input type="text" value={txSearch} onChange={e => setTxSearch(e.target.value)} placeholder="Search by property, owner or tenant…" className="w-full pl-9 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-800 bg-white" />
           </div>
         </CardHeader>
         <CardContent>

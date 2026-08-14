@@ -294,7 +294,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
           <h2 className="font-bold text-sm">Edit Video</h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" disabled={isProcessing}>
+          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" disabled={isProcessing}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -333,7 +333,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
             </div>
           )}
           {/* Controls */}
-          <button onClick={togglePlay} disabled={isProcessing}
+          <button type="button" onClick={togglePlay} disabled={isProcessing}
             className="absolute bottom-2 left-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors">
             {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </button>
@@ -349,7 +349,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-blue-700 font-medium">Processing video… {Math.round(progress)}%</span>
-                <button onClick={handleStop} className="text-gray-500 hover:text-gray-800 text-[11px] underline">Cancel</button>
+                <button type="button" onClick={handleStop} className="text-gray-500 hover:text-gray-800 text-[11px] underline">Cancel</button>
               </div>
               <div className="h-1.5 bg-blue-200 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 transition-all rounded-full" style={{ width: `${progress}%` }} />
@@ -366,7 +366,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
         {/* Tabs */}
         <div className="flex border-b shrink-0">
           {TABS.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => !isProcessing && setActiveTab(id)}
+            <button type="button" key={id} onClick={() => !isProcessing && setActiveTab(id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-colors
                 ${activeTab === id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"}`}>
               <Icon className="h-3.5 w-3.5" />{label}
@@ -449,13 +449,13 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
                 <p className="text-[11px] text-gray-400 mb-2">Quick presets — keep from start:</p>
                 <div className="flex gap-2 flex-wrap">
                   {[60, 90, 120, 180, 240, 300].filter(s => s <= Math.min(duration, 300)).map(s => (
-                    <button key={s} disabled={isProcessing}
+                    <button type="button" key={s} disabled={isProcessing}
                       onClick={() => { setTrimStart(0); setTrimEnd(s); }}
                       className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
                       {`${Math.floor(s / 60)}m${s % 60 ? `${s % 60}s` : ""}`}
                     </button>
                   ))}
-                  <button disabled={isProcessing}
+                  <button type="button" disabled={isProcessing}
                     onClick={() => { setTrimStart(0); setTrimEnd(Math.min(duration, 300)); }}
                     className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
                     Full
@@ -471,7 +471,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
               <p className="text-xs text-gray-500">Choose an aspect ratio. The video will be cropped from the center to fill the frame.</p>
               <div className="grid grid-cols-5 gap-2">
                 {(["original", "16:9", "4:3", "1:1", "9:16"] as CropAspect[]).map(ar => (
-                  <button key={ar} onClick={() => !isProcessing && setCropAspect(ar)}
+                  <button type="button" key={ar} onClick={() => !isProcessing && setCropAspect(ar)}
                     className={`flex flex-col items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-medium transition-colors disabled:opacity-50
                       ${cropAspect === ar ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"}`}>
                     {/* Aspect ratio mini preview */}
@@ -515,7 +515,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
                 <label className="text-xs font-semibold text-gray-700">Position</label>
                 <div className="flex gap-2">
                   {(["top", "center", "bottom"] as CaptionPos[]).map(pos => (
-                    <button key={pos} onClick={() => !isProcessing && setCaptionPos(pos)}
+                    <button type="button" key={pos} onClick={() => !isProcessing && setCaptionPos(pos)}
                       className={`flex-1 py-2 text-xs font-medium rounded-lg border-2 capitalize transition-colors
                         ${captionPos === pos ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"}`}>
                       {pos}
