@@ -86,15 +86,16 @@ router.get("/", async (req, res) => {
     .map(([area, count]) => ({ area, count }));
 
   const totalBookings = Number(totalBookingsRes[0]?.count ?? 0);
+  const confirmedBookings = Number(confirmedRes[0]?.count ?? 0);
   const totalSpent = Number(spentRes[0]?.total ?? 0);
 
   res.json({
     totalBookings,
-    confirmedBookings: Number(confirmedRes[0]?.count ?? 0),
+    confirmedBookings,
     cancelledBookings: Number(cancelledRes[0]?.count ?? 0),
     pendingBookings: Number(pendingRes[0]?.count ?? 0),
     totalSpent,
-    avgBookingValue: totalBookings > 0 ? Math.round(totalSpent / totalBookings) : 0,
+    avgBookingValue: confirmedBookings > 0 ? Math.round(totalSpent / confirmedBookings) : 0,
     confirmedRentals: Number(txRentedRes[0]?.count ?? 0),
     confirmedSales: Number(txSoldRes[0]?.count ?? 0),
     pendingTransactions: Number(txPendingRes[0]?.count ?? 0),

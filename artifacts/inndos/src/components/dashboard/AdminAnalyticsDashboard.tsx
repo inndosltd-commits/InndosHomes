@@ -51,6 +51,19 @@ function money(n: number) {
 const COLORS = ["#18181b", "#52525b", "#a1a1aa", "#d4d4d8", "#f4f4f5"];
 const PIE_COLORS = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"];
 
+/** Fill all 12 months with zero for missing entries. Backend format: "Jan 26" */
+function zeroFillMonths12<T extends Record<string, number>>(
+  data: ({ month: string } & T)[],
+  zero: T
+): ({ month: string } & T)[] {
+  const now = new Date();
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    const label = d.toLocaleString("en-US", { month: "short" }) + " " + String(d.getFullYear()).slice(2);
+    return (data.find(e => e.month === label) ?? { month: label, ...zero }) as { month: string } & T;
+  });
+}
+
 interface KpiCardProps {
   icon: React.ReactNode; label: string; value: string | number;
   sub?: string; trend?: "up" | "down" | "neutral"; badge?: string; onClick?: () => void;
@@ -177,7 +190,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
   // Conversion funnel
   const funnelData = [
     { stage: "Registered Users", value: stats.totalUsers },
-    { stage: "Active Listings Viewed", value: stats.totalBookings * 5 },
+    { stage: "Active Listings", value: stats.activeProperties },
     { stage: "Link-Ups Made", value: stats.totalBookings },
     { stage: "Link-Ups Confirmed", value: stats.confirmedBookings },
     { stage: "Transactions Done", value: (stats.confirmedRentals + stats.confirmedSales) },
@@ -253,9 +266,9 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
             <CardTitle className="text-base">User Registrations (12 months)</CardTitle>
           </CardHeader>
           <CardContent>
-            {stats.monthlyRegistrations.length > 0 ? (
+            {(() => { const chartData = zeroFillMonths12(stats.monthlyRegistrations, { count: 0 }); return chartData.some(m => m.count > 0) ? (
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={stats.monthlyRegistrations}>
+                <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="regGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#18181b" stopOpacity={0.15} />
@@ -271,7 +284,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
               </ResponsiveContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No registration data yet</div>
-            )}
+            ); })()}
           </CardContent>
         </Card>
 
@@ -306,9 +319,9 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
             <CardTitle className="text-base">Monthly Link-Ups (12 months)</CardTitle>
           </CardHeader>
           <CardContent>
-            {stats.monthlyBookings.length > 0 ? (
+            {(() => { const chartData = zeroFillMonths12(stats.monthlyBookings, { count: 0 }); return chartData.some(m => m.count > 0) ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={stats.monthlyBookings}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -318,7 +331,7 @@ export function AdminAnalyticsDashboard({ token, onNavigate }: { token: string; 
               </ResponsiveContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No link-up data yet</div>
-            )}
+            ); })()}
           </CardContent>
         </Card>
 

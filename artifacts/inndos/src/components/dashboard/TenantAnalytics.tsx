@@ -32,6 +32,18 @@ function fmt(n: number) {
 }
 function money(n: number) { return `KES ${n.toLocaleString()}`; }
 
+/** Fill all 6 months with zero for missing entries. Backend format: "Jan 2026" */
+function zeroFillMonths6(
+  data: { month: string; count: number; spent: number }[]
+): { month: string; count: number; spent: number }[] {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    const label = d.toLocaleString("en-US", { month: "short" }) + " " + d.getFullYear();
+    return data.find(e => e.month === label) ?? { month: label, count: 0, spent: 0 };
+  });
+}
+
 function KpiCard({ icon, label, value, sub, badge, onClick }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string; onClick?: () => void }) {
   return (
     <Card onClick={onClick} className={onClick ? "cursor-pointer hover:shadow-md hover:border-zinc-300 transition-all group" : ""}>
@@ -141,9 +153,9 @@ export function TenantAnalytics({ token, onNavigate }: { token: string; onNaviga
             <CardTitle className="text-base">My Booking Activity (6 months)</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.monthlyBookings.length > 0 ? (
+            {(() => { const chartData = zeroFillMonths6(data.monthlyBookings); return chartData.some(m => m.count > 0) ? (
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={data.monthlyBookings}>
+                <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="tenantGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#18181b" stopOpacity={0.15} />
@@ -159,7 +171,7 @@ export function TenantAnalytics({ token, onNavigate }: { token: string; onNaviga
               </ResponsiveContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No booking history yet</div>
-            )}
+            ); })()}
           </CardContent>
         </Card>
 
@@ -205,7 +217,7 @@ export function TenantAnalytics({ token, onNavigate }: { token: string; onNaviga
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.monthlyBookings}>
+              <BarChart data={zeroFillMonths6(data.monthlyBookings)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />

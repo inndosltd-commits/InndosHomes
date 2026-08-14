@@ -33,7 +33,7 @@ router.get("/", async (req, res) => {
 
   const totalProperties = myProperties.length;
   const activeProperties = myProperties.filter(p => p.isVerified && p.propertyStatus === "approved").length;
-  const pendingProperties = myProperties.filter(p => !p.isVerified).length;
+  const pendingProperties = myProperties.filter(p => p.propertyStatus === "pending" || (!p.isVerified && p.propertyStatus !== "approved" && p.propertyStatus !== "sold")).length;
   const soldProperties = myProperties.filter(p => p.propertyStatus === "sold").length;
   const propertiesByType = {
     rent: myProperties.filter(p => p.type === "rent").length,
@@ -156,7 +156,7 @@ router.get("/", async (req, res) => {
     confirmedSales: Number(txSoldRes[0]?.count ?? 0),
     totalTransactionValue: Number(txValueRes[0]?.total ?? 0),
     pendingLinkUps: Number(txPendingRes[0]?.count ?? 0),
-    linkUps: Number(confirmedBookingsRes[0]?.count ?? 0),
+    linkUps: Number(totalBookingsRes[0]?.count ?? 0),
     totalFavorites,
     subscription: sub ?? null,
     properties: perProperty,

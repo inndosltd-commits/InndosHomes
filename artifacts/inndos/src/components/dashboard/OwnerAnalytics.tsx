@@ -38,6 +38,18 @@ function money(n: number) { return `KES ${n.toLocaleString()}`; }
 
 const PIE_COLORS = ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"];
 
+/** Fill in all N months with zero for any missing entries. Backend format: "Jan 2026" */
+function zeroFillMonths6(
+  data: { month: string; count: number; revenue: number }[]
+): { month: string; count: number; revenue: number }[] {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    const label = d.toLocaleString("en-US", { month: "short" }) + " " + d.getFullYear();
+    return data.find(e => e.month === label) ?? { month: label, count: 0, revenue: 0 };
+  });
+}
+
 function KpiCard({ icon, label, value, sub, badge, onClick }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; badge?: string; onClick?: () => void }) {
   return (
     <Card onClick={onClick} className={onClick ? "cursor-pointer hover:shadow-md hover:border-zinc-300 transition-all group" : ""}>
@@ -203,7 +215,7 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
   if (data.totalRevenue > 0) insights.push(`You've earned ${money(data.totalRevenue)} from confirmed link-ups.`);
   if (data.pendingLinkUps > 0) insights.push(`${data.pendingLinkUps} pending transaction${data.pendingLinkUps > 1 ? "s" : ""} awaiting your confirmation.`);
   if (data.totalFavorites > 0) insights.push(`Your properties have been favorited ${data.totalFavorites} time${data.totalFavorites > 1 ? "s" : ""}.`);
-  if (data.activeProperties < data.totalProperties) insights.push(`${data.totalProperties - data.activeProperties} of your listings are pending approval.`);
+  if (data.pendingProperties > 0) insights.push(`${data.pendingProperties} of your listing${data.pendingProperties > 1 ? "s are" : " is"} pending approval.`);
   if (data.subscription) insights.push(`Your ${data.subscription.plan} subscription is ${data.subscription.status}. Expires ${data.subscription.endDate}.`);
 
   return (
@@ -265,9 +277,9 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
             <CardTitle className="text-base">Monthly Link-Ups & Revenue (6 months)</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.monthlyBookings.length > 0 ? (
+            {(() => { const chartData = zeroFillMonths6(data.monthlyBookings); return chartData.some(m => m.count > 0) ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data.monthlyBookings}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
@@ -280,7 +292,7 @@ export function OwnerAnalytics({ token, onNavigate }: { token: string; onNavigat
               </ResponsiveContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No link-up history yet</div>
-            )}
+            ); })()}
           </CardContent>
         </Card>
 
