@@ -618,8 +618,8 @@ export default function PropertyDetails() {
       return;
     }
 
-    // Non-nightly: if already booked by someone, show unavailability alert with contacts
-    if (!isNightlyType && ((property as PropertyWithOwner).activeBookingsCount ?? 0) > 0) {
+    // All types: if already booked by someone, show unavailability alert with contacts
+    if (((property as PropertyWithOwner).activeBookingsCount ?? 0) > 0) {
       setShowUnavailableContact(true);
       return;
     }
