@@ -516,9 +516,12 @@ export default function PropertyDetails() {
       .catch(() => {});
   }, [user?.id, token, property?.id]);
 
-  // For nightly types: auto-dismiss the unavailability contact card when user picks available dates
+  // For nightly types: auto-show contacts when dates are unavailable; auto-dismiss when dates become available
   useEffect(() => {
-    if (isNightlyType && isDateRangeAvailable !== false) {
+    if (!isNightlyType) return;
+    if (isDateRangeAvailable === false) {
+      setShowUnavailableContact(true);
+    } else {
       setShowUnavailableContact(false);
     }
   }, [isDateRangeAvailable, isNightlyType]);
