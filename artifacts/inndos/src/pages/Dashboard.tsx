@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe, Search } from "lucide-react";
+import { Home, MessageSquare, Bell, Calendar, BarChart3, Heart, Clock, Plus, Users, FileText, AlertTriangle, DollarSign, Check, X, ExternalLink, Trash2, ArrowUpRight, ArrowDownRight, ShieldCheck, Eye, Edit, Star, Bookmark, UploadCloud, Lock, UserCircle, Loader2, Crown, Zap, Gift, Settings, CreditCard, RefreshCw, Globe, Search, Building } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -793,6 +793,8 @@ export default function Dashboard() {
   const [userStatusFilter, setUserStatusFilter] = useState("all");
   const [userLocationSearch, setUserLocationSearch] = useState("");
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
+  const [profileUserProperties, setProfileUserProperties] = useState<any[]>([]);
+  const [loadingProfileUserProperties, setLoadingProfileUserProperties] = useState(false);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [resetPasswordDialog, setResetPasswordDialog] = useState<{ userId: string; userName: string } | null>(null);
@@ -965,6 +967,22 @@ export default function Dashboard() {
       setIsLoadingAdminStats(false);
     }
   }, [user, token, toast]);
+
+  // Fetch properties for the user currently open in the View Profile modal
+  useEffect(() => {
+    if (!selectedProfileUser || !token) {
+      setProfileUserProperties([]);
+      return;
+    }
+    setLoadingProfileUserProperties(true);
+    fetch(`/api/properties?ownerId=${selectedProfileUser.id}&limit=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setProfileUserProperties(Array.isArray(d) ? d : []))
+      .catch(() => setProfileUserProperties([]))
+      .finally(() => setLoadingProfileUserProperties(false));
+  }, [selectedProfileUser?.id, token]);
 
   const fetchAdminUsers = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
@@ -3638,6 +3656,62 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+
+                        {/* ── Listed Properties ── */}
+                        <div className="space-y-2 pt-1 border-t mt-2">
+                          <p className="text-sm font-semibold flex items-center gap-1.5 pt-2">
+                            <Building className="h-4 w-4 text-gray-500" /> Listed Properties
+                            {!loadingProfileUserProperties && (
+                              <span className="text-[10px] font-normal bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                                {profileUserProperties.length}
+                              </span>
+                            )}
+                          </p>
+                          {loadingProfileUserProperties ? (
+                            <div className="flex items-center justify-center py-6">
+                              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : profileUserProperties.length === 0 ? (
+                            <div className="text-center py-5 border rounded-lg bg-gray-50 text-muted-foreground text-sm">
+                              No properties listed yet
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {profileUserProperties.map((prop: any) => {
+                                const thumb = prop.images?.[0]?.startsWith("/objects/")
+                                  ? `/api/storage${prop.images[0]}`
+                                  : prop.images?.[0] ?? null;
+                                const propStatus = prop.propertyStatus ?? prop.status ?? "unknown";
+                                const statusCls =
+                                  propStatus === "available" ? "bg-green-50 text-green-700 border-green-200" :
+                                  propStatus === "sold" || propStatus === "rented" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                  "bg-amber-50 text-amber-700 border-amber-200";
+                                return (
+                                  <div key={prop.id} className="flex items-center gap-3 p-2.5 rounded-lg border hover:bg-muted/30 transition-colors">
+                                    <div className="h-12 w-16 rounded-md bg-gray-100 shrink-0 overflow-hidden">
+                                      {thumb
+                                        ? <img src={thumb} alt={prop.title} className="h-full w-full object-cover" />
+                                        : <div className="h-full w-full flex items-center justify-center"><Building className="h-4 w-4 text-muted-foreground opacity-40" /></div>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{prop.title}</p>
+                                      <p className="text-xs text-muted-foreground truncate">{prop.address || "No address"}</p>
+                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 capitalize">{prop.type}</span>
+                                        <Badge variant="outline" className={`text-[10px] px-1.5 h-4 capitalize ${statusCls}`}>{propStatus}</Badge>
+                                        {prop.price && (
+                                          <span className="text-[10px] font-semibold text-primary">
+                                            KES {Number(prop.price).toLocaleString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })()}
@@ -4692,65 +4766,6 @@ export default function Dashboard() {
               </Dialog>
 
 
-              {/* Assign plan dialog */}
-              <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Assign Subscription Plan</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <p className="text-sm text-muted-foreground">Assigning to: <span className="font-semibold">{assignSubDialog?.userName}</span></p>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold">Plan</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(['free', 'basic', 'pro', 'enterprise'] as const).map(p => (
-                          <button key={p} onClick={() => setAssignPlan(p)} className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${assignPlan === p ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}>{p}</button>
-                        ))}
-                      </div>
-                    </div>
-                    {assignPlan !== 'free' && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold">Duration (months)</label>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => setAssignMonths(m => Math.max(1, m - 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">−</button>
-                          <span className="w-8 text-center font-bold text-lg">{assignMonths}</span>
-                          <button onClick={() => setAssignMonths(m => Math.min(24, m + 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">+</button>
-                          <span className="text-sm text-gray-500">months</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <DialogFooter className="gap-2">
-                    <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
-                    <Button
-                      className="bg-zinc-900 hover:bg-zinc-800 text-white"
-                      disabled={isAssigning}
-                      onClick={async () => {
-                        if (!assignSubDialog || !token) return;
-                        setIsAssigning(true);
-                        try {
-                          const r = await fetch("/api/admin/subscriptions/assign", {
-                            method: "POST",
-                            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                            body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths }),
-                          });
-                          if (r.ok) {
-                            await fetchAdminSubscriptions();
-                            setAssignSubDialog(null);
-                            toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
-                          } else {
-                            const d = await r.json();
-                            toast({ title: "Failed", description: d.error, variant: "destructive" });
-                          }
-                        } finally { setIsAssigning(false); }
-                      }}
-                    >
-                      {isAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                      Assign Plan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </TabsContent>
           )}
 
@@ -5814,6 +5829,65 @@ export default function Dashboard() {
             >
               {isSubmittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
               Submit Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ── Assign Plan dialog — at Tabs root so it opens instantly from any tab ── */}
+      <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Assign Subscription Plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">Assigning to: <span className="font-semibold">{assignSubDialog?.userName}</span></p>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Plan</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['free', 'basic', 'pro', 'enterprise'] as const).map(p => (
+                  <button key={p} onClick={() => setAssignPlan(p)} className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${assignPlan === p ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}>{p}</button>
+                ))}
+              </div>
+            </div>
+            {assignPlan !== 'free' && (
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Duration (months)</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setAssignMonths(m => Math.max(1, m - 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">−</button>
+                  <span className="w-8 text-center font-bold text-lg">{assignMonths}</span>
+                  <button onClick={() => setAssignMonths(m => Math.min(24, m + 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">+</button>
+                  <span className="text-sm text-gray-500">months</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
+            <Button
+              className="bg-zinc-900 hover:bg-zinc-800 text-white"
+              disabled={isAssigning}
+              onClick={async () => {
+                if (!assignSubDialog || !token) return;
+                setIsAssigning(true);
+                try {
+                  const r = await fetch("/api/admin/subscriptions/assign", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths }),
+                  });
+                  if (r.ok) {
+                    await fetchAdminSubscriptions();
+                    setAssignSubDialog(null);
+                    toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
+                  } else {
+                    const d = await r.json();
+                    toast({ title: "Failed", description: d.error, variant: "destructive" });
+                  }
+                } finally { setIsAssigning(false); }
+              }}
+            >
+              {isAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Assign Plan
             </Button>
           </DialogFooter>
         </DialogContent>
