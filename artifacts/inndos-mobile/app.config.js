@@ -25,5 +25,8 @@ module.exports = {
     config: {
       googleMapsApiKey: process.env.GOOGLE_API_KEY ?? "",
     },
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
 };
