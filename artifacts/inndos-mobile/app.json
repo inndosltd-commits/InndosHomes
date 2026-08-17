@@ -37,7 +37,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow INNDOS to access your photos to upload property images.",
+          "cameraPermission": "Allow INNDOS to use your camera to take property photos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

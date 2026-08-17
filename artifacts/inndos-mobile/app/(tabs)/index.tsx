@@ -1,10 +1,8 @@
 import { useListProperties } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
-import type { MapBBox } from "@/components/PropertyMapView";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -19,11 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
-import { PropertyMapView } from "@/components/PropertyMapView";
-import { PriceRangeSlider } from "@/components/PriceRangeSlider";
 import { Feather } from "@expo/vector-icons";
-
-const PRICE_FILTER_KEY = "@inndos/price_filter";
 
 const FILTER_TYPES = [
   { label: "All", value: undefined },
@@ -66,75 +60,27 @@ export default function BrowseScreen() {
   const [activeType, setActiveType] = useState<ListPropertiesParams["type"]>(undefined);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-
-  const [priceLow, setPriceLow] = useState<number | undefined>(undefined);
-  const [priceHigh, setPriceHigh] = useState<number | undefined>(undefined);
-  const hasCustomPrice = useRef(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [mapBBox, setMapBBox] = useState<MapBBox | undefined>(undefined);
 
   const listParams: ListPropertiesParams = {
     type: activeType,
     search: debouncedSearch || undefined,
-    ...(mapBBox && showMap
-      ? {
-          minLat: mapBBox.minLat,
-          maxLat: mapBBox.maxLat,
-          minLng: mapBBox.minLng,
-          maxLng: mapBBox.maxLng,
-        }
-      : {}),
   };
 
   const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
 
-  const priceBounds = useMemo<{ min: number; max: number }>(() => {
-    if (!properties || properties.length === 0) return { min: 0, max: 0 };
-    const prices = properties.map((p: Property) => p.price);
-    return { min: Math.min(...prices), max: Math.max(...prices) };
-  }, [properties]);
-
-  useEffect(() => {
-    AsyncStorage.getItem(PRICE_FILTER_KEY).then((val) => {
-      if (!val) return;
-      try {
-        const { low, high } = JSON.parse(val) as { low: number; high: number };
-        if (typeof low === "number" && typeof high === "number") {
-          setPriceLow(low);
-          setPriceHigh(high);
-          hasCustomPrice.current = true;
-        }
-      } catch {
-        // ignore corrupt stored value
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (priceBounds.min === 0 && priceBounds.max === 0) return;
-    if (hasCustomPrice.current) return;
-    setPriceLow(priceBounds.min);
-    setPriceHigh(priceBounds.max);
-  }, [priceBounds.min, priceBounds.max]);
-
   const filteredProperties = useMemo<Property[]>(() => {
     if (!properties) return [];
-    const lo = priceLow ?? priceBounds.min;
-    const hi = priceHigh ?? priceBounds.max;
-    const filtered =
-      lo <= priceBounds.min && hi >= priceBounds.max
-        ? [...properties]
-        : properties.filter((p: Property) => p.price >= lo && p.price <= hi);
+    const sorted = [...properties];
 
     if (sortBy === "price-asc") {
-      filtered.sort((a, b) => a.price - b.price);
+      sorted.sort((a, b) => a.price - b.price);
     } else if (sortBy === "price-desc") {
-      filtered.sort((a, b) => b.price - a.price);
+      sorted.sort((a, b) => b.price - a.price);
     } else if (sortBy === "distance" && userLocation) {
-      filtered.sort((a, b) => {
+      sorted.sort((a, b) => {
         const aLat = parseFloat(a.lat ?? "");
         const aLng = parseFloat(a.lng ?? "");
         const bLat = parseFloat(b.lat ?? "");
@@ -150,14 +96,14 @@ export default function BrowseScreen() {
         return aDist - bDist;
       });
     } else {
-      filtered.sort((a, b) => {
+      sorted.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
       });
     }
-    return filtered;
-  }, [properties, priceLow, priceHigh, priceBounds, sortBy, userLocation]);
+    return sorted;
+  }, [properties, sortBy, userLocation]);
 
   const handleSearch = (text: string) => {
     setSearch(text);
@@ -175,10 +121,6 @@ export default function BrowseScreen() {
 
   const handleTypeChange = (type: ListPropertiesParams["type"]) => {
     setActiveType(type);
-    setPriceLow(undefined);
-    setPriceHigh(undefined);
-    hasCustomPrice.current = false;
-    AsyncStorage.removeItem(PRICE_FILTER_KEY);
   };
 
   const handleSortChange = async (option: SortOption) => {
@@ -212,33 +154,10 @@ export default function BrowseScreen() {
 
   const styles = getStyles(colors);
 
-  const showPriceSlider =
-    priceBounds.min < priceBounds.max &&
-    priceLow !== undefined &&
-    priceHigh !== undefined;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>inndos</Text>
-        <Pressable
-          onPress={() => {
-            setShowMap((v) => {
-              if (v) setMapBBox(undefined);
-              return !v;
-            });
-          }}
-          style={[
-            styles.headerIcon,
-            showMap && { backgroundColor: colors.primary, borderRadius: 8 },
-          ]}
-        >
-          <Feather
-            name={showMap ? "list" : "map"}
-            size={22}
-            color={showMap ? colors.primaryForeground : colors.foreground}
-          />
-        </Pressable>
       </View>
 
       <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border }]}>
@@ -332,31 +251,6 @@ export default function BrowseScreen() {
         })}
       </View>
 
-      {showPriceSlider && (
-        <PriceRangeSlider
-          min={priceBounds.min}
-          max={priceBounds.max}
-          low={priceLow!}
-          high={priceHigh!}
-          onLowChange={(val) => {
-            setPriceLow(val);
-            hasCustomPrice.current = true;
-            AsyncStorage.setItem(PRICE_FILTER_KEY, JSON.stringify({ low: val, high: priceHigh }));
-          }}
-          onHighChange={(val) => {
-            setPriceHigh(val);
-            hasCustomPrice.current = true;
-            AsyncStorage.setItem(PRICE_FILTER_KEY, JSON.stringify({ low: priceLow, high: val }));
-          }}
-          onReset={() => {
-            setPriceLow(priceBounds.min);
-            setPriceHigh(priceBounds.max);
-            hasCustomPrice.current = false;
-            AsyncStorage.removeItem(PRICE_FILTER_KEY);
-          }}
-        />
-      )}
-
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -371,15 +265,12 @@ export default function BrowseScreen() {
             <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
           </Pressable>
         </View>
-      ) : showMap ? (
-        <PropertyMapView
-          properties={filteredProperties}
-          onSearchArea={(bbox) => setMapBBox(bbox)}
-        />
       ) : (
         <FlatList
           data={filteredProperties}
           keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={{ gap: 8, paddingHorizontal: 20 }}
           renderItem={({ item }) => <PropertyCard property={item} />}
           contentContainerStyle={[
             styles.listContent,
@@ -423,10 +314,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     headerTitle: {
       fontSize: 24,
       fontFamily: "Outfit_700Bold",
-      letterSpacing: 2,
-    },
-    headerIcon: {
-      padding: 8,
+      letterSpacing: 0,
     },
     searchBar: {
       flexDirection: "row",
@@ -435,6 +323,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       paddingHorizontal: 14,
       paddingVertical: 12,
       borderWidth: 1,
+      borderRadius: 20,
       gap: 10,
     },
     searchInput: {
@@ -452,6 +341,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderWidth: 1,
+      borderRadius: 20,
     },
     filterChipText: {
       fontSize: 13,
@@ -470,6 +360,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       paddingHorizontal: 12,
       paddingVertical: 7,
       borderWidth: 1,
+      borderRadius: 20,
     },
     sortChipText: {
       fontSize: 12,
@@ -477,7 +368,6 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     listContent: {
       paddingTop: 16,
-      paddingHorizontal: 20,
       gap: 16,
     },
     center: {

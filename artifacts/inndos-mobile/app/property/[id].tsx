@@ -20,6 +20,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Linking,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -108,6 +109,10 @@ export default function PropertyDetailScreen() {
   const carouselRef = useRef<FlatList>(null);
   const lightboxRef = useRef<FlatList>(null);
 
+  const [isLinkedUp, setIsLinkedUp] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showUnavailableContact, setShowUnavailableContact] = useState(false);
+
   const checkOut = addDays(checkIn, bookingNights);
 
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
@@ -156,6 +161,12 @@ export default function PropertyDetailScreen() {
       setBookingNights(Math.max(1, nights));
     }
   }, [maxCheckoutDate, checkIn, checkOut]);
+
+  React.useEffect(() => {
+    if (!isNightlyProperty) return;
+    if (isUnavailable) setShowUnavailableContact(true);
+    else setShowUnavailableContact(false);
+  }, [isUnavailable, isNightlyProperty]);
 
   const { data: favoriteStatus } = useCheckFavorite(id ?? "");
   const isFavorited = favoriteStatus?.isFavorited ?? false;
@@ -238,20 +249,32 @@ export default function PropertyDetailScreen() {
     setBookingNights((n) => Math.max(1, n + delta));
   };
 
-  const handleBook = () => {
+  const handleLinkUp = () => {
     if (!user) {
       router.push("/(auth)/login");
       return;
     }
     if (!property) return;
 
+    // First click on nightly property reveals calendar
+    if (isNightlyProperty && !showDatePicker) {
+      setShowDatePicker(true);
+      return;
+    }
+
+    // Dates taken => show contacts
+    if (isNightlyProperty && isUnavailable) {
+      setShowUnavailableContact(true);
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const totalPrice = property.price * bookingNights;
 
     Alert.alert(
-      "Confirm Booking",
-      `Book "${property.title}"?\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`,
+      "Confirm Link Up",
+      `Link Up with "${property.title}"?\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -268,10 +291,11 @@ export default function PropertyDetailScreen() {
               },
               {
                 onSuccess: () => {
+                  setIsLinkedUp(true);
                   queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() });
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  Alert.alert("Booked!", "Your booking has been submitted and is pending confirmation.", [
-                    { text: "View Bookings", onPress: () => router.push("/(tabs)/bookings") },
+                  Alert.alert("Linked Up! 🔗", "Your link-up has been submitted and is pending confirmation.", [
+                    { text: "View Link-Ups", onPress: () => router.push("/(tabs)/bookings") },
                     { text: "OK" },
                   ]);
                 },
@@ -281,11 +305,11 @@ export default function PropertyDetailScreen() {
                   if (status === 409) {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                     Alert.alert(
-                      "Dates Unavailable",
-                      "This property is already booked for the selected dates. Please choose different dates."
+                      "Dates Already Linked",
+                      "This property is already linked up for the selected dates. Please choose different dates."
                     );
                   } else {
-                    Alert.alert("Error", "Failed to create booking. Please try again.");
+                    Alert.alert("Error", "Failed to link up. Please try again.");
                   }
                 },
               }
@@ -594,122 +618,126 @@ export default function PropertyDetailScreen() {
             <View style={[styles.bookingSection, { borderColor: colors.border }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT DATES</Text>
 
-              <View style={styles.datePickerRow}>
-                <View style={styles.datePickerBlock}>
-                  <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
-                  {isWeb ? (
-                    <TextInput
-                      style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
-                      value={checkIn.toISOString().split("T")[0]}
-                      onChangeText={(val) => {
-                        const d = new Date(val);
-                        if (!isNaN(d.getTime()) && d >= today) setCheckIn(d);
-                      }}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.mutedForeground}
-                    />
-                  ) : (
-                    <Pressable
-                      style={[styles.datePickerBtn, { borderColor: colors.border }]}
-                      onPress={() => setShowCheckInPicker(true)}
-                    >
-                      <Feather name="calendar" size={14} color={colors.primary} />
-                      <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
-                        {formatDate(checkIn)}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
+              {(showDatePicker || isLinkedUp) && (
+                <>
+                  <View style={styles.datePickerRow}>
+                    <View style={styles.datePickerBlock}>
+                      <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
+                      {isWeb ? (
+                        <TextInput
+                          style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
+                          value={checkIn.toISOString().split("T")[0]}
+                          onChangeText={(val) => {
+                            const d = new Date(val);
+                            if (!isNaN(d.getTime()) && d >= today) setCheckIn(d);
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={colors.mutedForeground}
+                        />
+                      ) : (
+                        <Pressable
+                          style={[styles.datePickerBtn, { borderColor: colors.border }]}
+                          onPress={() => setShowCheckInPicker(true)}
+                        >
+                          <Feather name="calendar" size={14} color={colors.primary} />
+                          <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
+                            {formatDate(checkIn)}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
 
-                <Feather name="arrow-right" size={16} color={colors.mutedForeground} style={styles.dateArrow} />
+                    <Feather name="arrow-right" size={16} color={colors.mutedForeground} style={styles.dateArrow} />
 
-                <View style={styles.datePickerBlock}>
-                  <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
-                  {isWeb ? (
-                    <TextInput
-                      style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
-                      value={checkOut.toISOString().split("T")[0]}
-                      onChangeText={(val) => {
-                        const d = new Date(val);
-                        if (!isNaN(d.getTime()) && d > checkIn) {
-                          setBookingNights(daysBetween(checkIn, d));
-                        }
-                      }}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.mutedForeground}
-                    />
-                  ) : (
-                    <Pressable
-                      style={[styles.datePickerBtn, { borderColor: colors.border }]}
-                      onPress={() => setShowCheckOutPicker(true)}
-                    >
-                      <Feather name="calendar" size={14} color={colors.primary} />
-                      <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
-                        {formatDate(checkOut)}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-
-              <View style={[styles.availabilityRow]}>
-                {isCheckingAvailability ? (
-                  <ActivityIndicator size="small" color={colors.mutedForeground} />
-                ) : bookedRanges !== undefined ? (
-                  <View style={[
-                    styles.availabilityBadge,
-                    { backgroundColor: isUnavailable ? "#fef2f2" : "#f0fdf4", borderColor: isUnavailable ? "#fca5a5" : "#86efac" },
-                  ]}>
-                    <Feather
-                      name={isUnavailable ? "x-circle" : "check-circle"}
-                      size={14}
-                      color={isUnavailable ? "#dc2626" : "#16a34a"}
-                    />
-                    <Text style={[styles.availabilityText, { color: isUnavailable ? "#dc2626" : "#16a34a" }]}>
-                      {isUnavailable ? "Unavailable" : "Available"}
-                    </Text>
+                    <View style={styles.datePickerBlock}>
+                      <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
+                      {isWeb ? (
+                        <TextInput
+                          style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
+                          value={checkOut.toISOString().split("T")[0]}
+                          onChangeText={(val) => {
+                            const d = new Date(val);
+                            if (!isNaN(d.getTime()) && d > checkIn) {
+                              setBookingNights(daysBetween(checkIn, d));
+                            }
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={colors.mutedForeground}
+                        />
+                      ) : (
+                        <Pressable
+                          style={[styles.datePickerBtn, { borderColor: colors.border }]}
+                          onPress={() => setShowCheckOutPicker(true)}
+                        >
+                          <Feather name="calendar" size={14} color={colors.primary} />
+                          <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
+                            {formatDate(checkOut)}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-                ) : null}
-              </View>
 
-              <View style={styles.nightsRow}>
-                <Text style={[styles.nightsLabel, { color: colors.foreground }]}>
-                  {bookingNights} night{bookingNights !== 1 ? "s" : ""}
-                </Text>
-                <View style={styles.nightsControls}>
-                  <Pressable
-                    style={[styles.nightsBtn, { borderColor: colors.border }]}
-                    onPress={() => adjustNights(-1)}
-                  >
-                    <Feather name="minus" size={16} color={colors.foreground} />
-                  </Pressable>
-                  <Text style={[styles.nightsCount, { color: colors.foreground }]}>{bookingNights}</Text>
-                  <Pressable
-                    style={[styles.nightsBtn, { borderColor: colors.border }]}
-                    onPress={() => adjustNights(1)}
-                  >
-                    <Feather name="plus" size={16} color={colors.foreground} />
-                  </Pressable>
-                </View>
-              </View>
+                  <View style={[styles.availabilityRow]}>
+                    {isCheckingAvailability ? (
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                    ) : bookedRanges !== undefined ? (
+                      <View style={[
+                        styles.availabilityBadge,
+                        { backgroundColor: isUnavailable ? "#fef2f2" : "#f0fdf4", borderColor: isUnavailable ? "#fca5a5" : "#86efac" },
+                      ]}>
+                        <Feather
+                          name={isUnavailable ? "x-circle" : "check-circle"}
+                          size={14}
+                          color={isUnavailable ? "#dc2626" : "#16a34a"}
+                        />
+                        <Text style={[styles.availabilityText, { color: isUnavailable ? "#dc2626" : "#16a34a" }]}>
+                          {isUnavailable ? "Unavailable" : "Available"}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
 
-              <View style={[styles.priceSummary, { backgroundColor: colors.muted }]}>
-                <View style={styles.priceSummaryRow}>
-                  <Text style={[styles.priceSummaryLabel, { color: colors.mutedForeground }]}>
-                    KES {property.price.toLocaleString()} × {bookingNights} night{bookingNights !== 1 ? "s" : ""}
-                  </Text>
-                  <Text style={[styles.priceSummaryValue, { color: colors.foreground }]}>
-                    KES {totalPrice.toLocaleString()}
-                  </Text>
-                </View>
-                <View style={[styles.priceDivider, { backgroundColor: colors.border }]} />
-                <View style={styles.priceSummaryRow}>
-                  <Text style={[styles.priceTotalLabel, { color: colors.foreground }]}>Total</Text>
-                  <Text style={[styles.priceTotalValue, { color: colors.primary }]}>
-                    KES {totalPrice.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
+                  <View style={styles.nightsRow}>
+                    <Text style={[styles.nightsLabel, { color: colors.foreground }]}>
+                      {bookingNights} night{bookingNights !== 1 ? "s" : ""}
+                    </Text>
+                    <View style={styles.nightsControls}>
+                      <Pressable
+                        style={[styles.nightsBtn, { borderColor: colors.border }]}
+                        onPress={() => adjustNights(-1)}
+                      >
+                        <Feather name="minus" size={16} color={colors.foreground} />
+                      </Pressable>
+                      <Text style={[styles.nightsCount, { color: colors.foreground }]}>{bookingNights}</Text>
+                      <Pressable
+                        style={[styles.nightsBtn, { borderColor: colors.border }]}
+                        onPress={() => adjustNights(1)}
+                      >
+                        <Feather name="plus" size={16} color={colors.foreground} />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <View style={[styles.priceSummary, { backgroundColor: colors.muted }]}>
+                    <View style={styles.priceSummaryRow}>
+                      <Text style={[styles.priceSummaryLabel, { color: colors.mutedForeground }]}>
+                        KES {property.price.toLocaleString()} × {bookingNights} night{bookingNights !== 1 ? "s" : ""}
+                      </Text>
+                      <Text style={[styles.priceSummaryValue, { color: colors.foreground }]}>
+                        KES {totalPrice.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={[styles.priceDivider, { backgroundColor: colors.border }]} />
+                    <View style={styles.priceSummaryRow}>
+                      <Text style={[styles.priceTotalLabel, { color: colors.foreground }]}>Total</Text>
+                      <Text style={[styles.priceTotalValue, { color: colors.primary }]}>
+                        KES {totalPrice.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
           )}
 
@@ -719,6 +747,38 @@ export default function PropertyDetailScreen() {
               <Text style={[styles.rentSummaryText, { color: colors.mutedForeground }]}>
                 Monthly rate · KES {property.price.toLocaleString()}/mo
               </Text>
+            </View>
+          )}
+
+          {(isLinkedUp || showUnavailableContact) && (
+            <View style={[styles.contactCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Text style={[styles.contactTitle, { color: colors.foreground }]}>
+                {isLinkedUp ? "Contact to confirm availability" : "Dates taken — contact owner directly"}
+              </Text>
+              <Text style={[styles.contactSubtitle, { color: colors.mutedForeground }]}>
+                Reach the owner/host directly to confirm availability.
+              </Text>
+              {property.ownerPhone ? (
+                <View style={styles.contactActions}>
+                  <Pressable style={[styles.contactBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => Linking.openURL("tel:" + property.ownerPhone)}>
+                    <Feather name="phone" size={14} color={colors.foreground} />
+                    <Text style={[styles.contactBtnText, { color: colors.foreground }]}>Call</Text>
+                  </Pressable>
+                  <Pressable style={[styles.contactBtn, { backgroundColor: "#25D366" }]}
+                    onPress={() => Linking.openURL("https://wa.me/" + String(property.ownerPhone).replace(/[^0-9]/g, ""))}>
+                    <Feather name="message-circle" size={14} color="#fff" />
+                    <Text style={[styles.contactBtnText, { color: "#fff" }]}>WhatsApp</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {property.ownerEmail ? (
+                <Pressable style={[styles.contactEmailBtn, { borderColor: colors.border }]}
+                  onPress={() => Linking.openURL("mailto:" + property.ownerEmail)}>
+                  <Feather name="mail" size={14} color={colors.foreground} />
+                  <Text style={[styles.contactBtnText, { color: colors.foreground }]}>{property.ownerEmail}</Text>
+                </Pressable>
+              ) : null}
             </View>
           )}
         </View>
@@ -739,22 +799,26 @@ export default function PropertyDetailScreen() {
               style={[
                 styles.bookBtn,
                 { backgroundColor: colors.primary },
-                (isBooking || (isNightly && isUnavailable)) && { opacity: 0.4 },
+                (isBooking || (isNightly && isUnavailable && showDatePicker)) && { opacity: 0.4 },
               ]}
-              onPress={handleBook}
-              disabled={isBooking || (isNightly && isUnavailable)}
+              onPress={handleLinkUp}
+              disabled={isBooking || (isNightly && isUnavailable && showDatePicker)}
             >
               {isBooking ? (
                 <ActivityIndicator size="small" color={colors.primaryForeground} />
               ) : (
                 <Text style={[styles.bookBtnText, { color: colors.primaryForeground }]}>
-                  {user ? "Book Now" : "Sign In to Book"}
+                  {isNightlyProperty && !showDatePicker
+                    ? "🔗 Link Up"
+                    : isNightlyProperty && showDatePicker && isUnavailable
+                      ? "Contact Owner"
+                      : user ? "🔗 Link Up" : "Sign In to Link Up"}
                 </Text>
               )}
             </Pressable>
-            {isNightly && isUnavailable && (
+            {isNightly && isUnavailable && showDatePicker && (
               <Text style={[styles.bookBtnHint, { color: colors.mutedForeground }]}>
-                These dates are already booked
+                These dates are already linked up
               </Text>
             )}
           </View>
@@ -1202,5 +1266,12 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 14,
       fontFamily: "Outfit_500Medium",
     },
+    contactCard: { padding: 16, gap: 10, borderWidth: 1, borderRadius: 12 },
+    contactTitle: { fontSize: 15, fontFamily: "Outfit_600SemiBold" },
+    contactSubtitle: { fontSize: 13, fontFamily: "Outfit_400Regular", lineHeight: 18 },
+    contactActions: { flexDirection: "row", gap: 8 },
+    contactBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 8, borderWidth: 1 },
+    contactEmailBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderRadius: 8 },
+    contactBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
   });
 }

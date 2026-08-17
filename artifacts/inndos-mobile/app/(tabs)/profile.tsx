@@ -47,7 +47,7 @@ export default function ProfileScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Profile</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>My Account</Text>
         </View>
         <View style={styles.guestContainer}>
           <View style={[styles.avatar, { backgroundColor: colors.muted, borderColor: colors.border }]}>
@@ -90,7 +90,7 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Profile</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>My Account</Text>
       </View>
 
       <ScrollView
@@ -121,16 +121,74 @@ export default function ProfileScreen() {
           <InfoRow icon="mail" label="Email" value={displayUser.email} colors={colors} />
         </View>
 
-        <Pressable
-          style={[styles.menuItem, { borderColor: colors.border }]}
-          onPress={() => router.push("/(tabs)/bookings")}
-        >
-          <View style={styles.menuItemLeft}>
-            <Feather name="calendar" size={20} color={colors.foreground} />
-            <Text style={[styles.menuItemText, { color: colors.foreground }]}>My Bookings</Text>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </Pressable>
+        <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+          <Pressable
+            style={[styles.menuItem, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/(tabs)/bookings")}
+          >
+            <View style={styles.menuItemLeft}>
+              <Feather name="link" size={20} color={colors.foreground} />
+              <Text style={[styles.menuItemText, { color: colors.foreground }]}>My Link-Ups</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            style={[styles.menuItem, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/(tabs)/saved")}
+          >
+            <View style={styles.menuItemLeft}>
+              <Feather name="heart" size={20} color={colors.foreground} />
+              <Text style={[styles.menuItemText, { color: colors.foreground }]}>Saved Properties</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          {(displayUser.role === "owner" || displayUser.role === "host") && (
+            <>
+              <Pressable
+                style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                onPress={() => router.push("/(tabs)/my-listings" as never)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <Feather name="home" size={20} color={colors.foreground} />
+                  <Text style={[styles.menuItemText, { color: colors.foreground }]}>My Listings</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </Pressable>
+              <Pressable
+                style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                onPress={() => router.push("/(tabs)/list-property" as never)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <Feather name="plus-square" size={20} color={colors.foreground} />
+                  <Text style={[styles.menuItemText, { color: colors.foreground }]}>List a Property</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </Pressable>
+            </>
+          )}
+          <Pressable
+            style={[styles.menuItem, { borderBottomColor: colors.border }]}
+            onPress={() => router.push("/(tabs)/transactions" as never)}
+          >
+            <View style={styles.menuItemLeft}>
+              <Feather name="credit-card" size={20} color={colors.foreground} />
+              <Text style={[styles.menuItemText, { color: colors.foreground }]}>Transactions</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          {displayUser.role === "admin" && (
+            <Pressable
+              style={[styles.menuItem, { borderBottomColor: colors.border }]}
+              onPress={() => router.push("/(tabs)/admin" as never)}
+            >
+              <View style={styles.menuItemLeft}>
+                <Feather name="shield" size={20} color={colors.foreground} />
+                <Text style={[styles.menuItemText, { color: colors.foreground }]}>Admin Dashboard</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </View>
 
         <Pressable
           style={[styles.logoutBtn, { borderColor: colors.destructive }]}
@@ -289,13 +347,18 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     rowDivider: {
       height: 1,
     },
+    menuGroup: {
+      borderWidth: 1,
+      borderRadius: 12,
+      overflow: "hidden",
+    },
     menuItem: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingVertical: 16,
       paddingHorizontal: 16,
-      borderWidth: 1,
+      borderBottomWidth: 1,
     },
     menuItemLeft: {
       flexDirection: "row",
@@ -313,6 +376,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       gap: 10,
       paddingVertical: 14,
       borderWidth: 1,
+      borderRadius: 12,
       marginTop: 8,
     },
     logoutText: {

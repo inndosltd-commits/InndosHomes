@@ -29,7 +29,7 @@ interface PropertyCardProps {
 }
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const CARD_WIDTH = SCREEN_WIDTH - 40;
+const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -151,12 +151,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
           </Text>
         </View>
 
-        {!!property.description && (
-          <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
-            {property.description}
-          </Text>
-        )}
-
         <View style={[styles.specs, { borderTopColor: colors.border }]}>
           {property.beds > 0 && (
             <View style={styles.specItem}>
@@ -193,12 +187,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
+    borderRadius: 12,
     overflow: "hidden",
     width: CARD_WIDTH,
   },
   imageContainer: {
     width: "100%",
-    height: 200,
+    height: 150,
     position: "relative",
   },
   image: {
@@ -219,6 +214,7 @@ const styles = StyleSheet.create({
   typeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 6,
   },
   typeBadgeText: {
     fontSize: 11,
@@ -230,6 +226,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 6,
   },
   verifiedText: {
     fontSize: 11,
@@ -280,11 +277,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Outfit_400Regular",
     flex: 1,
-  },
-  description: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    lineHeight: 19,
   },
   specs: {
     flexDirection: "row",

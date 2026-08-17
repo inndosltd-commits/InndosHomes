@@ -16,16 +16,12 @@ interface TabLayoutProps {
   savedCount: number;
 }
 
-function NativeTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { isAdmin: boolean; isOwner: boolean }) {
+function NativeTabLayout({ savedCount }: TabLayoutProps) {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Browse</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="search" role="search">
-        <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
-        <Label>Search</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         name="saved"
@@ -35,36 +31,12 @@ function NativeTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { is
         <Label>Saved</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="bookings">
-        <Icon sf={{ default: "calendar", selected: "calendar" }} />
-        <Label>Bookings</Label>
+        <Icon sf={{ default: "link", selected: "link" }} />
+        <Label>Link-Ups</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="transactions">
-        <Icon sf={{ default: "arrow.left.arrow.right", selected: "arrow.left.arrow.right.circle.fill" }} />
-        <Label>Transactions</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="my-listings">
-        <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
-        <Label>My Listings</Label>
-      </NativeTabs.Trigger>
-      {isOwner && (
-        <NativeTabs.Trigger name="property-saves">
-          <Icon sf={{ default: "heart.text.square", selected: "heart.text.square.fill" }} />
-          <Label>Saves</Label>
-        </NativeTabs.Trigger>
-      )}
-      <NativeTabs.Trigger name="list-property">
-        <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
-        <Label>List</Label>
-      </NativeTabs.Trigger>
-      {isAdmin && (
-        <NativeTabs.Trigger name="admin">
-          <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-          <Label>Admin</Label>
-        </NativeTabs.Trigger>
-      )}
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
+        <Label>My Account</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -130,6 +102,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="search"
         options={{
           title: "Search",
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="magnifyingglass" tintColor={color} size={24} />
@@ -154,12 +127,12 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
       <Tabs.Screen
         name="bookings"
         options={{
-          title: "Bookings",
+          title: "Link-Ups",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="calendar" tintColor={color} size={24} />
+              <SymbolView name="link" tintColor={color} size={24} />
             ) : (
-              <Feather name="calendar" size={22} color={color} />
+              <Feather name="link" size={22} color={color} />
             ),
         }}
       />
@@ -167,6 +140,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="transactions"
         options={{
           title: "Transactions",
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="arrow.left.arrow.right" tintColor={color} size={24} />
@@ -179,6 +153,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="my-listings"
         options={{
           title: "My Listings",
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="building.2" tintColor={color} size={24} />
@@ -191,7 +166,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="property-saves"
         options={{
           title: "Saves",
-          href: isOwner ? undefined : null,
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="heart.text.square" tintColor={color} size={24} />
@@ -204,6 +179,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="list-property"
         options={{
           title: "List",
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="plus.circle" tintColor={color} size={24} />
@@ -216,7 +192,7 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         name="admin"
         options={{
           title: "Admin",
-          href: isAdmin ? undefined : null,
+          href: null,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="person.2" tintColor={color} size={24} />
@@ -228,10 +204,10 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "My Account",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person" tintColor={color} size={24} />
+              <SymbolView name="person.fill" tintColor={color} size={24} />
             ) : (
               <Feather name="user" size={22} color={color} />
             ),
@@ -251,7 +227,7 @@ export default function TabLayout() {
   const isOwner = user != null && ["owner", "host", "admin"].includes(user.role);
 
   if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout savedCount={savedCount} isAdmin={isAdmin} isOwner={isOwner} />;
+    return <NativeTabLayout savedCount={savedCount} />;
   }
   return <ClassicTabLayout savedCount={savedCount} isAdmin={isAdmin} isOwner={isOwner} />;
 }

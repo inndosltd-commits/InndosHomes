@@ -1,10 +1,12 @@
 import { useCreateProperty } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -38,7 +40,6 @@ interface FormState {
   beds: string;
   baths: string;
   sqft: string;
-  imageUrl: string;
   description: string;
   lat: string;
   lng: string;
@@ -52,7 +53,6 @@ const EMPTY_FORM: FormState = {
   beds: "",
   baths: "",
   sqft: "",
-  imageUrl: "",
   description: "",
   lat: "",
   lng: "",
@@ -62,12 +62,14 @@ export default function ListPropertyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState | "imageUrl", string>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [photos, setPhotos] = useState<Array<{ uri: string; uploaded: string | null }>>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { mutate: createProperty, isPending } = useCreateProperty({
     mutation: {
@@ -76,6 +78,7 @@ export default function ListPropertyScreen() {
         setSubmitted(true);
         setForm(EMPTY_FORM);
         setErrors({});
+        setPhotos([]);
       },
       onError: () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -185,12 +188,86 @@ export default function ListPropertyScreen() {
     setErrors((prev) => ({ ...prev, address: undefined }));
   }
 
+  const uploadPhoto = async (uri: string): Promise<string | null> => {
+    try {
+      const filename = uri.split("/").pop() || "photo.jpg";
+      const ext = filename.split(".").pop() || "jpg";
+      const type = "image/" + ext;
+      const formData = new FormData();
+      formData.append("file", { uri, name: filename, type } as any);
+      const res = await fetch("/api/storage/objects", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + (token || "") },
+        body: formData,
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url || data.path || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const pickFromLibrary = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      Alert.alert("Permission needed", "Please allow photo library access.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) await addAssets(result.assets);
+  };
+
+  const pickFromCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      Alert.alert("Permission needed", "Please allow camera access.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) await addAssets(result.assets);
+  };
+
+  const addAssets = async (assets: ImagePicker.ImagePickerAsset[]) => {
+    setIsUploading(true);
+    const newItems = assets.map((a) => ({ uri: a.uri, uploaded: null as string | null }));
+    setPhotos((prev) => [...prev, ...newItems]);
+    const urls = await Promise.all(newItems.map((item) => uploadPhoto(item.uri)));
+    setPhotos((prev) => {
+      const updated = [...prev];
+      let idx = updated.length - newItems.length;
+      urls.forEach((url) => {
+        if (idx < updated.length) {
+          updated[idx] = { ...updated[idx], uploaded: url };
+          idx++;
+        }
+      });
+      return updated;
+    });
+    const failed = urls.filter((u) => u === null).length;
+    if (failed > 0) Alert.alert("Upload issue", failed + " photo(s) could not be uploaded. Try again.");
+    setIsUploading(false);
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
   function validate(): boolean {
-    const newErrors: Partial<Record<keyof FormState, string>> = {};
+    const newErrors: Partial<Record<keyof FormState | "imageUrl", string>> = {};
 
     if (!form.title.trim()) newErrors.title = "Title is required";
     if (!form.address.trim()) newErrors.address = "Address is required";
-    if (!form.imageUrl.trim()) newErrors.imageUrl = "At least one image URL is required";
+
+    if (photos.length === 0) {
+      newErrors.imageUrl = "At least one photo is required";
+    } else if (photos.some((p) => p.uploaded === null)) {
+      newErrors.imageUrl = "Please wait for photos to finish uploading";
+    }
 
     const price = parseFloat(form.price);
     if (!form.price.trim() || isNaN(price) || price <= 0) {
@@ -225,14 +302,17 @@ export default function ListPropertyScreen() {
   }
 
   function handleSubmit() {
+    if (isUploading) {
+      Alert.alert("Please wait", "Photos are still uploading.");
+      return;
+    }
+
     if (!validate()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const imageList = [form.imageUrl.trim()];
 
     createProperty({
       data: {
@@ -244,8 +324,8 @@ export default function ListPropertyScreen() {
         ...(form.baths ? { baths: parseInt(form.baths) } : {}),
         ...(form.sqft ? { sqft: parseInt(form.sqft) } : {}),
         ...(form.description.trim() ? { description: form.description.trim() } : {}),
-        image: imageList[0],
-        images: imageList,
+        image: photos[0]?.uploaded || "",
+        images: photos.map((p) => p.uploaded).filter((u): u is string => u !== null),
         ...(form.lat.trim() && form.lng.trim()
           ? { lat: form.lat.trim(), lng: form.lng.trim() }
           : {}),
@@ -401,21 +481,57 @@ export default function ListPropertyScreen() {
             />
           </Field>
 
-          <SectionLabel text="Photo" colors={colors} />
-
-          <Field label="Image URL *" error={errors.imageUrl} colors={colors}>
-            <TextInput
-              style={[styles.input, { color: colors.foreground, borderColor: errors.imageUrl ? colors.destructive : colors.border, backgroundColor: colors.card }]}
-              placeholder="https://example.com/photo.jpg"
-              placeholderTextColor={colors.mutedForeground}
-              value={form.imageUrl}
-              onChangeText={(v) => setField("imageUrl", v)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              returnKeyType="done"
-            />
-          </Field>
+          <SectionLabel text="Photos *" colors={colors} />
+          <Text style={{ fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.mutedForeground, marginTop: -8 }}>
+            At least one photo is required
+          </Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Pressable
+              style={[styles.photoPickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+              onPress={pickFromLibrary}
+              disabled={isUploading}
+            >
+              <Feather name="image" size={20} color={colors.foreground} />
+              <Text style={[styles.photoPickerText, { color: colors.foreground }]}>Gallery</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.photoPickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+              onPress={pickFromCamera}
+              disabled={isUploading}
+            >
+              <Feather name="camera" size={20} color={colors.foreground} />
+              <Text style={[styles.photoPickerText, { color: colors.foreground }]}>Camera</Text>
+            </Pressable>
+          </View>
+          {isUploading && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ fontSize: 13, fontFamily: "Outfit_400Regular", color: colors.mutedForeground }}>Uploading...</Text>
+            </View>
+          )}
+          {photos.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {photos.map((photo, index) => (
+                <View key={index} style={{ width: 80, height: 80, position: "relative" }}>
+                  <Image source={{ uri: photo.uri }} style={{ width: 80, height: 80, borderRadius: 8 }} resizeMode="cover" />
+                  {photo.uploaded === null && !isUploading && (
+                    <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 8, alignItems: "center", justifyContent: "center" }}>
+                      <Feather name="alert-circle" size={16} color="#fff" />
+                    </View>
+                  )}
+                  <Pressable
+                    style={{ position: "absolute", top: -6, right: -6, backgroundColor: "#ef4444", borderRadius: 10, width: 20, height: 20, alignItems: "center", justifyContent: "center" }}
+                    onPress={() => removePhoto(index)}
+                  >
+                    <Feather name="x" size={12} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          {errors.imageUrl ? (
+            <Text style={{ fontSize: 12, fontFamily: "Outfit_400Regular", color: colors.destructive }}>{errors.imageUrl}</Text>
+          ) : null}
 
           <SectionLabel text="Location (optional)" colors={colors} />
 
@@ -578,6 +694,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       paddingVertical: 12,
       fontSize: 14,
       fontFamily: "Outfit_400Regular",
+      borderRadius: 8,
     },
     textarea: {
       height: 100,
@@ -596,6 +713,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       borderWidth: 1,
       paddingHorizontal: 14,
       paddingVertical: 8,
+      borderRadius: 8,
     },
     typeChipText: {
       fontSize: 13,
@@ -608,9 +726,24 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       gap: 10,
       paddingVertical: 15,
       marginTop: 8,
+      borderRadius: 8,
     },
     submitBtnText: {
       fontSize: 16,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    photoPickerBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 14,
+      borderWidth: 1,
+      borderRadius: 8,
+    },
+    photoPickerText: {
+      fontSize: 14,
       fontFamily: "Outfit_600SemiBold",
     },
   });

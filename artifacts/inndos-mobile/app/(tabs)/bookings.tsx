@@ -53,12 +53,12 @@ export default function BookingsScreen() {
   const handleCancel = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      "Cancel Booking",
-      "Are you sure you want to cancel this booking?",
+      "Cancel Link-Up",
+      "Are you sure you want to cancel this link-up?",
       [
         { text: "Keep it", style: "cancel" },
         {
-          text: "Cancel Booking",
+          text: "Yes, Cancel",
           style: "destructive",
           onPress: () => {
             cancelBooking(
@@ -83,13 +83,13 @@ export default function BookingsScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Bookings</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Link-Ups</Text>
         </View>
         <View style={styles.guestState}>
-          <Feather name="calendar" size={48} color={colors.border} />
-          <Text style={[styles.guestTitle, { color: colors.foreground }]}>Your bookings</Text>
+          <Feather name="link" size={48} color={colors.border} />
+          <Text style={[styles.guestTitle, { color: colors.foreground }]}>Your link-ups</Text>
           <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
-            Sign in to view and manage your bookings
+            Sign in to view and manage your link-ups
           </Text>
           <Pressable
             style={[styles.authBtn, { backgroundColor: colors.primary }]}
@@ -105,7 +105,7 @@ export default function BookingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Bookings</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Link-Ups</Text>
       </View>
 
       {isLoading ? (
@@ -116,7 +116,7 @@ export default function BookingsScreen() {
         <View style={styles.center}>
           <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
           <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
-            Could not load bookings
+            Could not load link-ups
           </Text>
           <Pressable
             style={[styles.retryBtn, { backgroundColor: colors.primary }]}
@@ -144,9 +144,9 @@ export default function BookingsScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Feather name="calendar" size={40} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No bookings yet</Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No link-ups yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                Browse properties to make your first booking
+                Browse properties to make your first link-up
               </Text>
               <Pressable
                 style={[styles.browseBtn, { borderColor: colors.primary }]}
@@ -298,6 +298,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       paddingHorizontal: 32,
       paddingVertical: 14,
       marginTop: 8,
+      borderRadius: 8,
     },
     authBtnText: {
       fontSize: 15,
@@ -310,6 +311,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     bookingCard: {
       borderWidth: 1,
+      borderRadius: 12,
       overflow: "hidden",
     },
     thumbnail: {
@@ -398,6 +400,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       marginHorizontal: 16,
       marginBottom: 16,
       borderWidth: 1,
+      borderRadius: 8,
       paddingVertical: 10,
       alignItems: "center",
     },
@@ -412,6 +415,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     retryBtn: {
       paddingHorizontal: 24,
       paddingVertical: 12,
+      borderRadius: 8,
     },
     retryText: {
       fontSize: 14,
@@ -428,6 +432,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     browseBtn: {
       borderWidth: 1,
+      borderRadius: 8,
       paddingHorizontal: 24,
       paddingVertical: 12,
       marginTop: 8,

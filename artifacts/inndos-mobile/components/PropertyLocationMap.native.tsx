@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   mapContainer: {
-    height: 180,
+    height: 280,
     borderRadius: 12,
     overflow: "hidden",
   },
