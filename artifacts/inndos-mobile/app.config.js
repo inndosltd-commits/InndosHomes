@@ -6,6 +6,12 @@ const base = appJson.expo;
 
 module.exports = {
   ...base,
+  extra: {
+    ...base.extra,
+    eas: {
+      projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
+    },
+  },
   android: {
     ...base.android,
     config: {
