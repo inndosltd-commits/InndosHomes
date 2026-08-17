@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 
@@ -64,6 +64,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
       <Text style={[styles.label, { color: colors.mutedForeground }]}>LOCATION</Text>
       <Pressable onPress={handleOpenMaps} style={styles.mapContainer}>
         <MapView
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           region={region}
           scrollEnabled={false}

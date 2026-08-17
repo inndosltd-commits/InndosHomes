@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
+import { PropertyMapView } from "@/components/PropertyMapView";
 import { Feather } from "@expo/vector-icons";
 
 const FILTER_TYPES = [
@@ -63,6 +64,7 @@ export default function BrowseScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   const listParams: ListPropertiesParams = {
     type: activeType,
@@ -158,6 +160,16 @@ export default function BrowseScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>inndos</Text>
+        <Pressable
+          onPress={() => setShowMap((v) => !v)}
+          style={[styles.mapToggleBtn, { backgroundColor: showMap ? colors.primary : colors.muted, borderColor: showMap ? colors.primary : colors.border }]}
+          hitSlop={8}
+        >
+          <Feather name={showMap ? "list" : "map"} size={16} color={showMap ? colors.primaryForeground : colors.foreground} />
+          <Text style={[styles.mapToggleText, { color: showMap ? colors.primaryForeground : colors.foreground }]}>
+            {showMap ? "List" : "Map"}
+          </Text>
+        </Pressable>
       </View>
 
       <View style={[styles.searchBar, { backgroundColor: colors.muted, borderColor: colors.border }]}>
@@ -265,6 +277,8 @@ export default function BrowseScreen() {
             <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
           </Pressable>
         </View>
+      ) : showMap ? (
+        <PropertyMapView properties={filteredProperties} />
       ) : (
         <FlatList
           data={filteredProperties}
@@ -315,6 +329,19 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 24,
       fontFamily: "Outfit_700Bold",
       letterSpacing: 0,
+    },
+    mapToggleBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderWidth: 1,
+      borderRadius: 20,
+    },
+    mapToggleText: {
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
     },
     searchBar: {
       flexDirection: "row",

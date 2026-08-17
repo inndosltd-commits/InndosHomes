@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import MapView, { Marker, MapPressEvent } from "react-native-maps";
+import MapView, { Marker, MapPressEvent, PROVIDER_GOOGLE } from "react-native-maps";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
@@ -163,6 +163,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
       <View style={[styles.mapWrapper, { borderColor: hasError ? colors.destructive : colors.border }]}>
         <MapView
           ref={mapRef}
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           initialRegion={initialRegion}
           onPress={handleMapPress}

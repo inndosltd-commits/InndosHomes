@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, type Region } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import Supercluster from "supercluster";
 import { useColors } from "@/hooks/useColors";
 import { getImageUrl } from "@/utils/imageUrl";
@@ -185,6 +185,7 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
     <View style={styles.container}>
       <MapView
         ref={mapRef}
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={initialRegion}
         showsUserLocation
