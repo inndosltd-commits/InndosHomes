@@ -17,9 +17,11 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 
-const ROLES: { label: string; value: string }[] = [
-  { label: "Property Owner", value: "owner" },
-  { label: "Host (BnB / Hotel)", value: "host" },
+const ROLES: { label: string; value: string; icon: React.ComponentProps<typeof Feather>["name"]; desc: string }[] = [
+  { label: "Tenant", value: "tenant", icon: "search", desc: "Looking for a place" },
+  { label: "Property Owner", value: "owner", icon: "home", desc: "Selling or renting out" },
+  { label: "Host / Agency", value: "host", icon: "star", desc: "BnB, Hotel or Agency" },
+  { label: "Marketer", value: "guest", icon: "share-2", desc: "Referring properties" },
 ];
 
 export default function SignupScreen() {
@@ -32,7 +34,7 @@ export default function SignupScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("owner");
+  const [role, setRole] = useState("tenant");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
@@ -145,32 +147,38 @@ export default function SignupScreen() {
           </View>
         </View>
 
+        {/* Role selection — 2×2 grid */}
         <View>
           <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>I AM A...</Text>
-          <View style={styles.roleRow}>
+          <View style={styles.roleGrid}>
             {ROLES.map((r) => {
               const isActive = role === r.value;
               return (
                 <Pressable
                   key={r.value}
                   style={[
-                    styles.roleChip,
+                    styles.roleCard,
                     {
-                      backgroundColor: isActive ? colors.primary : colors.muted,
+                      backgroundColor: isActive ? colors.primary + "18" : colors.muted,
                       borderColor: isActive ? colors.primary : colors.border,
-                      flex: 1,
                     },
                   ]}
                   onPress={() => setRole(r.value)}
                 >
+                  <View style={[styles.roleIconCircle, { backgroundColor: isActive ? colors.primary : colors.border + "60" }]}>
+                    <Feather name={r.icon} size={16} color={isActive ? colors.primaryForeground : colors.mutedForeground} />
+                  </View>
                   <Text
-                    style={[
-                      styles.roleChipText,
-                      { color: isActive ? colors.primaryForeground : colors.foreground },
-                    ]}
+                    style={[styles.roleCardLabel, { color: isActive ? colors.primary : colors.foreground }]}
                     numberOfLines={1}
                   >
                     {r.label}
+                  </Text>
+                  <Text
+                    style={[styles.roleCardDesc, { color: colors.mutedForeground }]}
+                    numberOfLines={1}
+                  >
+                    {r.desc}
                   </Text>
                 </Pressable>
               );
@@ -265,19 +273,32 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     eyeBtn: {
       padding: 8,
     },
-    roleRow: {
+    roleGrid: {
       flexDirection: "row",
-      gap: 8,
+      flexWrap: "wrap",
+      gap: 10,
     },
-    roleChip: {
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      borderWidth: 1,
+    roleCard: {
+      width: "47%",
+      borderWidth: 1.5,
+      borderRadius: 12,
+      padding: 12,
+      gap: 6,
+    },
+    roleIconCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: "center",
+      justifyContent: "center",
     },
-    roleChipText: {
-      fontSize: 11,
+    roleCardLabel: {
+      fontSize: 13,
       fontFamily: "Outfit_600SemiBold",
+    },
+    roleCardDesc: {
+      fontSize: 11,
+      fontFamily: "Outfit_400Regular",
     },
     signupBtn: {
       paddingVertical: 16,
