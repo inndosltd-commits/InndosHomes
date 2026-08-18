@@ -48,9 +48,13 @@ export default function LoginScreen() {
           router.dismissAll();
         },
         onError: (err: unknown) => {
-          const apiErr = err as { status?: number };
+          const apiErr = err as { status?: number; data?: { error?: string } };
           if (apiErr?.status === 401) {
             setError("Invalid email or password");
+          } else if (apiErr?.data?.error) {
+            setError(apiErr.data.error);
+          } else if (err instanceof Error) {
+            setError(err.message || "Something went wrong. Please try again.");
           } else {
             setError("Something went wrong. Please try again.");
           }
