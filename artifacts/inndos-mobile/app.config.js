@@ -1,7 +1,4 @@
 // Dynamic config so EAS secrets (process.env.*) are resolved at build time.
-// The static app.json is kept as the base; this file extends/overrides it.
-
-/** @type {import('expo/config').ExpoConfig} */
 const config = {
   name: "inndos",
   slug: "inndos-mobile",
@@ -71,13 +68,6 @@ const config = {
       {
         locationWhenInUsePermission:
           "Allow INNDOS to use your location to show nearby properties.",
-      },
-    ],
-    [
-      "react-native-maps",
-      {
-        googleMapsApiKey: process.env.GOOGLE_API_KEY,
-        enableGoogleMaps: true,
       },
     ],
   ],
