@@ -4,6 +4,12 @@
       "eas": {
         "projectId": "193141c3-835c-406f-a1ab-34b29452f964"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.inndos.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     }
   }
 }
