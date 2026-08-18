@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": false,
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.inndos.app"
+      "bundleIdentifier": "com.inndos.app",
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +25,8 @@
         "backgroundColor": "#0a0a0a"
       },
       "icon": "./assets/images/icon.png",
-      "package": "com.inndos.app"
+      "package": "com.inndos.app",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/images/icon.png"
