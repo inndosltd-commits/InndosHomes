@@ -8,6 +8,7 @@ import {
 import { setBaseUrl } from "@workspace/api-client-react";
 import { setImageBaseUrl } from "@/utils/imageUrl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -20,10 +21,17 @@ import { AuthProvider } from "@/context/AuthContext";
 
 // Set the base URL for all API calls. Expo bundles run outside the web proxy
 // and need an absolute URL to reach the backend.
-if (process.env.EXPO_PUBLIC_DOMAIN) {
-  const baseUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-  setBaseUrl(baseUrl);
-  setImageBaseUrl(baseUrl);
+// Priority: EXPO_PUBLIC_DOMAIN env var (set as EAS secret) → apiDomain baked
+// into app.config.js extra at build time (falls back to REPLIT_DEV_DOMAIN).
+const _rawDomain: string =
+  (process.env.EXPO_PUBLIC_DOMAIN as string | undefined) ||
+  ((Constants.expoConfig?.extra as { apiDomain?: string } | undefined)
+    ?.apiDomain ?? "");
+
+if (_rawDomain) {
+  const _baseUrl = `https://${_rawDomain.replace(/^https?:\/\//, "")}`;
+  setBaseUrl(_baseUrl);
+  setImageBaseUrl(_baseUrl);
 }
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.

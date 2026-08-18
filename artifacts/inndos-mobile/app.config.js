@@ -11,6 +11,14 @@ module.exports = {
     eas: {
       projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
     },
+    // Baked into the bundle so the app knows where to reach the API server.
+    // Reads EXPO_PUBLIC_DOMAIN (set as EAS secret) first, then falls back to
+    // the Replit dev domain for local / preview builds.
+    apiDomain:
+      process.env.EXPO_PUBLIC_DOMAIN ||
+      process.env.REPLIT_DEV_DOMAIN ||
+      process.env.REPLIT_INTERNAL_APP_DOMAIN ||
+      "",
   },
   android: {
     ...base.android,
