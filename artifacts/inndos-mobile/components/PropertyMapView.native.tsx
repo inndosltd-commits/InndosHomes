@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import Supercluster from "supercluster";
+import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { getImageUrl } from "@/utils/imageUrl";
 import { Feather } from "@expo/vector-icons";
@@ -96,6 +97,31 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   useEffect(() => {
     setThumbError(false);
   }, [selectedId]);
+
+  // Auto-zoom to user's current location on first mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled || status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (cancelled) return;
+        const userRegion: Region = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        };
+        mapRef.current?.animateToRegion(userRegion, 800);
+        setRegion(userRegion);
+        committedRegionRef.current = userRegion;
+      } catch {
+        // Permission denied or location unavailable — keep default region
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const mappableProperties = useMemo(
     () =>

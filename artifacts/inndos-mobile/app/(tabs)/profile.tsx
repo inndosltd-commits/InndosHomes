@@ -1,9 +1,11 @@
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React from "react";
+import * as ImagePicker from "expo-image-picker";
+import React, { useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -15,33 +17,128 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
+import Constants from "expo-constants";
+import { getImageUrl } from "@/utils/imageUrl";
 
+function getApiBase(): string {
+  return (
+    process.env.EXPO_PUBLIC_DOMAIN ||
+    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
+    ""
+  );
+}
+
+// ── Nav menu item ─────────────────────────────────────────────────────────────
+function MenuItem({ icon, label, badge, onPress, colors }: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  label: string;
+  badge?: number;
+  onPress: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <Pressable style={[menuS.item, { borderBottomColor: colors.border }]} onPress={onPress}>
+      <View style={menuS.left}>
+        <Feather name={icon} size={20} color={colors.foreground} />
+        <Text style={[menuS.label, { color: colors.foreground }]}>{label}</Text>
+      </View>
+      <View style={menuS.right}>
+        {badge !== undefined && badge > 0 && (
+          <View style={[menuS.badge, { backgroundColor: colors.primary }]}>
+            <Text style={[menuS.badgeText, { color: colors.primaryForeground }]}>{badge}</Text>
+          </View>
+        )}
+        <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      </View>
+    </Pressable>
+  );
+}
+const menuS = StyleSheet.create({
+  item: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1 },
+  left: { flexDirection: "row", alignItems: "center", gap: 12 },
+  right: { flexDirection: "row", alignItems: "center", gap: 6 },
+  label: { fontSize: 15, fontFamily: "Outfit_500Medium" },
+  badge: { borderRadius: 10, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  badgeText: { fontSize: 10, fontFamily: "Outfit_700Bold" },
+});
+
+// ── Info row ──────────────────────────────────────────────────────────────────
+function InfoRow({ icon, label, value, colors }: { icon: string; label: string; value: string; colors: ReturnType<typeof useColors> }) {
+  return (
+    <View style={infoS.row}>
+      <Feather name={icon as React.ComponentProps<typeof Feather>["name"]} size={16} color={colors.mutedForeground} />
+      <Text style={[infoS.label, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[infoS.value, { color: colors.foreground }]} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+const infoS = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 14, paddingHorizontal: 16 },
+  label: { fontSize: 13, fontFamily: "Outfit_400Regular", flex: 1 },
+  value: { fontSize: 13, fontFamily: "Outfit_500Medium", maxWidth: "50%" },
+});
+
+// ── Section title ─────────────────────────────────────────────────────────────
+function SectionTitle({ label, colors }: { label: string; colors: ReturnType<typeof useColors> }) {
+  return <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{label}</Text>;
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const isWeb = Platform.OS === "web";
 
-  const { data: profile } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!user } });
+  const { data: profile, refetch: refetchProfile } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!user } });
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const handleLogout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        },
-      },
+      { text: "Sign Out", style: "destructive", onPress: async () => { await logout(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } },
     ]);
   };
 
+  const handleAvatarPress = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") { Alert.alert("Permission needed", "Please allow photo library access."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setAvatarUri(asset.uri);
+      setUploadingAvatar(true);
+      try {
+        const filename = asset.uri.split("/").pop() || "avatar.jpg";
+        const ext = filename.split(".").pop() || "jpg";
+        const formData = new FormData();
+        formData.append("file", { uri: asset.uri, name: filename, type: `image/${ext}` } as never);
+        const base = getApiBase();
+        const uploadRes = await fetch(`${base}/api/storage/objects`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const { url, path } = await uploadRes.json();
+          const avatarUrl = url || path;
+          // Update user profile with new avatar
+          await fetch(`${base}/api/users/me`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${token ?? ""}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ avatar: avatarUrl }),
+          });
+          await refetchProfile();
+        }
+      } catch { Alert.alert("Upload failed", "Could not update your profile photo. Try again."); }
+      finally { setUploadingAvatar(false); }
+    }
+  };
+
   const topPadding = isWeb ? 67 : insets.top;
-  const styles = getStyles(colors);
 
   if (!user) {
     return (
@@ -54,19 +151,11 @@ export default function ProfileScreen() {
             <Feather name="user" size={40} color={colors.mutedForeground} />
           </View>
           <Text style={[styles.guestTitle, { color: colors.foreground }]}>Hello, guest</Text>
-          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
-            Create an account to book properties and save your favorites
-          </Text>
-          <Pressable
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/(auth)/login")}
-          >
+          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>Create an account to book properties and save your favorites</Text>
+          <Pressable style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={() => router.push("/(auth)/login")}>
             <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Sign In</Text>
           </Pressable>
-          <Pressable
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
-            onPress={() => router.push("/(auth)/signup")}
-          >
+          <Pressable style={[styles.secondaryBtn, { borderColor: colors.border }]} onPress={() => router.push("/(auth)/signup")}>
             <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Create Account</Text>
           </Pressable>
         </View>
@@ -75,17 +164,16 @@ export default function ProfileScreen() {
   }
 
   const displayUser = profile ?? user;
-  const initials = displayUser.name
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = displayUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+  const joinDate = new Date(displayUser.joinDate).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
+  const role = displayUser.role;
+  const isAdmin = role === "admin";
+  const isOwnerOrHost = role === "owner" || role === "host";
+  const isTenant = role === "tenant" || role === "guest";
+  const isMarketer = role === "marketer" || role === "guest";
 
-  const joinDate = new Date(displayUser.joinDate).toLocaleDateString("en-KE", {
-    month: "long",
-    year: "numeric",
-  });
+  // Profile photo URL
+  const photoUrl = avatarUri ?? ((displayUser as Record<string, unknown>).avatar as string | undefined) ?? null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -94,16 +182,27 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: isWeb ? 34 + 84 : insets.bottom + 84 },
-        ]}
+        contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 + 84 : insets.bottom + 84 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Avatar */}
         <View style={styles.profileSection}>
-          <View style={[styles.avatarLarge, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>{initials}</Text>
-          </View>
+          <Pressable style={styles.avatarWrap} onPress={handleAvatarPress}>
+            {photoUrl ? (
+              <Image source={{ uri: getImageUrl(photoUrl) }} style={styles.avatarLarge} />
+            ) : (
+              <View style={[styles.avatarLarge, { backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }]}>
+                <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>{initials}</Text>
+              </View>
+            )}
+            <View style={[styles.editBadge, { backgroundColor: colors.primary }]}>
+              {uploadingAvatar ? (
+                <Feather name="loader" size={10} color={colors.primaryForeground} />
+              ) : (
+                <Feather name="camera" size={10} color={colors.primaryForeground} />
+              )}
+            </View>
+          </Pressable>
           <Text style={[styles.userName, { color: colors.foreground }]}>{displayUser.name}</Text>
           <Text style={[styles.userEmail, { color: colors.mutedForeground }]}>{displayUser.email}</Text>
           <View style={[styles.roleBadge, { backgroundColor: colors.muted }]}>
@@ -113,6 +212,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Account info */}
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <InfoRow icon="calendar" label="Member since" value={joinDate} colors={colors} />
           <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
@@ -121,79 +221,63 @@ export default function ProfileScreen() {
           <InfoRow icon="mail" label="Email" value={displayUser.email} colors={colors} />
         </View>
 
+        {/* Navigation menu — All users */}
+        <SectionTitle label="MY ACTIVITY" colors={colors} />
         <View style={[styles.menuGroup, { borderColor: colors.border }]}>
-          <Pressable
-            style={[styles.menuItem, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/(tabs)/bookings")}
-          >
-            <View style={styles.menuItemLeft}>
-              <Feather name="link" size={20} color={colors.foreground} />
-              <Text style={[styles.menuItemText, { color: colors.foreground }]}>My Link-Ups</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          <Pressable
-            style={[styles.menuItem, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/(tabs)/saved")}
-          >
-            <View style={styles.menuItemLeft}>
-              <Feather name="heart" size={20} color={colors.foreground} />
-              <Text style={[styles.menuItemText, { color: colors.foreground }]}>Saved Properties</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          {(displayUser.role === "owner" || displayUser.role === "host") && (
-            <>
-              <Pressable
-                style={[styles.menuItem, { borderBottomColor: colors.border }]}
-                onPress={() => router.push("/(tabs)/my-listings" as never)}
-              >
-                <View style={styles.menuItemLeft}>
-                  <Feather name="home" size={20} color={colors.foreground} />
-                  <Text style={[styles.menuItemText, { color: colors.foreground }]}>My Listings</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-              </Pressable>
-              <Pressable
-                style={[styles.menuItem, { borderBottomColor: colors.border }]}
-                onPress={() => router.push("/(tabs)/list-property" as never)}
-              >
-                <View style={styles.menuItemLeft}>
-                  <Feather name="plus-square" size={20} color={colors.foreground} />
-                  <Text style={[styles.menuItemText, { color: colors.foreground }]}>List a Property</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            </>
-          )}
-          <Pressable
-            style={[styles.menuItem, { borderBottomColor: colors.border }]}
-            onPress={() => router.push("/(tabs)/transactions" as never)}
-          >
-            <View style={styles.menuItemLeft}>
-              <Feather name="credit-card" size={20} color={colors.foreground} />
-              <Text style={[styles.menuItemText, { color: colors.foreground }]}>Transactions</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          {displayUser.role === "admin" && (
-            <Pressable
-              style={[styles.menuItem, { borderBottomColor: colors.border }]}
-              onPress={() => router.push("/(tabs)/admin" as never)}
-            >
-              <View style={styles.menuItemLeft}>
-                <Feather name="shield" size={20} color={colors.foreground} />
-                <Text style={[styles.menuItemText, { color: colors.foreground }]}>Admin Dashboard</Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </Pressable>
-          )}
+          <MenuItem icon="link" label="My Link-Ups" onPress={() => router.push("/(tabs)/bookings")} colors={colors} />
+          <MenuItem icon="heart" label="Saved Properties" onPress={() => router.push("/(tabs)/saved")} colors={colors} />
+          <MenuItem icon="credit-card" label="Transactions" onPress={() => router.push("/(tabs)/transactions" as never)} colors={colors} />
         </View>
 
-        <Pressable
-          style={[styles.logoutBtn, { borderColor: colors.destructive }]}
-          onPress={handleLogout}
-        >
+        {/* Owner / Host menu */}
+        {isOwnerOrHost && (
+          <>
+            <SectionTitle label="MY LISTINGS" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="home" label="My Listings" onPress={() => router.push("/(tabs)/my-listings" as never)} colors={colors} />
+              <MenuItem icon="plus-square" label="List a Property" onPress={() => router.push("/(tabs)/list-property" as never)} colors={colors} />
+            </View>
+            <SectionTitle label="DASHBOARD" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="bar-chart-2" label="Analytics" onPress={() => router.push("/(tabs)/analytics" as never)} colors={colors} />
+              <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/(tabs)/notifications" as never)} colors={colors} />
+            </View>
+          </>
+        )}
+
+        {/* Tenant menu */}
+        {isTenant && !isMarketer && (
+          <>
+            <SectionTitle label="DASHBOARD" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="bar-chart-2" label="Analytics" onPress={() => router.push("/(tabs)/analytics" as never)} colors={colors} />
+            </View>
+          </>
+        )}
+
+        {/* Marketer menu */}
+        {(role === "marketer" || (role === "guest" && (displayUser as Record<string, unknown>).isMarketer)) && (
+          <>
+            <SectionTitle label="MARKETING" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="share-2" label="My Marketing" onPress={() => router.push("/(tabs)/marketer" as never)} colors={colors} />
+            </View>
+          </>
+        )}
+
+        {/* Admin menu */}
+        {isAdmin && (
+          <>
+            <SectionTitle label="ADMIN" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="shield" label="Admin Dashboard" onPress={() => router.push("/(tabs)/admin" as never)} colors={colors} />
+              <MenuItem icon="bar-chart-2" label="Analytics" onPress={() => router.push("/(tabs)/analytics" as never)} colors={colors} />
+            </View>
+          </>
+        )}
+
+        {/* Sign out */}
+        <Pressable style={[styles.logoutBtn, { borderColor: colors.destructive }]} onPress={handleLogout}>
           <Feather name="log-out" size={18} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>Sign Out</Text>
         </Pressable>
@@ -202,186 +286,32 @@ export default function ProfileScreen() {
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  colors,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  colors: ReturnType<typeof useColors>;
-}) {
-  return (
-    <View style={infoRowStyles.row}>
-      <Feather name={icon as keyof typeof Feather.glyphMap} size={16} color={colors.mutedForeground} />
-      <Text style={[infoRowStyles.label, { color: colors.mutedForeground }]}>{label}</Text>
-      <Text style={[infoRowStyles.value, { color: colors.foreground }]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-const infoRowStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontFamily: "Outfit_400Regular",
-    flex: 1,
-  },
-  value: {
-    fontSize: 13,
-    fontFamily: "Outfit_500Medium",
-    maxWidth: "50%",
-  },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingBottom: 12 },
+  title: { fontSize: 24, fontFamily: "Outfit_700Bold" },
+  content: { paddingHorizontal: 20, paddingTop: 8, gap: 12 },
+  sectionLabel: { fontSize: 11, fontFamily: "Outfit_600SemiBold", letterSpacing: 0.8, textTransform: "uppercase", marginTop: 4, marginBottom: -4 },
+  guestContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
+  avatar: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 8 },
+  guestTitle: { fontSize: 22, fontFamily: "Outfit_700Bold" },
+  guestSubtitle: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center", lineHeight: 20 },
+  primaryBtn: { paddingHorizontal: 48, paddingVertical: 14, marginTop: 8, width: "100%", alignItems: "center" },
+  primaryBtnText: { fontSize: 15, fontFamily: "Outfit_600SemiBold" },
+  secondaryBtn: { borderWidth: 1, paddingHorizontal: 48, paddingVertical: 14, width: "100%", alignItems: "center" },
+  secondaryBtnText: { fontSize: 15, fontFamily: "Outfit_500Medium" },
+  profileSection: { alignItems: "center", paddingVertical: 16, gap: 8 },
+  avatarWrap: { position: "relative", marginBottom: 4 },
+  avatarLarge: { width: 80, height: 80, borderRadius: 40 },
+  editBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 28, fontFamily: "Outfit_700Bold" },
+  userName: { fontSize: 22, fontFamily: "Outfit_700Bold" },
+  userEmail: { fontSize: 14, fontFamily: "Outfit_400Regular" },
+  roleBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  roleText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+  infoCard: { borderWidth: 1, borderRadius: 12, overflow: "hidden" },
+  rowDivider: { height: 1 },
+  menuGroup: { borderWidth: 1, borderRadius: 12, overflow: "hidden" },
+  logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderWidth: 1, borderRadius: 12, marginTop: 8 },
+  logoutText: { fontSize: 15, fontFamily: "Outfit_600SemiBold" },
 });
-
-function getStyles(colors: ReturnType<typeof useColors>) {
-  return StyleSheet.create({
-    container: { flex: 1 },
-    header: {
-      paddingHorizontal: 20,
-      paddingBottom: 12,
-    },
-    title: {
-      fontSize: 24,
-      fontFamily: "Outfit_700Bold",
-    },
-    content: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      gap: 16,
-    },
-    guestContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 14,
-      paddingHorizontal: 40,
-    },
-    avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      marginBottom: 8,
-    },
-    guestTitle: {
-      fontSize: 22,
-      fontFamily: "Outfit_700Bold",
-    },
-    guestSubtitle: {
-      fontSize: 14,
-      fontFamily: "Outfit_400Regular",
-      textAlign: "center",
-      lineHeight: 20,
-    },
-    primaryBtn: {
-      paddingHorizontal: 48,
-      paddingVertical: 14,
-      marginTop: 8,
-      width: "100%",
-      alignItems: "center",
-    },
-    primaryBtnText: {
-      fontSize: 15,
-      fontFamily: "Outfit_600SemiBold",
-    },
-    secondaryBtn: {
-      borderWidth: 1,
-      paddingHorizontal: 48,
-      paddingVertical: 14,
-      width: "100%",
-      alignItems: "center",
-    },
-    secondaryBtnText: {
-      fontSize: 15,
-      fontFamily: "Outfit_500Medium",
-    },
-    profileSection: {
-      alignItems: "center",
-      paddingVertical: 16,
-      gap: 8,
-    },
-    avatarLarge: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 4,
-    },
-    avatarText: {
-      fontSize: 28,
-      fontFamily: "Outfit_700Bold",
-    },
-    userName: {
-      fontSize: 22,
-      fontFamily: "Outfit_700Bold",
-    },
-    userEmail: {
-      fontSize: 14,
-      fontFamily: "Outfit_400Regular",
-    },
-    roleBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-    },
-    roleText: {
-      fontSize: 12,
-      fontFamily: "Outfit_600SemiBold",
-    },
-    infoCard: {
-      borderWidth: 1,
-    },
-    rowDivider: {
-      height: 1,
-    },
-    menuGroup: {
-      borderWidth: 1,
-      borderRadius: 12,
-      overflow: "hidden",
-    },
-    menuItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      borderBottomWidth: 1,
-    },
-    menuItemLeft: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    menuItemText: {
-      fontSize: 15,
-      fontFamily: "Outfit_500Medium",
-    },
-    logoutBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 10,
-      paddingVertical: 14,
-      borderWidth: 1,
-      borderRadius: 12,
-      marginTop: 8,
-    },
-    logoutText: {
-      fontSize: 15,
-      fontFamily: "Outfit_600SemiBold",
-    },
-  });
-}

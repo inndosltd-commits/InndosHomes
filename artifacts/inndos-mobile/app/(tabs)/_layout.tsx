@@ -202,6 +202,45 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         }}
       />
       <Tabs.Screen
+        name="analytics"
+        options={{
+          title: "Analytics",
+          href: null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.bar" tintColor={color} size={24} />
+            ) : (
+              <Feather name="bar-chart-2" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          href: null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="bell" tintColor={color} size={24} />
+            ) : (
+              <Feather name="bell" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="marketer"
+        options={{
+          title: "Marketing",
+          href: null,
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="megaphone" tintColor={color} size={24} />
+            ) : (
+              <Feather name="share-2" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "My Account",
