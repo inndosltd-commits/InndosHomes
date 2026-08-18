@@ -6,6 +6,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "prebuildCommand": "npx expo prebuild --no-install",
       "ios": {
         "simulator": true
       },
@@ -16,11 +17,13 @@
     },
     "preview": {
       "distribution": "internal",
+      "prebuildCommand": "npx expo prebuild --no-install",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "prebuildCommand": "npx expo prebuild --no-install",
       "android": {
         "buildType": "app-bundle"
       }
