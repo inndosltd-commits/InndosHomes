@@ -17,7 +17,7 @@ const config = {
     supportsTablet: false,
     icon: "./assets/images/icon.png",
     bundleIdentifier: "com.inndos.app",
-    buildNumber: "5",
+    buildNumber: "6",
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         "INNDOS uses your location to show properties near you.",
@@ -35,7 +35,7 @@ const config = {
     },
     icon: "./assets/images/icon.png",
     package: "com.inndos.app",
-    versionCode: 4,
+    versionCode: 5,
     config: {
       googleMaps: {
         apiKey: process.env.GOOGLE_API_KEY,
