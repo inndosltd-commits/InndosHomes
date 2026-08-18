@@ -1,0 +1,24 @@
+Starting Metro Bundler
+Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓░░░░░░░░░░░░░ 21.8% ( 38/178)
+Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 33.9% (346/598)
+Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 62.6% (674/892)
+Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.7% (1032/1178)
+Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.1% (1338/1436)
+Android Bundling failed 17952ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js (1619 modules)
+Error: Unable to resolve module expo-clipboard from /home/expo/workingdir/build/artifacts/inndos-mobile/app/(tabs)/marketer.tsx: expo-clipboard could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  node_modules
+  ../../node_modules
+  21 | import { useColors } from "@/hooks/useColors";
+  22 | import { useAuth } from "@/context/AuthContext";
+> 23 | import * as Clipboard from "expo-clipboard";
+     |                             ^
+  24 | import * as Haptics from "expo-haptics";
+  25 |
+  26 | function getApiBase(): string {
+Import stack:
+ artifacts/inndos-mobile/app/(tabs)/marketer.tsx
+ | import "expo-clipboard"
+ artifacts/inndos-mobile/app (require.context)
+pnpm expo export:embed --eager --platform android --dev false exited with non-zero code: 1

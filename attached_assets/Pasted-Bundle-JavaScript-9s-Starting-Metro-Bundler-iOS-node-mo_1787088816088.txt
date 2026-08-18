@@ -1,0 +1,42 @@
+Bundle JavaScript
+
+9s
+
+
+Starting Metro Bundler
+iOS node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓░░░░░░░░░░░░ 28.7% (275/515)
+iOS node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 85.9% (1156/1276)
+iOS Bundling failed 7224ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__950497bba3dbc1f6b1863109f86ef06a/node_modules/expo-router/entry.js (1611 modules)
+Unable to resolve module expo-clipboard from /Users/expo/workingdir/build/artifacts/inndos-mobile/app/(tabs)/marketer.tsx: expo-clipboard could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  node_modules
+  ../../node_modules
+  21 | import { useColors } from "@/hooks/useColors";
+  22 | import { useAuth } from "@/context/AuthContext";
+> 23 | import * as Clipboard from "expo-clipboard";
+     |                             ^
+  24 | import * as Haptics from "expo-haptics";
+  25 |
+  26 | function getApiBase(): string {
+Import stack:
+ artifacts/inndos-mobile/app/(tabs)/marketer.tsx
+ | import "expo-clipboard"
+ artifacts/inndos-mobile/app (require.context)
+Error: Unable to resolve module expo-clipboard from /Users/expo/workingdir/build/artifacts/inndos-mobile/app/(tabs)/marketer.tsx: expo-clipboard could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  node_modules
+  ../../node_modules
+  21 | import { useColors } from "@/hooks/useColors";
+  22 | import { useAuth } from "@/context/AuthContext";
+> 23 | import * as Clipboard from "expo-clipboard";
+     |                             ^
+  24 | import * as Haptics from "expo-haptics";
+  25 |
+  26 | function getApiBase(): string {
+Import stack:
+ artifacts/inndos-mobile/app/(tabs)/marketer.tsx
+ | import "expo-clipboard"
+ artifacts/inndos-mobile/app (require.context)
+pnpm expo export:embed --eager --platform ios --dev false exited with non-zero code: 1
