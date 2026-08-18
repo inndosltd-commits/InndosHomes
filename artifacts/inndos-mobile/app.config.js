@@ -1,40 +1,94 @@
-// Dynamic Expo config — extends app.json with environment-injected secrets.
-// GOOGLE_API_KEY must be set in the Replit environment (and as an EAS secret
-// for CI builds). All other static config lives in app.json.
-const appJson = require("./app.json");
-const base = appJson.expo;
+// Dynamic config so EAS secrets (process.env.*) are resolved at build time.
+// The static app.json is kept as the base; this file extends/overrides it.
 
-module.exports = {
-  ...base,
-  extra: {
-    ...base.extra,
-    eas: {
-      projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
+/** @type {import('expo/config').ExpoConfig} */
+const config = {
+  name: "inndos",
+  slug: "inndos-mobile",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/images/icon.png",
+  scheme: "inndos-mobile",
+  userInterfaceStyle: "automatic",
+  newArchEnabled: true,
+  splash: {
+    image: "./assets/images/icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#0a0a0a",
+  },
+  ios: {
+    supportsTablet: false,
+    icon: "./assets/images/icon.png",
+    bundleIdentifier: "com.inndos.app",
+    buildNumber: "4",
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription:
+        "INNDOS uses your location to show properties near you.",
+      NSLocationAlwaysAndWhenInUseUsageDescription:
+        "INNDOS uses your location to show properties near you.",
     },
-    // Baked into the bundle so the app knows where to reach the API server.
-    // Reads EXPO_PUBLIC_DOMAIN (set as EAS secret) first, then falls back to
-    // the Replit dev domain for local / preview builds.
-    apiDomain:
-      process.env.EXPO_PUBLIC_DOMAIN ||
-      process.env.REPLIT_DEV_DOMAIN ||
-      process.env.REPLIT_INTERNAL_APP_DOMAIN ||
-      "",
+    config: {
+      googleMapsApiKey: process.env.GOOGLE_API_KEY,
+    },
   },
   android: {
-    ...base.android,
+    adaptiveIcon: {
+      foregroundImage: "./assets/images/icon.png",
+      backgroundColor: "#0a0a0a",
+    },
+    icon: "./assets/images/icon.png",
+    package: "com.inndos.app",
+    versionCode: 3,
     config: {
       googleMaps: {
-        apiKey: process.env.GOOGLE_API_KEY ?? "",
+        apiKey: process.env.GOOGLE_API_KEY,
       },
     },
   },
-  ios: {
-    ...base.ios,
-    config: {
-      googleMapsApiKey: process.env.GOOGLE_API_KEY ?? "",
-    },
-    infoPlist: {
-      ITSAppUsesNonExemptEncryption: false,
+  web: {
+    favicon: "./assets/images/icon.png",
+  },
+  plugins: [
+    [
+      "expo-router",
+      {
+        origin: "https://replit.com/",
+      },
+    ],
+    "expo-font",
+    "expo-web-browser",
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Allow INNDOS to access your photos to upload property images.",
+        cameraPermission:
+          "Allow INNDOS to use your camera to take property photos.",
+      },
+    ],
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "Allow INNDOS to use your location to show nearby properties.",
+      },
+    ],
+    [
+      "react-native-maps",
+      {
+        googleMapsApiKey: process.env.GOOGLE_API_KEY,
+        enableGoogleMaps: true,
+      },
+    ],
+  ],
+  experiments: {
+    typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
     },
   },
 };
+
+module.exports = { expo: config };
