@@ -200,7 +200,12 @@ export default function BrowseScreen() {
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>inndos</Text>
+        <Image
+          source={require("@/assets/images/logo-inndos.png")}
+          style={styles.headerLogo}
+          resizeMode="contain"
+          tintColor={Platform.OS !== "web" ? colors.foreground : undefined}
+        />
       </View>
 
       {/* ── Type filter chips ────────────────────────────────────────────── */}
@@ -589,10 +594,9 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
       paddingHorizontal: hPad,
       paddingBottom: 10,
     },
-    headerTitle: {
-      fontSize: 32,
-      fontFamily: "Outfit_700Bold",
-      letterSpacing: -0.5,
+    headerLogo: {
+      height: 36,
+      width: 140,
     },
 
     // Type filter chips

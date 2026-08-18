@@ -24,6 +24,9 @@
     },
     "production": {
       "prebuildCommand": "npx expo prebuild --no-install",
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "https://inndos.com"
+      },
       "android": {
         "buildType": "app-bundle"
       }

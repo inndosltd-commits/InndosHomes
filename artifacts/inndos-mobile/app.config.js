@@ -75,6 +75,9 @@ const config = {
     typedRoutes: true,
   },
   extra: {
+    // Hardcoded so the app always reaches the API regardless of EAS secret availability.
+    // EXPO_PUBLIC_DOMAIN env var (non-secret) takes precedence at runtime if set.
+    apiDomain: "https://inndos.com",
     eas: {
       projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
     },
