@@ -22,12 +22,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/utils/imageUrl";
-
-function getApiBase(): string {
-  return process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -211,7 +206,7 @@ export default function MyListingsScreen() {
   const fetchSaves = useCallback(async () => {
     if (!user || !token || !canList) return;
     try {
-      const base = getApiBase();
+        const base = getApiBaseUrl();
       const res = await fetch(`${base}/api/favorites/my-properties`, {
         headers: { Authorization: `Bearer ${token}` },
       });

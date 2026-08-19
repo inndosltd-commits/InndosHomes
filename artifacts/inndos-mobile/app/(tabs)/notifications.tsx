@@ -18,14 +18,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 type Notification = {
   id: string;
@@ -68,7 +61,7 @@ export default function NotificationsScreen() {
 
   const fetchNotifs = useCallback(async () => {
     if (!user || !token) return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       setError(null);
       const res = await fetch(`${base}/api/notifications`, { headers: { Authorization: `Bearer ${token}` } });
@@ -91,7 +84,7 @@ export default function NotificationsScreen() {
   };
 
   const markAsRead = async (id: string) => {
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       await fetch(`${base}/api/notifications/${id}/read`, {
         method: "PATCH",
@@ -102,7 +95,7 @@ export default function NotificationsScreen() {
   };
 
   const markAllRead = async () => {
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       await fetch(`${base}/api/notifications/mark-all-read`, {
         method: "POST",

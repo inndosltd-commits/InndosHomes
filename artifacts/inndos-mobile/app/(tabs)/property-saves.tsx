@@ -21,6 +21,7 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { getApiBaseUrl } from "@/utils/api";
 import { getImageUrl } from "@/utils/imageUrl";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,12 +48,6 @@ interface PropertyWithSaves {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getApiBase(): string {
-  return process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -365,7 +360,7 @@ export default function PropertySavesScreen() {
 
   const fetchSaves = useCallback(async () => {
     if (!user || !token || !canView) return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     setError(null);
     try {
       const res = await fetch(`${base}/api/favorites/my-properties`, {

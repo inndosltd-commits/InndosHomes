@@ -15,6 +15,7 @@ import ownerAnalyticsRouter from "./ownerAnalytics";
 import tenantAnalyticsRouter from "./tenantAnalytics";
 import reviewsRouter from "./reviews";
 import marketingRouter from "./marketing";
+import mapsRouter from "./maps";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use("/owner-analytics", ownerAnalyticsRouter);
 router.use("/tenant-analytics", tenantAnalyticsRouter);
 router.use("/reviews", reviewsRouter);
 router.use("/marketing", marketingRouter);
+router.use("/maps", mapsRouter);
 
 export default router;

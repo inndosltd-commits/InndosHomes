@@ -21,8 +21,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { getApiBaseUrl } from "@/utils/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -127,12 +129,6 @@ function timeAgo(iso: string): string {
   return `${d} days ago`;
 }
 
-function getApiBase(): string {
-  return process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "";
-}
-
 // ─── Confirmation Modal ───────────────────────────────────────────────────────
 
 interface ConfirmModalProps {
@@ -235,6 +231,7 @@ export default function TransactionsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const router = useRouter();
   const isWeb = Platform.OS === "web";
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -248,9 +245,15 @@ export default function TransactionsScreen() {
   const topPadding = isWeb ? 67 : insets.top;
   const styles = getStyles(colors);
 
+  useEffect(() => {
+    if (user?.role === "admin") {
+      router.replace("/(tabs)/admin?section=finance" as never);
+    }
+  }, [router, user?.role]);
+
   const fetchData = useCallback(async () => {
     if (!user || !token) return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
@@ -283,7 +286,7 @@ export default function TransactionsScreen() {
     if (!confirmTx || !token) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       const res = await fetch(`${base}/api/transactions/${confirmTx.id}/confirm`, {
         method: "POST",
@@ -314,7 +317,7 @@ export default function TransactionsScreen() {
 
   const markNotifRead = async (id: string) => {
     if (!token) return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     fetch(`${base}/api/notifications/${id}/read`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },

@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;
@@ -10,6 +10,11 @@ interface User {
   status: string;
   joinDate: string;
   avatar?: string | null;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  businessName?: string | null;
+  isRegisteredFirm?: boolean;
+  firmType?: "business_name" | "registered_company" | null;
 }
 
 interface AuthContextValue {
@@ -17,6 +22,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (token: string, user: User) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -25,6 +31,7 @@ const AuthContext = createContext<AuthContextValue>({
   token: null,
   isLoading: true,
   login: async () => {},
+  updateUser: async () => {},
   logout: async () => {},
 });
 
@@ -77,8 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(async (updatedUser: User) => {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

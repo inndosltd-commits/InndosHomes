@@ -1,7 +1,5 @@
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -16,33 +14,7 @@ interface TabLayoutProps {
   savedCount: number;
 }
 
-function NativeTabLayout({ savedCount }: TabLayoutProps) {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Browse</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger
-        name="saved"
-        options={{ badgeValue: savedCount > 0 ? String(savedCount) : undefined }}
-      >
-        <Icon sf={{ default: "heart", selected: "heart.fill" }} />
-        <Label>Saved</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="bookings">
-        <Icon sf={{ default: "link", selected: "link" }} />
-        <Label>Link-Ups</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>My Account</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
-
-function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { isAdmin: boolean; isOwner: boolean }) {
+function ClassicTabLayout({ savedCount }: TabLayoutProps) {
   const colors = useColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -241,6 +213,13 @@ function ClassicTabLayout({ savedCount, isAdmin, isOwner }: TabLayoutProps & { i
         }}
       />
       <Tabs.Screen
+        name="profile-settings"
+        options={{
+          title: "Profile settings",
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "My Account",
@@ -262,11 +241,8 @@ export default function TabLayout() {
     query: { queryKey: getListFavoritesQueryKey(), enabled: !!user },
   });
   const savedCount = user ? (savedProperties?.length ?? 0) : 0;
-  const isAdmin = user?.role === "admin";
-  const isOwner = user != null && ["owner", "host", "admin"].includes(user.role);
-
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout savedCount={savedCount} />;
-  }
-  return <ClassicTabLayout savedCount={savedCount} isAdmin={isAdmin} isOwner={isOwner} />;
+  // NativeTabs only registers declared triggers. That leaves profile dashboard
+  // destinations unreachable on iOS/Android, so use the fully registered Tabs
+  // navigator with the existing iOS blur treatment for all devices.
+  return <ClassicTabLayout savedCount={savedCount} />;
 }

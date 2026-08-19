@@ -21,15 +21,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { LocationPicker } from "@/components/LocationPicker";
-import Constants from "expo-constants";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 // ── Property types ────────────────────────────────────────────────────────────
 const PROPERTY_TYPES = [
@@ -291,7 +283,7 @@ export default function ListPropertyScreen() {
       const ext = filename.split(".").pop() || "jpg";
       const formData = new FormData();
       formData.append("file", { uri, name: filename, type: "image/" + ext } as never);
-      const base = getApiBase();
+      const base = getApiBaseUrl();
       const res = await fetch(`${base}/api/storage/objects`, {
         method: "POST",
         headers: { Authorization: "Bearer " + (token || "") },

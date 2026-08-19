@@ -2,6 +2,7 @@ import type { Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   Pressable,
@@ -12,6 +13,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import Supercluster from "supercluster";
 import * as Location from "expo-location";
+import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { getImageUrl } from "@/utils/imageUrl";
 import { Feather } from "@expo/vector-icons";
@@ -48,6 +50,12 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.5,
   longitudeDelta: 0.5,
 };
+
+function isValidCoordinate(lat: unknown, lng: unknown): lat is string {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+}
 
 function regionToZoom(latitudeDelta: number): number {
   return Math.min(20, Math.max(0, Math.round(Math.log(360 / latitudeDelta) / Math.LN2)));
@@ -93,6 +101,10 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const mapRef = useRef<MapView>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapTimedOut, setMapTimedOut] = useState(false);
+  const hasFittedProperties = useRef(false);
+  const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
 
   useEffect(() => {
     setThumbError(false);
@@ -123,10 +135,16 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (mapReady) return;
+    const timeout = setTimeout(() => setMapTimedOut(true), 8000);
+    return () => clearTimeout(timeout);
+  }, [mapReady]);
+
   const mappableProperties = useMemo(
     () =>
       properties.filter(
-        (p) => p.lat != null && p.lng != null && p.lat !== "" && p.lng !== ""
+        (p) => isValidCoordinate(p.lat, p.lng)
       ),
     [properties]
   );
@@ -151,6 +169,19 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const [region, setRegion] = useState<Region>(initialRegion);
   const [showSearchButton, setShowSearchButton] = useState(false);
   const committedRegionRef = useRef<Region>(initialRegion);
+
+  useEffect(() => {
+    if (!mapReady || hasFittedProperties.current || mappableProperties.length === 0) return;
+    const coordinates = mappableProperties.map((property) => ({
+      latitude: Number(property.lat),
+      longitude: Number(property.lng),
+    }));
+    mapRef.current?.fitToCoordinates(coordinates, {
+      edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
+      animated: false,
+    });
+    hasFittedProperties.current = true;
+  }, [mapReady, mappableProperties]);
 
   const supercluster = useMemo(() => {
     const sc = new Supercluster<{ propertyId: string }>({ radius: 60, maxZoom: 18 });
@@ -209,16 +240,18 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsMyLocationButton
-        onRegionChangeComplete={handleRegionChangeComplete}
-        onPress={() => setSelectedId(null)}
-      >
+      {googleMapsConfigured && (
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsMyLocationButton
+          onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
+          onRegionChangeComplete={handleRegionChangeComplete}
+          onPress={() => setSelectedId(null)}
+        >
         {clusters.map((cluster) => {
           const [lng, lat] = cluster.geometry.coordinates;
           const coordinate = { latitude: lat, longitude: lng };
@@ -289,7 +322,25 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
             </Marker>
           );
         })}
-      </MapView>
+        </MapView>
+      )}
+
+      {(!googleMapsConfigured || (!mapReady && mapTimedOut)) && (
+        <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Feather name="map" size={28} color={colors.primary} />
+          <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps is unavailable in this build</Text>
+          <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+            Install a new native build with the Google Maps API key configured to view property locations.
+          </Text>
+        </View>
+      )}
+
+      {googleMapsConfigured && !mapReady && !mapTimedOut && (
+        <View pointerEvents="none" style={[styles.mapLoading, { backgroundColor: colors.background + "D9" }]}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.mapLoadingText, { color: colors.mutedForeground }]}>Loading map…</Text>
+        </View>
+      )}
 
       {showSearchButton && onSearchArea && (
         <View style={styles.searchButtonContainer}>
@@ -449,6 +500,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderRadius: 12,
+  },
+  mapLoading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  mapLoadingText: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 13,
+  },
+  mapState: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 28,
+    borderWidth: 1,
+  },
+  mapStateTitle: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 15,
+    textAlign: "center",
+  },
+  mapStateText: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
   },
   emptyTitle: {
     fontSize: 16,

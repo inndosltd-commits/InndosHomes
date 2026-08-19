@@ -125,6 +125,10 @@ export interface CreatePropertyInput {
   baths?: number;
   sqft?: number;
   guests?: number;
+  subtype?: string;
+  priceUnit?: string;
+  hourlyRate?: number;
+  totalUnits?: number;
   image?: string;
   images?: string[];
   tags?: string[];

@@ -18,14 +18,7 @@ import { Feather } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon, color, sub, colors }: {
@@ -77,6 +70,7 @@ export default function AnalyticsScreen() {
   const isWeb = Platform.OS === "web";
   const topPadding = isWeb ? 67 : insets.top;
   const isOwnerOrHost = user?.role === "owner" || user?.role === "host";
+  const isAdmin = user?.role === "admin";
 
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,8 +79,8 @@ export default function AnalyticsScreen() {
 
   const fetch_ = useCallback(async () => {
     if (!user || !token) return;
-    const base = getApiBase();
-    const endpoint = isOwnerOrHost ? "/api/owner-analytics" : "/api/tenant-analytics";
+    const base = getApiBaseUrl();
+    const endpoint = isAdmin ? "/api/admin/stats" : isOwnerOrHost ? "/api/owner-analytics" : "/api/tenant-analytics";
     try {
       setError(null);
       const res = await fetch(`${base}${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -95,7 +89,7 @@ export default function AnalyticsScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load analytics");
     }
-  }, [user, token, isOwnerOrHost]);
+  }, [user, token, isAdmin, isOwnerOrHost]);
 
   useEffect(() => {
     setLoading(true);
@@ -119,7 +113,7 @@ export default function AnalyticsScreen() {
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Analytics</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          {isOwnerOrHost ? "Property performance overview" : "Your booking & spending overview"}
+          {isAdmin ? "Platform performance overview" : isOwnerOrHost ? "Property performance overview" : "Your booking & spending overview"}
         </Text>
       </View>
 
@@ -142,7 +136,26 @@ export default function AnalyticsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         >
-          {isOwnerOrHost ? (
+          {isAdmin ? (
+            <>
+              <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+                <StatCard label="Total Users" value={fmt(data?.totalUsers)} icon="users" color="#1d4ed8" colors={colors} />
+                <StatCard label="Properties" value={fmt(data?.totalProperties)} icon="home" color="#7c3aed" colors={colors} />
+              </View>
+              <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+                <StatCard label="Link-Ups" value={fmt(data?.totalBookings)} icon="link" color="#16a34a" colors={colors} />
+                <StatCard label="Revenue" value={formatKES(data?.totalRevenue)} icon="credit-card" color="#d97706" colors={colors} />
+              </View>
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>Platform Breakdown</Text>
+                <InfoRow label="Pending properties" value={fmt(data?.pendingProperties)} colors={colors} />
+                <InfoRow label="Active subscriptions" value={fmt(data?.activeSubscriptions)} colors={colors} />
+                <InfoRow label="Confirmed rentals" value={fmt(data?.confirmedRentals)} colors={colors} />
+                <InfoRow label="Confirmed sales" value={fmt(data?.confirmedSales)} colors={colors} />
+                <InfoRow label="Marketplace value" value={formatKES(data?.totalMarketplaceValue)} colors={colors} />
+              </View>
+            </>
+          ) : isOwnerOrHost ? (
             <>
               {/* Owner stats */}
               <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>

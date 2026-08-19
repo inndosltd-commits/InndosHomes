@@ -18,18 +18,14 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/context/AuthContext";
+import { getApiBaseUrl } from "@/utils/api";
 
 // Set the base URL for all API calls. Expo bundles run outside the web proxy
 // and need an absolute URL to reach the backend.
 // Priority: EXPO_PUBLIC_DOMAIN env var (set as EAS secret) → apiDomain baked
 // into app.config.js extra at build time (falls back to REPLIT_DEV_DOMAIN).
-const _rawDomain: string =
-  (process.env.EXPO_PUBLIC_DOMAIN as string | undefined) ||
-  ((Constants.expoConfig?.extra as { apiDomain?: string } | undefined)
-    ?.apiDomain ?? "");
-
-if (_rawDomain) {
-  const _baseUrl = `https://${_rawDomain.replace(/^https?:\/\//, "")}`;
+const _baseUrl = getApiBaseUrl();
+if (_baseUrl) {
   setBaseUrl(_baseUrl);
   setImageBaseUrl(_baseUrl);
 }

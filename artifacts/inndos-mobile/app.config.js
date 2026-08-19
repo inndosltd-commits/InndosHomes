@@ -1,4 +1,6 @@
 // Dynamic config so EAS secrets (process.env.*) are resolved at build time.
+const googleMapsApiKey = process.env.GOOGLE_API_KEY;
+
 const config = {
   name: "inndos",
   slug: "inndos-mobile",
@@ -25,7 +27,7 @@ const config = {
         "INNDOS uses your location to show properties near you.",
     },
     config: {
-      googleMapsApiKey: process.env.GOOGLE_API_KEY,
+      googleMapsApiKey,
     },
   },
   android: {
@@ -35,10 +37,10 @@ const config = {
     },
     icon: "./assets/images/icon.png",
     package: "com.inndos.app",
-    versionCode: 5,
+    versionCode: 6,
     config: {
       googleMaps: {
-        apiKey: process.env.GOOGLE_API_KEY,
+        apiKey: googleMapsApiKey,
       },
     },
   },
@@ -78,6 +80,9 @@ const config = {
     // Hardcoded so the app always reaches the API regardless of EAS secret availability.
     // EXPO_PUBLIC_DOMAIN env var (non-secret) takes precedence at runtime if set.
     apiDomain: "https://inndos.com",
+    // Lets the native UI explain a missing build-time key instead of showing
+    // an empty map surface. The key itself is never exposed to JavaScript.
+    googleMapsConfigured: Boolean(googleMapsApiKey),
     eas: {
       projectId: "47e82898-c077-46dd-8e45-8f227ba8537c",
     },

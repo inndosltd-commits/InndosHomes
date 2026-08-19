@@ -22,14 +22,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 type MarketingMe = {
   referralCode?: string;
@@ -63,7 +56,7 @@ export default function MarketerScreen() {
 
   const fetchData = useCallback(async () => {
     if (!user || !token) return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       setError(null);
       const [meRes, refRes] = await Promise.all([

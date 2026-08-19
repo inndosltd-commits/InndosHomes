@@ -17,16 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { getImageUrl } from "@/utils/imageUrl";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 // ── Nav menu item ─────────────────────────────────────────────────────────────
 function MenuItem({ icon, label, badge, onPress, colors }: {
@@ -88,7 +80,7 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, logout, token } = useAuth();
+  const { user, logout, token, updateUser } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const { data: profile, refetch: refetchProfile } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!user } });
@@ -116,7 +108,7 @@ export default function ProfileScreen() {
         const ext = filename.split(".").pop() || "jpg";
         const formData = new FormData();
         formData.append("file", { uri: asset.uri, name: filename, type: `image/${ext}` } as never);
-        const base = getApiBase();
+        const base = getApiBaseUrl();
         const uploadRes = await fetch(`${base}/api/storage/objects`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token ?? ""}` },
@@ -126,11 +118,13 @@ export default function ProfileScreen() {
           const { url, path } = await uploadRes.json();
           const avatarUrl = url || path;
           // Update user profile with new avatar
-          await fetch(`${base}/api/users/me`, {
+          const profileRes = await fetch(`${base}/api/auth/profile`, {
             method: "PATCH",
             headers: { Authorization: `Bearer ${token ?? ""}`, "Content-Type": "application/json" },
             body: JSON.stringify({ avatar: avatarUrl }),
           });
+          if (!profileRes.ok) throw new Error("Profile photo could not be saved");
+          await updateUser(await profileRes.json());
           await refetchProfile();
         }
       } catch { Alert.alert("Upload failed", "Could not update your profile photo. Try again."); }
@@ -170,10 +164,11 @@ export default function ProfileScreen() {
   const isAdmin = role === "admin";
   const isOwnerOrHost = role === "owner" || role === "host";
   const isTenant = role === "tenant" || role === "guest";
-  const isMarketer = role === "marketer" || role === "guest";
+  const profileFields = displayUser as unknown as { avatar?: string | null; isMarketer?: boolean };
+  const isMarketer = role === "marketer" || Boolean(profileFields.isMarketer);
 
   // Profile photo URL
-  const photoUrl = avatarUri ?? ((displayUser as Record<string, unknown>).avatar as string | undefined) ?? null;
+  const photoUrl = avatarUri ?? profileFields.avatar ?? null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -221,6 +216,11 @@ export default function ProfileScreen() {
           <InfoRow icon="mail" label="Email" value={displayUser.email} colors={colors} />
         </View>
 
+        <SectionTitle label="ACCOUNT" colors={colors} />
+        <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+          <MenuItem icon="edit-3" label="Edit Profile" onPress={() => router.push("/(tabs)/profile-settings" as never)} colors={colors} />
+        </View>
+
         {/* Navigation menu — All users */}
         <SectionTitle label="MY ACTIVITY" colors={colors} />
         <View style={[styles.menuGroup, { borderColor: colors.border }]}>
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Marketer menu */}
-        {(role === "marketer" || (role === "guest" && (displayUser as Record<string, unknown>).isMarketer)) && (
+        {(role === "marketer" || (role === "guest" && profileFields.isMarketer)) && (
           <>
             <SectionTitle label="MARKETING" colors={colors} />
             <View style={[styles.menuGroup, { borderColor: colors.border }]}>
@@ -271,7 +271,13 @@ export default function ProfileScreen() {
             <SectionTitle label="ADMIN" colors={colors} />
             <View style={[styles.menuGroup, { borderColor: colors.border }]}>
               <MenuItem icon="shield" label="Admin Dashboard" onPress={() => router.push("/(tabs)/admin" as never)} colors={colors} />
-              <MenuItem icon="bar-chart-2" label="Analytics" onPress={() => router.push("/(tabs)/analytics" as never)} colors={colors} />
+              <MenuItem icon="bar-chart-2" label="Platform Analytics" onPress={() => router.push("/(tabs)/analytics" as never)} colors={colors} />
+              <MenuItem icon="credit-card" label="Transactions & Payments" onPress={() => router.push("/(tabs)/admin?section=finance" as never)} colors={colors} />
+              <MenuItem icon="home" label="Property Management" onPress={() => router.push("/(tabs)/admin?section=properties" as never)} colors={colors} />
+              <MenuItem icon="users" label="User Management" onPress={() => router.push("/(tabs)/admin?section=users" as never)} colors={colors} />
+              <MenuItem icon="bell" label="Notification Templates" onPress={() => router.push("/(tabs)/admin?section=notifications" as never)} colors={colors} />
+              <MenuItem icon="trending-up" label="Marketing & Referrals" onPress={() => router.push("/(tabs)/admin?section=marketing" as never)} colors={colors} />
+              <MenuItem icon="settings" label="Payment & SMS Settings" onPress={() => router.push("/(tabs)/admin?section=settings" as never)} colors={colors} />
             </View>
           </>
         )}

@@ -22,14 +22,8 @@ import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/utils/imageUrl";
-
-function getApiBase(): string {
-  return (
-    process.env.EXPO_PUBLIC_DOMAIN ||
-    (Constants.expoConfig?.extra?.apiDomain as string | undefined) ||
-    ""
-  );
-}
+import { getApiBaseUrl } from "@/utils/api";
+import { AdminOperations } from "@/components/AdminOperations";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,7 +224,7 @@ const tabS = StyleSheet.create({
 });
 
 // ── Main screen ───────────────────────────────────────────────────────────────
-export default function AdminScreen() {
+function LegacyAdminScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
@@ -247,11 +241,11 @@ export default function AdminScreen() {
   const topPadding = isWeb ? 67 : insets.top;
   const bottomPadding = isWeb ? 34 + 84 : insets.bottom + 84;
 
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const fetchAll = useCallback(async () => {
     if (!user || user.role !== "admin") return;
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       setError(null);
       const [sRes, mRes, uRes] = await Promise.all([
@@ -279,7 +273,7 @@ export default function AdminScreen() {
   };
 
   const handleApprove = async (propertyId: string) => {
-    const base = getApiBase();
+    const base = getApiBaseUrl();
     try {
       const res = await fetch(`${base}/api/admin/properties/${propertyId}/verify`, {
         method: "PATCH",
@@ -300,7 +294,7 @@ export default function AdminScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          const base = getApiBase();
+          const base = getApiBaseUrl();
           try {
             const res = await fetch(`${base}/api/admin/properties/${propertyId}`, { method: "DELETE", headers: authHeaders });
             if (res.ok) {
@@ -324,7 +318,7 @@ export default function AdminScreen() {
           text: "Confirm",
           style: newStatus === "suspended" ? "destructive" : "default",
           onPress: async () => {
-            const base = getApiBase();
+            const base = getApiBaseUrl();
             try {
               const res = await fetch(`${base}/api/admin/users/${userId}/status`, {
                 method: "PATCH",
@@ -476,3 +470,7 @@ const styles = StyleSheet.create({
   actionTitle: { fontSize: 14, fontFamily: "Outfit_600SemiBold" },
   actionSub: { fontSize: 12, fontFamily: "Outfit_400Regular" },
 });
+
+export default function AdminScreen() {
+  return <AdminOperations />;
+}
