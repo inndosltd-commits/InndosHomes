@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from "react-native-maps";
-import Supercluster from "supercluster";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
@@ -31,6 +30,7 @@ interface PropertyMapViewProps {
 }
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const PROPERTY_PIN_ICON = require("@/assets/images/map-pin.png");
 
 function getPriceLabel(property: Property): string {
   const price = `KES ${property.price.toLocaleString()}`;
@@ -47,29 +47,15 @@ function getPriceLabel(property: Property): string {
 const DEFAULT_REGION: Region = {
   latitude: -1.2921,
   longitude: 36.8219,
-  latitudeDelta: 0.5,
-  longitudeDelta: 0.5,
+  // Matches the website's Nairobi home-map zoom (Google Maps zoom level 11).
+  latitudeDelta: 0.18,
+  longitudeDelta: 0.18,
 };
 
 function isValidCoordinate(lat: unknown, lng: unknown): lat is string {
   const latitude = Number(lat);
   const longitude = Number(lng);
   return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
-}
-
-function regionToZoom(latitudeDelta: number): number {
-  return Math.min(20, Math.max(0, Math.round(Math.log(360 / latitudeDelta) / Math.LN2)));
-}
-
-function regionToBBox(
-  region: Region
-): [number, number, number, number] {
-  return [
-    region.longitude - region.longitudeDelta / 2,
-    region.latitude - region.latitudeDelta / 2,
-    region.longitude + region.longitudeDelta / 2,
-    region.latitude + region.latitudeDelta / 2,
-  ];
 }
 
 function regionToMapBBox(region: Region): MapBBox {
@@ -90,11 +76,6 @@ function regionsAreSimilar(a: Region, b: Region, threshold = 0.01): boolean {
   );
 }
 
-type PropertyFeature = GeoJSON.Feature<
-  GeoJSON.Point,
-  { propertyId: string }
->;
-
 export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewProps) {
   const colors = useColors();
   const router = useRouter();
@@ -103,15 +84,31 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const [thumbError, setThumbError] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
-  const hasFittedProperties = useRef(false);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
 
   useEffect(() => {
     setThumbError(false);
   }, [selectedId]);
 
-  // Auto-zoom to user's current location on first mount
   useEffect(() => {
+    if (mapReady) return;
+    const timeout = setTimeout(() => setMapTimedOut(true), 8000);
+    return () => clearTimeout(timeout);
+  }, [mapReady]);
+
+  const mappableProperties = useMemo(
+    () =>
+      properties.filter(
+        (p) => isValidCoordinate(p.lat, p.lng)
+      ),
+    [properties]
+  );
+
+  // Keep the initial home map focused on listings. The user-location marker still
+  // appears when permission is granted, but it must not pan the map away from the
+  // properties the user came here to browse.
+  useEffect(() => {
+    if (mappableProperties.length > 0) return;
     let cancelled = false;
     (async () => {
       try {
@@ -129,79 +126,15 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
         setRegion(userRegion);
         committedRegionRef.current = userRegion;
       } catch {
-        // Permission denied or location unavailable — keep default region
+        // Permission denied or location unavailable — keep the default map area.
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [mappableProperties.length]);
 
-  useEffect(() => {
-    if (mapReady) return;
-    const timeout = setTimeout(() => setMapTimedOut(true), 8000);
-    return () => clearTimeout(timeout);
-  }, [mapReady]);
-
-  const mappableProperties = useMemo(
-    () =>
-      properties.filter(
-        (p) => isValidCoordinate(p.lat, p.lng)
-      ),
-    [properties]
-  );
-
-  const initialRegion = useMemo<Region>(() => {
-    if (mappableProperties.length === 0) return DEFAULT_REGION;
-    const lats = mappableProperties.map((p) => parseFloat(p.lat!));
-    const lngs = mappableProperties.map((p) => parseFloat(p.lng!));
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    const paddingFactor = 1.4;
-    return {
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max(0.05, (maxLat - minLat) * paddingFactor),
-      longitudeDelta: Math.max(0.05, (maxLng - minLng) * paddingFactor),
-    };
-  }, [mappableProperties]);
-
-  const [region, setRegion] = useState<Region>(initialRegion);
+  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [showSearchButton, setShowSearchButton] = useState(false);
-  const committedRegionRef = useRef<Region>(initialRegion);
-
-  useEffect(() => {
-    if (!mapReady || hasFittedProperties.current || mappableProperties.length === 0) return;
-    const coordinates = mappableProperties.map((property) => ({
-      latitude: Number(property.lat),
-      longitude: Number(property.lng),
-    }));
-    mapRef.current?.fitToCoordinates(coordinates, {
-      edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
-      animated: false,
-    });
-    hasFittedProperties.current = true;
-  }, [mapReady, mappableProperties]);
-
-  const supercluster = useMemo(() => {
-    const sc = new Supercluster<{ propertyId: string }>({ radius: 60, maxZoom: 18 });
-    const features: PropertyFeature[] = mappableProperties.map((p) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [parseFloat(p.lng!), parseFloat(p.lat!)],
-      },
-      properties: { propertyId: p.id },
-    }));
-    sc.load(features);
-    return sc;
-  }, [mappableProperties]);
-
-  const clusters = useMemo(() => {
-    const zoom = regionToZoom(region.latitudeDelta);
-    const bbox = regionToBBox(region);
-    return supercluster.getClusters(bbox, zoom);
-  }, [supercluster, region]);
+  const committedRegionRef = useRef<Region>(DEFAULT_REGION);
 
   const handleRegionChangeComplete = useCallback((newRegion: Region) => {
     setRegion(newRegion);
@@ -217,25 +150,6 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
     onSearchArea?.(regionToMapBBox(region));
   }, [region, onSearchArea]);
 
-  const handleClusterPress = useCallback(
-    (clusterId: number, coordinate: { latitude: number; longitude: number }) => {
-      const expansionZoom = Math.min(
-        supercluster.getClusterExpansionZoom(clusterId),
-        18
-      );
-      const newLatitudeDelta = 360 / Math.pow(2, expansionZoom);
-      mapRef.current?.animateToRegion(
-        {
-          ...coordinate,
-          latitudeDelta: newLatitudeDelta,
-          longitudeDelta: newLatitudeDelta,
-        },
-        400
-      );
-    },
-    [supercluster]
-  );
-
   const selectedProperty = mappableProperties.find((p) => p.id === selectedId);
 
   return (
@@ -245,80 +159,29 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          initialRegion={initialRegion}
+          initialRegion={DEFAULT_REGION}
           showsUserLocation
           showsMyLocationButton
           onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
           onRegionChangeComplete={handleRegionChangeComplete}
           onPress={() => setSelectedId(null)}
         >
-        {clusters.map((cluster) => {
-          const [lng, lat] = cluster.geometry.coordinates;
-          const coordinate = { latitude: lat, longitude: lng };
-
-          if ("cluster" in cluster.properties && cluster.properties.cluster) {
-            const { cluster_id, point_count } = cluster.properties as {
-              cluster_id: number;
-              point_count: number;
-            };
-            return (
-              <Marker
-                key={`cluster-${cluster_id}`}
-                coordinate={coordinate}
-                onPress={() => handleClusterPress(cluster_id, coordinate)}
-              >
-                <View
-                  style={[
-                    styles.clusterOuter,
-                    { backgroundColor: colors.primary + "33", borderColor: colors.primary },
-                  ]}
-                >
-                  <View
-                    style={[styles.clusterInner, { backgroundColor: colors.primary }]}
-                  >
-                    <Text style={[styles.clusterText, { color: colors.primaryForeground }]}>
-                      {point_count}
-                    </Text>
-                  </View>
-                </View>
-              </Marker>
-            );
-          }
-
-          const propertyId = (cluster.properties as { propertyId: string }).propertyId;
-          const property = mappableProperties.find((p) => p.id === propertyId);
-          if (!property) return null;
-
-          const isSelected = selectedId === propertyId;
+        {mappableProperties.map((property) => {
+          const coordinate = {
+            latitude: Number(property.lat),
+            longitude: Number(property.lng),
+          };
           return (
             <Marker
               key={property.id}
               coordinate={coordinate}
               onPress={() => setSelectedId(property.id)}
             >
-              <View
-                style={[
-                  styles.pin,
-                  {
-                    backgroundColor: isSelected ? colors.primary : colors.card,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.pinText,
-                    {
-                      color: isSelected
-                        ? colors.primaryForeground
-                        : colors.foreground,
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {`KES ${property.price.toLocaleString()}`}
-                </Text>
-              </View>
+              <Image
+                source={PROPERTY_PIN_ICON}
+                style={styles.propertyPin}
+                resizeMode="contain"
+              />
             </Marker>
           );
         })}
@@ -456,40 +319,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
   },
-  clusterOuter: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clusterInner: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clusterText: {
-    fontSize: 14,
-    fontFamily: "Outfit_700Bold",
-  },
-  pin: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1.5,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pinText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-    maxWidth: 100,
+  propertyPin: {
+    width: 25,
+    height: 31,
   },
   emptyOverlay: {
     position: "absolute",
