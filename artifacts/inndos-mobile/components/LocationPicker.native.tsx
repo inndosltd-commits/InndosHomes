@@ -202,7 +202,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
             </Text>
           </View>
         ) : null}
-        {!hasPinned && (
+        {googleMapsConfigured && mapReady && !hasPinned && (
           <View
             pointerEvents="none"
             style={[styles.hint, { backgroundColor: colors.card, borderColor: colors.border }]}
