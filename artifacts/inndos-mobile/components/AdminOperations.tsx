@@ -896,12 +896,21 @@ export function AdminOperations() {
           <Feather name="refresh-cw" size={17} color={colors.foreground} />
         </Pressable>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectionTabs}>
+      <View style={styles.sectionTabs}>
         {SECTIONS.map((item) => {
           const active = section === item.key;
-          return <Pressable key={item.key} onPress={() => chooseSection(item.key)} style={[styles.sectionTab, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card }]}><Feather name={item.icon} size={14} color={active ? colors.primaryForeground : colors.foreground} /><Text style={[styles.sectionTabText, { color: active ? colors.primaryForeground : colors.foreground }]}>{item.label}</Text></Pressable>;
+          return (
+            <Pressable
+              key={item.key}
+              onPress={() => chooseSection(item.key)}
+              style={[styles.sectionTab, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card }]}
+            >
+              <Feather name={item.icon} size={14} color={active ? colors.primaryForeground : colors.foreground} />
+              <Text numberOfLines={1} style={[styles.sectionTabText, { color: active ? colors.primaryForeground : colors.foreground }]}>{item.label}</Text>
+            </Pressable>
+          );
         })}
-      </ScrollView>
+      </View>
       {loading ? (
         <View style={styles.loading}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : error ? (
@@ -931,8 +940,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontFamily: "Outfit_700Bold" },
   subtitle: { fontSize: 12, fontFamily: "Outfit_400Regular", marginTop: 2 },
   refresh: { width: 38, height: 38, borderWidth: 1, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  sectionTabs: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
-  sectionTab: { flexDirection: "row", gap: 6, alignItems: "center", borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
+  sectionTabs: { paddingHorizontal: 20, paddingBottom: 12, gap: 8, flexDirection: "row", flexWrap: "wrap" },
+  sectionTab: { flexGrow: 1, flexBasis: "30%", minWidth: 96, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 9 },
   sectionTabText: { fontFamily: "Outfit_600SemiBold", fontSize: 12 },
   content: { paddingHorizontal: 20, gap: 12 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },

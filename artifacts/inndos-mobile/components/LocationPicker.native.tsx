@@ -13,6 +13,7 @@ import MapView, { Marker, MapPressEvent, PROVIDER_GOOGLE } from "react-native-ma
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
+import Constants from "expo-constants";
 
 interface LocationPickerProps {
   lat: string;
@@ -44,7 +45,16 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
   const [address, setAddress] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [manualExpanded, setManualExpanded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapTimedOut, setMapTimedOut] = useState(false);
   const mapRef = useRef<MapView>(null);
+  const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
+
+  useEffect(() => {
+    if (mapReady || !googleMapsConfigured) return;
+    const timeout = setTimeout(() => setMapTimedOut(true), 8000);
+    return () => clearTimeout(timeout);
+  }, [googleMapsConfigured, mapReady]);
 
   const hasPinned = lat !== "" && lng !== "";
   const pinCoord = hasPinned
@@ -161,19 +171,37 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
       </Pressable>
 
       <View style={[styles.mapWrapper, { borderColor: hasError ? colors.destructive : colors.border }]}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          initialRegion={initialRegion}
-          onPress={handleMapPress}
-          showsUserLocation
-          showsMyLocationButton
-        >
-          {pinCoord && (
-            <Marker coordinate={pinCoord} pinColor={colors.primary} />
-          )}
-        </MapView>
+        {googleMapsConfigured && (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={initialRegion}
+            onPress={handleMapPress}
+            showsUserLocation
+            showsMyLocationButton
+            onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
+          >
+            {pinCoord && (
+              <Marker coordinate={pinCoord} pinColor={colors.primary} />
+            )}
+          </MapView>
+        )}
+        {googleMapsConfigured && !mapReady && !mapTimedOut ? (
+          <View pointerEvents="none" style={[styles.mapState, { backgroundColor: colors.card + "E8" }]}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>Loading Google Maps…</Text>
+          </View>
+        ) : null}
+        {(!googleMapsConfigured || mapTimedOut) ? (
+          <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="map" size={22} color={colors.primary} />
+            <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps needs a new build</Text>
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+              Rebuild with the Google Maps key configured to choose a listing location.
+            </Text>
+          </View>
+        ) : null}
         {!hasPinned && (
           <View
             pointerEvents="none"
@@ -321,6 +349,24 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: "100%",
+  },
+  mapState: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  mapStateTitle: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    textAlign: "center",
+  },
+  mapStateText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    lineHeight: 17,
+    textAlign: "center",
   },
   hint: {
     position: "absolute",

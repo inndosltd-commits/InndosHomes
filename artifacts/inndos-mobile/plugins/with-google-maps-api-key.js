@@ -9,9 +9,17 @@ module.exports = function withGoogleMapsApiKey(config) {
   const apiKey = process.env.GOOGLE_API_KEY;
 
   if (!apiKey) {
+    config.extra = {
+      ...config.extra,
+      googleMapsConfigured: false,
+    };
     return config;
   }
 
+  config.extra = {
+    ...config.extra,
+    googleMapsConfigured: true,
+  };
   config.ios = {
     ...config.ios,
     config: {

@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
+import Constants from "expo-constants";
 
 interface PropertyLocationMapProps {
   lat: string;
@@ -87,8 +88,11 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
   const [route, setRoute] = useState<RouteInfo | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapTimedOut, setMapTimedOut] = useState(false);
   const mapRef = useRef<MapView>(null);
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
   const latitude = Number(lat);
   const longitude = Number(lng);
   const validLocation = Number.isFinite(latitude) && Number.isFinite(longitude)
@@ -100,6 +104,12 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   };
+
+  useEffect(() => {
+    if (mapReady || !googleMapsConfigured) return;
+    const timeout = setTimeout(() => setMapTimedOut(true), 8000);
+    return () => clearTimeout(timeout);
+  }, [googleMapsConfigured, mapReady]);
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
@@ -213,25 +223,43 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     <View style={styles.wrapper}>
       <Text style={[styles.label, { color: colors.mutedForeground }]}>LOCATION</Text>
       <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          region={region}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          rotateEnabled={false}
-          pitchEnabled={false}
-          pointerEvents="none"
-        >
-          <Marker coordinate={{ latitude, longitude }} title={title} />
-          {routeCoordinates.length > 1 && <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />}
-          {currentLocation && (
-            <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
-              <View style={[styles.userDot, { borderColor: colors.card, backgroundColor: colors.primary }]} />
-            </Marker>
-          )}
-        </MapView>
+        {googleMapsConfigured && (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            region={region}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
+            pointerEvents="none"
+            onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
+          >
+            <Marker coordinate={{ latitude, longitude }} title={title} />
+            {routeCoordinates.length > 1 && <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />}
+            {currentLocation && (
+              <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={[styles.userDot, { borderColor: colors.card, backgroundColor: colors.primary }]} />
+              </Marker>
+            )}
+          </MapView>
+        )}
+        {googleMapsConfigured && !mapReady && !mapTimedOut ? (
+          <View pointerEvents="none" style={[styles.mapState, { backgroundColor: colors.card + "E8" }]}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>Loading Google Maps…</Text>
+          </View>
+        ) : null}
+        {(!googleMapsConfigured || mapTimedOut) ? (
+          <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="map" size={22} color={colors.primary} />
+            <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps needs a new build</Text>
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+              This app build does not contain the Google Maps key.
+            </Text>
+          </View>
+        ) : null}
         {isNavigating && route && (
           <View style={[styles.navigationCard, { backgroundColor: colors.card }]}>
             <View style={styles.navigationTop}>
@@ -299,6 +327,24 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: "100%",
+  },
+  mapState: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+  },
+  mapStateTitle: {
+    fontSize: 14,
+    fontFamily: "Outfit_600SemiBold",
+    textAlign: "center",
+  },
+  mapStateText: {
+    fontSize: 12,
+    fontFamily: "Outfit_400Regular",
+    lineHeight: 17,
+    textAlign: "center",
   },
   buttonsRow: {
     position: "absolute",
