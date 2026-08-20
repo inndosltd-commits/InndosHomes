@@ -26,8 +26,9 @@ cd artifacts/inndos-mobile
 eas secret:create --scope project --name GOOGLE_API_KEY --value <your-google-api-key>
 ```
 
-`app.config.js` reads `process.env.GOOGLE_API_KEY` and injects it into both the
-Android `config.googleMaps.apiKey` and the iOS `config.googleMapsApiKey` fields.
+The static `app.json` loads a local config plugin during native prebuild. That
+plugin reads `GOOGLE_API_KEY` from the build environment and injects it into
+the native Android and iOS Maps settings without storing the key in source.
 EAS automatically makes the secret available as an env var during the build.
 
 > **Already have a key?** The `GOOGLE_API_KEY` secret is available in the
