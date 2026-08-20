@@ -6,13 +6,15 @@ const { AndroidConfig, IOSConfig } = require("expo/config-plugins");
  * written into app.json or shipped through Expo's public config.
  */
 module.exports = function withGoogleMapsApiKey(config) {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+    process.env.GOOGLE_API_KEY;
   const isEasBuild = process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1";
 
   if (!apiKey) {
     if (isEasBuild) {
       throw new Error(
-        "GOOGLE_API_KEY is required for native INNDOS builds. Add it to the selected EAS environment before building.",
+        "A Google Maps API key is required for native INNDOS builds. Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to Replit Secrets before publishing with Expo Launch.",
       );
     }
     config.extra = {
