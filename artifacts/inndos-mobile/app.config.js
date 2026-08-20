@@ -19,7 +19,7 @@ const config = {
     supportsTablet: false,
     icon: "./assets/images/icon.png",
     bundleIdentifier: "com.inndos.app",
-    buildNumber: "6",
+    buildNumber: "7",
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         "INNDOS uses your location to show properties near you.",
