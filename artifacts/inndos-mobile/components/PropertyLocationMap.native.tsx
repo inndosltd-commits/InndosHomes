@@ -89,6 +89,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
   const [activeStep, setActiveStep] = useState(0);
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const mapRef = useRef<MapView>(null);
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
@@ -110,10 +111,20 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     return () => clearTimeout(timeout);
   }, [googleMapsConfigured, mapReady]);
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
 
-  const handleOpenMaps = () => {
-    Linking.openURL(mapsUrl);
+  const handleOpenMaps = async () => {
+    try {
+      await Linking.openURL(mapsUrl);
+    } catch {
+      Alert.alert("Google Maps unavailable", "Could not open Google Maps on this device.");
+    }
+  };
+
+  const handleRetryMap = () => {
+    setMapReady(false);
+    setMapTimedOut(false);
+    setMapRetryKey((value) => value + 1);
   };
 
   useEffect(() => () => {
@@ -217,6 +228,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
       <View style={styles.mapContainer}>
         {googleMapsConfigured && (
           <MapView
+            key={mapRetryKey}
             ref={mapRef}
             provider={PROVIDER_GOOGLE}
             style={styles.map}
@@ -243,13 +255,25 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>Loading Google Maps…</Text>
           </View>
         ) : null}
-        {(!googleMapsConfigured || mapTimedOut) ? (
+        {!googleMapsConfigured ? (
           <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="map" size={22} color={colors.primary} />
             <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps needs a new build</Text>
             <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
               This app build does not contain the Google Maps key.
             </Text>
+          </View>
+        ) : null}
+        {googleMapsConfigured && !mapReady && mapTimedOut ? (
+          <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="refresh-cw" size={22} color={colors.primary} />
+            <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps is taking longer to load</Text>
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+              Check your connection, then retry this property map.
+            </Text>
+            <Pressable onPress={handleRetryMap} style={[styles.mapRetryButton, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.mapRetryText, { color: colors.primaryForeground }]}>Retry map</Text>
+            </Pressable>
           </View>
         ) : null}
         {isNavigating && route && (
@@ -281,7 +305,14 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             style={[styles.actionBtn, { backgroundColor: isNavigating ? colors.destructive : colors.primary, opacity: loadingRoute ? 0.65 : 1 }]}
           >
             {loadingRoute ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name={isNavigating ? "x" : "navigation"} size={13} color={colors.primaryForeground} />}
-            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>{isNavigating ? "End" : "Directions"}</Text>
+            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>{isNavigating ? "End" : "Route"}</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleOpenMaps}
+            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+          >
+            <Feather name="navigation" size={13} color={colors.primaryForeground} />
+            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>Google Maps</Text>
           </Pressable>
         </View>
       </View>
@@ -337,6 +368,15 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     lineHeight: 17,
     textAlign: "center",
+  },
+  mapRetryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  mapRetryText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
   },
   buttonsRow: {
     position: "absolute",

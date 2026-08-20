@@ -28,8 +28,8 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const geocodeCache = new Map<string, string | null>();
 
-function geocodeCacheKey(lat: string, lng: string): string {
-  return `${parseFloat(lat).toFixed(4)},${parseFloat(lng).toFixed(4)}`;
+function geocodeCacheKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
 }
 
 const DEFAULT_REGION = {
@@ -47,6 +47,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
   const [manualExpanded, setManualExpanded] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const mapRef = useRef<MapView>(null);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
 
@@ -56,9 +57,18 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
     return () => clearTimeout(timeout);
   }, [googleMapsConfigured, mapReady]);
 
-  const hasPinned = lat !== "" && lng !== "";
+  const parsedLatitude = Number(lat);
+  const parsedLongitude = Number(lng);
+  const latitudeInputInvalid = lat.trim() !== ""
+    && (!Number.isFinite(parsedLatitude) || Math.abs(parsedLatitude) > 90);
+  const longitudeInputInvalid = lng.trim() !== ""
+    && (!Number.isFinite(parsedLongitude) || Math.abs(parsedLongitude) > 180);
+  const hasPinned = lat.trim() !== ""
+    && lng.trim() !== ""
+    && !latitudeInputInvalid
+    && !longitudeInputInvalid;
   const pinCoord = hasPinned
-    ? { latitude: parseFloat(lat), longitude: parseFloat(lng) }
+    ? { latitude: parsedLatitude, longitude: parsedLongitude }
     : null;
 
   useEffect(() => {
@@ -66,7 +76,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
       setAddress(null);
       return;
     }
-    const cacheKey = geocodeCacheKey(lat, lng);
+    const cacheKey = geocodeCacheKey(parsedLatitude, parsedLongitude);
     if (geocodeCache.has(cacheKey)) {
       const cached = geocodeCache.get(cacheKey) ?? null;
       setAddress(cached);
@@ -75,7 +85,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
     }
     let cancelled = false;
     setGeocoding(true);
-    Location.reverseGeocodeAsync({ latitude: parseFloat(lat), longitude: parseFloat(lng) })
+    Location.reverseGeocodeAsync({ latitude: parsedLatitude, longitude: parsedLongitude })
       .then((results) => {
         if (cancelled) return;
         const r = results[0];
@@ -116,6 +126,12 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
 
   function handleClear() {
     onLocationChange("", "");
+  }
+
+  function handleRetryMap() {
+    setMapReady(false);
+    setMapTimedOut(false);
+    setMapRetryKey((value) => value + 1);
   }
 
   async function handleUseMyLocation() {
@@ -173,6 +189,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
       <View style={[styles.mapWrapper, { borderColor: hasError ? colors.destructive : colors.border }]}>
         {googleMapsConfigured && (
           <MapView
+            key={mapRetryKey}
             ref={mapRef}
             provider={PROVIDER_GOOGLE}
             style={styles.map}
@@ -193,13 +210,25 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
             <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>Loading Google Maps…</Text>
           </View>
         ) : null}
-        {(!googleMapsConfigured || mapTimedOut) ? (
+        {!googleMapsConfigured ? (
           <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="map" size={22} color={colors.primary} />
             <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps needs a new build</Text>
             <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
               Rebuild with the Google Maps key configured to choose a listing location.
             </Text>
+          </View>
+        ) : null}
+        {googleMapsConfigured && !mapReady && mapTimedOut ? (
+          <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="refresh-cw" size={22} color={colors.primary} />
+            <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps is taking longer to load</Text>
+            <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+              Check your connection, then retry the listing-location map.
+            </Text>
+            <Pressable onPress={handleRetryMap} style={[styles.mapRetryButton, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.mapRetryText, { color: colors.primaryForeground }]}>Retry map</Text>
+            </Pressable>
           </View>
         ) : null}
         {googleMapsConfigured && mapReady && !hasPinned && (
@@ -221,7 +250,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
             <View style={[styles.coordBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <Feather name="map-pin" size={13} color={colors.primary} />
               <Text style={[styles.coordText, { color: colors.foreground }]}>
-                {parseFloat(lat).toFixed(5)}, {parseFloat(lng).toFixed(5)}
+                {parsedLatitude.toFixed(5)}, {parsedLongitude.toFixed(5)}
               </Text>
             </View>
             <Pressable onPress={handleClear} style={styles.clearBtn} hitSlop={8}>
@@ -269,7 +298,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
                 styles.manualInput,
                 {
                   color: colors.foreground,
-                  borderColor: latError ? colors.destructive : colors.border,
+                  borderColor: latError || latitudeInputInvalid ? colors.destructive : colors.border,
                   backgroundColor: colors.card,
                 },
               ]}
@@ -282,8 +311,10 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
               autoCorrect={false}
               returnKeyType="next"
             />
-            {latError ? (
-              <Text style={[styles.errorText, { color: colors.destructive }]}>{latError}</Text>
+            {latError || latitudeInputInvalid ? (
+              <Text style={[styles.errorText, { color: colors.destructive }]}>
+                {latError || "Enter a latitude between -90 and 90."}
+              </Text>
             ) : null}
           </View>
           <View style={styles.manualHalf}>
@@ -293,7 +324,7 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
                 styles.manualInput,
                 {
                   color: colors.foreground,
-                  borderColor: lngError ? colors.destructive : colors.border,
+                  borderColor: lngError || longitudeInputInvalid ? colors.destructive : colors.border,
                   backgroundColor: colors.card,
                 },
               ]}
@@ -306,16 +337,21 @@ export function LocationPicker({ lat, lng, onLocationChange, onAddressResolved, 
               autoCorrect={false}
               returnKeyType="done"
             />
-            {lngError ? (
-              <Text style={[styles.errorText, { color: colors.destructive }]}>{lngError}</Text>
+            {lngError || longitudeInputInvalid ? (
+              <Text style={[styles.errorText, { color: colors.destructive }]}>
+                {lngError || "Enter a longitude between -180 and 180."}
+              </Text>
             ) : null}
           </View>
         </View>
       )}
 
-      {!manualExpanded && (latError || lngError) ? (
+      {!manualExpanded && (latError || lngError || latitudeInputInvalid || longitudeInputInvalid) ? (
         <Text style={[styles.errorText, { color: colors.destructive }]}>
-          {latError || lngError}
+          {latError
+            || lngError
+            || (latitudeInputInvalid ? "Enter a latitude between -90 and 90." : null)
+            || "Enter a longitude between -180 and 180."}
         </Text>
       ) : null}
     </View>
@@ -367,6 +403,15 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     lineHeight: 17,
     textAlign: "center",
+  },
+  mapRetryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 18,
+  },
+  mapRetryText: {
+    fontSize: 12,
+    fontFamily: "Outfit_600SemiBold",
   },
   hint: {
     position: "absolute",

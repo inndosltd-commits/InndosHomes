@@ -7,8 +7,14 @@ const { AndroidConfig, IOSConfig } = require("expo/config-plugins");
  */
 module.exports = function withGoogleMapsApiKey(config) {
   const apiKey = process.env.GOOGLE_API_KEY;
+  const isEasBuild = process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1";
 
   if (!apiKey) {
+    if (isEasBuild) {
+      throw new Error(
+        "GOOGLE_API_KEY is required for native INNDOS builds. Add it to the selected EAS environment before building.",
+      );
+    }
     config.extra = {
       ...config.extra,
       googleMapsConfigured: false,

@@ -1,9 +1,11 @@
 {
   "cli": {
-    "version": ">= 10.0.0"
+    "version": ">= 10.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "prebuildCommand": "npx expo prebuild --no-install",
@@ -16,6 +18,7 @@
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "prebuildCommand": "npx expo prebuild --no-install",
       "android": {
@@ -23,6 +26,7 @@
       }
     },
     "production": {
+      "environment": "production",
       "prebuildCommand": "npx expo prebuild --no-install",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "https://inndos.com"

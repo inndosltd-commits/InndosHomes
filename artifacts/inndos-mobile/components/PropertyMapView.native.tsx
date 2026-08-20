@@ -84,6 +84,7 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const [thumbError, setThumbError] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
+  const [mapRetryKey, setMapRetryKey] = useState(0);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
 
   useEffect(() => {
@@ -91,10 +92,10 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   }, [selectedId]);
 
   useEffect(() => {
-    if (mapReady) return;
+    if (mapReady || !googleMapsConfigured) return;
     const timeout = setTimeout(() => setMapTimedOut(true), 8000);
     return () => clearTimeout(timeout);
-  }, [mapReady]);
+  }, [googleMapsConfigured, mapReady]);
 
   const mappableProperties = useMemo(
     () =>
@@ -152,10 +153,17 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
 
   const selectedProperty = mappableProperties.find((p) => p.id === selectedId);
 
+  const handleRetryMap = useCallback(() => {
+    setMapReady(false);
+    setMapTimedOut(false);
+    setMapRetryKey((value) => value + 1);
+  }, []);
+
   return (
     <View style={styles.container}>
       {googleMapsConfigured && (
         <MapView
+          key={mapRetryKey}
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
@@ -188,13 +196,26 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
         </MapView>
       )}
 
-      {(!googleMapsConfigured || (!mapReady && mapTimedOut)) && (
+      {!googleMapsConfigured && (
         <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="map" size={28} color={colors.primary} />
           <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps is unavailable in this build</Text>
           <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
             Install a new native build with the Google Maps API key configured to view property locations.
           </Text>
+        </View>
+      )}
+
+      {googleMapsConfigured && !mapReady && mapTimedOut && (
+        <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Feather name="refresh-cw" size={28} color={colors.primary} />
+          <Text style={[styles.mapStateTitle, { color: colors.foreground }]}>Google Maps is taking longer to load</Text>
+          <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>
+            Check your connection, then retry the browse map.
+          </Text>
+          <Pressable onPress={handleRetryMap} style={[styles.mapRetryButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.mapRetryText, { color: colors.primaryForeground }]}>Retry map</Text>
+          </Pressable>
         </View>
       )}
 
@@ -222,7 +243,7 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
         </View>
       )}
 
-      {mappableProperties.length === 0 && (
+      {googleMapsConfigured && mapReady && mappableProperties.length === 0 && (
         <View style={[styles.emptyOverlay, { backgroundColor: colors.muted }]}>
           <Feather name="map-pin" size={32} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -361,6 +382,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",
+  },
+  mapRetryButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  mapRetryText: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 13,
   },
   emptyTitle: {
     fontSize: 16,
