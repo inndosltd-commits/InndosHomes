@@ -9,11 +9,16 @@ test Google Maps and full camera access.
 
 ## Google Maps build key
 
-The native Google Maps key is embedded during prebuild. Store it in Replit
-Secrets as:
+The native Google Maps key is embedded during prebuild. Store it under both the
+development project secrets and **Publishing → Adjust settings → Deployment
+secrets** as:
 
 - `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` for Replit Expo Launch
 - `GOOGLE_API_KEY` as a compatibility fallback for existing build environments
+
+Expo Launch runs in the publishing environment. A development/project secret
+with the same name does not by itself make the value available to native
+prebuild.
 
 The static `app.json` loads a local config plugin during native prebuild. That
 plugin reads the key from the build environment and injects it into the native
@@ -50,7 +55,7 @@ prevents publishing a binary whose Google Maps screens cannot work.
   should show Google Maps styling with a blue-dot marker.
 
 If the map does not load, confirm:
-1. `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` exists in Replit Secrets.
+1. `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` exists in Publishing Deployment Secrets.
 2. You are running inside a native build, not Expo Go.
 3. The Google Maps API key has **Maps SDK for iOS** enabled in the
    Google Cloud Console and the bundle identifier `com.inndos.app` is not
