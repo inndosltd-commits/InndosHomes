@@ -18,6 +18,10 @@ localPort = 25756
 run = "pnpm --filter @workspace/inndos-mobile run dev"
 
 
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/inndos-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/inndos-mobile", "run", "serve" ]
+
 [services.env]
 PORT = "25756"
 BASE_PATH = "/inndos-mobile/"
