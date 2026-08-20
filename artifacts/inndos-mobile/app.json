@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.inndos.app",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "INNDOS uses your location to show properties near you.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "INNDOS uses your location to show properties near you."
