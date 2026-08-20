@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -114,14 +113,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
   const handleOpenMaps = () => {
-    const label = encodeURIComponent(title);
-    const url =
-      Platform.OS === "ios"
-        ? `maps:0,0?q=${label}@${latitude},${longitude}`
-        : `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`;
-    Linking.openURL(url).catch(() => {
-      Linking.openURL(mapsUrl);
-    });
+    Linking.openURL(mapsUrl);
   };
 
   useEffect(() => () => {
