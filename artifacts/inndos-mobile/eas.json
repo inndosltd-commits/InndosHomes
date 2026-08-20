@@ -27,6 +27,9 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "https://inndos.com"
       },
+      "ios": {
+        "distribution": "store"
+      },
       "android": {
         "buildType": "app-bundle"
       }
