@@ -1,5 +1,7 @@
 const { AndroidConfig, IOSConfig } = require("expo/config-plugins");
 
+const GOOGLE_API_KEY_PATTERN = /^AIza[0-9A-Za-z_-]{30,}$/;
+
 /**
  * Keeps the Expo config static while securely applying the Maps key during
  * native prebuild. The key comes from the build environment and is never
@@ -15,6 +17,19 @@ module.exports = function withGoogleMapsApiKey(config) {
     if (isEasBuild) {
       throw new Error(
         "A Google Maps API key is required for native INNDOS builds. Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY under Publishing > Adjust settings > Deployment secrets before publishing with Expo Launch; project secrets alone are not included in this build.",
+      );
+    }
+    config.extra = {
+      ...config.extra,
+      googleMapsConfigured: false,
+    };
+    return config;
+  }
+
+  if (!GOOGLE_API_KEY_PATTERN.test(apiKey)) {
+    if (isEasBuild) {
+      throw new Error(
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY must contain a Google Maps API key, not an OAuth client ID. Create an API key in Google Cloud Credentials and store it under Publishing > Adjust settings > Deployment secrets.",
       );
     }
     config.extra = {
