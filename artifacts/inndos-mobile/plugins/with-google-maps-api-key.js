@@ -14,7 +14,7 @@ module.exports = function withGoogleMapsApiKey(config) {
   if (!apiKey) {
     if (isEasBuild) {
       throw new Error(
-        "A Google Maps API key is required for native INNDOS builds. Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY to Replit Secrets before publishing with Expo Launch.",
+        "A Google Maps API key is required for native INNDOS builds. Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY under Publishing > Adjust settings > Deployment secrets before publishing with Expo Launch; project secrets alone are not included in this build.",
       );
     }
     config.extra = {
