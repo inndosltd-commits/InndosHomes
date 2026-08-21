@@ -21,7 +21,11 @@
       "buildNumber": "10",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "INNDOS uses your location to show properties near you.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "INNDOS uses your location to show properties near you."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "INNDOS uses your location to show properties near you.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyDgAB7pin_RCHMhctCg2Cxvi6hL9VeDQuI"
       }
     },
     "android": {
