@@ -219,6 +219,7 @@ export default function ProfileScreen() {
         <SectionTitle label="ACCOUNT" colors={colors} />
         <View style={[styles.menuGroup, { borderColor: colors.border }]}>
           <MenuItem icon="edit-3" label="Edit Profile" onPress={() => router.push("/(tabs)/profile-settings" as never)} colors={colors} />
+          <MenuItem icon="sun" label="Appearance" onPress={() => router.push("/(tabs)/profile-settings" as never)} colors={colors} />
         </View>
 
         {/* Navigation menu — All users */}

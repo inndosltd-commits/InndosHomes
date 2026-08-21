@@ -78,11 +78,15 @@ function distanceInMeters(
   return 2 * earthRadius * Math.asin(Math.sqrt(a));
 }
 
+/** Arrival threshold in metres */
+const ARRIVAL_THRESHOLD = 50;
+
 export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProps) {
   const colors = useColors();
   const { token } = useAuth();
   const [sharing, setSharing] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [arrived, setArrived] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [route, setRoute] = useState<RouteInfo | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -111,6 +115,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     return () => clearTimeout(timeout);
   }, [googleMapsConfigured, mapReady]);
 
+  const destination = { latitude, longitude };
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
 
   const handleOpenMaps = async () => {
@@ -135,25 +140,40 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     subscriptionRef.current?.remove();
     subscriptionRef.current = null;
     setIsNavigating(false);
+    setArrived(false);
     setRoute(null);
     setCurrentLocation(null);
     setActiveStep(0);
   };
 
   const handleDirections = async () => {
-    if (isNavigating) {
+    if (isNavigating || arrived) {
       stopNavigation();
       return;
     }
     if (!token) {
-      Alert.alert("Sign in required", "Sign in to use live in-app directions.");
+      Alert.alert(
+        "Sign in required",
+        "Sign in to use live in-app directions.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open in Google Maps", onPress: handleOpenMaps },
+        ]
+      );
       return;
     }
     setLoadingRoute(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
-        Alert.alert("Location permission needed", "Allow location access to receive live directions in INNDOS.");
+        Alert.alert(
+          "Location access needed",
+          "Allow location access to receive live directions inside INNDOS.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open in Google Maps", onPress: handleOpenMaps },
+          ]
+        );
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -170,6 +190,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
       setRoute(json);
       setCurrentLocation(origin);
       setIsNavigating(true);
+      setArrived(false);
       setActiveStep(0);
       mapRef.current?.fitToCoordinates([...coordinates, origin], {
         edgePadding: { top: 56, right: 36, bottom: 110, left: 36 },
@@ -180,6 +201,20 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         (nextPosition) => {
           const next = { latitude: nextPosition.coords.latitude, longitude: nextPosition.coords.longitude };
           setCurrentLocation(next);
+          mapRef.current?.animateCamera(
+            { center: next, zoom: 16 },
+            { duration: 600 }
+          );
+
+          // Check arrival at destination
+          const distToDest = distanceInMeters(next, destination);
+          if (distToDest < ARRIVAL_THRESHOLD) {
+            setArrived(true);
+            subscriptionRef.current?.remove();
+            subscriptionRef.current = null;
+            return;
+          }
+
           setActiveStep((stepIndex) => {
             const stepEnd = json.steps?.[stepIndex]?.end;
             return stepEnd && distanceInMeters(next, stepEnd) < 45
@@ -189,7 +224,14 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         }
       );
     } catch (error) {
-      Alert.alert("Directions unavailable", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Directions unavailable",
+        error instanceof Error ? error.message : "Please try again.",
+        [
+          { text: "OK", style: "cancel" },
+          { text: "Open in Google Maps", onPress: handleOpenMaps },
+        ]
+      );
     } finally {
       setLoadingRoute(false);
     }
@@ -221,18 +263,21 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
 
   const routeCoordinates = route ? decodePolyline(route.polyline) : [];
   const currentStep = route?.steps[activeStep];
+  // Progress: fraction of steps completed
+  const stepCount = route?.steps.length ?? 0;
+  const progressFraction = stepCount > 0 ? activeStep / stepCount : 0;
 
   return (
     <View style={styles.wrapper}>
       <Text style={[styles.label, { color: colors.mutedForeground }]}>LOCATION</Text>
-      <View style={styles.mapContainer}>
+      <View style={[styles.mapContainer, { borderRadius: 12 }]}>
         {googleMapsConfigured && (
           <MapView
             key={mapRetryKey}
             ref={mapRef}
             provider={PROVIDER_GOOGLE}
             style={styles.map}
-            region={region}
+            initialRegion={region}
             scrollEnabled={false}
             zoomEnabled={false}
             rotateEnabled={false}
@@ -241,7 +286,9 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
           >
             <Marker coordinate={{ latitude, longitude }} title={title} />
-            {routeCoordinates.length > 1 && <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />}
+            {routeCoordinates.length > 1 && (
+              <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />
+            )}
             {currentLocation && (
               <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
                 <View style={[styles.userDot, { borderColor: colors.card, backgroundColor: colors.primary }]} />
@@ -249,12 +296,16 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             )}
           </MapView>
         )}
+
+        {/* Loading state */}
         {googleMapsConfigured && !mapReady && !mapTimedOut ? (
           <View pointerEvents="none" style={[styles.mapState, { backgroundColor: colors.card + "E8" }]}>
             <ActivityIndicator color={colors.primary} />
             <Text style={[styles.mapStateText, { color: colors.mutedForeground }]}>Loading Google Maps…</Text>
           </View>
         ) : null}
+
+        {/* No Maps key */}
         {!googleMapsConfigured ? (
           <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="map" size={22} color={colors.primary} />
@@ -264,6 +315,8 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             </Text>
           </View>
         ) : null}
+
+        {/* Timeout state */}
         {googleMapsConfigured && !mapReady && mapTimedOut ? (
           <View style={[styles.mapState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="refresh-cw" size={22} color={colors.primary} />
@@ -276,43 +329,105 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             </Pressable>
           </View>
         ) : null}
-        {isNavigating && route && (
+
+        {/* Arrived banner */}
+        {arrived && (
+          <View style={[styles.arrivedCard, { backgroundColor: "#16a34a" }]}>
+            <Feather name="check-circle" size={16} color="#fff" />
+            <View style={styles.arrivedTextCol}>
+              <Text style={styles.arrivedTitle}>You have arrived!</Text>
+              <Text style={styles.arrivedSub}>{title}</Text>
+            </View>
+            <Pressable onPress={stopNavigation} hitSlop={8}>
+              <Feather name="x" size={16} color="#fff" />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Live navigation card */}
+        {isNavigating && !arrived && route && (
           <View style={[styles.navigationCard, { backgroundColor: colors.card }]}>
             <View style={styles.navigationTop}>
-              <Feather name="navigation" size={16} color={colors.primary} />
+              <Feather name="navigation" size={14} color={colors.primary} />
               <Text style={[styles.navigationTitle, { color: colors.foreground }]}>Live directions</Text>
-              <Text style={[styles.navigationStats, { color: colors.mutedForeground }]}>{route.distance} · {route.duration}</Text>
+              <Text style={[styles.navigationStats, { color: colors.mutedForeground }]}>
+                {route.distance} · {route.duration}
+              </Text>
             </View>
+
+            {/* Progress bar */}
+            <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { backgroundColor: colors.primary, width: `${Math.round(progressFraction * 100)}%` },
+                ]}
+              />
+            </View>
+
+            {/* Current instruction */}
             <Text style={[styles.instruction, { color: colors.foreground }]} numberOfLines={2}>
               {currentStep?.instruction || "Continue to your destination"}
             </Text>
-            {currentStep?.distance ? <Text style={[styles.stepDistance, { color: colors.mutedForeground }]}>{currentStep.distance} to next turn</Text> : null}
+            {currentStep?.distance ? (
+              <Text style={[styles.stepDistance, { color: colors.mutedForeground }]}>
+                {currentStep.distance} · turn {activeStep + 1} of {stepCount}
+              </Text>
+            ) : null}
           </View>
         )}
+
+        {/* Button row */}
         <View style={styles.buttonsRow}>
+          {/* Share (secondary) */}
           <Pressable
             onPress={handleShare}
-            style={[styles.actionBtn, { backgroundColor: colors.card }]}
+            style={[styles.secondaryBtn, { backgroundColor: colors.card }]}
+            hitSlop={4}
           >
             <Feather name="share-2" size={13} color={colors.foreground} />
-            <Text style={[styles.actionBtnText, { color: colors.foreground }]}>
-              Share
-            </Text>
           </Pressable>
+
+          {/* Open in Google Maps (secondary, small text link) */}
+          {!isNavigating && !arrived && (
+            <Pressable
+              onPress={handleOpenMaps}
+              style={[styles.secondaryBtn, { backgroundColor: colors.card }]}
+              hitSlop={4}
+            >
+              <Feather name="external-link" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.secondaryBtnText, { color: colors.mutedForeground }]}>Maps</Text>
+            </Pressable>
+          )}
+
+          {/* Primary: In-app directions */}
           <Pressable
             onPress={handleDirections}
             disabled={loadingRoute}
-            style={[styles.actionBtn, { backgroundColor: isNavigating ? colors.destructive : colors.primary, opacity: loadingRoute ? 0.65 : 1 }]}
+            style={[
+              styles.primaryBtn,
+              {
+                backgroundColor: arrived
+                  ? "#16a34a"
+                  : isNavigating
+                  ? colors.destructive
+                  : colors.primary,
+                opacity: loadingRoute ? 0.65 : 1,
+              },
+            ]}
           >
-            {loadingRoute ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name={isNavigating ? "x" : "navigation"} size={13} color={colors.primaryForeground} />}
-            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>{isNavigating ? "End" : "Route"}</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleOpenMaps}
-            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-          >
-            <Feather name="navigation" size={13} color={colors.primaryForeground} />
-            <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>Google Maps</Text>
+            {loadingRoute ? (
+              <ActivityIndicator size="small" color={colors.primaryForeground} />
+            ) : (
+              <Feather
+                name={arrived ? "check" : isNavigating ? "x" : "navigation"}
+                size={13}
+                color={colors.primaryForeground}
+              />
+            )}
+            <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>
+              {arrived ? "Arrived" : isNavigating ? "End" : "Directions"}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -331,7 +446,6 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     height: 280,
-    borderRadius: 12,
     overflow: "hidden",
   },
   invalidLocation: {
@@ -384,7 +498,41 @@ const styles = StyleSheet.create({
     right: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  secondaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  secondaryBtnText: {
+    fontSize: 11,
+    fontFamily: "Outfit_500Medium",
+  },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  primaryBtnText: {
+    fontSize: 13,
+    fontFamily: "Outfit_600SemiBold",
   },
   navigationCard: {
     position: "absolute",
@@ -402,24 +550,36 @@ const styles = StyleSheet.create({
   navigationTop: { flexDirection: "row", alignItems: "center", gap: 6 },
   navigationTitle: { fontSize: 12, fontFamily: "Outfit_700Bold" },
   navigationStats: { marginLeft: "auto", fontSize: 12, fontFamily: "Outfit_500Medium" },
-  instruction: { fontSize: 14, fontFamily: "Outfit_600SemiBold", marginTop: 6, lineHeight: 19 },
-  stepDistance: { fontSize: 12, fontFamily: "Outfit_400Regular", marginTop: 2 },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    marginVertical: 6,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  instruction: { fontSize: 14, fontFamily: "Outfit_600SemiBold", lineHeight: 19 },
+  stepDistance: { fontSize: 11, fontFamily: "Outfit_400Regular", marginTop: 2 },
   userDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 3 },
-  actionBtn: {
+  arrivedCard: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    top: 10,
+    borderRadius: 10,
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 4,
     elevation: 4,
   },
-  actionBtnText: {
-    fontSize: 12,
-    fontFamily: "Outfit_600SemiBold",
-  },
+  arrivedTextCol: { flex: 1 },
+  arrivedTitle: { fontSize: 13, fontFamily: "Outfit_700Bold", color: "#fff" },
+  arrivedSub: { fontSize: 11, fontFamily: "Outfit_400Regular", color: "rgba(255,255,255,0.85)" },
 });

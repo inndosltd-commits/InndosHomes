@@ -6,7 +6,6 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -304,129 +303,121 @@ export default function BrowseScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={require("@/assets/images/logo-inndos.png")}
-          style={[styles.headerLogo, { tintColor: colors.foreground }]}
-          resizeMode="contain"
-        />
-      </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: isWeb ? 34 + 100 : insets.bottom + 100 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header, menu, map, and listings intentionally share one scroll surface. */}
+        <View style={styles.header}>
+          <Text style={[styles.headerWordmark, { color: colors.foreground }]}>inndos</Text>
+        </View>
 
-      {/* Type filter chips */}
-      <View style={styles.filterRow}>
-        {FILTER_TYPES.map((item) => {
-          const isActive = activeType === item.value || (item.value === "rent" && activeType === "rent") || (item.value === "sale" && activeType === "sale");
-          return (
-            <Pressable
-              key={item.label}
-              style={[styles.filterChip, { backgroundColor: isActive ? colors.primary : colors.muted, borderColor: isActive ? colors.primary : colors.border }]}
-              onPress={() => handleFilterChipPress(item)}
-            >
-              <Text numberOfLines={1} style={[styles.filterChipText, { color: isActive ? colors.primaryForeground : colors.foreground }]}>
-                {item.label}
-              </Text>
-              {item.hasDropdown && <Feather name="chevron-down" size={10} color={isActive ? colors.primaryForeground : colors.mutedForeground} />}
+        <View style={styles.filterRow}>
+          {FILTER_TYPES.map((item) => {
+            const isActive = activeType === item.value || (item.value === "rent" && activeType === "rent") || (item.value === "sale" && activeType === "sale");
+            return (
+              <Pressable
+                key={item.label}
+                style={[styles.filterChip, { backgroundColor: isActive ? colors.primary : colors.muted, borderColor: isActive ? colors.primary : colors.border }]}
+                onPress={() => handleFilterChipPress(item)}
+              >
+                <Text numberOfLines={1} style={[styles.filterChipText, { color: isActive ? colors.primaryForeground : colors.foreground }]}>
+                  {item.label}
+                </Text>
+                {item.hasDropdown && <Feather name="chevron-down" size={10} color={isActive ? colors.primaryForeground : colors.mutedForeground} />}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeSubCategory && (
+          <View style={[styles.subCategoryBadge, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.subCategoryText, { color: colors.mutedForeground }]}>{activeSubCategory}</Text>
+            <Pressable onPress={() => setActiveSubCategory(null)}>
+              <Feather name="x" size={12} color={colors.mutedForeground} />
             </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Active sub-category badge */}
-      {activeSubCategory && (
-        <View style={[styles.subCategoryBadge, { backgroundColor: colors.muted }]}>
-          <Text style={[styles.subCategoryText, { color: colors.mutedForeground }]}>{activeSubCategory}</Text>
-          <Pressable onPress={() => setActiveSubCategory(null)}>
-            <Feather name="x" size={12} color={colors.mutedForeground} />
-          </Pressable>
-        </View>
-      )}
-
-      {/* Sort chips */}
-      <View style={styles.sortRow}>
-        {SORT_OPTIONS.map((opt) => {
-          const isActive = sortBy === opt.value;
-          const isDistanceLoading = opt.value === "distance" && locationLoading;
-          return (
-            <Pressable
-              key={opt.value}
-              style={[styles.sortChip, { backgroundColor: isActive ? colors.primary : colors.muted, borderColor: isActive ? colors.primary : colors.border, opacity: isDistanceLoading ? 0.6 : 1 }]}
-              onPress={() => handleSortChange(opt.value)}
-              disabled={isDistanceLoading}
-            >
-              {isDistanceLoading ? <ActivityIndicator size={12} color={colors.mutedForeground} /> : (
-                <Feather name={opt.icon as React.ComponentProps<typeof Feather>["name"]} size={11} color={isActive ? colors.primaryForeground : colors.mutedForeground} />
-              )}
-              <Text numberOfLines={1} style={[styles.sortChipText, { color: isActive ? colors.primaryForeground : colors.foreground }]}>{opt.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Search row */}
-      <View style={styles.searchRow}>
-        <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Feather name="tag" size={14} color={colors.mutedForeground} />
-          <TextInput
-            style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
-            placeholder="Max price…"
-            placeholderTextColor={colors.mutedForeground}
-            value={priceMax}
-            onChangeText={setPriceMax}
-            keyboardType="numeric"
-            returnKeyType="done"
-          />
-          {priceMax.length > 0 && <Pressable onPress={() => setPriceMax("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
-        </View>
-        <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-          <Feather name="search" size={14} color={colors.mutedForeground} />
-          <TextInput
-            style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
-            placeholder="Name, area…"
-            placeholderTextColor={colors.mutedForeground}
-            value={search}
-            onChangeText={handleSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
-        </View>
-      </View>
-
-      {/* Main content */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Loading properties…</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Failed to load properties</Text>
-          <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
-            <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={{ flex: 1 }}>
-          {/* Map — fixed height */}
-          <View style={{ height: MAP_HEIGHT }}>
-            <PropertyMapView properties={filteredProperties} />
           </View>
+        )}
 
-          {/* Vertical sections */}
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: isWeb ? 34 + 100 : insets.bottom + 100 }}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-          >
+        <View style={styles.sortRow}>
+          {SORT_OPTIONS.map((opt) => {
+            const isActive = sortBy === opt.value;
+            const isDistanceLoading = opt.value === "distance" && locationLoading;
+            return (
+              <Pressable
+                key={opt.value}
+                style={[styles.sortChip, { backgroundColor: isActive ? colors.primary : colors.muted, borderColor: isActive ? colors.primary : colors.border, opacity: isDistanceLoading ? 0.6 : 1 }]}
+                onPress={() => handleSortChange(opt.value)}
+                disabled={isDistanceLoading}
+              >
+                {isDistanceLoading ? <ActivityIndicator size={12} color={colors.mutedForeground} /> : (
+                  <Feather name={opt.icon as React.ComponentProps<typeof Feather>["name"]} size={11} color={isActive ? colors.primaryForeground : colors.mutedForeground} />
+                )}
+                <Text numberOfLines={1} style={[styles.sortChipText, { color: isActive ? colors.primaryForeground : colors.foreground }]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.searchRow}>
+          <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="tag" size={14} color={colors.mutedForeground} />
+            <TextInput
+              style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
+              placeholder="Max price…"
+              placeholderTextColor={colors.mutedForeground}
+              value={priceMax}
+              onChangeText={setPriceMax}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+            {priceMax.length > 0 && <Pressable onPress={() => setPriceMax("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
+          </View>
+          <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="search" size={14} color={colors.mutedForeground} />
+            <TextInput
+              style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
+              placeholder="Name, area…"
+              placeholderTextColor={colors.mutedForeground}
+              value={search}
+              onChangeText={handleSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
+          </View>
+        </View>
+
+        {isLoading ? (
+          <View style={[styles.center, styles.loadingState]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Loading properties…</Text>
+          </View>
+        ) : error ? (
+          <View style={[styles.center, styles.loadingState]}>
+            <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Failed to load properties</Text>
+            <Pressable style={[styles.retryBtn, { backgroundColor: colors.primary }]} onPress={() => refetch()}>
+              <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View style={styles.mapWrapper}>
+              <PropertyMapView properties={filteredProperties} />
+            </View>
+
             {filteredProperties.length === 0 ? (
-              <View style={[styles.center, { paddingTop: 40 }]}>
+              <View style={[styles.center, styles.emptyState]}>
                 <Feather name="home" size={32} color={colors.mutedForeground} />
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No properties found</Text>
               </View>
             ) : activeType ? (
-              // When a filter is active — show all filtered results
               <SectionBlock
                 title={activeSubCategory ? activeSubCategory : FILTER_TYPES.find((f) => f.value === activeType)?.label ?? "Results"}
                 properties={filteredProperties}
@@ -458,9 +449,9 @@ export default function BrowseScreen() {
                 />
               </>
             ) : null}
-          </ScrollView>
-        </View>
-      )}
+          </>
+        )}
+      </ScrollView>
 
       {/* Modals */}
       <SubCategoryModal visible={rentModalVisible} onClose={() => setRentModalVisible(false)} title="Rent a Property" sections={RENT_SUBS} activeItem={activeType === "rent" ? activeSubCategory : null} onSelect={(sub) => handleSubCategorySelect("rent", sub)} colors={colors} />
@@ -480,7 +471,9 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
   return StyleSheet.create({
     container: { flex: 1 },
     header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10 },
-    headerLogo: { height: 34, width: 130 },
+    scrollView: { flex: 1 },
+    scrollContent: { flexGrow: 1 },
+    headerWordmark: { fontSize: 40, lineHeight: 42, fontFamily: "Outfit_700Bold", letterSpacing: -2.2 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },
     filterChip: { width: filterChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 8, borderWidth: 1, borderRadius: 20 },
     filterChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
@@ -492,7 +485,10 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     searchRow: { flexDirection: "row", paddingHorizontal: hPad, paddingTop: 8, gap: 8 },
     searchCol: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 9, borderWidth: 1, borderRadius: 10, gap: 6 },
     searchColInput: { flex: 1, fontSize: 13, padding: 0 },
+    mapWrapper: { height: MAP_HEIGHT, marginTop: 4 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 40 },
+    loadingState: { minHeight: MAP_HEIGHT },
+    emptyState: { minHeight: MAP_HEIGHT * 0.5 },
     emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center" },
     retryBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, marginTop: 8 },
     retryText: { fontSize: 14, fontFamily: "Outfit_600SemiBold" },

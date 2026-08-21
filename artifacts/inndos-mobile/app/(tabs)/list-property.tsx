@@ -2,7 +2,7 @@ import { useCreateProperty } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -174,6 +174,7 @@ export default function ListPropertyScreen() {
   const [photos, setPhotos] = useState<Array<{ uri: string; uploaded: string | null }>>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const pickerAddressRef = useRef<string | null>(null);
 
   const { mutate: createProperty, isPending } = useCreateProperty({
     mutation: {
@@ -265,9 +266,13 @@ export default function ListPropertyScreen() {
     setErrors((prev) => ({ ...prev, lat: undefined, lng: undefined }));
   }
 
-  function handleAddressResolved(resolved: string) {
+  function handleAddressResolved(resolved: string, options?: { replace?: boolean }) {
     setForm((prev) => {
-      if (prev.address.trim() !== "") return prev;
+      const canReplace = options?.replace
+        || prev.address.trim() === ""
+        || prev.address === pickerAddressRef.current;
+      if (!canReplace) return prev;
+      pickerAddressRef.current = resolved;
       return { ...prev, address: resolved };
     });
     setErrors((prev) => ({ ...prev, address: undefined }));
@@ -483,7 +488,10 @@ export default function ListPropertyScreen() {
               placeholder="e.g. 14 Lenana Road, Nairobi"
               placeholderTextColor={colors.mutedForeground}
               value={form.address}
-              onChangeText={(v) => setField("address", v)}
+              onChangeText={(v) => {
+                pickerAddressRef.current = null;
+                setField("address", v);
+              }}
               returnKeyType="next"
             />
           </Field>

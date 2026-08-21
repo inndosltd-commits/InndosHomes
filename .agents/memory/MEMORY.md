@@ -2,3 +2,4 @@
 - [Native Google Maps release setup](native-google-maps-release.md) — EAS builds need their own Google Maps secret; a workspace secret is not injected remotely.
 - [Expo Launch Maps key](expo-launch-maps-key.md) — Expo Launch native prebuild needs the Maps key under an EXPO_PUBLIC-prefixed Replit secret.
 - [Expo project ownership](expo-launch-auth.md) — Trust EAS project lookup for the owner; the CLI user needs project access and may be a member under a different username.
+- [Native Google Maps attribution](native-google-maps-attribution.md) — Keep the provider-rendered watermark untouched; its text, color, and placement are not app styling controls.

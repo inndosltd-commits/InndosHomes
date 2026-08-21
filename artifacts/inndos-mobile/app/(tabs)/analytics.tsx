@@ -1,6 +1,10 @@
 /**
  * Analytics screen — shows owner analytics or tenant analytics based on user role.
  * Mirrors the website's Analytics/TenantAnalytics dashboard tabs.
+ *
+ * Display-only metrics (StatCard, InfoRow) are not Pressable.
+ * Action rows (rows that can navigate to a meaningful screen) are Pressable
+ * and clearly distinguished by a chevron indicator.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -14,13 +18,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ── Stat card (display only — not Pressable) ──────────────────────────────────
 function StatCard({ label, value, icon, color, sub, colors }: {
   label: string;
   value: string | number;
@@ -48,7 +52,7 @@ const st = StyleSheet.create({
   sub: { fontSize: 11, fontFamily: "Outfit_400Regular", textAlign: "center" },
 });
 
-// ── Row item ──────────────────────────────────────────────────────────────────
+// ── Display-only info row ─────────────────────────────────────────────────────
 function InfoRow({ label, value, colors }: { label: string; value: string; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={[rowS.row, { borderBottomColor: colors.border }]}>
@@ -57,15 +61,42 @@ function InfoRow({ label, value, colors }: { label: string; value: string; color
     </View>
   );
 }
+
+// ── Navigable action row (has chevron, is Pressable) ──────────────────────────
+function ActionRow({ label, value, onPress, colors }: {
+  label: string;
+  value: string;
+  onPress: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        rowS.row,
+        { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[rowS.label, { color: colors.mutedForeground }]}>{label}</Text>
+      <View style={rowS.actionRight}>
+        <Text style={[rowS.value, { color: colors.foreground }]}>{value}</Text>
+        <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+      </View>
+    </Pressable>
+  );
+}
+
 const rowS = StyleSheet.create({
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   label: { fontSize: 14, fontFamily: "Outfit_400Regular" },
   value: { fontSize: 14, fontFamily: "Outfit_600SemiBold" },
+  actionRight: { flexDirection: "row", alignItems: "center", gap: 4 },
 });
 
 export default function AnalyticsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, token } = useAuth();
   const isWeb = Platform.OS === "web";
   const topPadding = isWeb ? 67 : insets.top;
@@ -138,6 +169,7 @@ export default function AnalyticsScreen() {
         >
           {isAdmin ? (
             <>
+              {/* Admin stat cards — display only */}
               <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
                 <StatCard label="Total Users" value={fmt(data?.totalUsers)} icon="users" color="#1d4ed8" colors={colors} />
                 <StatCard label="Properties" value={fmt(data?.totalProperties)} icon="home" color="#7c3aed" colors={colors} />
@@ -146,18 +178,29 @@ export default function AnalyticsScreen() {
                 <StatCard label="Link-Ups" value={fmt(data?.totalBookings)} icon="link" color="#16a34a" colors={colors} />
                 <StatCard label="Revenue" value={formatKES(data?.totalRevenue)} icon="credit-card" color="#d97706" colors={colors} />
               </View>
+              {/* Admin breakdown — navigable rows */}
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>Platform Breakdown</Text>
-                <InfoRow label="Pending properties" value={fmt(data?.pendingProperties)} colors={colors} />
+                <ActionRow
+                  label="Pending properties"
+                  value={fmt(data?.pendingProperties)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/admin" as never)}
+                />
                 <InfoRow label="Active subscriptions" value={fmt(data?.activeSubscriptions)} colors={colors} />
-                <InfoRow label="Confirmed rentals" value={fmt(data?.confirmedRentals)} colors={colors} />
+                <ActionRow
+                  label="Confirmed rentals"
+                  value={fmt(data?.confirmedRentals)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
                 <InfoRow label="Confirmed sales" value={fmt(data?.confirmedSales)} colors={colors} />
                 <InfoRow label="Marketplace value" value={formatKES(data?.totalMarketplaceValue)} colors={colors} />
               </View>
             </>
           ) : isOwnerOrHost ? (
             <>
-              {/* Owner stats */}
+              {/* Owner stat cards — display only */}
               <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
                 <StatCard label="Total Revenue" value={formatKES(data?.totalRevenue)} icon="trending-up" color="#16a34a" colors={colors} />
                 <StatCard label="Total Bookings" value={fmt(data?.totalBookings)} icon="link" color="#1d4ed8" colors={colors} />
@@ -166,28 +209,59 @@ export default function AnalyticsScreen() {
                 <StatCard label="Active Listings" value={fmt(data?.activeListings ?? data?.totalProperties)} icon="home" color="#7c3aed" colors={colors} />
                 <StatCard label="Avg. Rating" value={data?.averageRating ? `${Number(data.averageRating).toFixed(1)} ★` : "—"} icon="star" color="#d97706" colors={colors} />
               </View>
-              {/* Details */}
+              {/* Owner breakdown — navigable booking rows, display-only metrics */}
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>Breakdown</Text>
-                <InfoRow label="Confirmed bookings" value={fmt(data?.confirmedBookings)} colors={colors} />
-                <InfoRow label="Pending bookings" value={fmt(data?.pendingBookings)} colors={colors} />
-                <InfoRow label="Cancelled bookings" value={fmt(data?.cancelledBookings)} colors={colors} />
+                <ActionRow
+                  label="Confirmed bookings"
+                  value={fmt(data?.confirmedBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
+                <ActionRow
+                  label="Pending bookings"
+                  value={fmt(data?.pendingBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
+                <ActionRow
+                  label="Cancelled bookings"
+                  value={fmt(data?.cancelledBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
                 <InfoRow label="Monthly revenue" value={formatKES(data?.monthlyRevenue)} colors={colors} />
                 <InfoRow label="Occupancy rate" value={data?.occupancyRate != null ? `${Number(data.occupancyRate).toFixed(1)}%` : "—"} colors={colors} />
               </View>
             </>
           ) : (
             <>
-              {/* Tenant stats */}
+              {/* Tenant stat cards — display only */}
               <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
                 <StatCard label="Total Bookings" value={fmt(data?.totalBookings)} icon="link" color="#1d4ed8" colors={colors} />
                 <StatCard label="Total Spent" value={formatKES(data?.totalSpent)} icon="credit-card" color="#7c3aed" colors={colors} />
               </View>
+              {/* Tenant breakdown — booking rows are navigable */}
               <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>Booking History</Text>
-                <InfoRow label="Confirmed" value={fmt(data?.confirmedBookings)} colors={colors} />
-                <InfoRow label="Pending" value={fmt(data?.pendingBookings)} colors={colors} />
-                <InfoRow label="Cancelled" value={fmt(data?.cancelledBookings)} colors={colors} />
+                <ActionRow
+                  label="Confirmed"
+                  value={fmt(data?.confirmedBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
+                <ActionRow
+                  label="Pending"
+                  value={fmt(data?.pendingBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
+                <ActionRow
+                  label="Cancelled"
+                  value={fmt(data?.cancelledBookings)}
+                  colors={colors}
+                  onPress={() => router.push("/(tabs)/bookings" as never)}
+                />
                 <InfoRow label="Avg. stay" value={data?.avgStayDays ? `${Number(data.avgStayDays).toFixed(1)} days` : "—"} colors={colors} />
               </View>
             </>

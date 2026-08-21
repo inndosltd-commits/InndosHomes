@@ -136,10 +136,14 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [showSearchButton, setShowSearchButton] = useState(false);
   const committedRegionRef = useRef<Region>(DEFAULT_REGION);
+  const userPannedMapRef = useRef(false);
 
   const handleRegionChangeComplete = useCallback((newRegion: Region) => {
     setRegion(newRegion);
-    setSelectedId(null);
+    if (userPannedMapRef.current) {
+      setSelectedId(null);
+      userPannedMapRef.current = false;
+    }
     if (!regionsAreSimilar(newRegion, committedRegionRef.current)) {
       setShowSearchButton(true);
     }
@@ -172,6 +176,7 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
           showsMyLocationButton
           onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
           onRegionChangeComplete={handleRegionChangeComplete}
+          onPanDrag={() => { userPannedMapRef.current = true; }}
           onPress={() => setSelectedId(null)}
         >
         {mappableProperties.map((property) => {
@@ -183,7 +188,10 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
             <Marker
               key={property.id}
               coordinate={coordinate}
-              onPress={() => setSelectedId(property.id)}
+              onPress={(event) => {
+                event.stopPropagation();
+                setSelectedId(property.id);
+              }}
             >
               <Image
                 source={PROPERTY_PIN_ICON}

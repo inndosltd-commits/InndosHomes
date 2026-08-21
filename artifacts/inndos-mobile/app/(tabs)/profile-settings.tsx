@@ -16,13 +16,23 @@ import { Feather } from "@expo/vector-icons";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTheme, ThemePreference } from "@/context/ThemeContext";
 import { getApiBaseUrl } from "@/utils/api";
+
+// ── Appearance picker ─────────────────────────────────────────────────────────
+const THEME_OPTIONS: { label: string; value: ThemePreference; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
+  { label: "Light", value: "light", icon: "sun" },
+  { label: "Dark", value: "dark", icon: "moon" },
+  { label: "System", value: "system", icon: "smartphone" },
+];
 
 export default function ProfileSettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token, updateUser } = useAuth();
+  const { preference, setPreference } = useTheme();
+
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [businessName, setBusinessName] = useState(user?.businessName ?? "");
@@ -117,6 +127,11 @@ export default function ProfileSettingsScreen() {
     }
   };
 
+  const handleThemeChoice = async (pref: ThemePreference) => {
+    Haptics.selectionAsync();
+    await setPreference(pref);
+  };
+
   const inputStyle = [styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }];
 
   return (
@@ -133,6 +148,42 @@ export default function ProfileSettingsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 36 }]}
         bottomOffset={64}
       >
+        {/* ── Appearance ─────────────────────────────────────────────────── */}
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>APPEARANCE</Text>
+        <View style={[styles.themeRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          {THEME_OPTIONS.map((opt) => {
+            const active = preference === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => handleThemeChoice(opt.value)}
+                style={[
+                  styles.themeOption,
+                  {
+                    backgroundColor: active ? colors.primary : "transparent",
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Feather
+                  name={opt.icon}
+                  size={16}
+                  color={active ? colors.primaryForeground : colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    styles.themeLabel,
+                    { color: active ? colors.primaryForeground : colors.foreground },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* ── Personal details ───────────────────────────────────────────── */}
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PERSONAL DETAILS</Text>
         <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Full name</Text>
         <TextInput value={name} onChangeText={setName} style={inputStyle} placeholder="Your name" placeholderTextColor={colors.mutedForeground} autoCapitalize="words" />
@@ -142,6 +193,7 @@ export default function ProfileSettingsScreen() {
           <Feather name="lock" size={14} color={colors.mutedForeground} />
         </View>
 
+        {/* ── Phone verification ─────────────────────────────────────────── */}
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PHONE VERIFICATION</Text>
         <Text style={[styles.helper, { color: colors.mutedForeground }]}>A changed phone number must be verified before it is saved.</Text>
         <TextInput value={phone} onChangeText={(value) => { setPhone(value); setPhoneToken(null); }} style={inputStyle} placeholder="+254 700 000 000" placeholderTextColor={colors.mutedForeground} keyboardType="phone-pad" />
@@ -155,6 +207,7 @@ export default function ProfileSettingsScreen() {
           </Pressable>
         </View>
 
+        {/* ── Business details ───────────────────────────────────────────── */}
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>BUSINESS DETAILS</Text>
         <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Business or firm name</Text>
         <TextInput value={businessName} onChangeText={setBusinessName} style={inputStyle} placeholder="Optional" placeholderTextColor={colors.mutedForeground} autoCapitalize="words" />
@@ -208,4 +261,8 @@ const styles = StyleSheet.create({
   choiceText: { fontSize: 12, textAlign: "center", fontFamily: "Outfit_500Medium" },
   saveButton: { height: 52, borderRadius: 10, marginTop: 18, alignItems: "center", justifyContent: "center" },
   saveButtonText: { fontSize: 15, fontFamily: "Outfit_700Bold" },
+  // Appearance / theme selector
+  themeRow: { flexDirection: "row", gap: 8, borderWidth: 1, borderRadius: 10, padding: 8 },
+  themeOption: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 8, borderWidth: 1 },
+  themeLabel: { fontSize: 13, fontFamily: "Outfit_500Medium" },
 });
