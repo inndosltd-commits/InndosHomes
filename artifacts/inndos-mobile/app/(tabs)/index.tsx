@@ -306,13 +306,11 @@ export default function BrowseScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.logoPill}>
-          <Image
-            source={require("@/assets/images/logo-inndos.png")}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-        </View>
+        <Image
+          source={require("@/assets/images/logo-inndos.png")}
+          style={[styles.headerLogo, { tintColor: colors.foreground }]}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Type filter chips */}
@@ -482,7 +480,6 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
   return StyleSheet.create({
     container: { flex: 1 },
     header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10 },
-    logoPill: { backgroundColor: "#ffffff", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" },
     headerLogo: { height: 34, width: 130 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },
     filterChip: { width: filterChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 8, borderWidth: 1, borderRadius: 20 },
