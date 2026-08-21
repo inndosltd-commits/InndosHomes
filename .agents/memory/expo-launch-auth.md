@@ -12,3 +12,4 @@ For a project created and published by Replit Expo Launch, preserve the existing
 - Check the EAS workflow URL or original project setup to determine whether the project is Replit-managed.
 - If it is Replit-managed, retain its `extra.eas.projectId`, omit `owner`, and let the Publishing panel supply its own authentication.
 - Do not use a personal Expo CLI login as evidence of ownership of the Replit-managed EAS project.
+- If `launch.expo.dev` returns `EXPO_UNAUTHORIZED` before an EAS workflow is created, treat it as a Publishing/Expo connection failure rather than an app-config failure. Use Replit's Project Editor `EAS init` recovery flow; do not churn owner fields or personal tokens.
