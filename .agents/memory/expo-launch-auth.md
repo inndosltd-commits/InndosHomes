@@ -13,3 +13,4 @@ Use the owner resolved from `extra.eas.projectId` as the source of truth for `ex
 - When EAS identifies the project owner and asks for an `expo.owner`, set it to that exact account name.
 - Log out of Expo, log back in to the individual Expo user that has membership access to the owner account, and confirm with `npx expo whoami` before any EAS build or EAS init.
 - If Expo Launch still returns `EXPO_UNAUTHORIZED` before a workflow begins after the correct account connection is restored, use Replit's Project Editor `EAS init` recovery flow.
+- A workspace `EXPO_TOKEN` can authenticate direct EAS commands but does not by itself repair a stale Replit Expo Launch service connection. If direct EAS access is verified and Launch remains unauthorized before any workflow exists, the Launch connection needs a Replit-side repair.
