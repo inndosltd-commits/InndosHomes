@@ -1,0 +1,17 @@
+> pnpm expo prebuild --no-install --platform ios
+env: load .env
+env: export EXPO_PUBLIC_DOMAIN
+Error: A valid Google Maps API key (starting with AIza…) is required for native INNDOS builds. Set GOOGLE_API_KEY or EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in Replit Secrets to a Maps API key. OAuth client IDs (ending in .googleusercontent.com) are not accepted here.
+Error: A valid Google Maps API key (starting with AIza…) is required for native INNDOS builds. Set GOOGLE_API_KEY or EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in Replit Secrets to a Maps API key. OAuth client IDs (ending in .googleusercontent.com) are not accepted here.
+    at withGoogleMapsApiKey (/Users/expo/workingdir/build/artifacts/inndos-mobile/plugins/with-google-maps-api-key.js:39:13)
+    at withStaticPlugin (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withStaticPlugin.js:146:12)
+    at /Users/expo/workingdir/build/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:84
+    at Array.reduce (<anonymous>)
+    at withPlugins (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:18)
+    at withConfigPlugins (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+config@12.0.13/node_modules/@expo/config/build/plugins/withConfigPlugins.js:35:47)
+    at fillAndReturnConfig (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+config@12.0.13/node_modules/@expo/config/build/Config.js:236:78)
+    at getConfig (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+config@12.0.13/node_modules/@expo/config/build/Config.js:293:10)
+    at prebuildAsync (/Users/expo/workingdir/build/node_modules/.pnpm/@expo+cli@54.0.24_expo-router@6.0.23_expo@54.0.34_react-native@0.81.5_@babel+core@7.29._a5b3c719bb5ccdac93692d80fc3c093b/node_modules/@expo/cli/build/src/prebuild/prebuildAsync.js:88:51)
+    at /Users/expo/workingdir/build/node_modules/.pnpm/@expo+cli@54.0.24_expo-router@6.0.23_expo@54.0.34_react-native@0.81.5_@babel+core@7.29._a5b3c719bb5ccdac93692d80fc3c093b/node_modules/@expo/cli/build/src/prebuild/index.js:109:16
+Error: pnpm expo prebuild --no-install --platform ios exited with non-zero code: 1
+/bin/bash -eo pipefail /var/folders/5_/4knlryn57n39p2c_jw8567z00000gn/T/eas-build/aa01ec12-07f5-447e-a44c-3795c8acf426/steps/step-005/scripts/b2be0dee-ffab-4415-a120-410ff24a6c98.sh exited with non-zero code: 1
