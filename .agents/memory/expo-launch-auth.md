@@ -1,15 +1,15 @@
 ---
-name: Expo Launch ownership
-description: Avoiding ownership conflicts between Replit-managed Expo projects and personal Expo accounts.
+name: Expo project ownership
+description: Diagnosing Expo authorization from the linked EAS project rather than assumptions about the CLI account.
 ---
 
 ## Rule
-For a project created and published by Replit Expo Launch, preserve the existing EAS `projectId` but do not add a personal Expo `owner` to `app.json` or a personal `EXPO_TOKEN` override to Replit Secrets.
+Use the owner resolved from `extra.eas.projectId` as the source of truth. The Expo CLI account and the `expo.owner` setting must match that owner when the project is built directly with EAS.
 
-**Why:** Expo Launch uses a Replit-managed Expo account (visible as `replit-private-…` in EAS build URLs). Claiming that linked project under a personal owner or overriding Replit's credentials with a personal token causes `EXPO_UNAUTHORIZED` before the EAS workflow starts.
+**Why:** An Expo CLI session may belong to a different account even when its username looks nearly identical. EAS then reports either an unauthorized entity read or an owner mismatch. The linked project ID reveals the actual owner in EAS diagnostics.
 
 **How to apply:**
-- Check the EAS workflow URL or original project setup to determine whether the project is Replit-managed.
-- If it is Replit-managed, retain its `extra.eas.projectId`, omit `owner`, and let the Publishing panel supply its own authentication.
-- Do not use a personal Expo CLI login as evidence of ownership of the Replit-managed EAS project.
-- If `launch.expo.dev` returns `EXPO_UNAUTHORIZED` before an EAS workflow is created, treat it as a Publishing/Expo connection failure rather than an app-config failure. Use Replit's Project Editor `EAS init` recovery flow; do not churn owner fields or personal tokens.
+- Preserve the linked `extra.eas.projectId`; do not create a replacement project just to bypass access errors.
+- When EAS identifies the project owner and asks for an `expo.owner`, set it to that exact account name.
+- Log out of Expo, log back in to that exact owner account, and confirm with `npx expo whoami` before any EAS build or EAS init.
+- If Expo Launch still returns `EXPO_UNAUTHORIZED` before a workflow begins after the correct account connection is restored, use Replit's Project Editor `EAS init` recovery flow.
