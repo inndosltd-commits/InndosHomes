@@ -1,14 +1,14 @@
 ---
-name: Expo Launch auth requirements
-description: What causes EXPO_UNAUTHORIZED in Replit's Publishing panel and how to fix it.
+name: Expo Launch ownership
+description: Avoiding ownership conflicts between Replit-managed Expo projects and personal Expo accounts.
 ---
 
 ## Rule
-The `owner` field in `app.json` must exactly match the Expo account username (no typos). The `EXPO_TOKEN` Replit secret must be a personal access token generated from that same account.
+For a project created and published by Replit Expo Launch, preserve the existing EAS `projectId` but do not add a personal Expo `owner` to `app.json` or a personal `EXPO_TOKEN` override to Replit Secrets.
 
-**Why:** Replit's Publishing panel calls the Expo API using `EXPO_TOKEN`. If `owner` in `app.json` names a different account than the token's owner, Expo returns `EXPO_UNAUTHORIZED` even though the token itself is valid.
+**Why:** Expo Launch uses a Replit-managed Expo account (visible as `replit-private-…` in EAS build URLs). Claiming that linked project under a personal owner or overriding Replit's credentials with a personal token causes `EXPO_UNAUTHORIZED` before the EAS workflow starts.
 
 **How to apply:**
-- Before any Expo Launch publish, verify `app.json` `owner` == the username shown at `expo.dev/accounts/<username>`.
-- Generate `EXPO_TOKEN` from `expo.dev/accounts/<username>/settings/access-tokens`.
-- Replit workspace secrets are NOT forwarded to remote EAS builds; EAS secrets must be set separately at expo.dev → Project → Secrets (e.g. `GOOGLE_API_KEY`).
+- Check the EAS workflow URL or original project setup to determine whether the project is Replit-managed.
+- If it is Replit-managed, retain its `extra.eas.projectId`, omit `owner`, and let the Publishing panel supply its own authentication.
+- Do not use a personal Expo CLI login as evidence of ownership of the Replit-managed EAS project.

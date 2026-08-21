@@ -2,7 +2,6 @@
   "expo": {
     "name": "inndos",
     "slug": "inndos-mobile",
-    "owner": "mikekivu3r",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
