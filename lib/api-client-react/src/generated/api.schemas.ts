@@ -77,6 +77,18 @@ export const PropertyType = {
   hostel: "hostel",
 } as const;
 
+export type PropertyDetails = { [key: string]: unknown };
+
+export type PropertyPropertyStatus =
+  (typeof PropertyPropertyStatus)[keyof typeof PropertyPropertyStatus];
+
+export const PropertyPropertyStatus = {
+  pending: "pending",
+  approved: "approved",
+  flagged: "flagged",
+  sold: "sold",
+} as const;
+
 export interface Property {
   id: string;
   ownerId: string;
@@ -89,20 +101,28 @@ export interface Property {
   sqft: number;
   guests?: number | null;
   image: string;
-  images?: string[];
+  images: string[];
+  videos: string[];
+  details: PropertyDetails;
   isVerified: boolean;
   tags: string[];
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
   description?: string | null;
-  ownerName?: string | null;
+  subtype?: string | null;
+  hourlyRate?: number | null;
+  priceUnit?: string | null;
+  /** @minimum 1 */
+  totalUnits: number;
+  propertyStatus?: PropertyPropertyStatus;
+  activeBookingsCount?: number;
   ownerPhone?: string | null;
   ownerEmail?: string | null;
-  status?: string | null;
-  activeBookingsCount?: number | null;
-  /** Present when the property is returned from the favorites endpoint */
+  ownerAvatar?: string | null;
+  ownerBusinessName?: string | null;
   savedAt?: string | null;
+  ownerName?: string | null;
 }
 
 export type CreatePropertyInputType =
@@ -116,6 +136,8 @@ export const CreatePropertyInputType = {
   hostel: "hostel",
 } as const;
 
+export type CreatePropertyInputDetails = { [key: string]: unknown };
+
 export interface CreatePropertyInput {
   title: string;
   type: CreatePropertyInputType;
@@ -125,16 +147,19 @@ export interface CreatePropertyInput {
   baths?: number;
   sqft?: number;
   guests?: number;
-  subtype?: string;
-  priceUnit?: string;
-  hourlyRate?: number;
-  totalUnits?: number;
   image?: string;
   images?: string[];
+  videos?: string[];
+  details?: CreatePropertyInputDetails;
   tags?: string[];
   description?: string | null;
   lat?: string;
   lng?: string;
+  subtype?: string;
+  hourlyRate?: number;
+  priceUnit?: string;
+  /** @minimum 1 */
+  totalUnits?: number;
 }
 
 export interface UploadUrlRequest {
@@ -144,6 +169,22 @@ export interface UploadUrlRequest {
   size: number;
   /** @minLength 1 */
   contentType: string;
+}
+
+export type ListingDraftData = { [key: string]: unknown };
+
+export interface ListingDraft {
+  id: string;
+  userId: string;
+  data: ListingDraftData;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SaveListingDraftInputData = { [key: string]: unknown };
+
+export interface SaveListingDraftInput {
+  data: SaveListingDraftInputData;
 }
 
 export interface UploadUrlResponse {
@@ -195,6 +236,7 @@ export type BookedRangeStatus =
 export const BookedRangeStatus = {
   pending: "pending",
   confirmed: "confirmed",
+  blocked: "blocked",
 } as const;
 
 export interface BookedRange {

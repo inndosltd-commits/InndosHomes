@@ -106,7 +106,7 @@ export class ObjectStorageService {
     return new Response(webStream, { headers });
   }
 
-  async getObjectEntityUploadURL(): Promise<string> {
+  async getObjectEntityUploadURL(userId?: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
@@ -116,7 +116,8 @@ export class ObjectStorageService {
     }
 
     const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
+    const ownerSegment = userId ? `${userId}/` : "";
+    const fullPath = `${privateObjectDir}/uploads/${ownerSegment}${objectId}`;
 
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
@@ -152,6 +153,41 @@ export class ObjectStorageService {
       throw new ObjectNotFoundError();
     }
     return objectFile;
+  }
+
+  async getObjectEntityDownloadURL(objectPath: string): Promise<string> {
+    const objectFile = await this.getObjectEntityFile(objectPath);
+    return signObjectURL({
+      bucketName: objectFile.bucket.name,
+      objectName: objectFile.name,
+      method: "GET",
+      ttlSec: 300,
+    });
+  }
+
+  async inspectObjectEntity(objectPath: string): Promise<{
+    size: number;
+    contentType: string;
+    mediaKind: "image" | "video" | "unknown";
+  }> {
+    const objectFile = await this.getObjectEntityFile(objectPath);
+    const [metadata] = await objectFile.getMetadata();
+    const headerChunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const stream = objectFile.createReadStream({ start: 0, end: 63 });
+      stream.on("data", (chunk: Buffer | Uint8Array) => {
+        headerChunks.push(Buffer.from(chunk));
+      });
+      stream.on("end", resolve);
+      stream.on("error", reject);
+    });
+    const header = Buffer.concat(headerChunks);
+
+    return {
+      size: Number(metadata.size ?? 0),
+      contentType: String(metadata.contentType ?? "application/octet-stream"),
+      mediaKind: detectMediaKind(header),
+    };
   }
 
   normalizeObjectEntityPath(rawPath: string): string {
@@ -204,6 +240,57 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+}
+
+function detectMediaKind(header: Buffer): "image" | "video" | "unknown" {
+  if (
+    header.length >= 3 &&
+    header[0] === 0xff &&
+    header[1] === 0xd8 &&
+    header[2] === 0xff
+  ) {
+    return "image";
+  }
+  if (
+    header.length >= 8 &&
+    header.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    )
+  ) {
+    return "image";
+  }
+  if (
+    header.length >= 12 &&
+    header.subarray(0, 4).toString("ascii") === "RIFF" &&
+    header.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image";
+  }
+  if (
+    header.length >= 4 &&
+    header[0] === 0x1a &&
+    header[1] === 0x45 &&
+    header[2] === 0xdf &&
+    header[3] === 0xa3
+  ) {
+    return "video";
+  }
+  if (header.length >= 12 && header.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brand = header.subarray(8, 12).toString("ascii").toLowerCase();
+    const imageBrands = new Set([
+      "heic",
+      "heix",
+      "hevc",
+      "hevx",
+      "heim",
+      "heis",
+      "mif1",
+      "msf1",
+      "avif",
+    ]);
+    return imageBrands.has(brand) ? "image" : "video";
+  }
+  return "unknown";
 }
 
 function parseObjectPath(path: string): {

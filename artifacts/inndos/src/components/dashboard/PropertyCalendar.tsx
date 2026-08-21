@@ -42,8 +42,18 @@ function getDaysInMonth(year: number, month: number): Date[] {
   return days;
 }
 
-function isInRange(date: string, start: string, end: string): boolean {
-  return date >= start && date <= end;
+function isInStayRange(date: string, start: string, endExclusive: string): boolean {
+  return date >= start && date < endExclusive;
+}
+
+function isInSelectedRange(date: string, start: string, endInclusive: string): boolean {
+  return date >= start && date <= endInclusive;
+}
+
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }
 
 type DayStatus = "available" | "booked" | "blocked" | "past" | "selecting";
@@ -100,15 +110,15 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
   const getDayStatus = (dateStr: string): DayStatus => {
     if (dateStr < today) return "past";
     for (const b of blocks) {
-      if (isInRange(dateStr, b.startDate, b.endDate)) return "blocked";
+      if (isInStayRange(dateStr, b.startDate, b.endDate)) return "blocked";
     }
     for (const r of bookedRanges) {
-      if (isInRange(dateStr, r.startDate, r.endDate)) return "booked";
+      if (isInStayRange(dateStr, r.startDate, r.endDate)) return "booked";
     }
     if (selectStart) {
       const rangeStart = selectStart <= (hoverDate ?? selectStart) ? selectStart : (hoverDate ?? selectStart);
       const rangeEnd = selectStart <= (hoverDate ?? selectStart) ? (hoverDate ?? selectStart) : selectStart;
-      if (isInRange(dateStr, rangeStart, rangeEnd)) return "selecting";
+      if (isInSelectedRange(dateStr, rangeStart, rangeEnd)) return "selecting";
     }
     return "available";
   };
@@ -133,13 +143,16 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
     if (!token) return;
     setIsSaving(true);
     try {
+      // Owners select inclusive calendar days, while stored availability ranges
+      // use the same half-open [start, end) contract as bookings.
+      const endExclusive = addDays(endDate, 1);
       const res = await fetch(`/api/properties/${propertyId}/blocks`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ startDate, endDate, reason: reason || null }),
+        body: JSON.stringify({ startDate, endDate: endExclusive, reason: reason || null }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -329,7 +342,7 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
                   >
                     <div>
                       <span className="font-medium text-gray-800">
-                        {b.startDate} → {b.endDate}
+                        {b.startDate} → {addDays(b.endDate, -1)}
                       </span>
                       {b.reason && (
                         <span className="ml-2 text-gray-600 text-xs">{b.reason}</span>

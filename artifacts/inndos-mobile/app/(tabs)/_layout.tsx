@@ -1,8 +1,9 @@
 import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Tabs, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -238,12 +239,73 @@ function ClassicTabLayout({ savedCount }: TabLayoutProps) {
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const pathname = usePathname();
   const { data: savedProperties } = useListFavorites({
     query: { queryKey: getListFavoritesQueryKey(), enabled: !!user },
   });
   const savedCount = user ? (savedProperties?.length ?? 0) : 0;
+  const [seenSavedCount, setSeenSavedCount] = useState<number | null>(null);
+  const isSavedScreen = pathname === "/saved" || pathname.endsWith("/saved");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!user) {
+      setSeenSavedCount(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const storageKey = `inndos:saved-badge-count:${user.id}`;
+    void AsyncStorage.getItem(storageKey).then((storedCount) => {
+      if (!isMounted) return;
+      const parsedCount = Number(storedCount);
+      setSeenSavedCount(
+        Number.isSafeInteger(parsedCount) && parsedCount >= 0 ? parsedCount : 0
+      );
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (
+      !user ||
+      savedProperties === undefined ||
+      seenSavedCount === null ||
+      savedCount >= seenSavedCount
+    ) {
+      return;
+    }
+
+    const storageKey = `inndos:saved-badge-count:${user.id}`;
+    setSeenSavedCount(savedCount);
+    void AsyncStorage.setItem(storageKey, String(savedCount));
+  }, [savedCount, savedProperties, seenSavedCount, user]);
+
+  useEffect(() => {
+    if (
+      !user ||
+      !isSavedScreen ||
+      seenSavedCount === null ||
+      savedProperties === undefined ||
+      seenSavedCount === savedCount
+    ) {
+      return;
+    }
+
+    const storageKey = `inndos:saved-badge-count:${user.id}`;
+    setSeenSavedCount(savedCount);
+    void AsyncStorage.setItem(storageKey, String(savedCount));
+  }, [isSavedScreen, savedCount, savedProperties, seenSavedCount, user]);
+
+  const unreadSavedCount =
+    seenSavedCount === null ? 0 : Math.max(0, savedCount - seenSavedCount);
   // NativeTabs only registers declared triggers. That leaves profile dashboard
   // destinations unreachable on iOS/Android, so use the fully registered Tabs
   // navigator with the existing iOS blur treatment for all devices.
-  return <ClassicTabLayout savedCount={savedCount} />;
+  return <ClassicTabLayout savedCount={unreadSavedCount} />;
 }

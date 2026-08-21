@@ -10,7 +10,12 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 
-export type BookedRange = { startDate: string; endDate: string };
+export type BookedRangeStatus = "pending" | "confirmed" | "blocked";
+export type BookedRange = {
+  startDate: string;
+  endDate: string;
+  status?: BookedRangeStatus;
+};
 
 interface BookingCalendarProps {
   visible: boolean;
@@ -18,6 +23,12 @@ interface BookingCalendarProps {
   value: Date;
   minDate?: Date;
   bookedRanges?: BookedRange[];
+  /**
+   * Total number of bookable units for this property. A date is only fully
+   * unavailable when the overlapping pending/confirmed bookings reach this
+   * capacity, or when a range explicitly blocks the date. Defaults to 1.
+   */
+  totalUnits?: number;
   /**
    * When true, the start date of a booked range is treated as available
    * (e.g. for check-out: you can check out on the day the next booking starts).
@@ -54,6 +65,7 @@ export function BookingCalendar({
   value,
   minDate,
   bookedRanges = [],
+  totalUnits = 1,
   allowBookedStartDates = false,
   isDateDisabled,
   onSelect,
@@ -72,13 +84,28 @@ export function BookingCalendar({
     }
   }, [visible, value]);
 
+  // Whether a specific range covers the given day.
+  const rangeCovers = (r: BookedRange, t: number): boolean => {
+    const s = startOfDay(new Date(r.startDate)).getTime();
+    const e = startOfDay(new Date(r.endDate)).getTime();
+    return allowBookedStartDates ? t > s && t < e : t >= s && t < e;
+  };
+
+  // A day is unavailable when a blocked range covers it, or when the number of
+  // overlapping pending/confirmed bookings reaches the property's capacity.
   const isBooked = (date: Date): boolean => {
     const t = startOfDay(date).getTime();
-    return bookedRanges.some((r) => {
-      const s = startOfDay(new Date(r.startDate)).getTime();
-      const e = startOfDay(new Date(r.endDate)).getTime();
-      return allowBookedStartDates ? t > s && t < e : t >= s && t < e;
-    });
+    const capacity = Math.max(1, totalUnits);
+    let occupied = 0;
+    for (const r of bookedRanges) {
+      if (!rangeCovers(r, t)) continue;
+      if (r.status === "blocked") return true;
+      // Treat undefined status as an active booking for safety.
+      if (r.status === "pending" || r.status === "confirmed" || r.status === undefined) {
+        occupied += 1;
+      }
+    }
+    return occupied >= capacity;
   };
 
   const checkDisabled = (date: Date): boolean => {

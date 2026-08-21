@@ -7,9 +7,32 @@ import {
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
+import { db, users } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { requireAuth } from "../lib/requireAuth";
+import { getActiveSubscription, getVideoLimit } from "./subscriptions";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+const uploadGrantWindows = new Map<string, number[]>();
+const UPLOAD_GRANT_WINDOW_MS = 15 * 60 * 1000;
+const MAX_UPLOAD_GRANTS_PER_WINDOW = 30;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf"]);
 
 /**
  * POST /storage/uploads/request-url
@@ -19,6 +42,9 @@ const objectStorageService = new ObjectStorageService();
  * Then uploads the file directly to the returned presigned URL.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -27,8 +53,68 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
 
   try {
     const { name, size, contentType } = parsed.data;
+    const normalizedType = contentType.toLowerCase().split(";")[0]?.trim() ?? "";
+    const isImage = ALLOWED_IMAGE_TYPES.has(normalizedType);
+    const isVideo = ALLOWED_VIDEO_TYPES.has(normalizedType);
+    const isDocument = ALLOWED_DOCUMENT_TYPES.has(normalizedType);
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    if (!isImage && !isVideo && !isDocument) {
+      res.status(415).json({ error: "Unsupported file type" });
+      return;
+    }
+
+    const maxBytes = isVideo
+      ? MAX_VIDEO_BYTES
+      : isImage
+        ? MAX_IMAGE_BYTES
+        : MAX_DOCUMENT_BYTES;
+    if (size > maxBytes) {
+      res.status(413).json({
+        error: `File is too large. Maximum size is ${Math.floor(maxBytes / (1024 * 1024))} MB.`,
+      });
+      return;
+    }
+
+    const [caller] = await db
+      .select({ role: users.role, status: users.status })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!caller || caller.status !== "active") {
+      res.status(403).json({ error: "This account cannot upload files" });
+      return;
+    }
+
+    if (isVideo && caller.role !== "admin") {
+      if (caller.role !== "owner" && caller.role !== "host") {
+        res.status(403).json({ error: "Only owners and hosts can upload listing videos" });
+        return;
+      }
+      const subscription = await getActiveSubscription(userId);
+      const plan = subscription?.plan ?? "free";
+      if (getVideoLimit(plan) < 1) {
+        res.status(403).json({
+          error: `Your ${plan} plan does not include listing videos. Please upgrade your subscription.`,
+          code: "VIDEO_LIMIT",
+          plan,
+          videoLimit: 0,
+        });
+        return;
+      }
+    }
+
+    const now = Date.now();
+    const recentGrants = (uploadGrantWindows.get(userId) ?? []).filter(
+      (timestamp) => now - timestamp < UPLOAD_GRANT_WINDOW_MS
+    );
+    if (recentGrants.length >= MAX_UPLOAD_GRANTS_PER_WINDOW) {
+      uploadGrantWindows.set(userId, recentGrants);
+      res.status(429).json({ error: "Too many upload requests. Please try again later." });
+      return;
+    }
+    recentGrants.push(now);
+    uploadGrantWindows.set(userId, recentGrants);
+
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL(userId);
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
     res.json(

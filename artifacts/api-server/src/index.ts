@@ -116,6 +116,39 @@ async function runMigrations() {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_name TEXT`);
+  await db.execute(sql`
+    ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '{}'::jsonb
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS listing_drafts (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS listing_drafts_user_id_unique
+    ON listing_drafts(user_id)
+  `);
+  // Property blocks historically stored an inclusive end date. Mark and
+  // convert each existing row once so all availability ranges use [start, end).
+  await db.execute(sql`
+    ALTER TABLE property_blocks
+    ADD COLUMN IF NOT EXISTS end_is_exclusive BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  await db.execute(sql`
+    UPDATE property_blocks
+    SET end_date = (end_date::date + 1)::text,
+        end_is_exclusive = TRUE
+    WHERE end_is_exclusive = FALSE
+  `);
+  await db.execute(sql`
+    ALTER TABLE property_blocks
+    ALTER COLUMN end_is_exclusive SET DEFAULT TRUE
+  `);
 
   // Reviews and review replies tables
   await db.execute(sql`

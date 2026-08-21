@@ -5,6 +5,8 @@
  * INNDOS API specification
  * OpenAPI spec version: 0.2.0
  */
+import type { PropertyDetails } from "./propertyDetails";
+import type { PropertyPropertyStatus } from "./propertyPropertyStatus";
 import type { PropertyType } from "./propertyType";
 
 export interface Property {
@@ -19,12 +21,26 @@ export interface Property {
   sqft: number;
   guests?: number | null;
   image: string;
-  images?: string[];
+  images: string[];
+  videos: string[];
+  details: PropertyDetails;
   isVerified: boolean;
   tags: string[];
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
   description?: string | null;
+  subtype?: string | null;
+  hourlyRate?: number | null;
+  priceUnit?: string | null;
+  /** @minimum 1 */
+  totalUnits: number;
+  propertyStatus?: PropertyPropertyStatus;
+  activeBookingsCount?: number;
+  ownerPhone?: string | null;
+  ownerEmail?: string | null;
+  ownerAvatar?: string | null;
+  ownerBusinessName?: string | null;
+  savedAt?: string | null;
   ownerName?: string | null;
 }

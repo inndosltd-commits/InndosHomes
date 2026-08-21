@@ -12,4 +12,5 @@ export type BookedRangeStatus =
 export const BookedRangeStatus = {
   pending: "pending",
   confirmed: "confirmed",
+  blocked: "blocked",
 } as const;

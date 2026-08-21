@@ -3,3 +3,4 @@
 - [Expo Launch Maps key](expo-launch-maps-key.md) — Expo Launch native prebuild needs the Maps key under an EXPO_PUBLIC-prefixed Replit secret.
 - [Expo project ownership](expo-launch-auth.md) — Trust EAS project lookup for the owner; the CLI user needs project access and may be a member under a different username.
 - [Native Google Maps attribution](native-google-maps-attribution.md) — Keep the provider-rendered watermark untouched; its text, color, and placement are not app styling controls.
+- [Presigned listing media trust](presigned-listing-media-trust.md) — Treat upload-grant metadata as untrusted; verify owner and stored bytes before attaching media.

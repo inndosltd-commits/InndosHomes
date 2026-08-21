@@ -60,6 +60,32 @@ export const GetMeResponse = zod.object({
 });
 
 /**
+ * @summary Get the current user's private listing draft
+ */
+export const GetCurrentListingDraftResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  data: zod.record(zod.string(), zod.unknown()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Save or replace the current user's private listing draft
+ */
+export const SaveCurrentListingDraftBody = zod.object({
+  data: zod.record(zod.string(), zod.unknown()),
+});
+
+export const SaveCurrentListingDraftResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  data: zod.record(zod.string(), zod.unknown()),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
  * @summary List properties
  */
 export const ListPropertiesQueryParams = zod.object({
@@ -84,13 +110,28 @@ export const ListPropertiesResponseItem = zod.object({
   sqft: zod.number(),
   guests: zod.number().nullish(),
   image: zod.string(),
-  images: zod.array(zod.string()).optional(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
   description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 export const ListPropertiesResponse = zod.array(ListPropertiesResponseItem);
@@ -98,6 +139,7 @@ export const ListPropertiesResponse = zod.array(ListPropertiesResponseItem);
 /**
  * @summary Create a property listing
  */
+
 export const CreatePropertyBody = zod.object({
   title: zod.string(),
   type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
@@ -109,10 +151,16 @@ export const CreatePropertyBody = zod.object({
   guests: zod.number().optional(),
   image: zod.string().optional(),
   images: zod.array(zod.string()).optional(),
+  videos: zod.array(zod.string()).optional(),
+  details: zod.record(zod.string(), zod.unknown()).optional(),
   tags: zod.array(zod.string()).optional(),
   description: zod.string().nullish(),
   lat: zod.string().optional(),
   lng: zod.string().optional(),
+  subtype: zod.string().optional(),
+  hourlyRate: zod.number().optional(),
+  priceUnit: zod.string().optional(),
+  totalUnits: zod.number().min(1).optional(),
 });
 
 /**
@@ -134,13 +182,28 @@ export const GetPropertyResponse = zod.object({
   sqft: zod.number(),
   guests: zod.number().nullish(),
   image: zod.string(),
-  images: zod.array(zod.string()).optional(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
   description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 
@@ -161,15 +224,16 @@ export const GetPropertyAvailabilityParams = zod.object({
 export const GetPropertyAvailabilityResponseItem = zod.object({
   startDate: zod.string(),
   endDate: zod.string(),
-  status: zod.enum(["pending", "confirmed"]),
+  status: zod.enum(["pending", "confirmed", "blocked"]),
 });
 export const GetPropertyAvailabilityResponse = zod.array(
   GetPropertyAvailabilityResponseItem,
 );
 
 /**
- * Returns a presigned GCS URL for direct upload. The client sends JSON
-metadata here, then uploads the file directly to the returned URL.
+ * Returns a short-lived presigned GCS URL for an authenticated upload.
+The server validates file metadata, account eligibility, request rate,
+and listing-video plan access before issuing the URL.
 
  * @summary Request a presigned URL for file upload
  */
@@ -209,6 +273,7 @@ export const GetStorageObjectParams = zod.object({
 /**
  * @summary List current user's favorited properties
  */
+
 export const ListFavoritesResponseItem = zod.object({
   id: zod.string(),
   ownerId: zod.string(),
@@ -221,13 +286,28 @@ export const ListFavoritesResponseItem = zod.object({
   sqft: zod.number(),
   guests: zod.number().nullish(),
   image: zod.string(),
-  images: zod.array(zod.string()).optional(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
   description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
 });
 export const ListFavoritesResponse = zod.array(ListFavoritesResponseItem);

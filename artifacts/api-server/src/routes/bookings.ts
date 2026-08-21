@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
-import { and, eq, lt, gt, inArray, desc } from "drizzle-orm";
+import { bookings, properties, propertyBlocks, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
+import { and, eq, lt, gt, inArray, desc, sql } from "drizzle-orm";
 import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
@@ -79,42 +79,95 @@ router.post("/", async (req, res) => {
 
   const { propertyId, startDate, endDate, totalPrice } = result.data;
 
-  const [prop] = await db.select().from(properties).where(eq(properties.id, propertyId));
-  if (!prop) {
+  if (startDate >= endDate) {
+    res.status(400).json({ error: "The end date must be after the start date." });
+    return;
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    // Serialize bookings and owner blocks for this property so two concurrent
+    // requests cannot both observe the same remaining unit and overbook it.
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${propertyId}, 0))`
+    );
+
+    const [prop] = await tx.select().from(properties).where(eq(properties.id, propertyId));
+    if (!prop) return { kind: "not-found" as const };
+    if (prop.ownerId === userId) return { kind: "own-property" as const };
+
+    const overlapping = await tx
+      .select({ startDate: bookings.startDate, endDate: bookings.endDate })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.propertyId, propertyId),
+          inArray(bookings.status, ["confirmed", "pending"]),
+          lt(bookings.startDate, endDate),
+          gt(bookings.endDate, startDate)
+        )
+      );
+
+    const [blockedRange] = await tx
+      .select({ id: propertyBlocks.id })
+      .from(propertyBlocks)
+      .where(
+        and(
+          eq(propertyBlocks.propertyId, propertyId),
+          lt(propertyBlocks.startDate, endDate),
+          gt(propertyBlocks.endDate, startDate)
+        )
+      )
+      .limit(1);
+
+    if (blockedRange) return { kind: "blocked" as const };
+
+    const totalUnits = prop.totalUnits ?? 1;
+    const capacityCheckDates = [
+      startDate,
+      ...overlapping
+        .map((range) => range.startDate)
+        .filter((date) => date > startDate && date < endDate),
+    ];
+    const reachesCapacity = capacityCheckDates.some((date) => {
+      const occupiedUnits = overlapping.filter(
+        (range) => range.startDate <= date && range.endDate > date
+      ).length;
+      return occupiedUnits >= totalUnits;
+    });
+
+    if (reachesCapacity) {
+      return { kind: "full" as const, totalUnits };
+    }
+
+    const [booking] = await tx
+      .insert(bookings)
+      .values({ propertyId, userId, startDate, endDate, totalPrice, status: "pending" })
+      .returning();
+
+    return { kind: "created" as const, prop, booking };
+  });
+
+  if (outcome.kind === "not-found") {
     res.status(404).json({ error: "Property not found" });
     return;
   }
-
-  if (prop.ownerId === userId) {
+  if (outcome.kind === "own-property") {
     res.status(403).json({ error: "You cannot link up your own property." });
     return;
   }
-
-  const overlapping = await db
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(
-      and(
-        eq(bookings.propertyId, propertyId),
-        inArray(bookings.status, ["confirmed", "pending"]),
-        lt(bookings.startDate, endDate),
-        gt(bookings.endDate, startDate)
-      )
-    );
-
-  const totalUnits = prop.totalUnits ?? 1;
-  if (overlapping.length >= totalUnits) {
-    const msg = totalUnits > 1
-      ? `All ${totalUnits} units are booked for these dates. Please choose different dates.`
+  if (outcome.kind === "blocked") {
+    res.status(409).json({ error: "The property is unavailable for part of the selected dates." });
+    return;
+  }
+  if (outcome.kind === "full") {
+    const msg = outcome.totalUnits > 1
+      ? `All ${outcome.totalUnits} units are booked for these dates. Please choose different dates.`
       : "These dates are already booked. Please choose different dates.";
     res.status(409).json({ error: msg });
     return;
   }
 
-  const [booking] = await db
-    .insert(bookings)
-    .values({ propertyId, userId, startDate, endDate, totalPrice, status: "pending" })
-    .returning();
+  const { booking, prop } = outcome;
 
   const [guest] = await db
     .select({ name: users.name })

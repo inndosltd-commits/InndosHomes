@@ -126,6 +126,7 @@ router.get("/me", async (req, res) => {
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
       listingLimit: plans["free"]?.limit ?? 3,
+      imageLimit: getImageLimit("free"),
       videoLimit: getVideoLimit("free"),
     });
     return;
@@ -135,6 +136,7 @@ router.get("/me", async (req, res) => {
     ...sub,
     listingCount: Number(listingCount),
     listingLimit: plans[sub.plan]?.limit ?? getPlanLimit(sub.plan),
+    imageLimit: getImageLimit(sub.plan),
     videoLimit: getVideoLimit(sub.plan),
   });
 });

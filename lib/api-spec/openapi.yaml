@@ -14,6 +14,8 @@ tags:
     description: Authentication
   - name: properties
     description: Property listings
+  - name: listing-drafts
+    description: Private cross-platform listing drafts
   - name: bookings
     description: Bookings
   - name: favorites
@@ -94,6 +96,51 @@ paths:
                 $ref: "#/components/schemas/UserProfile"
         "401":
           description: Not authenticated
+
+  /listing-drafts/current:
+    get:
+      operationId: getCurrentListingDraft
+      tags: [listing-drafts]
+      summary: Get the current user's private listing draft
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Saved draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingDraft"
+        "404":
+          description: No saved draft
+    put:
+      operationId: saveCurrentListingDraft
+      tags: [listing-drafts]
+      summary: Save or replace the current user's private listing draft
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveListingDraftInput"
+      responses:
+        "200":
+          description: Saved draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingDraft"
+    delete:
+      operationId: deleteCurrentListingDraft
+      tags: [listing-drafts]
+      summary: Delete the current user's private listing draft
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Draft deleted
 
   /properties:
     get:
@@ -223,9 +270,12 @@ paths:
       tags: [Storage]
       operationId: requestUploadUrl
       summary: Request a presigned URL for file upload
+      security:
+        - bearerAuth: []
       description: |
-        Returns a presigned GCS URL for direct upload. The client sends JSON
-        metadata here, then uploads the file directly to the returned URL.
+        Returns a short-lived presigned GCS URL for an authenticated upload.
+        The server validates file metadata, account eligibility, request rate,
+        and listing-video plan access before issuing the URL.
       requestBody:
         required: true
         content:
@@ -245,6 +295,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required.
+        '403':
+          description: Account or subscription does not allow the upload.
+        '413':
+          description: File exceeds the allowed size.
+        '415':
+          description: File type is not supported.
+        '429':
+          description: Too many upload URL requests.
         '500':
           description: Failed to generate upload URL.
           content:
@@ -555,6 +615,13 @@ components:
           type: array
           items:
             type: string
+        videos:
+          type: array
+          items:
+            type: string
+        details:
+          type: object
+          additionalProperties: true
         isVerified:
           type: boolean
         tags:
@@ -572,6 +639,38 @@ components:
         description:
           type: string
           nullable: true
+        subtype:
+          type: string
+          nullable: true
+        hourlyRate:
+          type: integer
+          nullable: true
+        priceUnit:
+          type: string
+          nullable: true
+        totalUnits:
+          type: integer
+          minimum: 1
+        propertyStatus:
+          type: string
+          enum: [pending, approved, flagged, sold]
+        activeBookingsCount:
+          type: integer
+        ownerPhone:
+          type: string
+          nullable: true
+        ownerEmail:
+          type: string
+          nullable: true
+        ownerAvatar:
+          type: string
+          nullable: true
+        ownerBusinessName:
+          type: string
+          nullable: true
+        savedAt:
+          type: string
+          nullable: true
         ownerName:
           type: string
           nullable: true
@@ -586,8 +685,12 @@ components:
         - baths
         - sqft
         - image
+        - images
+        - videos
+        - details
         - isVerified
         - tags
+        - totalUnits
 
     CreatePropertyInput:
       type: object
@@ -615,6 +718,13 @@ components:
           type: array
           items:
             type: string
+        videos:
+          type: array
+          items:
+            type: string
+        details:
+          type: object
+          additionalProperties: true
         tags:
           type: array
           items:
@@ -626,6 +736,15 @@ components:
           type: string
         lng:
           type: string
+        subtype:
+          type: string
+        hourlyRate:
+          type: integer
+        priceUnit:
+          type: string
+        totalUnits:
+          type: integer
+          minimum: 1
       required:
         - title
         - type
@@ -645,6 +764,30 @@ components:
         contentType:
           type: string
           minLength: 1
+    ListingDraft:
+      type: object
+      required: [id, userId, data, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SaveListingDraftInput:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
     UploadUrlResponse:
       type: object
       required: [uploadURL, objectPath]
@@ -737,7 +880,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, confirmed]
+          enum: [pending, confirmed, blocked]
       required:
         - startDate
         - endDate

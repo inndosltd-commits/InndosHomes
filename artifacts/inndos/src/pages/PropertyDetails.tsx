@@ -316,7 +316,10 @@ interface PropertyWithOwner extends ApiProperty {
   ownerName?: string | null;
   ownerAvatar?: string | null;
   ownerBusinessName?: string | null;
+  ownerPhone?: string | null;
+  ownerEmail?: string | null;
   activeBookingsCount?: number;
+  totalUnits?: number;
 }
 
 // ── Ratings & Reviews panel shown on the property detail page ─────────────────
@@ -443,10 +446,36 @@ export default function PropertyDetails() {
   );
 
   const isDateRangeAvailable = (() => {
+    if (!isNightlyType) return null;
     if (!checkIn || !checkOut || checkIn >= checkOut) return null;
-    for (const range of bookedRanges) {
-      if (checkIn < range.endDate && checkOut > range.startDate) return false;
-    }
+    if (!property) return null;
+    const totalUnits = property.totalUnits ?? 1;
+    const overlappingRanges = bookedRanges.filter(
+      (r) => checkIn < r.endDate && checkOut > r.startDate
+    );
+    // A range explicitly marked "blocked" makes the dates unavailable outright
+    const hasBlocked = overlappingRanges.some(
+      (r) => (r as any).status === "blocked"
+    );
+    if (hasBlocked) return false;
+    // Only simultaneous pending/confirmed bookings count against available
+    // units. Bookings on different days must not be added together.
+    const overlappingBookings = overlappingRanges.filter(
+      (r) => r.status === "pending" || r.status === "confirmed"
+    );
+    const capacityCheckDates = [
+      checkIn,
+      ...overlappingBookings
+        .map((r) => r.startDate)
+        .filter((date) => date > checkIn && date < checkOut),
+    ];
+    const reachesCapacity = capacityCheckDates.some((date) => {
+      const occupiedUnits = overlappingBookings.filter(
+        (r) => r.startDate <= date && r.endDate > date
+      ).length;
+      return occupiedUnits >= totalUnits;
+    });
+    if (reachesCapacity) return false;
     return true;
   })();
 
@@ -625,12 +654,6 @@ export default function PropertyDetails() {
     if (!property) return;
     if (property.ownerId === user.id) {
       toast({ title: "Cannot link up", description: "You cannot link up your own property.", variant: "destructive" });
-      return;
-    }
-
-    // All types: if already booked by someone, show unavailability alert with contacts
-    if (((property as PropertyWithOwner).activeBookingsCount ?? 0) > 0) {
-      setShowUnavailableContact(true);
       return;
     }
 
@@ -1381,10 +1404,10 @@ export default function PropertyDetails() {
                     </p>
                   </div>
                 ) : (
-                  /* Logged in — show contact + link-up flow */
+                  /* Logged in — show owner identity + contacts immediately, then link-up flow */
                   <>
-                    {/* Owner info (blurred until linked up) */}
-                    <div className={`transition-all duration-500 ${!isLinkedUp ? "blur-[4px] opacity-60 select-none pointer-events-none" : ""}`}>
+                    {/* Owner identity — always visible to authenticated customers */}
+                    <div>
                       <div className="flex items-center gap-4 mb-5">
                         <Avatar className="h-12 w-12">
                           {(property as PropertyWithOwner).ownerAvatar ? (
@@ -1409,26 +1432,51 @@ export default function PropertyDetails() {
                           <p className="text-sm text-muted-foreground capitalize">Owner / Host</p>
                         </div>
                       </div>
-                      <div className="space-y-2 mb-5">
-                        <a
-                          href={isLinkedUp && property.ownerPhone ? `tel:${property.ownerPhone}` : undefined}
-                          className="flex items-center gap-3 text-sm text-gray-700 hover:text-primary transition-colors p-2 hover:bg-gray-50 rounded-md"
-                        >
-                          <PhoneCall className="h-4 w-4 shrink-0" />
-                          <span>{isLinkedUp ? (property.ownerPhone || "No phone listed") : "••• ••• •••"}</span>
-                        </a>
-                        <div className="flex items-center gap-3 text-sm text-gray-700 p-2">
-                          <Mail className="h-4 w-4 shrink-0" />
-                          <span>{isLinkedUp ? (property.ownerEmail || "No email listed") : "••••@•••••.com"}</span>
-                        </div>
-                      </div>
                     </div>
 
-                    <div className="space-y-3 relative z-10 mt-[-110px] pt-[120px]">
-                      {!isLinkedUp && (
-                        <p className="absolute top-0 left-0 w-full text-center pb-3 text-sm font-medium text-gray-700">
-                          {t("prop.book_to_reveal")}
-                        </p>
+                    <div className="space-y-3">
+                      {/* Owner contact actions — revealed to authenticated customers when contact data exists */}
+                      {(property.ownerPhone || property.ownerEmail) && (
+                        <div className="flex flex-col gap-2 mb-1">
+                          {property.ownerPhone && (
+                            <a
+                              href={`tel:${property.ownerPhone}`}
+                              className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                            >
+                              <PhoneCall className="h-4 w-4 text-primary shrink-0" />
+                              <div>
+                                <div className="text-xs text-gray-500 leading-none mb-0.5">Call owner</div>
+                                <div>{property.ownerPhone}</div>
+                              </div>
+                            </a>
+                          )}
+                          {property.ownerPhone && (
+                            <a
+                              href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I found your property "${property.title}" on inndos and would like to confirm availability.`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 px-4 py-2.5 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
+                            >
+                              <MessageCircle className="h-4 w-4 shrink-0" />
+                              <div>
+                                <div className="text-xs text-white/70 leading-none mb-0.5">WhatsApp</div>
+                                <div>{property.ownerPhone}</div>
+                              </div>
+                            </a>
+                          )}
+                          {property.ownerEmail && (
+                            <a
+                              href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Availability Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on inndos and would like to confirm availability.\n\nThank you.`)}`}
+                              className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
+                            >
+                              <Mail className="h-4 w-4 text-primary shrink-0" />
+                              <div>
+                                <div className="text-xs text-gray-500 leading-none mb-0.5">Email</div>
+                                <div>{property.ownerEmail}</div>
+                              </div>
+                            </a>
+                          )}
+                        </div>
                       )}
 
                       {/* Date picker — revealed after first Link Up click for nightly types */}

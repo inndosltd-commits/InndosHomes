@@ -27,8 +27,10 @@ import type {
   FavoriteStatus,
   HealthStatus,
   ListPropertiesParams,
+  ListingDraft,
   LoginInput,
   Property,
+  SaveListingDraftInput,
   SignupInput,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -354,6 +356,250 @@ export function useGetMe<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get the current user's private listing draft
+ */
+export const getGetCurrentListingDraftUrl = () => {
+  return `/api/listing-drafts/current`;
+};
+
+export const getCurrentListingDraft = async (
+  options?: RequestInit,
+): Promise<ListingDraft> => {
+  return customFetch<ListingDraft>(getGetCurrentListingDraftUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentListingDraftQueryKey = () => {
+  return [`/api/listing-drafts/current`] as const;
+};
+
+export const getGetCurrentListingDraftQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentListingDraft>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentListingDraft>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCurrentListingDraftQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCurrentListingDraft>>
+  > = ({ signal }) => getCurrentListingDraft({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentListingDraft>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCurrentListingDraftQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentListingDraft>>
+>;
+export type GetCurrentListingDraftQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the current user's private listing draft
+ */
+
+export function useGetCurrentListingDraft<
+  TData = Awaited<ReturnType<typeof getCurrentListingDraft>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentListingDraft>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCurrentListingDraftQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save or replace the current user's private listing draft
+ */
+export const getSaveCurrentListingDraftUrl = () => {
+  return `/api/listing-drafts/current`;
+};
+
+export const saveCurrentListingDraft = async (
+  saveListingDraftInput: SaveListingDraftInput,
+  options?: RequestInit,
+): Promise<ListingDraft> => {
+  return customFetch<ListingDraft>(getSaveCurrentListingDraftUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(saveListingDraftInput),
+  });
+};
+
+export const getSaveCurrentListingDraftMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveCurrentListingDraft>>,
+    TError,
+    { data: BodyType<SaveListingDraftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveCurrentListingDraft>>,
+  TError,
+  { data: BodyType<SaveListingDraftInput> },
+  TContext
+> => {
+  const mutationKey = ["saveCurrentListingDraft"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveCurrentListingDraft>>,
+    { data: BodyType<SaveListingDraftInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return saveCurrentListingDraft(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveCurrentListingDraftMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveCurrentListingDraft>>
+>;
+export type SaveCurrentListingDraftMutationBody =
+  BodyType<SaveListingDraftInput>;
+export type SaveCurrentListingDraftMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save or replace the current user's private listing draft
+ */
+export const useSaveCurrentListingDraft = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveCurrentListingDraft>>,
+    TError,
+    { data: BodyType<SaveListingDraftInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveCurrentListingDraft>>,
+  TError,
+  { data: BodyType<SaveListingDraftInput> },
+  TContext
+> => {
+  return useMutation(getSaveCurrentListingDraftMutationOptions(options));
+};
+
+/**
+ * @summary Delete the current user's private listing draft
+ */
+export const getDeleteCurrentListingDraftUrl = () => {
+  return `/api/listing-drafts/current`;
+};
+
+export const deleteCurrentListingDraft = async (
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteCurrentListingDraftUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCurrentListingDraftMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCurrentListingDraft>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCurrentListingDraft>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["deleteCurrentListingDraft"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCurrentListingDraft>>,
+    void
+  > = () => {
+    return deleteCurrentListingDraft(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCurrentListingDraftMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCurrentListingDraft>>
+>;
+
+export type DeleteCurrentListingDraftMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete the current user's private listing draft
+ */
+export const useDeleteCurrentListingDraft = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCurrentListingDraft>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCurrentListingDraft>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getDeleteCurrentListingDraftMutationOptions(options));
+};
 
 /**
  * @summary List properties
@@ -796,8 +1042,9 @@ export function useGetPropertyAvailability<
 }
 
 /**
- * Returns a presigned GCS URL for direct upload. The client sends JSON
-metadata here, then uploads the file directly to the returned URL.
+ * Returns a short-lived presigned GCS URL for an authenticated upload.
+The server validates file metadata, account eligibility, request rate,
+and listing-video plan access before issuing the URL.
 
  * @summary Request a presigned URL for file upload
  */
@@ -818,7 +1065,7 @@ export const requestUploadUrl = async (
 };
 
 export const getRequestUploadUrlMutationOptions = <
-  TError = ErrorType<ErrorEnvelope>,
+  TError = ErrorType<ErrorEnvelope | void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -859,13 +1106,13 @@ export type RequestUploadUrlMutationResult = NonNullable<
   Awaited<ReturnType<typeof requestUploadUrl>>
 >;
 export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>;
-export type RequestUploadUrlMutationError = ErrorType<ErrorEnvelope>;
+export type RequestUploadUrlMutationError = ErrorType<ErrorEnvelope | void>;
 
 /**
  * @summary Request a presigned URL for file upload
  */
 export const useRequestUploadUrl = <
-  TError = ErrorType<ErrorEnvelope>,
+  TError = ErrorType<ErrorEnvelope | void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

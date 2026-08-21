@@ -5,6 +5,7 @@
  * INNDOS API specification
  * OpenAPI spec version: 0.2.0
  */
+import type { CreatePropertyInputDetails } from "./createPropertyInputDetails";
 import type { CreatePropertyInputType } from "./createPropertyInputType";
 
 export interface CreatePropertyInput {
@@ -16,14 +17,17 @@ export interface CreatePropertyInput {
   baths?: number;
   sqft?: number;
   guests?: number;
-  subtype?: string;
-  priceUnit?: string;
-  hourlyRate?: number;
-  totalUnits?: number;
   image?: string;
   images?: string[];
+  videos?: string[];
+  details?: CreatePropertyInputDetails;
   tags?: string[];
   description?: string | null;
   lat?: string;
   lng?: string;
+  subtype?: string;
+  hourlyRate?: number;
+  priceUnit?: string;
+  /** @minimum 1 */
+  totalUnits?: number;
 }

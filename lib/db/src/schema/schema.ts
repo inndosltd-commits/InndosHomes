@@ -7,6 +7,7 @@ import {
   boolean,
   timestamp,
   decimal,
+  jsonb,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -63,6 +64,7 @@ export const properties = pgTable("properties", {
   image: text("image").notNull().default("/images/modern_apartment_exterior.png"),
   images: text("images").array().notNull().default(sql`'{}'::text[]`),
   videos: text("videos").array().notNull().default(sql`'{}'::text[]`),
+  details: jsonb("details").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
   description: text("description"),
   isVerified: boolean("is_verified").notNull().default(false),
   tags: text("tags").array().notNull().default(sql`'{}'::text[]`),

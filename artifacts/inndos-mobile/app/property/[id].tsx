@@ -124,31 +124,94 @@ export default function PropertyDetailScreen() {
     { query: { queryKey: getGetPropertyAvailabilityQueryKey(id ?? ""), enabled: !!id && isNightlyProperty } }
   );
 
+  const totalUnits = React.useMemo(
+    () => Math.max(1, (property as unknown as { totalUnits?: number })?.totalUnits ?? 1),
+    [property]
+  );
+
   const isUnavailable = React.useMemo(() => {
     if (!bookedRanges || bookedRanges.length === 0) return false;
     const checkInMs = checkIn.getTime();
     const checkOutMs = checkOut.getTime();
-    return bookedRanges.some((range) => {
+
+    // A blocked range makes the selected window unavailable regardless of units.
+    const isBlocked = bookedRanges.some((range) => {
+      if (range.status !== "blocked") return false;
       const start = new Date(range.startDate).getTime();
       const end = new Date(range.endDate).getTime();
       return checkInMs < end && checkOutMs > start;
     });
-  }, [bookedRanges, checkIn, checkOut]);
+    if (isBlocked) return true;
 
+    // Count only simultaneous pending/confirmed bookings. Separate bookings on
+    // different days must not be added together as if they occupied units at
+    // the same time.
+    const overlapping = bookedRanges.filter((range) => {
+      if (range.status !== "pending" && range.status !== "confirmed") return false;
+      const start = new Date(range.startDate).getTime();
+      const end = new Date(range.endDate).getTime();
+      return checkInMs < end && checkOutMs > start;
+    });
+    const capacityCheckTimes = [
+      checkInMs,
+      ...overlapping
+        .map((range) => new Date(range.startDate).getTime())
+        .filter((time) => time > checkInMs && time < checkOutMs),
+    ];
+    return capacityCheckTimes.some((time) => {
+      const occupiedUnits = overlapping.filter((range) => {
+        const start = new Date(range.startDate).getTime();
+        const end = new Date(range.endDate).getTime();
+        return start <= time && end > time;
+      }).length;
+      return occupiedUnits >= totalUnits;
+    });
+  }, [bookedRanges, checkIn, checkOut, totalUnits]);
+
+  // The earliest future date the guest cannot check out past. Only capacity-
+  // limiting dates count: a single booking on a multi-unit property must not cap
+  // checkout, so we only stop at blocked ranges or dates that would reach
+  // capacity with pending/confirmed bookings.
   const maxCheckoutDate = React.useMemo<Date | null>(() => {
     if (!bookedRanges || bookedRanges.length === 0) return null;
     const checkInMs = startOfDay(checkIn).getTime();
-    let earliest: Date | null = null;
+
+    // Earliest future blocked-range start always caps checkout.
+    let earliestBlocked: number | null = null;
     for (const r of bookedRanges) {
-      const s = startOfDay(new Date(r.startDate));
-      if (s.getTime() > checkInMs) {
-        if (!earliest || s.getTime() < earliest.getTime()) {
-          earliest = s;
-        }
+      if (r.status !== "blocked") continue;
+      const s = startOfDay(new Date(r.startDate)).getTime();
+      if (s > checkInMs && (earliestBlocked === null || s < earliestBlocked)) {
+        earliestBlocked = s;
       }
     }
-    return earliest;
-  }, [bookedRanges, checkIn]);
+
+    // Earliest future date where pending/confirmed bookings reach capacity.
+    let earliestFull: number | null = null;
+    const activeStarts = bookedRanges
+      .filter((r) => r.status === "pending" || r.status === "confirmed")
+      .map((r) => startOfDay(new Date(r.startDate)).getTime())
+      .filter((s) => s > checkInMs)
+      .sort((a, b) => a - b);
+    for (const day of activeStarts) {
+      const occupied = bookedRanges.filter((r) => {
+        if (r.status !== "pending" && r.status !== "confirmed") return false;
+        const s = startOfDay(new Date(r.startDate)).getTime();
+        const e = startOfDay(new Date(r.endDate)).getTime();
+        return day >= s && day < e;
+      }).length;
+      if (occupied >= totalUnits) {
+        earliestFull = day;
+        break;
+      }
+    }
+
+    const candidates = [earliestBlocked, earliestFull].filter(
+      (v): v is number => v !== null
+    );
+    if (candidates.length === 0) return null;
+    return new Date(Math.min(...candidates));
+  }, [bookedRanges, checkIn, totalUnits]);
 
   const isCheckOutDateDisabled = React.useCallback((date: Date): boolean => {
     if (maxCheckoutDate && startOfDay(date).getTime() > maxCheckoutDate.getTime()) return true;
@@ -614,6 +677,37 @@ export default function PropertyDetailScreen() {
             />
           )}
 
+          {/* Owner contact actions — shown unconditionally when contact info is available */}
+          {(property.ownerPhone || property.ownerEmail) && (
+            <View style={[styles.contactCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Text style={[styles.contactTitle, { color: colors.foreground }]}>Contact Owner / Host</Text>
+              <Text style={[styles.contactSubtitle, { color: colors.mutedForeground }]}>
+                Reach the owner directly for queries or to confirm availability.
+              </Text>
+              {property.ownerPhone ? (
+                <View style={styles.contactActions}>
+                  <Pressable style={[styles.contactBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => Linking.openURL("tel:" + property.ownerPhone)}>
+                    <Feather name="phone" size={14} color={colors.foreground} />
+                    <Text style={[styles.contactBtnText, { color: colors.foreground }]}>Call</Text>
+                  </Pressable>
+                  <Pressable style={[styles.contactBtn, { backgroundColor: "#25D366" }]}
+                    onPress={() => Linking.openURL("https://wa.me/" + String(property.ownerPhone).replace(/[^0-9]/g, ""))}>
+                    <Feather name="message-circle" size={14} color="#fff" />
+                    <Text style={[styles.contactBtnText, { color: "#fff" }]}>WhatsApp</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {property.ownerEmail ? (
+                <Pressable style={[styles.contactEmailBtn, { borderColor: colors.border }]}
+                  onPress={() => Linking.openURL("mailto:" + property.ownerEmail)}>
+                  <Feather name="mail" size={14} color={colors.foreground} />
+                  <Text style={[styles.contactBtnText, { color: colors.foreground }]}>{property.ownerEmail}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+
           {showBooking && isNightly && (
             <View style={[styles.bookingSection, { borderColor: colors.border }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT DATES</Text>
@@ -750,35 +844,13 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {(isLinkedUp || showUnavailableContact) && (
-            <View style={[styles.contactCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-              <Text style={[styles.contactTitle, { color: colors.foreground }]}>
-                {isLinkedUp ? "Contact to confirm availability" : "Dates taken — contact owner directly"}
+          {/* Dates-taken banner */}
+          {showUnavailableContact && !isLinkedUp && (
+            <View style={[styles.unavailableBanner, { backgroundColor: "#fef2f2", borderColor: "#fca5a5" }]}>
+              <Feather name="alert-circle" size={16} color="#dc2626" />
+              <Text style={[styles.unavailableBannerText, { color: "#dc2626" }]}>
+                These dates are already taken — please choose different dates or contact the owner above.
               </Text>
-              <Text style={[styles.contactSubtitle, { color: colors.mutedForeground }]}>
-                Reach the owner/host directly to confirm availability.
-              </Text>
-              {property.ownerPhone ? (
-                <View style={styles.contactActions}>
-                  <Pressable style={[styles.contactBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-                    onPress={() => Linking.openURL("tel:" + property.ownerPhone)}>
-                    <Feather name="phone" size={14} color={colors.foreground} />
-                    <Text style={[styles.contactBtnText, { color: colors.foreground }]}>Call</Text>
-                  </Pressable>
-                  <Pressable style={[styles.contactBtn, { backgroundColor: "#25D366" }]}
-                    onPress={() => Linking.openURL("https://wa.me/" + String(property.ownerPhone).replace(/[^0-9]/g, ""))}>
-                    <Feather name="message-circle" size={14} color="#fff" />
-                    <Text style={[styles.contactBtnText, { color: "#fff" }]}>WhatsApp</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              {property.ownerEmail ? (
-                <Pressable style={[styles.contactEmailBtn, { borderColor: colors.border }]}
-                  onPress={() => Linking.openURL("mailto:" + property.ownerEmail)}>
-                  <Feather name="mail" size={14} color={colors.foreground} />
-                  <Text style={[styles.contactBtnText, { color: colors.foreground }]}>{property.ownerEmail}</Text>
-                </Pressable>
-              ) : null}
             </View>
           )}
         </View>
@@ -831,6 +903,7 @@ export default function PropertyDetailScreen() {
         value={checkIn}
         minDate={today}
         bookedRanges={bookedRanges ?? []}
+        totalUnits={totalUnits}
         onSelect={handleCheckInSelect}
         onClose={() => setShowCheckInPicker(false)}
       />
@@ -841,6 +914,7 @@ export default function PropertyDetailScreen() {
         value={checkOut}
         minDate={addDays(checkIn, 1)}
         bookedRanges={bookedRanges ?? []}
+        totalUnits={totalUnits}
         allowBookedStartDates
         isDateDisabled={isCheckOutDateDisabled}
         onSelect={handleCheckOutSelect}
@@ -1273,5 +1347,7 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     contactBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 8, borderWidth: 1 },
     contactEmailBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderRadius: 8 },
     contactBtnText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
+    unavailableBanner: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderWidth: 1, borderRadius: 10 },
+    unavailableBannerText: { fontSize: 13, fontFamily: "Outfit_400Regular", flex: 1, lineHeight: 18 },
   });
 }

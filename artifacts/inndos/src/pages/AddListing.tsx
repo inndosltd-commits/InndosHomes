@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle, Pencil } from "lucide-react";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle, Pencil, Save, RotateCcw } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
@@ -341,10 +341,137 @@ function getEditId(): string | null {
   return null;
 }
 
+// ── Draft persistence helpers ─────────────────────────────────────────────────
+interface DraftState {
+  listingType: string;
+  title: string;
+  price: string;
+  address: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  description: string;
+  selectedAmenities: string[];
+  subtype: string;
+  hourlyRate: string;
+  priceUnit: string;
+  totalUnits: string;
+  acres: string;
+  plotSizeFt: string;
+  soilType: string;
+  surveyMaps: string;
+  titleDeed: string;
+  legalRates: string;
+  legalEncumbrances: string;
+  paymentPlan: string;
+  pricePerUnit: string;
+  images: string[];
+  videos: string[];
+  pinPosition: { lat: number; lng: number } | null;
+  savedAddress: string;
+}
+
+function getDraftKey(userId: string) {
+  return `inndos_add_listing_draft_${userId}`;
+}
+
+/** Write DraftState into localStorage (synchronous, offline-safe). */
+function writeDraftLocal(userId: string, d: DraftState) {
+  try { localStorage.setItem(getDraftKey(userId), JSON.stringify(d)); } catch { /* storage full */ }
+}
+
+/** Remove draft from localStorage. */
+function removeDraftLocal(userId: string) {
+  try { localStorage.removeItem(getDraftKey(userId)); } catch { /* ignore */ }
+}
+
+/** PUT draft to server; throws if response is not ok (so callers can catch 401/500). */
+async function putDraftServer(token: string, d: DraftState): Promise<void> {
+  const res = await fetch("/api/listing-drafts/current", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ data: d }),
+  });
+  if (!res.ok) throw new Error(`PUT /api/listing-drafts/current failed: ${res.status}`);
+}
+
+/** DELETE draft on server; throws if response is not ok. */
+async function deleteDraftServer(token: string): Promise<void> {
+  const res = await fetch("/api/listing-drafts/current", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`DELETE /api/listing-drafts/current failed: ${res.status}`);
+}
+
+/**
+ * Coerce a server draft payload to flat DraftState.
+ * Accepts two shapes:
+ *   - Canonical (new):  the response body IS a DraftState (flat keys at top level inside data).
+ *   - Legacy mobile:    {form:{…}, selectedAmenities:[…], media:{images,videos}}.
+ */
+function normaliseDraftPayload(raw: unknown): DraftState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+
+  // Legacy mobile shape: has a "form" sub-object
+  if (r.form && typeof r.form === "object") {
+    const f = r.form as Record<string, unknown>;
+    const media = (r.media && typeof r.media === "object") ? r.media as Record<string, unknown> : {};
+    return {
+      listingType:        String(f.listingType        ?? ""),
+      title:              String(f.title              ?? ""),
+      price:              String(f.price              ?? ""),
+      address:            String(f.address            ?? ""),
+      beds:               String(f.beds               ?? ""),
+      baths:              String(f.baths              ?? ""),
+      sqft:               String(f.sqft               ?? ""),
+      description:        String(f.description        ?? ""),
+      selectedAmenities:  Array.isArray(r.selectedAmenities) ? (r.selectedAmenities as string[]) : [],
+      subtype:            String(f.subtype            ?? ""),
+      hourlyRate:         String(f.hourlyRate         ?? ""),
+      priceUnit:          String(f.priceUnit          ?? ""),
+      totalUnits:         String(f.totalUnits         ?? "1"),
+      acres:              String(f.acres              ?? ""),
+      plotSizeFt:         String(f.plotSizeFt         ?? ""),
+      soilType:           String(f.soilType           ?? ""),
+      surveyMaps:         String(f.surveyMaps         ?? ""),
+      titleDeed:          String(f.titleDeed          ?? ""),
+      legalRates:         String(f.legalRates         ?? ""),
+      legalEncumbrances:  String(f.legalEncumbrances  ?? ""),
+      paymentPlan:        String(f.paymentPlan        ?? ""),
+      pricePerUnit:       String(f.pricePerUnit       ?? ""),
+      images:             Array.isArray(media.images)  ? (media.images as string[])  : [],
+      videos:             Array.isArray(media.videos)  ? (media.videos as string[])  : [],
+      pinPosition:        (f.pinPosition && typeof f.pinPosition === "object")
+                            ? (f.pinPosition as { lat: number; lng: number })
+                            : null,
+      savedAddress:       String(f.savedAddress ?? f.address ?? ""),
+    } satisfies DraftState;
+  }
+
+  // Canonical flat DraftState shape — use as-is (safe cast; missing keys default gracefully in applyDraft)
+  return r as unknown as DraftState;
+}
+
+/** Fetch server draft; returns normalised DraftState or null. */
+async function fetchDraftServer(token: string): Promise<DraftState | null> {
+  try {
+    const res = await fetch("/api/listing-drafts/current", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as Record<string, unknown>;
+    return normaliseDraftPayload(json?.data);
+  } catch {
+    return null;
+  }
+}
+
 export default function AddListing() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProperty, setIsLoadingProperty] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -352,6 +479,7 @@ export default function AddListing() {
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
   const [videoLimit, setVideoLimit] = useState(0);
+  const [imageLimit, setImageLimit] = useState(0);
   const [uploadingVideoCount, setUploadingVideoCount] = useState(0);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [editingVideoIdx, setEditingVideoIdx] = useState<number | null>(null);
@@ -362,6 +490,11 @@ export default function AddListing() {
   const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftAddress, setDraftAddress] = useState("");
   const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>(NAIROBI_CENTER);
+
+  // Draft state
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [isDraftSyncing, setIsDraftSyncing] = useState(false);
 
   const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
 
@@ -437,6 +570,7 @@ export default function AddListing() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const { uploadFile } = useUpload({
+    requestHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
     onError: (err: Error) => {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     },
@@ -477,16 +611,180 @@ export default function AddListing() {
   const editId = getEditId();
   const isEditing = editId !== null;
 
-  // Fetch subscription to determine video limit
+  // Fetch subscription to determine video + image limit
   useEffect(() => {
     if (!token) return;
     fetch("/api/subscriptions/me", { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then((data: { videoLimit?: number }) => {
+      .then((data: { videoLimit?: number; imageLimit?: number }) => {
         setVideoLimit(typeof data.videoLimit === "number" ? data.videoLimit : 0);
+        setImageLimit(typeof data.imageLimit === "number" ? data.imageLimit : 0);
       })
       .catch(() => {});
   }, [token]);
+
+  // ── Draft: check if a saved draft exists (server preferred, local fallback) ──
+  useEffect(() => {
+    if (isEditing || !user?.id || !token) return;
+    // Prefer server draft; fall back to localStorage
+    fetchDraftServer(token).then(serverDraft => {
+      if (serverDraft) {
+        // Server has a draft — also persist locally for offline resilience
+        writeDraftLocal(user.id, serverDraft);
+        setHasSavedDraft(true);
+        return;
+      }
+      // No server draft — check localStorage fallback
+      const raw = localStorage.getItem(getDraftKey(user.id));
+      if (raw) {
+        try {
+          JSON.parse(raw);
+          setHasSavedDraft(true);
+        } catch {
+          removeDraftLocal(user.id);
+        }
+      }
+    }).catch(() => {
+      // Network error — fall back to localStorage check only
+      const raw = localStorage.getItem(getDraftKey(user.id));
+      if (raw) {
+        try { JSON.parse(raw); setHasSavedDraft(true); } catch { removeDraftLocal(user.id); }
+      }
+    });
+  }, [user?.id, token, isEditing]);
+
+  // ── Draft: apply a DraftState object to form fields ─────────────────────────
+  const applyDraft = useCallback((d: DraftState) => {
+    setListingType(d.listingType ?? "");
+    setTitle(d.title ?? "");
+    setPrice(d.price ?? "");
+    setAddress(d.savedAddress ?? d.address ?? "");
+    setBeds(d.beds ?? "");
+    setBaths(d.baths ?? "");
+    setSqft(d.sqft ?? "");
+    setDescription(d.description ?? "");
+    setSelectedAmenities(d.selectedAmenities ?? []);
+    setSubtype(d.subtype ?? "");
+    setHourlyRate(d.hourlyRate ?? "");
+    setPriceUnit(d.priceUnit ?? "");
+    setTotalUnits(d.totalUnits ?? "1");
+    setAcres(d.acres ?? "");
+    setPlotSizeFt(d.plotSizeFt ?? "");
+    setSoilType(d.soilType ?? "");
+    setSurveyMaps(d.surveyMaps ?? "");
+    setTitleDeed(d.titleDeed ?? "");
+    setLegalRates(d.legalRates ?? "");
+    setLegalEncumbrances(d.legalEncumbrances ?? "");
+    setPaymentPlan(d.paymentPlan ?? "");
+    setPricePerUnit(d.pricePerUnit ?? "");
+    setImages(d.images ?? []);
+    setVideos(d.videos ?? []);
+    if (d.pinPosition) {
+      setPinPosition(d.pinPosition);
+      setIsLocationPinned(true);
+    }
+  }, []);
+
+  // ── Draft: restore saved draft (server preferred, local fallback) ─────────────
+  const restoreDraft = useCallback(async () => {
+    if (!user?.id || !token) return;
+    setIsDraftSyncing(true);
+    try {
+      const serverDraft = await fetchDraftServer(token);
+      if (serverDraft) {
+        writeDraftLocal(user.id, serverDraft);
+        applyDraft(serverDraft);
+        setHasSavedDraft(false);
+        toast({ title: "Draft restored", description: "Your saved draft has been loaded from your account." });
+        return;
+      }
+    } catch { /* fall through to local */ } finally {
+      setIsDraftSyncing(false);
+    }
+    // Fallback: local storage
+    const raw = localStorage.getItem(getDraftKey(user.id));
+    if (!raw) return;
+    try {
+      const d: DraftState = JSON.parse(raw);
+      applyDraft(d);
+      setHasSavedDraft(false);
+      toast({ title: "Draft restored", description: "Your saved draft has been loaded (offline copy)." });
+    } catch {
+      removeDraftLocal(user.id);
+    }
+  }, [user?.id, token, applyDraft, toast]);
+
+  // ── Draft: save current form state ──────────────────────────────────────────
+  // Writes localStorage immediately (offline-safe), then syncs to server account.
+  const saveDraft = useCallback(async () => {
+    if (!user?.id || isEditing) return;
+    const d: DraftState = {
+      listingType,
+      title,
+      price,
+      address,
+      beds,
+      baths,
+      sqft,
+      description,
+      selectedAmenities,
+      subtype,
+      hourlyRate,
+      priceUnit,
+      totalUnits,
+      acres,
+      plotSizeFt,
+      soilType,
+      surveyMaps,
+      titleDeed,
+      legalRates,
+      legalEncumbrances,
+      paymentPlan,
+      pricePerUnit,
+      images,
+      videos,
+      pinPosition,
+      savedAddress: address,
+    };
+    // 1. Write locally first — instant, works offline
+    writeDraftLocal(user.id, d);
+    toast({ title: "Draft saved", description: "Saved locally. Syncing to your account…" });
+    // 2. Sync to server (best-effort; don't block UI)
+    if (token) {
+      setIsDraftSyncing(true);
+      putDraftServer(token, d)
+        .then(() => {
+          toast({ title: "Draft synced", description: "Draft saved to your account — accessible on web & mobile." });
+        })
+        .catch(() => {
+          toast({ title: "Sync failed", description: "Draft is saved locally. It will sync when you're back online.", variant: "destructive" });
+        })
+        .finally(() => setIsDraftSyncing(false));
+    }
+  }, [
+    user?.id, token, isEditing, listingType, title, price, address, beds, baths, sqft,
+    description, selectedAmenities, subtype, hourlyRate, priceUnit, totalUnits,
+    acres, plotSizeFt, soilType, surveyMaps, titleDeed, legalRates, legalEncumbrances,
+    paymentPlan, pricePerUnit, images, videos, pinPosition, toast,
+  ]);
+
+  // ── Draft: discard saved draft (both localStorage and server) ───────────────
+  const discardDraft = useCallback(() => {
+    if (!user?.id) return;
+    removeDraftLocal(user.id);
+    setHasSavedDraft(false);
+    setShowDiscardConfirm(false);
+    toast({ title: "Draft discarded", description: "Your saved draft has been deleted." });
+    // Best-effort server delete
+    if (token) deleteDraftServer(token).catch(() => {});
+  }, [user?.id, token, toast]);
+
+  // ── Clear draft on successful submit (both localStorage and server) ──────────
+  const clearDraftAfterSubmit = useCallback(() => {
+    if (!user?.id || isEditing) return;
+    removeDraftLocal(user.id);
+    if (token) deleteDraftServer(token).catch(() => {});
+  }, [user?.id, token, isEditing]);
 
   // Fetch existing property data when in edit mode
   useEffect(() => {
@@ -499,7 +797,20 @@ export default function AddListing() {
         if (!res.ok) throw new Error("Property not found");
         return res.json();
       })
-      .then((prop: { title: string; type: string; price: number; address: string; beds: number; baths: number; sqft: number; totalUnits?: number; image?: string; images?: string[]; videos?: string[]; description?: string; tags?: string[]; subtype?: string; hourlyRate?: number }) => {
+      .then((prop: {
+        title: string; type: string; price: number; address: string;
+        beds: number; baths: number; sqft: number; totalUnits?: number;
+        image?: string; images?: string[]; videos?: string[];
+        description?: string; tags?: string[]; subtype?: string;
+        hourlyRate?: number; priceUnit?: string;
+        details?: { land?: {
+          acres?: number | null; plotSizeFt?: string | null; soilType?: string | null;
+          surveyMaps?: string | null; titleDeed?: string | null;
+          legalRates?: string | null; legalEncumbrances?: string | null;
+          paymentPlan?: string | null; pricePerUnit?: string | null;
+          utilities?: string[]; surrounding?: string[]; zoning?: string[];
+        } };
+      }) => {
         setTitle(prop.title ?? "");
         // Reconstruct frontend listing type from API type + subtype for sale properties
         let frontendType = prop.type ?? "";
@@ -511,9 +822,6 @@ export default function AddListing() {
         setListingType(frontendType);
         setPrice(prop.price != null ? String(prop.price) : "");
         setAddress(prop.address ?? "");
-        setBeds(prop.beds != null ? String(prop.beds) : "");
-        setBaths(prop.baths != null ? String(prop.baths) : "");
-        setSqft(prop.sqft != null ? String(prop.sqft) : "");
         setTotalUnits(prop.totalUnits != null ? String(prop.totalUnits) : "1");
         setDescription(prop.description ?? "");
         if (prop.images && prop.images.length > 0) {
@@ -525,7 +833,40 @@ export default function AddListing() {
         if (prop.tags) setSelectedAmenities(prop.tags);
         if (prop.subtype) setSubtype(prop.subtype);
         if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
-        if ((prop as any).priceUnit) setPriceUnit((prop as any).priceUnit);
+        if (prop.priceUnit) setPriceUnit(prop.priceUnit);
+
+        // ── Restore land fields: prefer structured details.land, fall back to legacy beds/sqft ──
+        const isLandProp = (frontendType === "land" || frontendType === "sale-land");
+        if (isLandProp && prop.details?.land) {
+          const ld = prop.details.land;
+          setAcres(ld.acres != null ? String(ld.acres) : "");
+          setPlotSizeFt(ld.plotSizeFt ?? "");
+          setSoilType(ld.soilType ?? "");
+          setSurveyMaps(ld.surveyMaps ?? "");
+          setTitleDeed(ld.titleDeed ?? "");
+          setLegalRates(ld.legalRates ?? "");
+          setLegalEncumbrances(ld.legalEncumbrances ?? "");
+          setPaymentPlan(ld.paymentPlan ?? "");
+          setPricePerUnit(ld.pricePerUnit ?? "");
+          // Merge utility/surrounding/zoning IDs back into selectedAmenities
+          const landTags = [
+            ...(ld.utilities ?? []),
+            ...(ld.surrounding ?? []),
+            ...(ld.zoning ?? []),
+          ];
+          if (landTags.length > 0) {
+            setSelectedAmenities(prev => Array.from(new Set([...prev, ...landTags])));
+          }
+        } else if (isLandProp) {
+          // Legacy fallback: beds field held acres, sqft held plot area
+          setAcres(prop.beds != null ? String(prop.beds) : "");
+          setPlotSizeFt(prop.sqft != null ? String(prop.sqft) : "");
+        } else {
+          // Non-land: restore standard beds/baths/sqft
+          setBeds(prop.beds != null ? String(prop.beds) : "");
+          setBaths(prop.baths != null ? String(prop.baths) : "");
+          setSqft(prop.sqft != null ? String(prop.sqft) : "");
+        }
       })
       .catch(() => {
         toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
@@ -535,6 +876,19 @@ export default function AddListing() {
 
   const uploadImageFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
+    // Check image limit
+    if (imageLimit > 0) {
+      const remaining = imageLimit - images.length;
+      if (remaining <= 0) {
+        toast({ title: "Photo limit reached", description: `Your plan allows ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing.`, variant: "destructive" });
+        return;
+      }
+      const toUpload = files.slice(0, remaining);
+      if (toUpload.length < files.length) {
+        toast({ title: "Too many photos", description: `Only ${remaining} slot${remaining === 1 ? "" : "s"} remaining. Extra files skipped.`, variant: "destructive" });
+      }
+      files = toUpload;
+    }
     setUploadingCount(prev => prev + files.length);
     const results = await Promise.all(
       files.map(async (file) => {
@@ -550,7 +904,7 @@ export default function AddListing() {
       setImages(prev => [...prev, ...uploaded]);
     }
     setUploadingCount(prev => prev - files.length);
-  }, [uploadFile, toast]);
+  }, [uploadFile, toast, imageLimit, images.length]);
 
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -592,7 +946,7 @@ export default function AddListing() {
     setEditingVideoSrc(resolved);
   };
 
-  const handleVideoEditSave = async ({ file, previewUrl }: VideoEditResult) => {
+  const handleVideoEditSave = async ({ file, previewUrl }: { file: File; previewUrl: string }) => {
     if (editingVideoIdx === null) return;
     // Close editor first (show optimistic preview)
     const idx = editingVideoIdx;
@@ -740,37 +1094,43 @@ export default function AddListing() {
     try {
       const parsedTotalUnits = parseInt(totalUnits, 10);
 
-      // For land listings, compose extra details into description
-      let finalDescription = description || "";
-      if (isLand) {
-        const extras: string[] = [];
-        if (soilType) extras.push(`Soil type: ${soilType}`);
-        if (surveyMaps) extras.push(`Survey maps & beacons: ${surveyMaps}`);
-        if (titleDeed) extras.push(`Ready title deed: ${titleDeed}`);
-        if (legalRates) extras.push(`Rates / land rent status: ${legalRates}`);
-        if (legalEncumbrances) extras.push(`Encumbrances or disputes: ${legalEncumbrances}`);
-        if (paymentPlan) extras.push(`Payment plan: ${paymentPlan}`);
-        if (pricePerUnit) extras.push(`Price per unit: ${pricePerUnit}`);
-        if (extras.length > 0) {
-          finalDescription = [finalDescription, extras.join("\n")].filter(Boolean).join("\n\n");
-        }
-      }
+      // ── Compute land plot sqft ────────────────────────────────────────────────
+      const computeLandSqft = () => {
+        const dimMatch = plotSizeFt.match(/^(\d+\.?\d*)X(\d+\.?\d*)$/i);
+        if (dimMatch) return Math.round(parseFloat(dimMatch[1]) * parseFloat(dimMatch[2]));
+        return parseInt(plotSizeFt, 10) || 0;
+      };
+
+      // ── For land listings, build a structured details object ─────────────────
+      // Description stays as-is (pure human text); all structured data goes into details.
+      const landDetails = isLand ? {
+        land: {
+          acres: parseFloat(acres) || null,
+          plotSizeFt: plotSizeFt || null,
+          soilType: soilType || null,
+          surveyMaps: surveyMaps || null,
+          titleDeed: titleDeed || null,
+          legalRates: legalRates || null,
+          legalEncumbrances: legalEncumbrances || null,
+          paymentPlan: paymentPlan || null,
+          pricePerUnit: pricePerUnit || null,
+          utilities: LAND_UTILITIES.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+          surrounding: LAND_SURROUNDING.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+          zoning: LAND_ZONING_OPTIONS.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+        },
+      } : undefined;
 
       const body = {
         title,
         type: toApiType(listingType),
         price: parsedPrice,
         address: address || searchQuery,
-        beds: isLand ? (parseFloat(acres) || 0) : (isNaN(parsedBeds) ? 0 : parsedBeds),
+        beds: isLand ? 0 : (isNaN(parsedBeds) ? 0 : parsedBeds),
         baths: isLand ? 0 : (isNaN(parsedBaths) ? 0 : parsedBaths),
-        sqft: isLand ? (() => {
-          // Support "50X100" / "20x60" dimension format → multiply to get area
-          const dimMatch = plotSizeFt.match(/^(\d+\.?\d*)X(\d+\.?\d*)$/i);
-          if (dimMatch) return Math.round(parseFloat(dimMatch[1]) * parseFloat(dimMatch[2]));
-          return parseInt(plotSizeFt, 10) || 0;
-        })() : (isNaN(parsedSqft) ? 0 : parsedSqft),
+        sqft: isLand ? computeLandSqft() : (isNaN(parsedSqft) ? 0 : parsedSqft),
         totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
-        description: finalDescription || null,
+        description: description || null,
+        details: landDetails,
         images,
         videos,
         tags: selectedAmenities,
@@ -813,6 +1173,7 @@ export default function AddListing() {
         return;
       }
       setFieldErrors({});
+      clearDraftAfterSubmit();
       toast({
         title: isEditing ? "Listing Updated" : "Listing Submitted for Review",
         description: isEditing
@@ -847,6 +1208,36 @@ export default function AddListing() {
             <h1 className="text-3xl font-bold font-heading">{isEditing ? "Edit Listing" : "Add New Listing"}</h1>
             <p className="text-muted-foreground">{isEditing ? "Update your property details below." : "Fill in the details below to publish your property. Admin approval is required before the listing goes live."}</p>
           </div>
+
+          {/* Draft banner — new listings only */}
+          {!isEditing && hasSavedDraft && (
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <RotateCcw className="h-4 w-4 text-blue-600 shrink-0" />
+              <p className="flex-1 text-sm text-blue-800 font-medium">You have a saved draft. Restore it to continue where you left off. Drafts saved to your account are available on all your devices.</p>
+              <Button size="sm" variant="outline" onClick={restoreDraft} disabled={isDraftSyncing} className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100">
+                {isDraftSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Restore Draft"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowDiscardConfirm(true)} className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+                Discard
+              </Button>
+            </div>
+          )}
+
+          {/* Discard confirmation dialog */}
+          <Dialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Discard Draft?</DialogTitle>
+                <DialogDescription>
+                  This will permanently delete your saved draft, including any uploaded photos and videos referenced in it. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setShowDiscardConfirm(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={discardDraft}>Discard Draft</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
@@ -1350,7 +1741,14 @@ export default function AddListing() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">Photos <span className="text-red-500 text-base">*</span></CardTitle>
-                  <CardDescription>At least one photo is required. Upload or take high quality images of your property.</CardDescription>
+                  <CardDescription>
+                    At least one photo is required. Upload or take high quality images of your property.
+                    {imageLimit > 0 && (
+                      <span className="ml-1 font-medium text-gray-700">
+                        ({images.length}/{imageLimit} used — your plan allows {imageLimit} photo{imageLimit === 1 ? "" : "s"})
+                      </span>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-4 mb-4">
@@ -1364,6 +1762,9 @@ export default function AddListing() {
                       </div>
                       <h3 className="font-semibold text-sm pointer-events-none">Upload Photos</h3>
                       <p className="text-xs text-muted-foreground pointer-events-none">Tap to browse or drag files here</p>
+                      {imageLimit > 0 && (
+                        <p className="text-xs text-muted-foreground pointer-events-none">{images.length}/{imageLimit} used</p>
+                      )}
                       <input
                         type="file"
                         multiple
@@ -1371,6 +1772,7 @@ export default function AddListing() {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         ref={fileInputRef}
                         onChange={handleImageUpload}
+                        disabled={imageLimit > 0 && images.length >= imageLimit}
                       />
                     </div>
 
@@ -1389,9 +1791,19 @@ export default function AddListing() {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         ref={cameraInputRef}
                         onChange={handleImageUpload}
+                        disabled={imageLimit > 0 && images.length >= imageLimit}
                       />
                     </div>
                   </div>
+
+                  {/* Plan-aware image limit warning */}
+                  {imageLimit > 0 && images.length >= imageLimit && (
+                    <div className="flex items-center gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-3">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      Photo limit reached ({imageLimit} photos). Upgrade your plan to upload more.
+                      <a href="/#/pricing" className="ml-auto text-xs text-primary underline underline-offset-2 shrink-0">Upgrade</a>
+                    </div>
+                  )}
                   
                   {(images.length > 0 || uploadingCount > 0) ? (
                     <>
@@ -1473,7 +1885,7 @@ export default function AddListing() {
                       <CardDescription>
                         {videoLimit === 0
                           ? "Video upload requires a Silver or Gold plan"
-                          : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 1 minute each`}
+                          : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 5 minutes each`}
                       </CardDescription>
                     </div>
                     {videoLimit === 0 && (
@@ -1497,7 +1909,7 @@ export default function AddListing() {
                             <Video className="h-5 w-5" />
                           </div>
                           <h3 className="font-semibold text-sm pointer-events-none">Upload Video</h3>
-                          <p className="text-xs text-muted-foreground pointer-events-none">{videos.length}/{videoLimit} used · max 1 minute</p>
+                          <p className="text-xs text-muted-foreground pointer-events-none">{videos.length}/{videoLimit} used · max 5 minutes</p>
                           <input
                             type="file"
                             accept="video/*"
@@ -1563,6 +1975,13 @@ export default function AddListing() {
               )}
 
               <div className="flex gap-4 justify-end">
+                {/* Save Draft — new listings only */}
+                {!isEditing && (
+                  <Button variant="outline" type="button" onClick={saveDraft} disabled={isDraftSyncing} className="gap-2">
+                    {isDraftSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isDraftSyncing ? "Syncing…" : "Save Draft"}
+                  </Button>
+                )}
                 <Button variant="outline" type="button" onClick={() => setLocation("/dashboard")}>
                   Cancel
                 </Button>
@@ -1620,7 +2039,7 @@ export default function AddListing() {
                 <GoogleMap
                   mapContainerClassName="w-full h-full"
                   center={mapCenter}
-                  defaultZoom={14}
+                  zoom={14}
                   options={{ mapId: "c7cd60c6a53a720a14502d1b", mapTypeControl: false, streetViewControl: false, fullscreenControl: false }}
                   onLoad={(map) => { mapRef.current = map; }}
                   onClick={(e) => {
