@@ -1,4 +1,4 @@
 - [Dialog-in-TabsContent trap](dialog-tabscontent.md) — Dialogs inside inactive TabsContent are unmounted; always place global dialogs at Tabs root level.
 - [Native Google Maps release setup](native-google-maps-release.md) — EAS builds need their own Google Maps secret; a workspace secret is not injected remotely.
 - [Expo Launch Maps key](expo-launch-maps-key.md) — Expo Launch native prebuild needs the Maps key under an EXPO_PUBLIC-prefixed Replit secret.
-- [Expo project ownership](expo-launch-auth.md) — Trust EAS project lookup for the owner; the logged-in CLI account must match, and owner may be required in app config.
+- [Expo project ownership](expo-launch-auth.md) — Trust EAS project lookup for the owner; the CLI user needs project access and may be a member under a different username.
