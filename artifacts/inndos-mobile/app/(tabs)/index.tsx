@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyMapView, type MapBBox } from "@/components/PropertyMapView";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Feather } from "@expo/vector-icons";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -342,12 +343,7 @@ export default function BrowseScreen() {
       >
         {/* Header, menu, map, and listings intentionally share one scroll surface. */}
         <View style={styles.header}>
-          <Image
-            source={require("../../assets/images/logo-inndos.png")}
-            accessibilityLabel="inndos"
-            style={styles.headerWordmark}
-            resizeMode="contain"
-          />
+          <BrandLogo />
         </View>
 
         <View style={styles.filterRow}>
@@ -505,7 +501,6 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10 },
     scrollView: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    headerWordmark: { width: 86, height: 36 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },
     filterChip: { width: filterChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 8, borderWidth: 1, borderRadius: 20 },
     filterChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },

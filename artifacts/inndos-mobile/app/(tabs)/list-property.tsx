@@ -8,6 +8,7 @@ import {
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -922,9 +923,19 @@ export default function ListPropertyScreen() {
         setMedia([]);
         setSelectedAmenities([]);
       },
-      onError:()=>{
+      onError:(error:unknown)=>{
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert("Error","Failed to submit your listing. Please try again.");
+        const responseError =
+          typeof error === "object" && error !== null
+            ? (error as { response?: { data?: { error?: unknown } } }).response?.data?.error
+            : undefined;
+        const message =
+          typeof responseError === "string"
+            ? responseError
+            : error instanceof Error && error.message
+              ? error.message
+              : "Failed to submit your listing. Please try again.";
+        Alert.alert("Could not submit listing", message);
       },
     },
   });
@@ -1017,13 +1028,29 @@ export default function ListPropertyScreen() {
   // ── Upload via presigned URL ───────────────────────────────────────────────
   // Contract: POST /api/storage/uploads/request-url  body { name, size, contentType }
   //           → response { uploadURL, objectPath }
-  //           then PUT the local asset blob directly to uploadURL.
+  //           then PUT the local asset directly to uploadURL.
+  //
+  // iOS and Android picker URIs are local `file://` (and occasionally
+  // `content://`) locations. Reading a video through fetch(...).blob() is
+  // browser-oriented and can exhaust memory or fail before the upload begins.
+  // Expo's native uploader streams the file instead.
   const uploadAsset = async (item: MediaItem): Promise<string|null>=>{
     const base = getApiBaseUrl();
-    // Step 1: fetch local asset blob first (needed for size).
-    const blobRes = await fetch(item.uri);
-    const blob = await blobRes.blob();
-    const size = blob.size;
+    let size: number;
+    let webBlob: Blob | undefined;
+
+    if (Platform.OS === "web") {
+      const blobRes = await fetch(item.uri);
+      webBlob = await blobRes.blob();
+      size = webBlob.size;
+    } else {
+      const info = await FileSystem.getInfoAsync(item.uri);
+      if (!info.exists || info.isDirectory || !info.size) {
+        throw new Error("The selected file is no longer available. Please choose it again.");
+      }
+      size = info.size;
+    }
+
     const maxBytes = item.isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     if (size > maxBytes) {
       throw new Error(
@@ -1040,10 +1067,26 @@ export default function ListPropertyScreen() {
       throw new Error(`Failed to get upload URL (HTTP ${reqRes.status})`);
     }
     const {uploadURL, objectPath} = await reqRes.json() as {uploadURL:string;objectPath:string};
-    // Step 3: PUT the fetched blob directly to the presigned URL.
-    const putRes = await fetch(uploadURL,{method:"PUT",headers:{"Content-Type":item.mimeType},body:blob});
-    if(!putRes.ok){
-      throw new Error(`Upload failed (HTTP ${putRes.status})`);
+
+    // Step 3: stream native files directly; retain browser fetch for web.
+    if (Platform.OS === "web") {
+      const putRes = await fetch(uploadURL,{
+        method:"PUT",
+        headers:{"Content-Type":item.mimeType},
+        body:webBlob,
+      });
+      if(!putRes.ok){
+        throw new Error(`Upload failed (HTTP ${putRes.status})`);
+      }
+    } else {
+      const result = await FileSystem.uploadAsync(uploadURL, item.uri, {
+        httpMethod: "PUT",
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: {"Content-Type":item.mimeType},
+      });
+      if (result.status < 200 || result.status >= 300) {
+        throw new Error(`Upload failed (HTTP ${result.status})`);
+      }
     }
     return objectPath;
   };
