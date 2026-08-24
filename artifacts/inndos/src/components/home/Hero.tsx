@@ -15,7 +15,19 @@ export function Hero() {
     const params = new URLSearchParams();
     params.set("type", activeTab === "rent" ? "rent" : "sale");
     if (searchQuery.trim()) params.set("search", searchQuery.trim());
-    if (propertyType) params.set("propertyType", propertyType);
+    if (propertyType) {
+      if (activeTab === "rent") {
+        params.set("filter", propertyType);
+      } else {
+        const saleCategory: Record<string, string> = {
+          apartment: "apartments",
+          house: "homes",
+          villa: "homes",
+          commercial: "lands",
+        };
+        params.set("category", saleCategory[propertyType] ?? propertyType);
+      }
+    }
     setLocation(`/search?${params.toString()}`);
   };
 

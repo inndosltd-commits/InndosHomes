@@ -61,6 +61,7 @@
     "@react-native-community/datetimepicker": "^8.4.4",
     "expo-clipboard": "~7.1.5",
     "expo-dev-client": "~6.0.21",
+    "expo-video": "~3.0.16",
     "react-native-maps": "1.18.0",
     "supercluster": "^8.0.1"
   }

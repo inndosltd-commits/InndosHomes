@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -19,7 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { PropertyCard } from "@/components/PropertyCard";
-import { PropertyMapView } from "@/components/PropertyMapView";
+import { PropertyMapView, type MapBBox } from "@/components/PropertyMapView";
 import { Feather } from "@expo/vector-icons";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -65,6 +66,29 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function matchesSubCategory(property: Property, category: string | null): boolean {
+  if (!category) return true;
+  const subtype = (property.subtype ?? "").toLowerCase();
+  const title = (property.title ?? "").toLowerCase();
+  const has = (...terms: string[]) => terms.some((term) => subtype.includes(term) || title.includes(term));
+
+  switch (category) {
+    case "Studio / Bedsitter": return has("studio", "bedsitter");
+    case "By Bedrooms": return (property.beds ?? 0) >= 1;
+    case "Penthouse": return has("penthouse");
+    case "Own Compound": return has("compound", "bungalow", "villa", "maisonette");
+    case "Condominiums": return has("condo", "apartment", "flat");
+    case "Office Space": return has("office", "business");
+    case "Godowns": return has("godown");
+    case "Stalls": return has("stall");
+    case "Shops": return has("shop");
+    case "Apartments": return has("apartment", "flat", "condo");
+    case "Homes": return has("home", "house", "bungalow", "villa", "maisonette", "townhouse");
+    case "Lands": return has("land", "plot", "acre");
+    default: return true;
+  }
 }
 
 // ── Section Block ────────────────────────────────────────────────────────────
@@ -203,10 +227,12 @@ export default function BrowseScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [rentModalVisible, setRentModalVisible] = useState(false);
   const [buyModalVisible, setBuyModalVisible] = useState(false);
+  const [mapBounds, setMapBounds] = useState<MapBBox | null>(null);
 
   const listParams: ListPropertiesParams = {
     type: activeType,
     search: debouncedSearch || undefined,
+    ...(mapBounds ?? {}),
   };
 
   const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
@@ -214,6 +240,7 @@ export default function BrowseScreen() {
   const filteredProperties = useMemo<Property[]>(() => {
     if (!properties) return [];
     let arr = [...properties];
+    arr = arr.filter((property) => matchesSubCategory(property, activeSubCategory));
     const maxP = priceMax ? Number(priceMax.replace(/,/g, "")) : NaN;
     if (!isNaN(maxP) && maxP > 0) arr = arr.filter((p) => p.price <= maxP);
     if (sortBy === "price-asc") arr.sort((a, b) => a.price - b.price);
@@ -233,7 +260,7 @@ export default function BrowseScreen() {
       });
     }
     return arr;
-  }, [properties, sortBy, userLocation, priceMax]);
+  }, [properties, sortBy, userLocation, priceMax, activeSubCategory]);
 
   // Categorised sections (when no active type filter)
   const bnbHotelProperties = useMemo(
@@ -315,7 +342,12 @@ export default function BrowseScreen() {
       >
         {/* Header, menu, map, and listings intentionally share one scroll surface. */}
         <View style={styles.header}>
-          <Text style={[styles.headerWordmark, { color: colors.foreground }]}>inndos</Text>
+          <Image
+            source={require("../../assets/images/logo-inndos.png")}
+            accessibilityLabel="inndos"
+            style={styles.headerWordmark}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.filterRow}>
@@ -409,7 +441,7 @@ export default function BrowseScreen() {
         ) : (
           <>
             <View style={styles.mapWrapper}>
-              <PropertyMapView properties={filteredProperties} />
+              <PropertyMapView properties={filteredProperties} onSearchArea={setMapBounds} />
             </View>
 
             {filteredProperties.length === 0 ? (
@@ -473,7 +505,7 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10 },
     scrollView: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    headerWordmark: { fontSize: 40, lineHeight: 42, fontFamily: "Outfit_700Bold", letterSpacing: -2.2 },
+    headerWordmark: { width: 86, height: 36 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },
     filterChip: { width: filterChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 8, borderWidth: 1, borderRadius: 20 },
     filterChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },

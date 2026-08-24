@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { resolveAmenityLabel } from "@/utils/amenities";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
@@ -174,7 +175,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
           <View style={styles.tagsRow}>
             {property.tags.slice(0, 3).map((tag) => (
               <View key={tag} style={[styles.tag, { backgroundColor: colors.muted }]}>
-                <Text style={[styles.tagText, { color: colors.mutedForeground }]}>{tag}</Text>
+                <Text style={[styles.tagText, { color: colors.mutedForeground }]}>{resolveAmenityLabel(tag)}</Text>
               </View>
             ))}
           </View>

@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { getListBookingsQueryKey } from "@workspace/api-client-react";
 import { getImageUrl } from "@/utils/imageUrl";
+import { resolveAmenityLabel } from "@/utils/amenities";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useRef, useState } from "react";
@@ -39,10 +40,29 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { PropertyLocationMap } from "@/components/PropertyLocationMap";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+function PropertyVideo({ source }: { source: string }) {
+  const player = useVideoPlayer(source, (videoPlayer) => {
+    videoPlayer.loop = false;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={{ width: "100%", height: 220, backgroundColor: "#000000" }}
+      nativeControls
+      allowsFullscreen
+      allowsPictureInPicture
+      contentFit="cover"
+      surfaceType="textureView"
+    />
+  );
+}
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -118,7 +138,11 @@ export default function PropertyDetailScreen() {
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
 
-  const isNightlyProperty = property ? ["bnb", "hotel", "hostel"].includes(property.type) : false;
+  const isNightlyProperty = Boolean(
+    property &&
+    ["bnb", "hotel", "hostel"].includes(property.type) &&
+    property.priceUnit !== "month"
+  );
   const { data: bookedRanges, isFetching: isCheckingAvailability } = useGetPropertyAvailability(
     id ?? "",
     { query: { queryKey: getGetPropertyAvailabilityQueryKey(id ?? ""), enabled: !!id && isNightlyProperty } }
@@ -334,10 +358,13 @@ export default function PropertyDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const totalPrice = property.price * bookingNights;
+    const confirmationDetails = isNightlyProperty
+      ? `\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`
+      : "\n\nThe owner will review your request and contact you about the next steps.";
 
     Alert.alert(
       "Confirm Link Up",
-      `Link Up with "${property.title}"?\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`,
+      `Link Up with "${property.title}"?${confirmationDetails}`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -348,7 +375,7 @@ export default function PropertyDetailScreen() {
                 data: {
                   propertyId: property.id,
                   startDate: checkIn.toISOString(),
-                  endDate: checkOut.toISOString(),
+                  endDate: (isNightlyProperty ? checkOut : addDays(checkIn, 30)).toISOString(),
                   totalPrice,
                 },
               },
@@ -422,13 +449,16 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  const isNightly = ["bnb", "hotel", "hostel"].includes(property.type);
+  const isNightly = ["bnb", "hotel", "hostel"].includes(property.type) && property.priceUnit !== "month";
   const showBooking = property.type !== "sale";
   const totalPrice = property.price * bookingNights;
 
   const allPhotos = (property.images && property.images.length > 0)
     ? property.images
     : [property.image];
+  const propertyVideos = Array.isArray((property as { videos?: string[] }).videos)
+    ? (property as { videos: string[] }).videos.filter(Boolean)
+    : [];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -594,6 +624,22 @@ export default function PropertyDetailScreen() {
           )}
         </View>
 
+        {propertyVideos.length > 0 && (
+          <View style={styles.videoSection}>
+            <View style={styles.videoSectionHeader}>
+              <Feather name="video" size={17} color={colors.foreground} />
+              <Text style={[styles.videoSectionTitle, { color: colors.foreground }]}>
+                Video tour{propertyVideos.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+            {propertyVideos.map((video, index) => (
+              <View key={`${video}-${index}`} style={styles.videoCard}>
+                <PropertyVideo source={getImageUrl(video)} />
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.detailsSection}>
           <View style={styles.titleRow}>
             <Text style={[styles.propertyTitle, { color: colors.foreground }]}>{property.title}</Text>
@@ -662,7 +708,7 @@ export default function PropertyDetailScreen() {
               <View style={styles.tagsRow}>
                 {property.tags.map((tag) => (
                   <View key={tag} style={[styles.tag, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-                    <Text style={[styles.tagText, { color: colors.foreground }]}>{tag}</Text>
+                    <Text style={[styles.tagText, { color: colors.foreground }]}>{resolveAmenityLabel(tag)}</Text>
                   </View>
                 ))}
               </View>
@@ -1056,6 +1102,30 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 24,
       fontFamily: "Outfit_700Bold",
       color: "#ffffff",
+    },
+    videoSection: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      gap: 10,
+    },
+    videoSectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+    },
+    videoSectionTitle: {
+      fontSize: 16,
+      fontFamily: "Outfit_700Bold",
+    },
+    videoCard: {
+      overflow: "hidden",
+      borderRadius: 12,
+      backgroundColor: "#000000",
+    },
+    videoPlayer: {
+      width: "100%",
+      height: 220,
+      backgroundColor: "#000000",
     },
     typeChip: {
       paddingHorizontal: 12,

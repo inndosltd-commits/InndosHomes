@@ -342,7 +342,7 @@ export default function Search() {
           if (["godown", "business", "stall", "shop"].some(c => sub.includes(c))) return false;
         }
       }
-      if (!matchesRentFilter(p, queryFilter)) return false;
+      if (queryType.startsWith("rent") && !matchesRentFilter(p, queryFilter)) return false;
       if (queryType === "sale" && !matchesSaleCategory(p, queryCategory)) return false;
       const price = p.price || 0;
       if (isPriceFiltered && (price < priceRange[0] || price > priceRange[1])) return false;

@@ -433,7 +433,10 @@ export default function PropertyDetails() {
   const [checkIn, setCheckIn] = useState(todayStr);
   const [checkOut, setCheckOut] = useState(tomorrowStr);
 
-  const isNightlyType = property?.type === "bnb" || property?.type === "hotel" || property?.type === "hostel";
+  const isNightlyType = Boolean(
+    (property?.type === "bnb" || property?.type === "hotel" || property?.type === "hostel") &&
+    property?.priceUnit !== "month"
+  );
 
   const { data: bookedRanges = [] } = useGetPropertyAvailability(
     params?.id ?? "",

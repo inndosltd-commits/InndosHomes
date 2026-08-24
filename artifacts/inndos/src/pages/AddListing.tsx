@@ -489,6 +489,8 @@ export default function AddListing() {
   const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
   const [draftAddress, setDraftAddress] = useState("");
+  const [locationSearchError, setLocationSearchError] = useState("");
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>(NAIROBI_CENTER);
 
   // Draft state
@@ -504,12 +506,16 @@ export default function AddListing() {
 
   const handlePlaceChanged = useCallback(() => {
     const place = autocompleteRef.current?.getPlace();
-    if (!place || !place.geometry?.location) return;
+    if (!place || !place.geometry?.location) {
+      setLocationSearchError("Choose a suggested place or drop a pin on the map.");
+      return;
+    }
     const loc = place.geometry.location;
     const pos = { lat: loc.lat(), lng: loc.lng() };
     setDraftPin(pos);
     setMapCenter(pos);
-    setDraftAddress(place.formatted_address ?? place.name ?? "");
+    setDraftAddress(place.formatted_address ?? place.name ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
+    setLocationSearchError("");
     mapRef.current?.panTo(pos);
     mapRef.current?.setZoom(16);
   }, []);
@@ -517,8 +523,11 @@ export default function AddListing() {
   // Fallback: geocode whatever is typed when Enter is pressed and no autocomplete selection
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter" || !window.google) return;
+    e.preventDefault();
     const query = searchInputRef.current?.value;
     if (!query) return;
+    setLocationSearchError("");
+    setIsResolvingLocation(true);
     new google.maps.Geocoder().geocode({ address: query }, (results, status) => {
       if (status === "OK" && results && results[0]) {
         const loc = results[0].geometry.location;
@@ -528,7 +537,10 @@ export default function AddListing() {
         setDraftAddress(results[0].formatted_address);
         mapRef.current?.panTo(pos);
         mapRef.current?.setZoom(16);
+      } else {
+        setLocationSearchError("We could not find that place. Choose a suggestion or drop a pin.");
       }
+      setIsResolvingLocation(false);
     });
   }, []);
 
@@ -1080,6 +1092,12 @@ export default function AddListing() {
     if (!title.trim()) clientErrors.title = ["Title is required"];
     if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
     if (!address.trim() && !searchQuery.trim()) clientErrors.address = ["Address is required"];
+    if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel" || listingType === "sale-apartment" || listingType === "sale-home") && !subtype) {
+      clientErrors.subtype = ["Please select a property category"];
+    }
+    if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel") && !priceUnit) {
+      clientErrors.priceUnit = ["Please select a price period"];
+    }
     if (!isLand && !isNaN(parsedBeds) && parsedBeds < 0) clientErrors.beds = ["Bedrooms cannot be negative"];
     if (!isLand && !isNaN(parsedBaths) && parsedBaths < 0) clientErrors.baths = ["Bathrooms cannot be negative"];
 
@@ -2034,6 +2052,11 @@ export default function AddListing() {
                       />
                       <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
                     </div>
+                    {(isResolvingLocation || locationSearchError) && (
+                      <p className={`mt-1 rounded px-2 py-1 text-xs shadow ${locationSearchError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
+                        {isResolvingLocation ? "Finding that location…" : locationSearchError}
+                      </p>
+                    )}
                   </div>
                 </Autocomplete>
                 <GoogleMap
@@ -2088,7 +2111,7 @@ export default function AddListing() {
             <Button variant="outline" onClick={() => setIsMapModalOpen(false)}>Cancel</Button>
             <Button
               className="bg-primary"
-              disabled={!draftPin}
+              disabled={!draftPin || isResolvingLocation}
               onClick={() => {
                 setPinPosition(draftPin);
                 if (draftAddress) {

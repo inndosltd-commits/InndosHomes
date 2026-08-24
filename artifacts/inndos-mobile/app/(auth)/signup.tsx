@@ -16,17 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function getApiBase(): string {
-  const raw =
-    (process.env.EXPO_PUBLIC_DOMAIN as string | undefined) ?? "";
-  if (!raw) return "";
-  const cleaned = raw.replace(/^https?:\/\//, "");
-  return `https://${cleaned}`;
-}
+import { getApiBaseUrl } from "@/utils/api";
 
 type Step = "phone" | "otp" | "details";
 
@@ -85,7 +75,7 @@ export default function SignupScreen() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const res = await fetch(`${getApiBase()}/api/auth/send-otp`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: trimmed }),
@@ -125,7 +115,7 @@ export default function SignupScreen() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const res = await fetch(`${getApiBase()}/api/auth/verify-otp`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone.trim(), code }),

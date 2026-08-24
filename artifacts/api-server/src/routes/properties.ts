@@ -148,7 +148,7 @@ async function getCallerInfo(req: Parameters<typeof requireAuth>[0]): Promise<{ 
 }
 
 router.get("/", async (req, res) => {
-  const { type, search, ownerId, minLat, maxLat, minLng, maxLng } = req.query as Record<string, string>;
+  const { type, subtype, search, ownerId, minLat, maxLat, minLng, maxLng } = req.query as Record<string, string>;
   const caller = await getCallerInfo(req);
 
   const baseQuery = db
@@ -158,6 +158,7 @@ router.get("/", async (req, res) => {
 
   const conditions = [];
   if (type && isValidType(type)) conditions.push(eq(properties.type, type));
+  if (subtype) conditions.push(ilike(properties.subtype, `%${subtype}%`));
   if (ownerId) conditions.push(eq(properties.ownerId, ownerId));
   if (search) {
     conditions.push(

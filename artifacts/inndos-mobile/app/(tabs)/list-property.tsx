@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -431,6 +432,35 @@ interface MediaItem {
 }
 
 const VIDEO_MAX_DURATION_MS = 300000; // 5 minutes
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
+
+function ListingVideoPreview({ source }: { source: string }) {
+  const player = useVideoPlayer(source, (videoPlayer) => {
+    videoPlayer.loop = false;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={mediaPreviewS.video}
+      nativeControls
+      allowsFullscreen
+      allowsPictureInPicture
+      contentFit="cover"
+      surfaceType="textureView"
+    />
+  );
+}
+
+const mediaPreviewS = StyleSheet.create({
+  video: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#000000",
+    borderRadius: 8,
+  },
+});
 
 interface FormState {
   title: string;
@@ -732,24 +762,34 @@ export default function ListPropertyScreen() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [imageLimit, setImageLimit] = useState(10);
+  const [imageLimit, setImageLimit] = useState(0);
   const [videoLimit, setVideoLimit] = useState(0);
+  const [mediaLimitsLoaded, setMediaLimitsLoaded] = useState(false);
   // "server" = draft is saved on account, "local" = device-only, null = none
   const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
   const pickerAddressRef = useRef<string|null>(null);
 
   // Load plan limits
   useEffect(()=>{
-    if(!token) return;
+    if(!token){
+      setMediaLimitsLoaded(false);
+      return;
+    }
+    setMediaLimitsLoaded(false);
     const base = getApiBaseUrl();
     fetch(`${base}/api/subscriptions/me`,{headers:{Authorization:"Bearer "+token}})
       .then(r=>r.json())
       .then((d:unknown)=>{
         const data = d as {imageLimit?:number;videoLimit?:number};
-        if(typeof data.imageLimit==="number") setImageLimit(Math.max(1,data.imageLimit));
-        if(typeof data.videoLimit==="number") setVideoLimit(data.videoLimit);
+        setImageLimit(typeof data.imageLimit==="number" ? Math.max(0,data.imageLimit) : 0);
+        setVideoLimit(typeof data.videoLimit==="number" ? Math.max(0,data.videoLimit) : 0);
+        setMediaLimitsLoaded(true);
       })
-      .catch(()=>{});
+      .catch(()=>{
+        setImageLimit(0);
+        setVideoLimit(0);
+        setMediaLimitsLoaded(true);
+      });
   },[token]);
 
   // ── Server draft hooks ────────────────────────────────────────────────────
@@ -984,6 +1024,12 @@ export default function ListPropertyScreen() {
     const blobRes = await fetch(item.uri);
     const blob = await blobRes.blob();
     const size = blob.size;
+    const maxBytes = item.isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (size > maxBytes) {
+      throw new Error(
+        `${item.isVideo ? "Video" : "Photo"} exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`
+      );
+    }
     // Step 2: request presigned upload URL with exact contract.
     const reqRes = await fetch(`${base}/api/storage/uploads/request-url`,{
       method:"POST",
@@ -1044,6 +1090,7 @@ export default function ListPropertyScreen() {
   };
 
   const pickPhotosFromLibrary = async ()=>{
+    if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your photo upload limit.");return;}
     if(currentPhotoCount>=imageLimit){Alert.alert("Limit reached",`Your plan allows up to ${imageLimit} photo(s).`);return;}
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if(perm.status!=="granted"){Alert.alert("Permission needed","Please allow photo library access.");return;}
@@ -1060,6 +1107,7 @@ export default function ListPropertyScreen() {
   };
 
   const pickPhotoFromCamera = async ()=>{
+    if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your photo upload limit.");return;}
     if(currentPhotoCount>=imageLimit){Alert.alert("Limit reached",`Your plan allows up to ${imageLimit} photo(s).`);return;}
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if(perm.status!=="granted"){Alert.alert("Permission needed","Please allow camera access.");return;}
@@ -1068,6 +1116,7 @@ export default function ListPropertyScreen() {
   };
 
   const pickVideoFromLibrary = async ()=>{
+    if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your video upload limit.");return;}
     if(videoLimit===0){Alert.alert("Upgrade required","Video upload requires a Pro or Enterprise plan.");return;}
     if(currentVideoCount>=videoLimit){Alert.alert("Limit reached",`Your plan allows up to ${videoLimit} video(s).`);return;}
     if(Platform.OS==="web"){Alert.alert("Not supported","Video library not available on web.");return;}
@@ -1089,6 +1138,7 @@ export default function ListPropertyScreen() {
   };
 
   const recordVideo = async ()=>{
+    if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your video upload limit.");return;}
     if(videoLimit===0){Alert.alert("Upgrade required","Video upload requires a Pro or Enterprise plan.");return;}
     if(currentVideoCount>=videoLimit){Alert.alert("Limit reached",`Your plan allows up to ${videoLimit} video(s).`);return;}
     if(Platform.OS==="web"){Alert.alert("Not supported","Video recording not available on web.");return;}
@@ -1118,6 +1168,8 @@ export default function ListPropertyScreen() {
     if(!form.title.trim()) newErrors.title="Title is required";
     if(!form.address.trim()) newErrors.address="Address is required";
     if(!form.listingType) newErrors.listingType="Select a listing type";
+    if((SUBTYPES[form.listingType] ?? []).length>0 && !form.subtype.trim()) newErrors.subtype="Select a property category";
+    if((PRICE_UNITS_BY_TYPE[form.listingType] ?? []).length>0 && !form.priceUnit.trim()) newErrors.priceUnit="Select a price period";
     const photos=media.filter(m=>!m.isVideo);
     if(photos.length===0) newErrors.imageUrl="At least one photo is required";
     else if(media.some(m=>m.uploaded===null)) newErrors.imageUrl="Wait for media to finish uploading";
@@ -1548,15 +1600,19 @@ export default function ListPropertyScreen() {
 
           {/* ── Photos ── */}
           <SectionLabel text={`Photos * (${photos.length}/${imageLimit})`} colors={colors}/>
-          <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>At least one photo required. Use arrows to reorder.</Text>
+          <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>
+            {mediaLimitsLoaded
+              ? "At least one photo required. Use arrows to reorder."
+              : "Checking your photo upload allowance…"}
+          </Text>
           <View style={{flexDirection:"row",gap:8}}>
-            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border}]}
-              onPress={pickPhotosFromLibrary} disabled={isUploading||currentPhotoCount>=imageLimit}>
+            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
+              onPress={pickPhotosFromLibrary} disabled={isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit}>
               <Feather name="image" size={18} color={colors.foreground}/>
               <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Gallery</Text>
             </Pressable>
-            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border}]}
-              onPress={pickPhotoFromCamera} disabled={isUploading||currentPhotoCount>=imageLimit}>
+            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
+              onPress={pickPhotoFromCamera} disabled={isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit}>
               <Feather name="camera" size={18} color={colors.foreground}/>
               <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Camera</Text>
             </Pressable>
@@ -1618,7 +1674,14 @@ export default function ListPropertyScreen() {
 
           {/* ── Videos ── */}
           <SectionLabel text={`Videos (${videoMedia.length}/${videoLimit})`} colors={colors}/>
-          {videoLimit===0 ? (
+          {!mediaLimitsLoaded ? (
+            <View style={[{backgroundColor:colors.muted,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:12,flexDirection:"row",alignItems:"center",gap:8}]}>
+              <ActivityIndicator size="small" color={colors.primary}/>
+              <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,flex:1}}>
+                Checking your video upload allowance…
+              </Text>
+            </View>
+          ) : videoLimit===0 ? (
             <View style={[{backgroundColor:colors.muted,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:12,flexDirection:"row",alignItems:"center",gap:8}]}>
               <Feather name="alert-circle" size={16} color={colors.mutedForeground}/>
               <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,flex:1}}>
@@ -1645,23 +1708,26 @@ export default function ListPropertyScreen() {
                   {videoMedia.map((v,index)=>{
                     const mediaIndex=media.indexOf(v);
                     return (
-                      <View key={mediaIndex} style={[{backgroundColor:colors.card,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:10,flexDirection:"row",alignItems:"center",gap:10}]}>
-                        <Feather name="video" size={20} color={colors.primary}/>
-                        <View style={{flex:1}}>
-                          <Text style={{fontSize:13,fontFamily:"Outfit_500Medium",color:colors.foreground}}>Video {index+1}</Text>
-                          {v.uploaded===null && !isUploading && (
-                            <Text style={{fontSize:11,color:colors.destructive,fontFamily:"Outfit_400Regular"}}>Upload failed</Text>
-                          )}
-                          {v.uploaded===null && isUploading && (
-                            <Text style={{fontSize:11,color:colors.mutedForeground,fontFamily:"Outfit_400Regular"}}>Uploading…</Text>
-                          )}
-                          {v.uploaded!==null && (
-                            <Text style={{fontSize:11,color:"#16a34a",fontFamily:"Outfit_400Regular"}}>Uploaded</Text>
-                          )}
+                      <View key={mediaIndex} style={[{backgroundColor:colors.card,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:10,gap:10}]}>
+                        <ListingVideoPreview source={v.uploaded ?? v.uri}/>
+                        <View style={{flexDirection:"row",alignItems:"center",gap:10}}>
+                          <Feather name="video" size={20} color={colors.primary}/>
+                          <View style={{flex:1}}>
+                            <Text style={{fontSize:13,fontFamily:"Outfit_500Medium",color:colors.foreground}}>Video {index+1}</Text>
+                            {v.uploaded===null && !isUploading && (
+                              <Text style={{fontSize:11,color:colors.destructive,fontFamily:"Outfit_400Regular"}}>Upload failed</Text>
+                            )}
+                            {v.uploaded===null && isUploading && (
+                              <Text style={{fontSize:11,color:colors.mutedForeground,fontFamily:"Outfit_400Regular"}}>Uploading…</Text>
+                            )}
+                            {v.uploaded!==null && (
+                              <Text style={{fontSize:11,color:"#16a34a",fontFamily:"Outfit_400Regular"}}>Uploaded</Text>
+                            )}
+                          </View>
+                          <Pressable onPress={()=>removeMedia(mediaIndex)}>
+                            <Feather name="trash-2" size={16} color={colors.destructive}/>
+                          </Pressable>
                         </View>
-                        <Pressable onPress={()=>removeMedia(mediaIndex)}>
-                          <Feather name="trash-2" size={16} color={colors.destructive}/>
-                        </Pressable>
                       </View>
                     );
                   })}
