@@ -27,10 +27,13 @@ import type {
   FavoriteStatus,
   HealthStatus,
   ListPropertiesParams,
+  ListerProfile,
+  ListerSearchResult,
   ListingDraft,
   LoginInput,
   Property,
   SaveListingDraftInput,
+  SearchListersParams,
   SignupInput,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -779,6 +782,431 @@ export const useCreateProperty = <
   TContext
 > => {
   return useMutation(getCreatePropertyMutationOptions(options));
+};
+
+/**
+ * @summary List active featured properties
+ */
+export const getListFeaturedPropertiesUrl = () => {
+  return `/api/properties/featured`;
+};
+
+export const listFeaturedProperties = async (
+  options?: RequestInit,
+): Promise<Property[]> => {
+  return customFetch<Property[]>(getListFeaturedPropertiesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListFeaturedPropertiesQueryKey = () => {
+  return [`/api/properties/featured`] as const;
+};
+
+export const getListFeaturedPropertiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFeaturedProperties>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedProperties>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFeaturedPropertiesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFeaturedProperties>>
+  > = ({ signal }) => listFeaturedProperties({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedProperties>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFeaturedPropertiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFeaturedProperties>>
+>;
+export type ListFeaturedPropertiesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List active featured properties
+ */
+
+export function useListFeaturedProperties<
+  TData = Awaited<ReturnType<typeof listFeaturedProperties>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listFeaturedProperties>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFeaturedPropertiesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Search paid listers by personal or brand name
+ */
+export const getSearchListersUrl = (params?: SearchListersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/properties/listers?${stringifiedParams}`
+    : `/api/properties/listers`;
+};
+
+export const searchListers = async (
+  params?: SearchListersParams,
+  options?: RequestInit,
+): Promise<ListerSearchResult[]> => {
+  return customFetch<ListerSearchResult[]>(getSearchListersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getSearchListersQueryKey = (params?: SearchListersParams) => {
+  return [`/api/properties/listers`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchListersQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchListers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: SearchListersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchListers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchListersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchListers>>> = ({
+    signal,
+  }) => searchListers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchListers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type SearchListersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof searchListers>>
+>;
+export type SearchListersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Search paid listers by personal or brand name
+ */
+
+export function useSearchListers<
+  TData = Awaited<ReturnType<typeof searchListers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: SearchListersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof searchListers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getSearchListersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a public paid-lister profile and verified available listings
+ */
+export const getGetListerProfileUrl = (id: string) => {
+  return `/api/properties/listers/${id}`;
+};
+
+export const getListerProfile = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ListerProfile> => {
+  return customFetch<ListerProfile>(getGetListerProfileUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetListerProfileQueryKey = (id: string) => {
+  return [`/api/properties/listers/${id}`] as const;
+};
+
+export const getGetListerProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getListerProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getListerProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetListerProfileQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getListerProfile>>
+  > = ({ signal }) => getListerProfile(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getListerProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetListerProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getListerProfile>>
+>;
+export type GetListerProfileQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a public paid-lister profile and verified available listings
+ */
+
+export function useGetListerProfile<
+  TData = Awaited<ReturnType<typeof getListerProfile>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getListerProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetListerProfileQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Apply a monthly featured allocation to an eligible listing
+ */
+export const getFeaturePropertyUrl = (id: string) => {
+  return `/api/properties/${id}/feature`;
+};
+
+export const featureProperty = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Property> => {
+  return customFetch<Property>(getFeaturePropertyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getFeaturePropertyMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof featureProperty>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof featureProperty>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["featureProperty"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof featureProperty>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return featureProperty(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FeaturePropertyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof featureProperty>>
+>;
+
+export type FeaturePropertyMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Apply a monthly featured allocation to an eligible listing
+ */
+export const useFeatureProperty = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof featureProperty>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof featureProperty>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getFeaturePropertyMutationOptions(options));
+};
+
+/**
+ * @summary Remove a listing from the featured feed
+ */
+export const getUnfeaturePropertyUrl = (id: string) => {
+  return `/api/properties/${id}/feature`;
+};
+
+export const unfeatureProperty = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUnfeaturePropertyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnfeaturePropertyMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unfeatureProperty>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unfeatureProperty>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["unfeatureProperty"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unfeatureProperty>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return unfeatureProperty(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnfeaturePropertyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unfeatureProperty>>
+>;
+
+export type UnfeaturePropertyMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a listing from the featured feed
+ */
+export const useUnfeatureProperty = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unfeatureProperty>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unfeatureProperty>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getUnfeaturePropertyMutationOptions(options));
 };
 
 /**

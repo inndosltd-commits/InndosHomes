@@ -32,10 +32,11 @@ export default function Pricing() {
             </CardHeader>
             <CardContent className="flex flex-col flex-1 gap-4">
               <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 active listings</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 listings</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
+                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No profile or brand discovery</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No search boost</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
               </ul>
@@ -53,17 +54,17 @@ export default function Pricing() {
                 <CardTitle className="text-base font-bold">Basic</CardTitle>
               </div>
               <CardDescription>
-                <span className="text-2xl font-black text-zinc-900">KES 199</span>
+                <span className="text-2xl font-black text-zinc-900">KES 399</span>
                 <span className="text-gray-400 text-sm"> / month</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col flex-1 gap-4">
               <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 10 active listings</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>15 photos</strong> per listing</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 7 listings</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>10 photos</strong> per listing</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 featured listing / mo</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Low search boost</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
               </ul>
               <Link href="/dashboard?tab=subscription" className="w-full mt-auto">
@@ -81,19 +82,17 @@ export default function Pricing() {
                 <Badge className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-300">Popular</Badge>
               </div>
               <CardDescription>
-                <span className="text-2xl font-black text-zinc-900">KES 249</span>
+                <span className="text-2xl font-black text-zinc-900">KES 599</span>
                 <span className="text-gray-400 text-sm"> / month</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col flex-1 gap-4">
               <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 50 active listings</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>30 photos</strong> per listing</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 15 listings</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>20 photos</strong> per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 featured listings / mo</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> High search boost</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Phone support</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Export leads</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
               </ul>
               <Link href="/dashboard?tab=subscription" className="w-full mt-auto">
                 <Button className="w-full bg-yellow-500 hover:bg-yellow-400 text-white font-semibold">Upgrade to Pro</Button>
@@ -114,14 +113,13 @@ export default function Pricing() {
             </CardHeader>
             <CardContent className="flex flex-col flex-1 gap-4">
               <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited active listings</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited listings</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Negotiable featured listings</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Highest search boost</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 24/7 phone support</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Dedicated account manager</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> API access + Export leads</li>
               </ul>
               <Link href="/dashboard?tab=subscription" className="w-full mt-auto">
                 <Button variant="outline" className="w-full border-purple-300 text-purple-700 hover:bg-purple-50">Contact Admin</Button>

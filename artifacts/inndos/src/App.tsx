@@ -20,6 +20,7 @@ import BNB from "@/pages/BNB";
 import Terms from "@/pages/Terms";
 import AdminAnalytics from "@/pages/AdminAnalytics";
 import AdminNotifications from "@/pages/AdminNotifications";
+import ListerProfile from "@/pages/ListerProfile";
 import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
@@ -68,6 +69,7 @@ function Router() {
       <Route path="/privacy" component={Legal}/>
       <Route path="/help" component={Contact}/>
       <Route path="/property/:id" component={PropertyDetails}/>
+       <Route path="/lister/:id" component={ListerProfile}/>
       <Route path="/properties/:id">{(params) => { window.location.hash = `/property/${params.id}`; return null; }}</Route>
       <Route path="/admin/analytics" component={AdminAnalytics}/>
       <Route path="/admin/notifications" component={AdminNotifications}/>

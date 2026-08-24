@@ -80,6 +80,9 @@ export const properties = pgTable("properties", {
   totalUnits: integer("total_units").notNull().default(1),
   priceUnit: text("price_unit"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  featuredAt: timestamp("featured_at"),
+  featuredUntil: timestamp("featured_until"),
 });
 
 export const bookings = pgTable("bookings", {
@@ -162,6 +165,7 @@ export const subscriptions = pgTable("subscriptions", {
   amountPaid: integer("amount_paid").notNull().default(0),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
+  featuredLimitOverride: integer("featured_limit_override"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -173,12 +177,39 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   displayName: text("display_name").notNull(),
   pricePerMonth: integer("price_per_month").notNull().default(0),
   listingLimit: integer("listing_limit").notNull().default(3),
+  imageLimit: integer("image_limit").notNull().default(5),
+  videoLimit: integer("video_limit").notNull().default(0),
+  featuredLimit: integer("featured_limit").notNull().default(0),
+  discoveryEnabled: boolean("discovery_enabled").notNull().default(false),
+  searchBoost: integer("search_boost").notNull().default(0),
+  phoneSupport: boolean("phone_support").notNull().default(false),
   features: text("features").array().notNull().default(sql`'{}'::text[]`),
   isActive: boolean("is_active").notNull().default(true),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+
+export const featuredListingUses = pgTable(
+  "featured_listing_uses",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+    monthKey: text("month_key").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("featured_listing_uses_user_property_month_unique").on(
+      table.userId,
+      table.propertyId,
+      table.monthKey,
+    ),
+  ],
+);
+
+export type FeaturedListingUse = typeof featuredListingUses.$inferSelect;
 
 export const settings = pgTable("settings", {
   key: varchar("key").primaryKey(),

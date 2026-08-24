@@ -21,6 +21,8 @@ interface PlacePrediction {
 
 export default function Home() {
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
+  const [featuredProperties, setFeaturedProperties] = useState<ApiProperty[]>([]);
+  const [listerResults, setListerResults] = useState<Array<{ id: string; name: string; businessName?: string | null; propertyCount: number }>>([]);
   const [filteredProperties, setFilteredProperties] = useState<ApiProperty[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -44,14 +46,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/properties", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        const props = Array.isArray(data) ? data : [];
-        setAllProperties(props);
-        setFilteredProperties(props);
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/properties", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/properties/featured", { cache: "no-store" }).then((r) => r.ok ? r.json() : []),
+    ]).then(([data, featured]) => {
+      const props = Array.isArray(data) ? data : [];
+      setAllProperties(props);
+      setFilteredProperties(props);
+      setFeaturedProperties(Array.isArray(featured) ? featured : []);
+    }).catch(() => {});
   }, []);
 
   // Auto-request geolocation once Maps is ready
@@ -84,9 +87,16 @@ export default function Home() {
             p.type.toLowerCase().includes(query)
         )
       );
+      if (query.length >= 2) {
+        fetch(`/api/properties/listers?q=${encodeURIComponent(value)}`)
+          .then(r => r.ok ? r.json() : [])
+          .then(data => setListerResults(Array.isArray(data) ? data : []))
+          .catch(() => setListerResults([]));
+      } else setListerResults([]);
     } else {
       setFilteredProperties(allProperties);
       setPlacePredictions([]);
+      setListerResults([]);
       return;
     }
 
@@ -193,7 +203,7 @@ export default function Home() {
   const saleProperties = allProperties.filter((p) => p.type === "sale");
   const bnbProperties = allProperties.filter((p) => p.type === "bnb");
 
-  const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0);
+  const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0 || listerResults.length > 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -235,6 +245,12 @@ export default function Home() {
                         <div className="text-sm text-gray-500 truncate mt-0.5">{property.address}</div>
                       </div>
                     </div>
+                  ))}
+                  {listerResults.map((lister) => (
+                    <Link key={lister.id} href={`/lister/${lister.id}`} className="block px-4 py-3 hover:bg-gray-50 border-t border-gray-100">
+                      <div className="font-medium text-gray-900">{lister.businessName || lister.name}</div>
+                      <div className="text-sm text-gray-500">{lister.businessName ? lister.name : "Verified lister"} · {lister.propertyCount} available listing{lister.propertyCount === 1 ? "" : "s"}</div>
+                    </Link>
                   ))}
 
                   {/* Google Places predictions */}
@@ -366,6 +382,24 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Featured listings are intentionally shown before B&B & Hotels. */}
+      {featuredProperties.length > 0 && (
+        <section className="py-16 bg-white border-t">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center gap-2 mb-8">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700">★</span>
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">Featured listings</h2>
+                <p className="text-muted-foreground">Standout verified places from trusted listers.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProperties.slice(0, 12).map((property) => <PropertyCard key={property.id} property={property} />)}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* B&B & Hotels Section */}
       <section className="py-16 bg-gray-50">

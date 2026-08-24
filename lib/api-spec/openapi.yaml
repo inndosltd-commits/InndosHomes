@@ -206,6 +206,88 @@ paths:
               schema:
                 $ref: "#/components/schemas/Property"
 
+  /properties/featured:
+    get:
+      operationId: listFeaturedProperties
+      tags: [properties]
+      summary: List active featured properties
+      responses:
+        "200":
+          description: Featured listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+
+  /properties/listers:
+    get:
+      operationId: searchListers
+      tags: [properties]
+      summary: Search paid listers by personal or brand name
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Paid listers with public listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ListerSearchResult"
+
+  /properties/listers/{id}:
+    get:
+      operationId: getListerProfile
+      tags: [properties]
+      summary: Get a public paid-lister profile and verified available listings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lister profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListerProfile"
+
+  /properties/{id}/feature:
+    post:
+      operationId: featureProperty
+      tags: [properties]
+      summary: Apply a monthly featured allocation to an eligible listing
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "201":
+          description: Listing featured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Property" }
+    delete:
+      operationId: unfeatureProperty
+      tags: [properties]
+      summary: Remove a listing from the featured feed
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Listing unfeatured
   /properties/{id}:
     get:
       operationId: getProperty
@@ -674,6 +756,12 @@ components:
         ownerName:
           type: string
           nullable: true
+        isFeatured:
+          type: boolean
+        featuredUntil:
+          type: string
+          format: date-time
+          nullable: true
       required:
         - id
         - ownerId
@@ -788,6 +876,26 @@ components:
         data:
           type: object
           additionalProperties: true
+    ListerSearchResult:
+      type: object
+      required: [id, name, propertyCount]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        avatar: { type: string, nullable: true }
+        businessName: { type: string, nullable: true }
+        plan: { type: string }
+        propertyCount: { type: integer }
+    ListerProfile:
+      type: object
+      required: [lister, properties]
+      properties:
+        lister:
+          $ref: "#/components/schemas/ListerSearchResult"
+        properties:
+          type: array
+          items:
+            $ref: "#/components/schemas/Property"
     UploadUrlResponse:
       type: object
       required: [uploadURL, objectPath]

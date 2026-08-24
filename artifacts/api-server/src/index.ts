@@ -40,6 +40,12 @@ async function seedDefaultPlans() {
       displayName: "Free",
       pricePerMonth: 0,
       listingLimit: 3,
+      imageLimit: 5,
+      videoLimit: 0,
+      featuredLimit: 0,
+      discoveryEnabled: false,
+      searchBoost: 0,
+      phoneSupport: false,
       features: [
         "Up to 3 listings",
         "5 photos per listing",
@@ -52,8 +58,14 @@ async function seedDefaultPlans() {
     {
       name: "basic",
       displayName: "Basic",
-      pricePerMonth: 199,
-      listingLimit: 10,
+      pricePerMonth: 399,
+      listingLimit: 7,
+      imageLimit: 10,
+      videoLimit: 0,
+      featuredLimit: 1,
+      discoveryEnabled: true,
+      searchBoost: 1,
+      phoneSupport: false,
       features: [
         "Up to 10 listings",
         "15 photos per listing",
@@ -66,8 +78,14 @@ async function seedDefaultPlans() {
     {
       name: "pro",
       displayName: "Pro",
-      pricePerMonth: 249,
-      listingLimit: 50,
+      pricePerMonth: 599,
+      listingLimit: 15,
+      imageLimit: 20,
+      videoLimit: 1,
+      featuredLimit: 3,
+      discoveryEnabled: true,
+      searchBoost: 2,
+      phoneSupport: false,
       features: [
         "Up to 50 listings",
         "30 photos per listing",
@@ -83,6 +101,12 @@ async function seedDefaultPlans() {
       displayName: "Enterprise",
       pricePerMonth: 0,
       listingLimit: 2147483647,
+      imageLimit: 2147483647,
+      videoLimit: 5,
+      featuredLimit: 0,
+      discoveryEnabled: true,
+      searchBoost: 3,
+      phoneSupport: true,
       features: [
         "Unlimited listings",
         "Unlimited photos per listing",
@@ -99,12 +123,18 @@ async function seedDefaultPlans() {
 
   for (const plan of defaults) {
     await db.execute(
-      sql`INSERT INTO subscription_plans (name, display_name, price_per_month, listing_limit, features, is_active, updated_at)
-          VALUES (${plan.name}, ${plan.displayName}, ${plan.pricePerMonth}, ${plan.listingLimit}, ${sql.raw(`ARRAY[${plan.features.map(f => `'${f.replace(/'/g, "''")}'`).join(",")}]::text[]`)}, true, now())
+      sql`INSERT INTO subscription_plans (name, display_name, price_per_month, listing_limit, image_limit, video_limit, featured_limit, discovery_enabled, search_boost, phone_support, features, is_active, updated_at)
+          VALUES (${plan.name}, ${plan.displayName}, ${plan.pricePerMonth}, ${plan.listingLimit}, ${plan.imageLimit}, ${plan.videoLimit}, ${plan.featuredLimit}, ${plan.discoveryEnabled}, ${plan.searchBoost}, ${plan.phoneSupport}, ${sql.raw(`ARRAY[${plan.features.map(f => `'${f.replace(/'/g, "''")}'`).join(",")}]::text[]`)}, true, now())
           ON CONFLICT (name) DO UPDATE SET
             display_name = EXCLUDED.display_name,
             price_per_month = EXCLUDED.price_per_month,
             listing_limit = EXCLUDED.listing_limit,
+            image_limit = EXCLUDED.image_limit,
+            video_limit = EXCLUDED.video_limit,
+            featured_limit = EXCLUDED.featured_limit,
+            discovery_enabled = EXCLUDED.discovery_enabled,
+            search_boost = EXCLUDED.search_boost,
+            phone_support = EXCLUDED.phone_support,
             features = EXCLUDED.features,
             updated_at = now()`
     );
@@ -128,6 +158,30 @@ async function runMigrations() {
       created_at TIMESTAMP NOT NULL DEFAULT now(),
       updated_at TIMESTAMP NOT NULL DEFAULT now()
     )
+  `);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS image_limit INTEGER NOT NULL DEFAULT 5`);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS video_limit INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS featured_limit INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS discovery_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS search_boost INTEGER NOT NULL DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS phone_support BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS featured_limit_override INTEGER`);
+  await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT FALSE`);
+  await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_at TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_until TIMESTAMP`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS featured_listing_uses (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      property_id VARCHAR NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      month_key TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      revoked_at TIMESTAMP
+    )
+  `);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS featured_listing_uses_user_property_month_unique
+    ON featured_listing_uses(user_id, property_id, month_key)
   `);
   await db.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS listing_drafts_user_id_unique

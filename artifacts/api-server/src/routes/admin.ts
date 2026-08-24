@@ -509,6 +509,7 @@ router.get("/subscriptions", async (req, res) => {
       startDate: subscriptions.startDate,
       endDate: subscriptions.endDate,
       createdAt: subscriptions.createdAt,
+      featuredLimitOverride: subscriptions.featuredLimitOverride,
     })
     .from(subscriptions)
     .leftJoin(users, eq(subscriptions.userId, users.id))
@@ -521,10 +522,11 @@ router.post("/subscriptions/assign", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { userId, plan, billingMonths } = req.body as {
+  const { userId, plan, billingMonths, featuredLimitOverride } = req.body as {
     userId?: string;
     plan?: string;
     billingMonths?: number;
+    featuredLimitOverride?: number | null;
   };
 
   if (!userId || !plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
@@ -559,6 +561,7 @@ router.post("/subscriptions/assign", async (req, res) => {
         amountPaid: 0,
         startDate: now.toISOString().slice(0, 10),
         endDate: "9999-12-31",
+        featuredLimitOverride: null,
       })
       .returning();
     res.status(201).json(newSub);
@@ -580,6 +583,9 @@ router.post("/subscriptions/assign", async (req, res) => {
       amountPaid: 0,
       startDate: now.toISOString().slice(0, 10),
       endDate: endDate.toISOString().slice(0, 10),
+      featuredLimitOverride: plan === "enterprise" && featuredLimitOverride != null
+        ? Math.max(0, Math.floor(featuredLimitOverride))
+        : null,
     })
     .returning();
 
@@ -590,11 +596,12 @@ router.patch("/subscriptions/:id", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { plan, status, endDate, billingMonths } = req.body as {
+  const { plan, status, endDate, billingMonths, featuredLimitOverride } = req.body as {
     plan?: string;
     status?: string;
     endDate?: string;
     billingMonths?: number;
+    featuredLimitOverride?: number | null;
   };
 
   const updates: Record<string, unknown> = {};
@@ -602,6 +609,9 @@ router.patch("/subscriptions/:id", async (req, res) => {
   if (status && ["active", "expired", "cancelled"].includes(status)) updates.status = status;
   if (endDate) updates.endDate = endDate;
   if (billingMonths && billingMonths >= 1) updates.billingMonths = Math.floor(billingMonths);
+  if (featuredLimitOverride === null || (typeof featuredLimitOverride === "number" && featuredLimitOverride >= 0)) {
+    updates.featuredLimitOverride = featuredLimitOverride === null ? null : Math.floor(featuredLimitOverride);
+  }
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No valid fields to update" });

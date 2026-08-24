@@ -1,4 +1,4 @@
-import { useListProperties } from "@workspace/api-client-react";
+import { useListProperties, useListFeaturedProperties } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -237,6 +237,7 @@ export default function BrowseScreen() {
   };
 
   const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
+  const { data: featuredProperties, refetch: refetchFeatured } = useListFeaturedProperties();
 
   const filteredProperties = useMemo<Property[]>(() => {
     if (!properties) return [];
@@ -285,7 +286,7 @@ export default function BrowseScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchFeatured()]);
     setRefreshing(false);
   };
 
@@ -454,6 +455,14 @@ export default function BrowseScreen() {
               />
             ) : hasAnySections ? (
               <>
+                {!!featuredProperties?.length && (
+                  <SectionBlock
+                    title="Featured Listings"
+                    properties={featuredProperties.slice(0, 10)}
+                    total={featuredProperties.length}
+                    colors={colors}
+                  />
+                )}
                 <SectionBlock
                   title="BnB & Hotels"
                   properties={bnbHotelProperties.slice(0, 10)}

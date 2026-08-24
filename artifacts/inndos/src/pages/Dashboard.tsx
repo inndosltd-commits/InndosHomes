@@ -899,6 +899,7 @@ export default function Dashboard() {
     listingCount: number; listingLimit: number;
   } | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [featureLoading, setFeatureLoading] = useState<Record<string, boolean>>({});
   const [upgradeDialogPlan, setUpgradeDialogPlan] = useState<"basic" | "pro" | "enterprise" | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [customMonths, setCustomMonths] = useState(3);
@@ -1418,6 +1419,28 @@ export default function Dashboard() {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
     } finally {
       setIsUpgrading(false);
+    }
+  };
+
+  const handleFeatureListing = async (property: any) => {
+    if (!token) return;
+    setFeatureLoading(prev => ({ ...prev, [property.id]: true }));
+    try {
+      const res = await fetch(`/api/properties/${property.id}/feature`, {
+        method: property.isFeatured ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Could not update featured listing", description: data.error ?? "Please review your plan allowance.", variant: "destructive" });
+        return;
+      }
+      setOwnerProperties(prev => prev.map(p => p.id === property.id ? { ...p, ...data } : p));
+      toast({ title: property.isFeatured ? "Removed from featured" : "Listing featured", description: property.isFeatured ? "This listing is no longer promoted." : "It will appear in Featured Listings through the end of this month." });
+    } catch {
+      toast({ title: "Network error", description: "Could not update this listing.", variant: "destructive" });
+    } finally {
+      setFeatureLoading(prev => ({ ...prev, [property.id]: false }));
     }
   };
 
@@ -2652,6 +2675,11 @@ export default function Dashboard() {
                                 {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
                               </Button>
                             )}
+                               {p.isVerified && !isSold && (
+                                 <Button size="sm" variant={p.isFeatured ? "secondary" : "outline"} disabled={featureLoading[p.id]} onClick={() => handleFeatureListing(p)}>
+                                   {featureLoading[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : p.isFeatured ? "Unfeature" : "Feature"}
+                                 </Button>
+                               )}
                             {p.isVerified && !isSold && (p.confirmedBookings ?? 0) > 0 && (
                               <Button
                                 size="sm" variant="outline"

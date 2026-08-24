@@ -133,6 +133,8 @@ export const ListPropertiesResponseItem = zod.object({
   ownerBusinessName: zod.string().nullish(),
   savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
 });
 export const ListPropertiesResponse = zod.array(ListPropertiesResponseItem);
 
@@ -161,6 +163,141 @@ export const CreatePropertyBody = zod.object({
   hourlyRate: zod.number().optional(),
   priceUnit: zod.string().optional(),
   totalUnits: zod.number().min(1).optional(),
+});
+
+/**
+ * @summary List active featured properties
+ */
+
+export const ListFeaturedPropertiesResponseItem = zod.object({
+  id: zod.string(),
+  ownerId: zod.string(),
+  title: zod.string(),
+  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  price: zod.number(),
+  address: zod.string(),
+  beds: zod.number(),
+  baths: zod.number(),
+  sqft: zod.number(),
+  guests: zod.number().nullish(),
+  image: zod.string(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
+  isVerified: zod.boolean(),
+  tags: zod.array(zod.string()),
+  lat: zod.string().nullish(),
+  lng: zod.string().nullish(),
+  createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
+});
+export const ListFeaturedPropertiesResponse = zod.array(
+  ListFeaturedPropertiesResponseItem,
+);
+
+/**
+ * @summary Search paid listers by personal or brand name
+ */
+export const SearchListersQueryParams = zod.object({
+  q: zod.coerce.string().optional(),
+});
+
+export const SearchListersResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  avatar: zod.string().nullish(),
+  businessName: zod.string().nullish(),
+  plan: zod.string().optional(),
+  propertyCount: zod.number(),
+});
+export const SearchListersResponse = zod.array(SearchListersResponseItem);
+
+/**
+ * @summary Get a public paid-lister profile and verified available listings
+ */
+export const GetListerProfileParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetListerProfileResponse = zod.object({
+  lister: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    avatar: zod.string().nullish(),
+    businessName: zod.string().nullish(),
+    plan: zod.string().optional(),
+    propertyCount: zod.number(),
+  }),
+  properties: zod.array(
+    zod.object({
+      id: zod.string(),
+      ownerId: zod.string(),
+      title: zod.string(),
+      type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+      price: zod.number(),
+      address: zod.string(),
+      beds: zod.number(),
+      baths: zod.number(),
+      sqft: zod.number(),
+      guests: zod.number().nullish(),
+      image: zod.string(),
+      images: zod.array(zod.string()),
+      videos: zod.array(zod.string()),
+      details: zod.record(zod.string(), zod.unknown()),
+      isVerified: zod.boolean(),
+      tags: zod.array(zod.string()),
+      lat: zod.string().nullish(),
+      lng: zod.string().nullish(),
+      createdAt: zod.string().optional(),
+      description: zod.string().nullish(),
+      subtype: zod.string().nullish(),
+      hourlyRate: zod.number().nullish(),
+      priceUnit: zod.string().nullish(),
+      totalUnits: zod.number().min(1),
+      propertyStatus: zod
+        .enum(["pending", "approved", "flagged", "sold"])
+        .optional(),
+      activeBookingsCount: zod.number().optional(),
+      ownerPhone: zod.string().nullish(),
+      ownerEmail: zod.string().nullish(),
+      ownerAvatar: zod.string().nullish(),
+      ownerBusinessName: zod.string().nullish(),
+      savedAt: zod.string().nullish(),
+      ownerName: zod.string().nullish(),
+      isFeatured: zod.boolean().optional(),
+      featuredUntil: zod.coerce.date().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Apply a monthly featured allocation to an eligible listing
+ */
+export const FeaturePropertyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Remove a listing from the featured feed
+ */
+export const UnfeaturePropertyParams = zod.object({
+  id: zod.coerce.string(),
 });
 
 /**
@@ -205,6 +342,8 @@ export const GetPropertyResponse = zod.object({
   ownerBusinessName: zod.string().nullish(),
   savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
 });
 
 /**
@@ -309,6 +448,8 @@ export const ListFavoritesResponseItem = zod.object({
   ownerBusinessName: zod.string().nullish(),
   savedAt: zod.string().nullish(),
   ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
 });
 export const ListFavoritesResponse = zod.array(ListFavoritesResponseItem);
 

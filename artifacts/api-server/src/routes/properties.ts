@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { properties, users, bookings, propertyBlocks, insertPropertySchema, subscriptions } from "@workspace/db";
-import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit } from "./subscriptions";
+import { properties, users, bookings, propertyBlocks, insertPropertySchema, subscriptions, featuredListingUses } from "@workspace/db";
+import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit, getPlanEntitlements } from "./subscriptions";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
@@ -127,6 +127,8 @@ const PROPERTY_COLUMNS = {
   ownerEmail: users.email,
   ownerAvatar: users.avatar,
   ownerBusinessName: users.businessName,
+  isFeatured: properties.isFeatured,
+  featuredUntil: properties.featuredUntil,
   avgRating: drizzleSql<string | null>`(SELECT ROUND(AVG(r.rating)::numeric,1)::text FROM reviews r WHERE r.property_id = ${properties.id})`,
   favoritesCount: drizzleSql<number>`(SELECT COUNT(*)::int FROM favorites f WHERE f.property_id = ${properties.id})`,
   activeBookingsCount: drizzleSql<number>`(SELECT COUNT(*)::int FROM bookings b WHERE b.property_id = ${properties.id} AND b.status = 'confirmed')`,
@@ -212,20 +214,20 @@ router.get("/listers", async (req, res) => {
     const pattern = `%${q}%`;
 
     const rows = await db.execute(drizzleSql`
-      SELECT u.id, u.name, u.avatar,
+       SELECT u.id, u.name, u.avatar, u.business_name AS "businessName",
              MAX(s.plan) AS plan,
              COUNT(DISTINCT p.id)::integer AS "propertyCount"
       FROM users u
       INNER JOIN subscriptions s
-        ON  s."userId" = u.id
+        ON  s.user_id = u.id
         AND s.status   = 'active'
         AND s.plan    != 'free'
-        AND s."endDate" >= ${today}
+        AND s.end_date >= ${today}
       INNER JOIN properties p
-        ON  p."ownerId"       = u.id
-        AND p."isVerified"    = true
-        AND p."propertyStatus" != 'sold'
-      WHERE u.name ILIKE ${pattern}
+        ON  p.owner_id       = u.id
+        AND p.is_verified    = true
+        AND p.property_status != 'sold'
+       WHERE (u.name ILIKE ${pattern} OR COALESCE(u.business_name, '') ILIKE ${pattern})
       GROUP BY u.id, u.name, u.avatar
       ORDER BY u.name
       LIMIT 20
@@ -236,6 +238,62 @@ router.get("/listers", async (req, res) => {
     console.error("Lister search error:", err);
     res.status(500).json({ error: "Failed to load listers" });
   }
+});
+
+// Public profile for a paid lister. Only verified, non-sold listings are exposed.
+router.get("/listers/:id", async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const [lister] = await db.execute(drizzleSql`
+      SELECT u.id, u.name, u.avatar, u.business_name AS "businessName", s.plan
+      FROM users u
+      INNER JOIN subscriptions s ON s.user_id = u.id
+        AND s.status = 'active' AND s.plan != 'free' AND s.end_date >= ${today}
+      WHERE u.id = ${req.params.id}
+      ORDER BY s.created_at DESC
+      LIMIT 1
+    `).then((result: any) => result.rows ?? result);
+    if (!lister) {
+      res.status(404).json({ error: "Lister profile not found" });
+      return;
+    }
+    const entitlements = await getPlanEntitlements(String(lister.plan));
+    if (!entitlements.discoveryEnabled) {
+      res.status(404).json({ error: "Lister profile not found" });
+      return;
+    }
+    const listingRows = await db
+      .select(PROPERTY_COLUMNS)
+      .from(properties)
+      .leftJoin(users, eq(properties.ownerId, users.id))
+      .where(and(
+        eq(properties.ownerId, req.params.id),
+        eq(properties.isVerified, true),
+        drizzleSql`${properties.propertyStatus} != 'sold'`,
+      ));
+    res.json({ lister, properties: listingRows });
+  } catch (err) {
+    console.error("Lister profile error:", err);
+    res.status(500).json({ error: "Failed to load lister profile" });
+  }
+});
+
+// Featured listings are intentionally a separate feed so homepages can hide the
+// section without affecting normal discovery.
+router.get("/featured", async (_req, res) => {
+  const rows = await db
+    .select(PROPERTY_COLUMNS)
+    .from(properties)
+    .leftJoin(users, eq(properties.ownerId, users.id))
+    .where(and(
+      eq(properties.isVerified, true),
+      eq(properties.isFeatured, true),
+      drizzleSql`${properties.propertyStatus} != 'sold'`,
+      drizzleSql`${properties.featuredUntil} > now()`,
+    ))
+    .orderBy(drizzleSql`${properties.featuredAt} DESC`)
+    .limit(12);
+  res.json(rows);
 });
 
 router.get("/:id", async (req, res) => {
@@ -410,6 +468,63 @@ router.post("/:id/blocks", async (req, res) => {
   res.status(201).json(outcome.block);
 });
 
+router.post("/:id/feature", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (!caller || !["owner", "host"].includes(caller.role)) {
+    res.status(403).json({ error: "Only listers can feature properties" });
+    return;
+  }
+  const outcome = await db.transaction(async (tx) => {
+    const [prop] = await tx.select().from(properties).where(eq(properties.id, req.params.id));
+    if (!prop) return { kind: "not-found" as const };
+    if (prop.ownerId !== userId) return { kind: "forbidden" as const };
+    if (!prop.isVerified || prop.propertyStatus === "sold") return { kind: "ineligible" as const };
+    if (prop.isFeatured && prop.featuredUntil && prop.featuredUntil > new Date()) return { kind: "already" as const, prop };
+    const sub = await getActiveSubscription(userId);
+    const plan = await getPlanEntitlements(sub?.plan ?? "free");
+    const allowance = sub?.plan === "enterprise"
+      ? (sub.featuredLimitOverride ?? plan.featuredLimit)
+      : plan.featuredLimit;
+    if (allowance <= 0) return { kind: "no-access" as const };
+    const monthKey = new Date().toISOString().slice(0, 7);
+    const used = await tx.execute(drizzleSql`
+      SELECT COUNT(*)::int AS count FROM featured_listing_uses
+      WHERE user_id = ${userId} AND month_key = ${monthKey}
+    `);
+    const usedCount = Number((used as any).rows?.[0]?.count ?? 0);
+    if (usedCount >= allowance) return { kind: "exhausted" as const, allowance };
+    const monthEnd = new Date();
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1, 1);
+    monthEnd.setUTCHours(0, 0, 0, 0);
+    await tx.insert(featuredListingUses).values({ userId, propertyId: prop.id, monthKey });
+    const [updated] = await tx.update(properties).set({
+      isFeatured: true,
+      featuredAt: new Date(),
+      featuredUntil: monthEnd,
+    }).where(eq(properties.id, prop.id)).returning();
+    return { kind: "featured" as const, prop: updated, allowance, used: usedCount + 1 };
+  });
+  if (outcome.kind === "not-found") return void res.status(404).json({ error: "Property not found" });
+  if (outcome.kind === "forbidden") return void res.status(403).json({ error: "Not your property" });
+  if (outcome.kind === "ineligible") return void res.status(400).json({ error: "Only verified, available listings can be featured.", code: "FEATURE_INELIGIBLE" });
+  if (outcome.kind === "already") return void res.json(outcome.prop);
+  if (outcome.kind === "no-access") return void res.status(403).json({ error: "Your plan does not include featured listings.", code: "FEATURE_NOT_INCLUDED" });
+  if (outcome.kind === "exhausted") return void res.status(403).json({ error: `Your monthly featured allowance of ${outcome.allowance} has been used.`, code: "FEATURE_LIMIT", allowance: outcome.allowance });
+  res.status(201).json({ ...outcome.prop, featuredAllowance: outcome.allowance, featuredUsed: outcome.used });
+});
+
+router.delete("/:id/feature", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const [prop] = await db.select({ ownerId: properties.ownerId }).from(properties).where(eq(properties.id, req.params.id));
+  if (!prop) return void res.status(404).json({ error: "Property not found" });
+  if (prop.ownerId !== userId) return void res.status(403).json({ error: "Not your property" });
+  const [updated] = await db.update(properties).set({ isFeatured: false, featuredUntil: null }).where(eq(properties.id, req.params.id)).returning();
+  res.json(updated);
+});
+
 router.delete("/:id/blocks/:blockId", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -453,7 +568,7 @@ router.post("/", async (req, res) => {
   if (caller.role !== "admin") {
     const sub = await getActiveSubscription(userId);
     const plan = sub?.plan ?? "free";
-    const limit = getPlanLimit(plan);
+    const limit = (await getPlanEntitlements(plan)).limit;
     const [{ listingCount }] = await db
       .select({ listingCount: count() })
       .from(properties)
@@ -478,7 +593,7 @@ router.post("/", async (req, res) => {
     const sub = await getActiveSubscription(userId);
     const plan = sub?.plan ?? "free";
 
-    const imageLimit = getImageLimit(plan);
+    const imageLimit = (await getPlanEntitlements(plan)).imageLimit;
     if (imageList.length > imageLimit) {
       res.status(403).json({
         error: `Your ${plan} plan allows a maximum of ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing. Please remove some images or upgrade your subscription.`,
@@ -489,7 +604,7 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    const videoLimit = getVideoLimit(plan);
+    const videoLimit = (await getPlanEntitlements(plan)).videoLimit;
     if (videoList.length > videoLimit) {
       res.status(403).json({
         error: `Your ${plan} plan allows a maximum of ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing. Please upgrade your subscription.`,
@@ -564,7 +679,7 @@ router.patch("/:id", async (req, res) => {
     const plan = sub?.plan ?? "free";
 
     if (imageList !== undefined) {
-      const imageLimit = getImageLimit(plan);
+      const imageLimit = (await getPlanEntitlements(plan)).imageLimit;
       if (imageList.length > imageLimit) {
         res.status(403).json({
           error: `Your ${plan} plan allows a maximum of ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing. Please remove some images or upgrade your subscription.`,
@@ -577,7 +692,7 @@ router.patch("/:id", async (req, res) => {
     }
 
     if (videoList !== undefined) {
-      const videoLimit = getVideoLimit(plan);
+      const videoLimit = (await getPlanEntitlements(plan)).videoLimit;
       if (videoList.length > videoLimit) {
         res.status(403).json({
           error: `Your ${plan} plan allows a maximum of ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing. Please upgrade your subscription.`,

@@ -14,37 +14,53 @@ import {
 const router = Router();
 
 // Fallback hardcoded values (used if DB is unavailable)
-const DEFAULT_PLAN_LIMITS: Record<string, number> = { free: 3, basic: 10, pro: 50, enterprise: 2147483647 };
-const DEFAULT_PLAN_PRICES: Record<string, number> = { free: 0, basic: 199, pro: 249, enterprise: 0 };
+const DEFAULT_PLAN_LIMITS: Record<string, number> = { free: 3, basic: 7, pro: 15, enterprise: 2147483647 };
+const DEFAULT_PLAN_PRICES: Record<string, number> = { free: 0, basic: 399, pro: 599, enterprise: 0 };
 export const VIDEO_LIMITS: Record<string, number> = { free: 0, basic: 0, pro: 1, enterprise: 5 };
 export function getVideoLimit(plan: string): number {
   return VIDEO_LIMITS[plan] ?? 0;
 }
 
-export const IMAGE_LIMITS: Record<string, number> = { free: 5, basic: 15, pro: 30, enterprise: 999999 };
+export const IMAGE_LIMITS: Record<string, number> = { free: 5, basic: 10, pro: 20, enterprise: 2147483647 };
 export function getImageLimit(plan: string): number {
   return IMAGE_LIMITS[plan] ?? 5;
 }
 
 // Load plan config from DB (cached per request via module-level cache with short TTL)
-let planCache: { data: Record<string, { price: number; limit: number }>; ts: number } | null = null;
+export type PlanEntitlements = {
+  price: number; limit: number; imageLimit: number; videoLimit: number;
+  featuredLimit: number; discoveryEnabled: boolean; searchBoost: number; phoneSupport: boolean;
+};
+let planCache: { data: Record<string, PlanEntitlements>; ts: number } | null = null;
 
-async function getPlansConfig(): Promise<Record<string, { price: number; limit: number }>> {
+async function getPlansConfig(): Promise<Record<string, PlanEntitlements>> {
   if (planCache && Date.now() - planCache.ts < 30_000) return planCache.data;
   try {
     const rows = await db.select().from(subscriptionPlans);
-    const data: Record<string, { price: number; limit: number }> = {};
+    const data: Record<string, PlanEntitlements> = {};
     for (const r of rows) {
       data[r.name] = {
         price: r.pricePerMonth,
         limit: r.listingLimit,
+        imageLimit: r.imageLimit,
+        videoLimit: r.videoLimit,
+        featuredLimit: r.featuredLimit,
+        discoveryEnabled: r.discoveryEnabled,
+        searchBoost: r.searchBoost,
+        phoneSupport: r.phoneSupport,
       };
     }
     planCache = { data, ts: Date.now() };
     return data;
   } catch {
     return Object.fromEntries(
-      Object.keys(DEFAULT_PLAN_PRICES).map(k => [k, { price: DEFAULT_PLAN_PRICES[k] ?? 0, limit: DEFAULT_PLAN_LIMITS[k] ?? 3 }])
+      Object.keys(DEFAULT_PLAN_PRICES).map(k => [k, {
+        price: DEFAULT_PLAN_PRICES[k] ?? 0, limit: DEFAULT_PLAN_LIMITS[k] ?? 3,
+        imageLimit: IMAGE_LIMITS[k] ?? 5, videoLimit: VIDEO_LIMITS[k] ?? 0,
+        featuredLimit: ({ free: 0, basic: 1, pro: 3, enterprise: 0 } as Record<string, number>)[k] ?? 0,
+        discoveryEnabled: k !== "free", searchBoost: k === "pro" ? 2 : k === "basic" ? 1 : k === "enterprise" ? 3 : 0,
+        phoneSupport: k === "enterprise",
+      }])
     );
   }
 }
@@ -83,6 +99,14 @@ export async function getActiveSubscription(userId: string) {
 
 export function getPlanLimit(plan: string): number {
   return DEFAULT_PLAN_LIMITS[plan] ?? 3;
+}
+
+export async function getPlanEntitlements(plan: string): Promise<PlanEntitlements> {
+  const plans = await getPlansConfig();
+  return plans[plan] ?? plans.free ?? {
+    price: 0, limit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0,
+    discoveryEnabled: false, searchBoost: 0, phoneSupport: false,
+  };
 }
 
 async function calcAmount(plan: string, cycle: string, months: number): Promise<number> {
@@ -126,8 +150,7 @@ router.get("/me", async (req, res) => {
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
       listingLimit: plans["free"]?.limit ?? 3,
-      imageLimit: getImageLimit("free"),
-      videoLimit: getVideoLimit("free"),
+      ...(await getPlanEntitlements("free")),
     });
     return;
   }
@@ -136,8 +159,7 @@ router.get("/me", async (req, res) => {
     ...sub,
     listingCount: Number(listingCount),
     listingLimit: plans[sub.plan]?.limit ?? getPlanLimit(sub.plan),
-    imageLimit: getImageLimit(sub.plan),
-    videoLimit: getVideoLimit(sub.plan),
+    ...(await getPlanEntitlements(sub.plan)),
   });
 });
 
@@ -154,6 +176,10 @@ router.post("/upgrade", async (req, res) => {
 
   if (!plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
     res.status(400).json({ error: "plan must be free, basic, pro, or enterprise" });
+    return;
+  }
+  if (plan === "enterprise") {
+    res.status(400).json({ error: "Enterprise pricing is custom. Contact an administrator to request access.", code: "CUSTOM_PRICING" });
     return;
   }
 
@@ -219,7 +245,7 @@ router.post("/upgrade", async (req, res) => {
 
   res.status(201).json({
     ...newSub,
-    listingLimit: getPlanLimit(plan),
+    ...(await getPlanEntitlements(plan)),
     message: `Upgraded to ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`,
   });
 });
@@ -235,8 +261,8 @@ router.post("/checkout", async (req, res) => {
     months?: number;
   };
 
-  if (!plan || !["basic", "pro", "enterprise"].includes(plan)) {
-    res.status(400).json({ error: "plan must be basic, pro, or enterprise" });
+  if (!plan || !["basic", "pro"].includes(plan)) {
+    res.status(400).json({ error: "Paid checkout is available for Basic or Pro. Enterprise pricing is custom.", code: "CUSTOM_PRICING" });
     return;
   }
 

@@ -123,6 +123,8 @@ export interface Property {
   ownerBusinessName?: string | null;
   savedAt?: string | null;
   ownerName?: string | null;
+  isFeatured?: boolean;
+  featuredUntil?: string | null;
 }
 
 export type CreatePropertyInputType =
@@ -185,6 +187,20 @@ export type SaveListingDraftInputData = { [key: string]: unknown };
 
 export interface SaveListingDraftInput {
   data: SaveListingDraftInputData;
+}
+
+export interface ListerSearchResult {
+  id: string;
+  name: string;
+  avatar?: string | null;
+  businessName?: string | null;
+  plan?: string;
+  propertyCount: number;
+}
+
+export interface ListerProfile {
+  lister: ListerSearchResult;
+  properties: Property[];
 }
 
 export interface UploadUrlResponse {
@@ -272,3 +288,7 @@ export const ListPropertiesType = {
   hotel: "hotel",
   hostel: "hostel",
 } as const;
+
+export type SearchListersParams = {
+  q?: string;
+};

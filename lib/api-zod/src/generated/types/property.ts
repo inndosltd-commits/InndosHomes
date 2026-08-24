@@ -43,4 +43,6 @@ export interface Property {
   ownerBusinessName?: string | null;
   savedAt?: string | null;
   ownerName?: string | null;
+  isFeatured?: boolean;
+  featuredUntil?: Date | null;
 }
