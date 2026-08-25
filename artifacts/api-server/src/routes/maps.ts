@@ -60,6 +60,11 @@ router.get("/places", async (req, res) => {
     const acUrl = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
     acUrl.searchParams.set("input", query);
     acUrl.searchParams.set("key", apiKey);
+    // Listings are located in Kenya. Nairobi provides a useful starting bias
+    // while the country restriction keeps all suggestions in-country.
+    acUrl.searchParams.set("components", "country:ke");
+    acUrl.searchParams.set("location", "-1.2921,36.8219");
+    acUrl.searchParams.set("radius", "500000");
     const sessiontoken = String(req.query.sessiontoken ?? "").slice(0, 100);
     if (sessiontoken) acUrl.searchParams.set("sessiontoken", sessiontoken);
 
@@ -116,7 +121,7 @@ router.get("/places/:placeId", async (req, res) => {
   try {
     const detailUrl = new URL("https://maps.googleapis.com/maps/api/place/details/json");
     detailUrl.searchParams.set("place_id", placeId);
-    detailUrl.searchParams.set("fields", "geometry,formatted_address,name");
+    detailUrl.searchParams.set("fields", "geometry,formatted_address,name,address_component");
     detailUrl.searchParams.set("key", apiKey);
     const sessiontoken = String(req.query.sessiontoken ?? "").slice(0, 100);
     if (sessiontoken) detailUrl.searchParams.set("sessiontoken", sessiontoken);
@@ -129,11 +134,19 @@ router.get("/places/:placeId", async (req, res) => {
         name?: string;
         geometry?: { location?: { lat?: number; lng?: number } };
         formatted_address?: string;
+        address_components?: Array<{ types?: string[]; short_name?: string }>;
       };
     };
     const location = detailPayload.result?.geometry?.location;
     if (!detailResponse.ok || detailPayload.status !== "OK" || location?.lat == null || location.lng == null) {
       res.status(502).json({ error: detailPayload.error_message ?? "Could not resolve this place" });
+      return;
+    }
+    const isKenyanPlace = detailPayload.result?.address_components?.some(
+      (component) => component.types?.includes("country") && component.short_name === "KE"
+    );
+    if (!isKenyanPlace) {
+      res.status(422).json({ error: "Please choose a location in Kenya." });
       return;
     }
 

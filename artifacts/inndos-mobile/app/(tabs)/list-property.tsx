@@ -931,17 +931,42 @@ export default function ListPropertyScreen() {
       },
       onError:(error:unknown)=>{
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        const responseError =
+        const errorData =
           typeof error === "object" && error !== null
-            ? (error as { response?: { data?: { error?: unknown } } }).response?.data?.error
+            ? (
+                (error as { response?: { data?: unknown } }).response?.data
+                ?? (error as { data?: unknown }).data
+                ?? (error as { body?: unknown }).body
+              )
             : undefined;
+        const responseError =
+          typeof errorData === "object" && errorData !== null
+            ? (errorData as { error?: unknown }).error
+            : undefined;
+        const fieldErrors =
+          typeof errorData === "object" && errorData !== null
+            ? (errorData as { details?: { fieldErrors?: Record<string, string[]> } }).details?.fieldErrors
+            : undefined;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const mappedErrors: Partial<Record<keyof FormState | "imageUrl", string>> = {};
+          Object.entries(fieldErrors).forEach(([field, messages]) => {
+            const target = field === "image" || field === "images" ? "imageUrl" : field;
+            if (target in EMPTY_FORM || target === "imageUrl") {
+              mappedErrors[target as keyof FormState | "imageUrl"] = messages[0] ?? "Please correct this field";
+            }
+          });
+          setErrors(mappedErrors);
+        }
         const message =
           typeof responseError === "string"
             ? responseError
             : error instanceof Error && error.message
               ? error.message
               : "Failed to submit your listing. Please try again.";
-        Alert.alert("Could not submit listing", message);
+        Alert.alert(
+          fieldErrors && Object.keys(fieldErrors).length > 0 ? "Please fix the highlighted fields" : "Could not submit listing",
+          fieldErrors && Object.keys(fieldErrors).length > 0 ? "Review the errors in the form, then submit again." : message,
+        );
       },
     },
   });
@@ -1190,7 +1215,7 @@ export default function ListPropertyScreen() {
 
   const pickVideoFromLibrary = async ()=>{
     if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your video upload limit.");return;}
-    if(videoLimit===0){Alert.alert("Upgrade required","Video upload requires a Pro or Enterprise plan.");return;}
+    if(videoLimit===0){Alert.alert("Upgrade required","Video upload is included with Pro (1 video) and Enterprise (5 videos).");return;}
     if(currentVideoCount>=videoLimit){Alert.alert("Limit reached",`Your plan allows up to ${videoLimit} video(s).`);return;}
     if(Platform.OS==="web"){Alert.alert("Not supported","Video library not available on web.");return;}
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1212,7 +1237,7 @@ export default function ListPropertyScreen() {
 
   const recordVideo = async ()=>{
     if(!mediaLimitsLoaded){Alert.alert("Checking plan allowance","Please wait while we load your video upload limit.");return;}
-    if(videoLimit===0){Alert.alert("Upgrade required","Video upload requires a Pro or Enterprise plan.");return;}
+    if(videoLimit===0){Alert.alert("Upgrade required","Video upload is included with Pro (1 video) and Enterprise (5 videos).");return;}
     if(currentVideoCount>=videoLimit){Alert.alert("Limit reached",`Your plan allows up to ${videoLimit} video(s).`);return;}
     if(Platform.OS==="web"){Alert.alert("Not supported","Video recording not available on web.");return;}
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -1391,7 +1416,9 @@ export default function ListPropertyScreen() {
         ...(parsedSqft!=null?{sqft:parsedSqft}:{}),
         ...(guests?{guests}:{}),
         ...(hourlyRate?{hourlyRate}:{}),
-        ...(form.priceUnit?{priceUnit:form.priceUnit}:{}),
+        ...((form.listingType==="bnb" ? "night" : form.priceUnit.trim())
+          ? {priceUnit:form.listingType==="bnb" ? "night" : form.priceUnit.trim()}
+          : {}),
         subtype:toApiSubtype(form.listingType,form.subtype),
         totalUnits,
         ...(finalDesc?{description:finalDesc}:{}),
@@ -1812,7 +1839,7 @@ export default function ListPropertyScreen() {
             <View style={[{backgroundColor:colors.muted,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:12,flexDirection:"row",alignItems:"center",gap:8}]}>
               <Feather name="alert-circle" size={16} color={colors.mutedForeground}/>
               <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,flex:1}}>
-                Video upload requires a Pro or Enterprise plan.
+                Video upload is included with Pro (1 video) and Enterprise (5 videos).
               </Text>
             </View>
           ) : (

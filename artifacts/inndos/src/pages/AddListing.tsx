@@ -1111,7 +1111,9 @@ export default function AddListing() {
     if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel" || listingType === "sale-apartment" || listingType === "sale-home") && !subtype) {
       clientErrors.subtype = ["Please select a property category"];
     }
-    if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel") && !priceUnit) {
+    // B&B listings use the required daily rate as their default "per night"
+    // price, so they do not have a separate price-period field to complete.
+    if ((listingType === "rent" || listingType === "hotel" || listingType === "hostel") && !priceUnit) {
       clientErrors.priceUnit = ["Please select a price period"];
     }
     if (specsAreApplicable && (isNaN(parsedBeds) || parsedBeds < 0)) clientErrors.beds = ["Enter the number of bedrooms"];
@@ -1175,7 +1177,7 @@ export default function AddListing() {
             ? listingType.replace("sale-", "") // "sale-apartment" → "apartment", "sale-home" → "home", "sale-land" → "land"
             : (subtype || undefined),
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
-        priceUnit: priceUnit || undefined,
+        priceUnit: listingType === "bnb" ? "night" : (priceUnit || undefined),
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
         lng: pinPosition?.lng != null ? String(pinPosition.lng) : undefined,
       };
@@ -1918,7 +1920,7 @@ export default function AddListing() {
                       <CardTitle>Property Videos</CardTitle>
                       <CardDescription>
                         {videoLimit === 0
-                          ? "Video upload requires a Silver or Gold plan"
+                          ? "Video upload is included with Pro (1 video) and Enterprise (5 videos)"
                           : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 5 minutes each`}
                       </CardDescription>
                     </div>
@@ -1931,7 +1933,7 @@ export default function AddListing() {
                   {videoLimit === 0 ? (
                     <div className="flex items-center gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
                       <AlertCircle className="h-4 w-4 shrink-0" />
-                      Your Standard plan does not include property videos. Upgrade to Silver (1 video) or Gold (2 videos) to unlock this feature.
+                      Free and Basic packages do not include property videos. Upgrade to Pro for 1 video or Enterprise for up to 5 videos per listing.
                     </div>
                   ) : (
                     <>
