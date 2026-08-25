@@ -743,11 +743,17 @@ router.post("/plans", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { name, displayName, pricePerMonth, listingLimit, features, isActive } = req.body as {
+  const { name, displayName, pricePerMonth, listingLimit, imageLimit, videoLimit, featuredLimit, discoveryEnabled, searchBoost, phoneSupport, features, isActive } = req.body as {
     name?: string;
     displayName?: string;
     pricePerMonth?: number;
     listingLimit?: number;
+    imageLimit?: number;
+    videoLimit?: number;
+    featuredLimit?: number;
+    discoveryEnabled?: boolean;
+    searchBoost?: number;
+    phoneSupport?: boolean;
     features?: string[];
     isActive?: boolean;
   };
@@ -769,6 +775,12 @@ router.post("/plans", async (req, res) => {
         displayName: displayName.trim(),
         pricePerMonth: Math.max(0, Math.floor(pricePerMonth ?? 0)),
         listingLimit: Math.max(1, Math.floor(listingLimit ?? 3)),
+        imageLimit: Math.max(0, Math.floor(imageLimit ?? 5)),
+        videoLimit: Math.max(0, Math.floor(videoLimit ?? 0)),
+        featuredLimit: Math.max(0, Math.floor(featuredLimit ?? 0)),
+        discoveryEnabled: Boolean(discoveryEnabled),
+        searchBoost: Math.max(0, Math.floor(searchBoost ?? 0)),
+        phoneSupport: Boolean(phoneSupport),
         features: Array.isArray(features) ? features.filter(f => f.trim()) : [],
         isActive: isActive !== false,
         updatedAt: new Date(),
@@ -791,10 +803,16 @@ router.put("/plans/:name", async (req, res) => {
 
   const { name } = req.params;
 
-  const { displayName, pricePerMonth, listingLimit, features, isActive } = req.body as {
+  const { displayName, pricePerMonth, listingLimit, imageLimit, videoLimit, featuredLimit, discoveryEnabled, searchBoost, phoneSupport, features, isActive } = req.body as {
     displayName?: string;
     pricePerMonth?: number;
     listingLimit?: number;
+    imageLimit?: number;
+    videoLimit?: number;
+    featuredLimit?: number;
+    discoveryEnabled?: boolean;
+    searchBoost?: number;
+    phoneSupport?: boolean;
     features?: string[];
     isActive?: boolean;
   };
@@ -803,6 +821,12 @@ router.put("/plans/:name", async (req, res) => {
   if (displayName !== undefined) updates.displayName = displayName;
   if (pricePerMonth !== undefined && pricePerMonth >= 0) updates.pricePerMonth = Math.floor(pricePerMonth);
   if (listingLimit !== undefined && listingLimit >= 1) updates.listingLimit = Math.floor(listingLimit);
+  if (imageLimit !== undefined && imageLimit >= 0) updates.imageLimit = Math.floor(imageLimit);
+  if (videoLimit !== undefined && videoLimit >= 0) updates.videoLimit = Math.floor(videoLimit);
+  if (featuredLimit !== undefined && featuredLimit >= 0) updates.featuredLimit = Math.floor(featuredLimit);
+  if (discoveryEnabled !== undefined) updates.discoveryEnabled = Boolean(discoveryEnabled);
+  if (searchBoost !== undefined && searchBoost >= 0) updates.searchBoost = Math.floor(searchBoost);
+  if (phoneSupport !== undefined) updates.phoneSupport = Boolean(phoneSupport);
   if (Array.isArray(features)) updates.features = features.filter(f => f.trim());
   if (isActive !== undefined) updates.isActive = Boolean(isActive);
 

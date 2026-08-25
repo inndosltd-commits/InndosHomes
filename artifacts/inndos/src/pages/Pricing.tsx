@@ -36,9 +36,8 @@ export default function Pricing() {
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
-                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No profile or brand discovery</li>
-                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No search boost</li>
-                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
+                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No brand-profile search</li>
+                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No dedicated phone support</li>
               </ul>
               <Link href="/login?role=owner" className="w-full mt-auto">
                 <Button variant="outline" className="w-full">Get Started</Button>
@@ -64,8 +63,8 @@ export default function Pricing() {
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>10 photos</strong> per listing</li>
                 <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 1 featured listing / mo</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
-                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Brand-profile search</li>
+                <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No dedicated phone support</li>
               </ul>
               <Link href="/dashboard?tab=subscription" className="w-full mt-auto">
                 <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-white">Upgrade to Basic</Button>
@@ -92,7 +91,7 @@ export default function Pricing() {
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>20 photos</strong> per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 3 featured listings / mo</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Brand-profile search</li>
               </ul>
               <Link href="/dashboard?tab=subscription" className="w-full mt-auto">
                 <Button className="w-full bg-yellow-500 hover:bg-yellow-400 text-white font-semibold">Upgrade to Pro</Button>
@@ -116,8 +115,8 @@ export default function Pricing() {
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Unlimited listings</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Negotiable featured listings</li>
-                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Profile and brand discovery</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Negotiated featured allocation</li>
+                <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Brand-profile search</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> 24/7 phone support</li>
                 <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500 shrink-0" /> Dedicated account manager</li>
               </ul>

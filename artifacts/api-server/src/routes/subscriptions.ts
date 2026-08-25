@@ -1,6 +1,6 @@
 import { Router, type Response } from "express";
 import { db } from "@workspace/db";
-import { subscriptions, users, properties, payments, settings, subscriptionPlans } from "@workspace/db";
+import { subscriptions, users, properties, payments, settings, subscriptionPlans, featuredListingUses } from "@workspace/db";
 import { eq, and, desc, count } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { sendSubscriptionRenewalConfirmationEmail } from "../lib/email";
@@ -31,6 +31,7 @@ export function getImageLimit(plan: string): number {
 export type PlanEntitlements = {
   price: number; limit: number; imageLimit: number; videoLimit: number;
   featuredLimit: number; discoveryEnabled: boolean; searchBoost: number; phoneSupport: boolean;
+  features: string[];
 };
 let planCache: { data: Record<string, PlanEntitlements>; ts: number } | null = null;
 
@@ -49,6 +50,7 @@ async function getPlansConfig(): Promise<Record<string, PlanEntitlements>> {
         discoveryEnabled: r.discoveryEnabled,
         searchBoost: r.searchBoost,
         phoneSupport: r.phoneSupport,
+        features: r.features,
       };
     }
     planCache = { data, ts: Date.now() };
@@ -59,8 +61,27 @@ async function getPlansConfig(): Promise<Record<string, PlanEntitlements>> {
         price: DEFAULT_PLAN_PRICES[k] ?? 0, limit: DEFAULT_PLAN_LIMITS[k] ?? 3,
         imageLimit: IMAGE_LIMITS[k] ?? 5, videoLimit: VIDEO_LIMITS[k] ?? 0,
         featuredLimit: ({ free: 0, basic: 1, pro: 3, enterprise: 0 } as Record<string, number>)[k] ?? 0,
-        discoveryEnabled: k !== "free", searchBoost: k === "pro" ? 2 : k === "basic" ? 1 : k === "enterprise" ? 3 : 0,
+        discoveryEnabled: k !== "free", searchBoost: 0,
         phoneSupport: k === "enterprise",
+        features: ({
+          free: [
+            "Up to 3 listings", "5 photos per listing", "No video / virtual tour",
+            "0 featured listings per month", "No brand-profile search", "No dedicated phone support",
+          ],
+          basic: [
+            "Up to 7 listings", "10 photos per listing", "No video / virtual tour",
+            "1 featured listing per month", "Brand-profile search", "No dedicated phone support",
+          ],
+          pro: [
+            "Up to 15 listings", "20 photos per listing", "1 video / virtual tour per listing",
+            "3 featured listings per month", "Brand-profile search",
+          ],
+          enterprise: [
+            "Unlimited listings", "Unlimited photos per listing", "5 videos / virtual tours per listing",
+            "Negotiated featured allocation", "Brand-profile search", "24/7 phone support",
+            "Dedicated account manager",
+          ],
+        } as Record<string, string[]>)[k] ?? [],
       }])
     );
   }
@@ -120,7 +141,7 @@ export async function getPlanEntitlements(plan: string): Promise<PlanEntitlement
   const plans = await getPlansConfig();
   return plans[plan] ?? plans.free ?? {
     price: 0, limit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0,
-    discoveryEnabled: false, searchBoost: 0, phoneSupport: false,
+    discoveryEnabled: false, searchBoost: 0, phoneSupport: false, features: [],
   };
 }
 
@@ -153,6 +174,22 @@ router.get("/me", async (req, res) => {
     .where(eq(properties.ownerId, userId));
 
   const plans = await getPlansConfig();
+  const planName = sub?.plan ?? "free";
+  const entitlements = await getPlanEntitlements(planName);
+  const featuredAllowance = planName === "enterprise"
+    ? (sub?.featuredLimitOverride ?? 0)
+    : entitlements.featuredLimit;
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const [{ featuredUsed }] = await db
+    .select({ featuredUsed: count() })
+    .from(featuredListingUses)
+    .where(and(eq(featuredListingUses.userId, userId), eq(featuredListingUses.monthKey, monthKey)));
+  const allowanceSummary = {
+    featuredAllowance,
+    featuredUsed: Number(featuredUsed),
+    featuredRemaining: Math.max(0, featuredAllowance - Number(featuredUsed)),
+    featuredMonth: monthKey,
+  };
 
   if (!sub) {
     res.json({
@@ -165,7 +202,8 @@ router.get("/me", async (req, res) => {
       endDate: "9999-12-31",
       listingCount: Number(listingCount),
       listingLimit: plans["free"]?.limit ?? 3,
-      ...(await getPlanEntitlements("free")),
+      ...entitlements,
+      ...allowanceSummary,
     });
     return;
   }
@@ -174,7 +212,8 @@ router.get("/me", async (req, res) => {
     ...sub,
     listingCount: Number(listingCount),
     listingLimit: plans[sub.plan]?.limit ?? getPlanLimit(sub.plan),
-    ...(await getPlanEntitlements(sub.plan)),
+    ...entitlements,
+    ...allowanceSummary,
   });
 });
 

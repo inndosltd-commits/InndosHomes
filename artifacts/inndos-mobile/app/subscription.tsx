@@ -25,6 +25,9 @@ type Plan = {
   listingLimit: number;
   imageLimit: number;
   videoLimit: number;
+  featuredLimit: number;
+  discoveryEnabled: boolean;
+  phoneSupport: boolean;
   features?: string[];
 };
 
@@ -34,12 +37,28 @@ type Subscription = {
   endDate: string;
   listingCount: number;
   listingLimit: number;
+  imageLimit: number;
+  videoLimit: number;
+  featuredAllowance: number;
+  featuredUsed: number;
+  featuredRemaining: number;
+  features: string[];
+};
+
+type OwnedProperty = {
+  id: string;
+  title: string;
+  address: string;
+  isVerified: boolean;
+  propertyStatus: string;
+  isFeatured: boolean;
+  featuredUntil?: string | null;
 };
 
 type PaymentState = "success" | "pending" | "failed" | "cancelled" | "error" | null;
 
 const stateCopy: Record<Exclude<PaymentState, null>, { title: string; text: string; color: string }> = {
-  success: { title: "Payment successful", text: "Your subscription is active.", color: "#16a34a" },
+  success: { title: "Payment successful", text: "Your subscription is active. Choose eligible listings for your featured allowance below.", color: "#16a34a" },
   pending: { title: "Payment pending", text: "We are waiting for payment confirmation. This page will refresh when it is received.", color: "#d97706" },
   failed: { title: "Payment failed", text: "No plan change was made. You can try again.", color: "#dc2626" },
   cancelled: { title: "Payment cancelled", text: "No charge was made.", color: "#6b7280" },
@@ -59,25 +78,37 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [payingPlan, setPayingPlan] = useState<string | null>(null);
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
+  const [ownedProperties, setOwnedProperties] = useState<OwnedProperty[]>([]);
+  const [featureBusy, setFeatureBusy] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [plansResponse, subscriptionResponse] = await Promise.all([
+      const canManageListings = user?.role === "owner" || user?.role === "host";
+      const [plansResponse, subscriptionResponse, propertiesResponse] = await Promise.all([
         fetch(`${getApiBaseUrl()}/api/subscriptions/plans`, { headers }),
         fetch(`${getApiBaseUrl()}/api/subscriptions/me`, { headers }),
+        canManageListings
+          ? fetch(`${getApiBaseUrl()}/api/properties?ownerId=${encodeURIComponent(user.id)}`, { headers })
+          : Promise.resolve(null),
       ]);
       if (!plansResponse.ok || !subscriptionResponse.ok) throw new Error("Unable to load subscription details");
       setPlans(await plansResponse.json());
       setSubscription(await subscriptionResponse.json());
+      if (propertiesResponse?.ok) {
+        const properties = await propertiesResponse.json();
+        setOwnedProperties(Array.isArray(properties) ? properties : []);
+      } else if (!canManageListings) {
+        setOwnedProperties([]);
+      }
     } catch {
       Alert.alert("Could not load plans", "Check your connection and try again.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, user]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -171,6 +202,29 @@ export default function SubscriptionScreen() {
     }
   };
 
+  const featureProperty = async (property: OwnedProperty) => {
+    if (!token) return;
+    const isCurrentlyFeatured = Boolean(
+      property.isFeatured && property.featuredUntil && new Date(property.featuredUntil) > new Date()
+    );
+    setFeatureBusy((current) => ({ ...current, [property.id]: true }));
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/properties/${property.id}/feature`, {
+        method: isCurrentlyFeatured ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json() as OwnedProperty & { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Could not update the featured listing.");
+      setOwnedProperties((current) => current.map((item) => item.id === property.id ? { ...item, ...result } : item));
+      await load();
+      Alert.alert(isCurrentlyFeatured ? "Listing removed" : "Listing featured", isCurrentlyFeatured ? "This listing is no longer featured." : "It will appear in Featured Listings for exactly seven days.");
+    } catch (error) {
+      Alert.alert("Could not update featured listing", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setFeatureBusy((current) => ({ ...current, [property.id]: false }));
+    }
+  };
+
   if (!user) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -204,8 +258,45 @@ export default function SubscriptionScreen() {
               <Text style={[styles.currentMeta, { color: colors.mutedForeground }]}>
                 {subscription?.status ?? "active"} · {subscription?.listingCount ?? 0}/{subscription?.listingLimit ?? 3} listings used
               </Text>
+              <Text style={[styles.currentMeta, { color: colors.mutedForeground }]}>
+                {(subscription?.imageLimit ?? 5) >= 2147483647 ? "Unlimited" : subscription?.imageLimit ?? 5} photos · {subscription?.videoLimit ?? 0} video{(subscription?.videoLimit ?? 0) === 1 ? "" : "s"} per listing
+              </Text>
+              <Text style={[styles.currentMeta, { color: colors.mutedForeground }]}>
+                Featured this month: {subscription?.featuredUsed ?? 0}/{subscription?.featuredAllowance ?? 0} used · {subscription?.featuredRemaining ?? 0} remaining
+              </Text>
               {subscription?.plan !== "free" && <Text style={[styles.currentMeta, { color: colors.mutedForeground }]}>Renews or ends {subscription?.endDate}</Text>}
             </View>
+            {(subscription?.featuredAllowance ?? 0) > 0 && (
+              <View style={[styles.featureChooser, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.featureChooserTitle, { color: colors.foreground }]}>Choose featured listings</Text>
+                <Text style={[styles.featureChooserText, { color: colors.mutedForeground }]}>
+                  {(subscription?.featuredRemaining ?? 0) > 0
+                    ? `${subscription?.featuredRemaining} slot${subscription?.featuredRemaining === 1 ? "" : "s"} remain this month. Each featured listing appears for exactly 7 days.`
+                    : "Your monthly featured allocation has been used."}
+                </Text>
+                {ownedProperties.filter((property) => property.isVerified && property.propertyStatus !== "sold").length === 0 ? (
+                  <Text style={[styles.featureChooserText, { color: colors.mutedForeground }]}>Approved listings will appear here after they are verified.</Text>
+                ) : ownedProperties.filter((property) => property.isVerified && property.propertyStatus !== "sold").map((property) => {
+                  const featuredNow = property.isFeatured && !!property.featuredUntil && new Date(property.featuredUntil) > new Date();
+                  return (
+                    <View key={property.id} style={[styles.propertyChoice, { borderColor: colors.border }]}>
+                      <View style={styles.propertyChoiceText}>
+                        <Text numberOfLines={1} style={[styles.propertyChoiceTitle, { color: colors.foreground }]}>{property.title}</Text>
+                        <Text numberOfLines={1} style={[styles.propertyChoiceAddress, { color: colors.mutedForeground }]}>{property.address}</Text>
+                        {featuredNow && <Text style={[styles.propertyChoiceStatus, { color: colors.primary }]}>Featured until {new Date(property.featuredUntil!).toLocaleDateString()}</Text>}
+                      </View>
+                      <Pressable
+                        style={[styles.featureButton, { backgroundColor: featuredNow ? colors.muted : colors.primary, opacity: featureBusy[property.id] || (!featuredNow && (subscription?.featuredRemaining ?? 0) < 1) ? 0.55 : 1 }]}
+                        disabled={featureBusy[property.id] || (!featuredNow && (subscription?.featuredRemaining ?? 0) < 1)}
+                        onPress={() => void featureProperty(property)}
+                      >
+                        {featureBusy[property.id] ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Text style={[styles.featureButtonText, { color: featuredNow ? colors.mutedForeground : colors.primaryForeground }]}>{featuredNow ? "Remove" : "Feature"}</Text>}
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Choose a package</Text>
             {plans.filter((plan) => plan.name !== "free" || subscription?.plan === "free").map((plan) => {
               const isCurrent = subscription?.plan === plan.name;
@@ -218,9 +309,13 @@ export default function SubscriptionScreen() {
                     </View>
                     {isCurrent && <Text style={[styles.currentBadge, { color: colors.primary, borderColor: colors.primary }]}>Current</Text>}
                   </View>
-                  <Text style={[styles.featureText, { color: colors.mutedForeground }]}>
-                    {plan.listingLimit >= 2147483647 ? "Unlimited" : plan.listingLimit} listings · {plan.imageLimit} photos · {plan.videoLimit} video{plan.videoLimit === 1 ? "" : "s"}
-                  </Text>
+                  <View style={styles.featureList}>
+                    {(plan.features ?? [
+                      `${plan.listingLimit >= 2147483647 ? "Unlimited" : plan.listingLimit} listings`,
+                      `${plan.imageLimit} photos per listing`,
+                      `${plan.videoLimit} videos per listing`,
+                    ]).map((feature) => <Text key={feature} style={[styles.featureText, { color: colors.mutedForeground }]}>• {feature}</Text>)}
+                  </View>
                   <Pressable
                     style={[styles.planButton, { backgroundColor: isCurrent ? colors.muted : colors.primary, opacity: payingPlan && payingPlan !== plan.name ? 0.55 : 1 }]}
                     disabled={isCurrent || !!payingPlan}
@@ -254,6 +349,16 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: "Outfit_600SemiBold", fontSize: 10, letterSpacing: 1 },
   currentPlan: { fontFamily: "Outfit_700Bold", fontSize: 22, textTransform: "capitalize" },
   currentMeta: { fontFamily: "Outfit_400Regular", fontSize: 13 },
+  featureChooser: { borderWidth: 1, borderRadius: 12, padding: 16, gap: 10 },
+  featureChooserTitle: { fontFamily: "Outfit_700Bold", fontSize: 17 },
+  featureChooserText: { fontFamily: "Outfit_400Regular", fontSize: 13, lineHeight: 18 },
+  propertyChoice: { borderWidth: 1, borderRadius: 10, padding: 11, flexDirection: "row", alignItems: "center", gap: 10 },
+  propertyChoiceText: { flex: 1, gap: 2 },
+  propertyChoiceTitle: { fontFamily: "Outfit_600SemiBold", fontSize: 14 },
+  propertyChoiceAddress: { fontFamily: "Outfit_400Regular", fontSize: 12 },
+  propertyChoiceStatus: { fontFamily: "Outfit_500Medium", fontSize: 11, marginTop: 2 },
+  featureButton: { minWidth: 70, minHeight: 36, paddingHorizontal: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  featureButtonText: { fontFamily: "Outfit_600SemiBold", fontSize: 12 },
   sectionTitle: { fontFamily: "Outfit_700Bold", fontSize: 18, marginTop: 8 },
   planCard: { borderWidth: 1, borderRadius: 12, padding: 16, gap: 12 },
   planHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -261,6 +366,7 @@ const styles = StyleSheet.create({
   price: { fontFamily: "Outfit_500Medium", fontSize: 14, marginTop: 2 },
   currentBadge: { borderWidth: 1, borderRadius: 12, paddingVertical: 3, paddingHorizontal: 8, fontFamily: "Outfit_600SemiBold", fontSize: 11 },
   featureText: { fontFamily: "Outfit_400Regular", fontSize: 13, lineHeight: 18 },
+  featureList: { gap: 3 },
   planButton: { minHeight: 44, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   planButtonText: { fontFamily: "Outfit_600SemiBold", fontSize: 14 },
 });

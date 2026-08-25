@@ -709,6 +709,9 @@ router.post("/:id/feature", async (req, res) => {
     return;
   }
   const outcome = await db.transaction(async (tx) => {
+    // Serialize each lister's allocation decisions so two simultaneous selections
+    // cannot both consume the same remaining monthly slot.
+    await tx.execute(drizzleSql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
     const [prop] = await tx.select().from(properties).where(eq(properties.id, req.params.id));
     if (!prop) return { kind: "not-found" as const };
     if (prop.ownerId !== userId) return { kind: "forbidden" as const };
@@ -721,20 +724,28 @@ router.post("/:id/feature", async (req, res) => {
       : plan.featuredLimit;
     if (allowance <= 0) return { kind: "no-access" as const };
     const monthKey = new Date().toISOString().slice(0, 7);
+    const [previousUse] = await tx
+      .select({ id: featuredListingUses.id })
+      .from(featuredListingUses)
+      .where(and(
+        eq(featuredListingUses.userId, userId),
+        eq(featuredListingUses.propertyId, prop.id),
+        eq(featuredListingUses.monthKey, monthKey),
+      ))
+      .limit(1);
+    if (previousUse) return { kind: "already-used" as const };
     const used = await tx.execute(drizzleSql`
       SELECT COUNT(*)::int AS count FROM featured_listing_uses
       WHERE user_id = ${userId} AND month_key = ${monthKey}
     `);
     const usedCount = Number((used as any).rows?.[0]?.count ?? 0);
     if (usedCount >= allowance) return { kind: "exhausted" as const, allowance };
-    const monthEnd = new Date();
-    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1, 1);
-    monthEnd.setUTCHours(0, 0, 0, 0);
+    const featuredUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await tx.insert(featuredListingUses).values({ userId, propertyId: prop.id, monthKey });
     const [updated] = await tx.update(properties).set({
       isFeatured: true,
       featuredAt: new Date(),
-      featuredUntil: monthEnd,
+      featuredUntil,
     }).where(eq(properties.id, prop.id)).returning();
     return { kind: "featured" as const, prop: updated, allowance, used: usedCount + 1 };
   });
@@ -742,6 +753,10 @@ router.post("/:id/feature", async (req, res) => {
   if (outcome.kind === "forbidden") return void res.status(403).json({ error: "Not your property" });
   if (outcome.kind === "ineligible") return void res.status(400).json({ error: "Only verified, available listings can be featured.", code: "FEATURE_INELIGIBLE" });
   if (outcome.kind === "already") return void res.json(outcome.prop);
+  if (outcome.kind === "already-used") return void res.status(409).json({
+    error: "This listing has already used a featured allocation this month.",
+    code: "FEATURE_ALREADY_USED",
+  });
   if (outcome.kind === "no-access") return void res.status(403).json({ error: "Your plan does not include featured listings.", code: "FEATURE_NOT_INCLUDED" });
   if (outcome.kind === "exhausted") return void res.status(403).json({ error: `Your monthly featured allowance of ${outcome.allowance} has been used.`, code: "FEATURE_LIMIT", allowance: outcome.allowance });
   res.status(201).json({ ...outcome.prop, featuredAllowance: outcome.allowance, featuredUsed: outcome.used });

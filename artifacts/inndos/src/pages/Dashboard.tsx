@@ -895,10 +895,12 @@ export default function Dashboard() {
   const [subscription, setSubscription] = useState<{
     plan: string; status: string; billingCycle: string; billingMonths: number;
     amountPaid: number; startDate: string; endDate: string;
-    listingCount: number; listingLimit: number;
+    listingCount: number; listingLimit: number; imageLimit: number; videoLimit: number;
+    featuredAllowance: number; featuredUsed: number; featuredRemaining: number; features: string[];
   } | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
   const [featureLoading, setFeatureLoading] = useState<Record<string, boolean>>({});
+  const [featureSelectionOpen, setFeatureSelectionOpen] = useState(false);
   const [upgradeDialogPlan, setUpgradeDialogPlan] = useState<"basic" | "pro" | "enterprise" | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
   const [customMonths, setCustomMonths] = useState(3);
@@ -929,17 +931,18 @@ export default function Dashboard() {
   const [calendarProperty, setCalendarProperty] = useState<{ id: string; title: string } | null>(null);
   const [assignPlan, setAssignPlan] = useState<"free" | "basic" | "pro" | "enterprise">("basic");
   const [assignMonths, setAssignMonths] = useState(1);
+  const [assignFeaturedLimit, setAssignFeaturedLimit] = useState(0);
   const [isAssigning, setIsAssigning] = useState(false);
 
   // Admin plan management state
   const [adminPlans, setAdminPlans] = useState<any[]>([]);
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
-  const [planForm, setPlanForm] = useState({ displayName: "", pricePerMonth: 0, listingLimit: 3, features: [] as string[], isActive: true });
+  const [planForm, setPlanForm] = useState({ displayName: "", pricePerMonth: 0, listingLimit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0, discoveryEnabled: false, phoneSupport: false, features: [] as string[], isActive: true });
   const [newFeature, setNewFeature] = useState("");
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
   const [createPlanDialog, setCreatePlanDialog] = useState(false);
-  const [createPlanForm, setCreatePlanForm] = useState({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, features: [] as string[], isActive: true });
+  const [createPlanForm, setCreatePlanForm] = useState({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0, discoveryEnabled: false, phoneSupport: false, features: [] as string[], isActive: true });
   const [createPlanFeature, setCreatePlanFeature] = useState("");
   const [deletingPlanName, setDeletingPlanName] = useState<string | null>(null);
   const [isDeletingPlan, setIsDeletingPlan] = useState(false);
@@ -1389,6 +1392,7 @@ export default function Dashboard() {
       }
       await fetchSubscription();
       setUpgradeDialogPlan(null);
+      setFeatureSelectionOpen(true);
       toast({
         title: "Plan Activated!",
         description: data.message || "Your subscription has been upgraded.",
@@ -1423,10 +1427,13 @@ export default function Dashboard() {
 
   const handleFeatureListing = async (property: any) => {
     if (!token) return;
+    const isCurrentlyFeatured = Boolean(
+      property.isFeatured && property.featuredUntil && new Date(property.featuredUntil) > new Date()
+    );
     setFeatureLoading(prev => ({ ...prev, [property.id]: true }));
     try {
       const res = await fetch(`/api/properties/${property.id}/feature`, {
-        method: property.isFeatured ? "DELETE" : "POST",
+        method: isCurrentlyFeatured ? "DELETE" : "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -1435,7 +1442,8 @@ export default function Dashboard() {
         return;
       }
       setOwnerProperties(prev => prev.map(p => p.id === property.id ? { ...p, ...data } : p));
-      toast({ title: property.isFeatured ? "Removed from featured" : "Listing featured", description: property.isFeatured ? "This listing is no longer promoted." : "It will appear in Featured Listings through the end of this month." });
+      await fetchSubscription();
+      toast({ title: isCurrentlyFeatured ? "Removed from featured" : "Listing featured", description: isCurrentlyFeatured ? "This listing is no longer promoted." : "It will appear in Featured Listings for exactly seven days." });
     } catch {
       toast({ title: "Network error", description: "Could not update this listing.", variant: "destructive" });
     } finally {
@@ -1498,6 +1506,7 @@ export default function Dashboard() {
     if (paymentResult === "success") {
       fetchSubscription();
       setActiveTab("subscription");
+      setFeatureSelectionOpen(true);
       toast({
         title: "Payment successful!",
         description: "Your subscription has been activated. Thank you!",
@@ -3903,7 +3912,7 @@ export default function Dashboard() {
                                 <Eye className="h-3 w-3" /> View Profile
                               </Button>
                               <Button size="sm" variant="outline" className="gap-1 text-zinc-700 border-zinc-300 hover:bg-zinc-50"
-                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); }}>
+                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); setAssignFeaturedLimit(0); }}>
                                 <Crown className="h-3 w-3" /> Assign Plan
                               </Button>
                               {!isSelf && u.status !== 'suspended' ? (
@@ -4294,7 +4303,7 @@ export default function Dashboard() {
                                   <Button
                                     size="sm" variant="outline"
                                     className="text-xs h-7 px-2"
-                                    onClick={() => setAssignSubDialog({ userId: sub.userId, userName: sub.userName ?? sub.userEmail ?? "User" })}
+                                    onClick={() => { setAssignSubDialog({ userId: sub.userId, userName: sub.userName ?? sub.userEmail ?? "User" }); setAssignPlan(sub.plan); setAssignMonths(sub.billingMonths || 1); setAssignFeaturedLimit(sub.featuredLimitOverride ?? 0); }}
                                   >
                                     Reassign
                                   </Button>
@@ -4336,7 +4345,7 @@ export default function Dashboard() {
                       <RefreshCw className="h-4 w-4" /> Refresh
                     </Button>
                     <Button size="sm" className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2" onClick={() => {
-                      setCreatePlanForm({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, features: [], isActive: true });
+                      setCreatePlanForm({ name: "", displayName: "", pricePerMonth: 0, listingLimit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0, discoveryEnabled: false, phoneSupport: false, features: [], isActive: true });
                       setCreatePlanFeature("");
                       setCreatePlanDialog(true);
                     }}>
@@ -4384,6 +4393,11 @@ export default function Dashboard() {
                                 displayName: plan.displayName,
                                 pricePerMonth: plan.pricePerMonth,
                                 listingLimit: plan.listingLimit >= 2147483646 ? 999999 : plan.listingLimit,
+                                imageLimit: plan.imageLimit,
+                                videoLimit: plan.videoLimit,
+                                featuredLimit: plan.featuredLimit,
+                                discoveryEnabled: plan.discoveryEnabled,
+                                phoneSupport: plan.phoneSupport,
                                 features: plan.features ?? [],
                                 isActive: plan.isActive,
                               });
@@ -4468,6 +4482,25 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold">Photos</label>
+                        <input type="number" min={0} value={planForm.imageLimit} onChange={e => setPlanForm(f => ({ ...f, imageLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold">Videos</label>
+                        <input type="number" min={0} value={planForm.videoLimit} onChange={e => setPlanForm(f => ({ ...f, videoLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-semibold">Featured / mo</label>
+                        <input type="number" min={0} value={planForm.featuredLimit} disabled={editingPlan?.name === "enterprise"} onChange={e => setPlanForm(f => ({ ...f, featuredLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm disabled:bg-gray-100" />
+                      </div>
+                    </div>
+                    {editingPlan?.name === "enterprise" && <p className="text-xs text-gray-500 -mt-2">Enterprise featured allocation is set per subscriber, not as a package default.</p>}
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={planForm.discoveryEnabled} onChange={e => setPlanForm(f => ({ ...f, discoveryEnabled: e.target.checked }))} /> Brand-profile search</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={planForm.phoneSupport} onChange={e => setPlanForm(f => ({ ...f, phoneSupport: e.target.checked }))} /> Dedicated phone support</label>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm font-semibold">Features</label>
                       <div className="space-y-1.5">
@@ -4542,6 +4575,11 @@ export default function Dashboard() {
                             displayName: planForm.displayName,
                             pricePerMonth: planForm.pricePerMonth,
                             listingLimit: planForm.listingLimit >= 999999 ? 2147483647 : planForm.listingLimit,
+                            imageLimit: planForm.imageLimit,
+                            videoLimit: planForm.videoLimit,
+                            featuredLimit: editingPlan.name === "enterprise" ? 0 : planForm.featuredLimit,
+                            discoveryEnabled: planForm.discoveryEnabled,
+                            phoneSupport: planForm.phoneSupport,
                             features: planForm.features.filter((f: string) => f.trim()),
                             isActive: planForm.isActive,
                           };
@@ -4628,6 +4666,15 @@ export default function Dashboard() {
                         </Button>
                       </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1.5"><label className="text-sm font-semibold">Photos</label><input type="number" min={0} value={createPlanForm.imageLimit} onChange={e => setCreatePlanForm(f => ({ ...f, imageLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+                      <div className="space-y-1.5"><label className="text-sm font-semibold">Videos</label><input type="number" min={0} value={createPlanForm.videoLimit} onChange={e => setCreatePlanForm(f => ({ ...f, videoLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+                      <div className="space-y-1.5"><label className="text-sm font-semibold">Featured / mo</label><input type="number" min={0} value={createPlanForm.featuredLimit} onChange={e => setCreatePlanForm(f => ({ ...f, featuredLimit: Number(e.target.value) }))} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={createPlanForm.discoveryEnabled} onChange={e => setCreatePlanForm(f => ({ ...f, discoveryEnabled: e.target.checked }))} /> Brand-profile search</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" checked={createPlanForm.phoneSupport} onChange={e => setCreatePlanForm(f => ({ ...f, phoneSupport: e.target.checked }))} /> Dedicated phone support</label>
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm font-semibold">Features</label>
                       <div className="space-y-1.5">
@@ -4697,6 +4744,11 @@ export default function Dashboard() {
                             displayName: createPlanForm.displayName,
                             pricePerMonth: createPlanForm.pricePerMonth,
                             listingLimit: createPlanForm.listingLimit >= 999999 ? 2147483647 : createPlanForm.listingLimit,
+                            imageLimit: createPlanForm.imageLimit,
+                            videoLimit: createPlanForm.videoLimit,
+                            featuredLimit: createPlanForm.featuredLimit,
+                            discoveryEnabled: createPlanForm.discoveryEnabled,
+                            phoneSupport: createPlanForm.phoneSupport,
                             features: createPlanForm.features.filter((f: string) => f.trim()),
                             isActive: createPlanForm.isActive,
                           };
@@ -5421,8 +5473,19 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-black/5 px-3 py-2 text-gray-700">
+                      Media: {subscription.imageLimit >= 2147483647 ? "Unlimited" : subscription.imageLimit} photos · {subscription.videoLimit} video{subscription.videoLimit === 1 ? "" : "s"} per listing
+                    </div>
+                    <div className="rounded-lg bg-black/5 px-3 py-2 text-gray-700">
+                      Featured this month: {subscription.featuredUsed}/{subscription.featuredAllowance} used · {subscription.featuredRemaining} remaining
+                    </div>
+                  </div>
                 {subscription.plan !== 'free' && (
-                  <div className="mt-4 pt-3 border-t border-black/10">
+                  <div className="mt-4 pt-3 border-t border-black/10 flex items-center justify-between gap-3">
+                    <Button variant="outline" size="sm" disabled={subscription.featuredRemaining < 1} onClick={() => setFeatureSelectionOpen(true)}>
+                      Choose featured listings
+                    </Button>
                     <button
                       onClick={handleDowngradeToFree}
                       disabled={isUpgrading}
@@ -5454,8 +5517,8 @@ export default function Dashboard() {
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No search boost</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No brand-profile search</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No dedicated phone support</li>
                 </ul>
                 <Button variant="outline" disabled className="w-full mt-auto">
                   {subscription?.plan === 'free' ? 'Active Plan' : 'Free Tier'}
@@ -5472,18 +5535,18 @@ export default function Dashboard() {
                   {subscription?.plan === 'basic' && <Badge className="ml-auto text-[10px] bg-zinc-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 199</span>
+                  <span className="text-2xl font-black text-zinc-900">KES 399</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 10 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>15 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 7 listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>10 photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 1 featured listing / mo</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Low search boost</li>
-                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No phone support</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Brand-profile search</li>
+                  <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No dedicated phone support</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-zinc-800 hover:bg-zinc-700 text-white"
@@ -5505,19 +5568,17 @@ export default function Dashboard() {
                   {subscription?.plan === 'pro' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 249</span>
+                  <span className="text-2xl font-black text-zinc-900">KES 599</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 50 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>30 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 15 listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>20 photos</strong> per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 3 featured listings / mo</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> High search boost</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Phone support</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Export leads</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Brand-profile search</li>
                 </ul>
                 <Button
                   className="w-full mt-auto bg-yellow-500 hover:bg-yellow-400 text-white font-semibold"
@@ -5544,11 +5605,10 @@ export default function Dashboard() {
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Unlimited active listings</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>Unlimited photos</strong> per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>5 videos</strong> / virtual tours per listing</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Negotiable featured listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Highest search boost</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Negotiated featured allocation</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Brand-profile search</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 24/7 phone support</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Dedicated account manager</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> API access + Export leads</li>
                 </ul>
                 {subscription?.plan === 'enterprise' ? (
                   <Button variant="outline" disabled className="w-full mt-auto">Active Plan</Button>
@@ -5583,7 +5643,7 @@ export default function Dashboard() {
                       <li>• Unlimited listings + unlimited photos</li>
                       <li>• 5 video / virtual tours per listing</li>
                       <li>• Dedicated account manager</li>
-                      <li>• 24/7 phone support + API access</li>
+                      <li>• Brand-profile search + 24/7 phone support</li>
                     </ul>
                   </div>
                   <DialogFooter>
@@ -5593,7 +5653,7 @@ export default function Dashboard() {
               ) : (
               <div className="space-y-5 py-2">
                 <p className="text-sm text-muted-foreground">
-                  {upgradeDialogPlan === 'pro' ? 'KES 249/month · 50 listings · 30 photos · 1 video · Phone support' : 'KES 199/month · 10 listings · 15 photos · 1 featured listing'}
+                  {upgradeDialogPlan === 'pro' ? 'KES 599/month · 15 listings · 20 photos · 1 video · 3 featured listings' : 'KES 399/month · 7 listings · 10 photos · 1 featured listing'}
                 </p>
 
                 {/* Billing cycle selector */}
@@ -5612,7 +5672,7 @@ export default function Dashboard() {
                   </div>
                   {billingCycle === 'yearly' && (
                     <p className="text-xs text-gray-600 font-medium">
-                      Save KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)} with yearly billing!
+                      Save KES {upgradeDialogPlan === 'pro' ? Math.round(599 * 0.1 * 12) : Math.round(399 * 0.1 * 12)} with yearly billing!
                     </p>
                   )}
                 </div>
@@ -5640,7 +5700,7 @@ export default function Dashboard() {
                 <div className="bg-gray-50 rounded-lg p-4 border space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Rate</span>
-                    <span className="font-medium">KES {upgradeDialogPlan === 'pro' ? 249 : 199}/month</span>
+                    <span className="font-medium">KES {upgradeDialogPlan === 'pro' ? 599 : 399}/month</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Duration</span>
@@ -5651,14 +5711,14 @@ export default function Dashboard() {
                   {billingCycle === 'yearly' && (
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Yearly discount (10%)</span>
-                      <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(249 * 0.1 * 12) : Math.round(199 * 0.1 * 12)}</span>
+                      <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(599 * 0.1 * 12) : Math.round(399 * 0.1 * 12)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-base pt-1 border-t">
                     <span>Total</span>
                     <span>
                       KES {(() => {
-                        const base = upgradeDialogPlan === 'pro' ? 249 : 199;
+                        const base = upgradeDialogPlan === 'pro' ? 599 : 399;
                         const months = billingCycle === 'monthly' ? 1 : billingCycle === 'yearly' ? 12 : customMonths;
                         const discount = billingCycle === 'yearly' ? Math.round(base * 0.1 * 12) : 0;
                         return (base * months - discount).toLocaleString();
@@ -5742,6 +5802,34 @@ export default function Dashboard() {
               propertyTitle={calendarProperty.title}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={featureSelectionOpen} onOpenChange={setFeatureSelectionOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Choose featured listings</DialogTitle>
+            <DialogDescription>
+              {subscription?.featuredRemaining ?? 0} featured slot{(subscription?.featuredRemaining ?? 0) === 1 ? "" : "s"} remain this month. Each chosen listing is highlighted for exactly seven days.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+            {ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus !== "sold").length === 0 ? (
+              <p className="py-6 text-sm text-muted-foreground text-center">Approved, available listings will appear here after an administrator verifies them.</p>
+            ) : ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus !== "sold").map((property: any) => (
+              <div key={property.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{property.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{property.address}</p>
+                  {property.isFeatured && property.featuredUntil && new Date(property.featuredUntil) > new Date() && <p className="text-xs text-primary mt-1">Featured until {new Date(property.featuredUntil).toLocaleDateString()}</p>}
+                </div>
+                <Button size="sm" variant={property.isFeatured ? "secondary" : "outline"} disabled={featureLoading[property.id] || (!property.isFeatured && (subscription?.featuredRemaining ?? 0) < 1)} onClick={() => handleFeatureListing(property)}>
+                  {featureLoading[property.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : property.isFeatured ? "Remove" : "Feature"}
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setFeatureSelectionOpen(false)}>Done</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -5865,6 +5953,19 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+            {assignPlan === 'enterprise' && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold">Featured allocation per month</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={assignFeaturedLimit}
+                  onChange={(event) => setAssignFeaturedLimit(Math.max(0, Number(event.target.value)))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-500">This negotiated allowance is specific to this subscriber.</p>
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
@@ -5878,7 +5979,7 @@ export default function Dashboard() {
                   const r = await fetch("/api/admin/subscriptions/assign", {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths }),
+                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths, featuredLimitOverride: assignPlan === "enterprise" ? assignFeaturedLimit : null }),
                   });
                   if (r.ok) {
                     await fetchAdminSubscriptions();
