@@ -286,33 +286,30 @@ export default function Search() {
 
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
     if (!filter) return true;
-    const sub   = (p.subtype || "").toLowerCase();
-    const title = (p.title || "").toLowerCase();
-    const beds  = p.bedrooms || 0;
-    if (filter === "studio")       return sub.includes("studio") || sub.includes("bedsitter") || title.includes("studio") || title.includes("bedsitter") || beds <= 1;
+    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
+    const beds  = p.beds || 0;
+    if (filter === "studio")       return sub === "studio" || sub === "bedsitter";
     if (filter === "bedrooms")     return beds >= 1;
-    if (filter === "penthouse")    return sub.includes("penthouse") || title.includes("penthouse");
-    if (filter === "own-compound") return sub.includes("compound") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette") || title.includes("compound") || title.includes("bungalow") || title.includes("villa") || title.includes("maisonette");
-    if (filter === "condominium")  return sub.includes("condo") || sub.includes("apartment") || sub.includes("flat") || title.includes("condo") || title.includes("apartment") || title.includes("flat");
+    if (filter === "penthouse")    return sub === "penthouse";
+    if (filter === "own-compound") return ["own-compound", "bungalow", "villa", "maisonette"].includes(sub);
+    if (filter === "condominium")  return ["condominium", "condo"].includes(sub);
     return true;
   };
 
   const matchesSaleCategory = (p: ApiProperty, category: string | null): boolean => {
     if (!category) return true;
-    const sub   = (p.subtype || "").toLowerCase();
-    const title = (p.title || "").toLowerCase();
-    if (category === "apartments") return sub.includes("apartment") || sub.includes("flat") || sub.includes("condo") || title.includes("apartment") || title.includes("flat") || title.includes("condo");
-    if (category === "homes")      return sub.includes("home") || sub.includes("house") || sub.includes("bungalow") || sub.includes("villa") || sub.includes("maisonette") || sub.includes("townhouse") || title.includes("home") || title.includes("house") || title.includes("bungalow") || title.includes("villa") || title.includes("maisonette") || title.includes("townhouse");
-    if (category === "lands")      return sub.includes("land") || sub.includes("plot") || sub.includes("acre") || title.includes("land") || title.includes("plot") || title.includes("acre");
+    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
+    if (category === "apartments") return ["apartment", "flat", "condominium", "condo"].includes(sub);
+    if (category === "homes")      return ["home", "house", "bungalow", "villa", "maisonette", "townhouse"].includes(sub);
+    if (category === "lands")      return ["land", "plot"].includes(sub);
     return true;
   };
 
   // Commercial rent listings are stored with type="rent" and subtype="godown"/"business"/"stall"/"shop"
   const matchesCommercialSubtype = (p: ApiProperty, commercialKey: string): boolean => {
     if (p.type !== "rent") return false;
-    const sub   = (p.subtype || "").toLowerCase();
-    const title = (p.title || "").toLowerCase();
-    return sub.includes(commercialKey) || title.includes(commercialKey);
+    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
+    return sub === commercialKey;
   };
 
   const filteredProperties = useMemo(() => {
@@ -347,8 +344,8 @@ export default function Search() {
       const price = p.price || 0;
       if (isPriceFiltered && (price < priceRange[0] || price > priceRange[1])) return false;
       if (selectedBedrooms !== null) {
-        if (selectedBedrooms === 5) { if ((p.bedrooms || 0) < 5) return false; }
-        else if (p.bedrooms !== selectedBedrooms) return false;
+        if (selectedBedrooms === 5) { if ((p.beds || 0) < 5) return false; }
+        else if (p.beds !== selectedBedrooms) return false;
       }
       if (selectedAmenities.length > 0) {
         const pTags = (p.tags || []).map((a: string) => a.toLowerCase());
@@ -358,16 +355,18 @@ export default function Search() {
         const q = searchQuery.toLowerCase();
         return (
           (p.title || "").toLowerCase().includes(q) ||
-          (p.address || "").toLowerCase().includes(q) ||
-          (p.city || "").toLowerCase().includes(q)
+          (p.address || "").toLowerCase().includes(q)
         );
       }
       if (isGeofencingActive && userLocation) {
         const toRad = (deg: number) => (deg * Math.PI) / 180;
         const R = 6371;
-        const dLat = toRad((p.lat || 0) - userLocation.lat);
-        const dLng = toRad((p.lng || 0) - userLocation.lng);
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(userLocation.lat)) * Math.cos(toRad((p.lat || 0))) * Math.sin(dLng / 2) ** 2;
+        const propertyLat = Number(p.lat);
+        const propertyLng = Number(p.lng);
+        if (!Number.isFinite(propertyLat) || !Number.isFinite(propertyLng)) return false;
+        const dLat = toRad(propertyLat - userLocation.lat);
+        const dLng = toRad(propertyLng - userLocation.lng);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(userLocation.lat)) * Math.cos(toRad(propertyLat)) * Math.sin(dLng / 2) ** 2;
         const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         if (dist > 10) return false;
       }

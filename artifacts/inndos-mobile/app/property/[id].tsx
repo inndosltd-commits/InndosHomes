@@ -75,8 +75,17 @@ function getTypeLabel(type: string): string {
   }
 }
 
-function getPriceLabel(type: string, price: number): string {
+function getPriceLabel(type: string, price: number, priceUnit?: string | null): string {
   const formatted = `KES ${price.toLocaleString()}`;
+  const unitLabels: Record<string, string> = {
+    month: "/mo",
+    week: "/wk",
+    night: "/night",
+    semester: "/semester",
+    year: "/yr",
+    sqft: "/sq ft",
+  };
+  if (priceUnit && unitLabels[priceUnit]) return `${formatted}${unitLabels[priceUnit]}`;
   if (type === "rent") return `${formatted}/mo`;
   if (type === "bnb" || type === "hotel" || type === "hostel") return `${formatted}/night`;
   return formatted;
@@ -358,7 +367,7 @@ export default function PropertyDetailScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const totalPrice = property.price * bookingNights;
+    const totalPrice = isNightlyProperty ? property.price * bookingNights : property.price;
     const confirmationDetails = isNightlyProperty
       ? `\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`
       : "\n\nThe owner will review your request and contact you about the next steps.";
@@ -599,7 +608,7 @@ export default function PropertyDetailScreen() {
 
           {/* Price + type chip */}
           <View style={styles.heroPriceRow}>
-            <Text style={styles.heroPriceText}>{getPriceLabel(property.type, property.price)}</Text>
+            <Text style={styles.heroPriceText}>{getPriceLabel(property.type, property.price, property.priceUnit)}</Text>
             <View style={[styles.typeChip, { backgroundColor: colors.primary }]}>
               <Text style={[styles.typeChipText, { color: colors.primaryForeground }]}>
                 {getTypeLabel(property.type)}
@@ -765,7 +774,7 @@ export default function PropertyDetailScreen() {
             <View style={[styles.bookingSection, { borderColor: colors.border }]}>
               <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT DATES</Text>
 
-              {(showDatePicker || isLinkedUp) && (
+              {isNightlyProperty && (showDatePicker || isLinkedUp) && (
                 <>
                   <View style={styles.datePickerRow}>
                     <View style={styles.datePickerBlock}>
@@ -951,7 +960,7 @@ export default function PropertyDetailScreen() {
       )}
 
       <BookingCalendar
-        visible={showCheckInPicker}
+        visible={isNightlyProperty && showCheckInPicker}
         title="Check-in Date"
         value={checkIn}
         minDate={today}
@@ -962,7 +971,7 @@ export default function PropertyDetailScreen() {
       />
 
       <BookingCalendar
-        visible={showCheckOutPicker}
+        visible={isNightlyProperty && showCheckOutPicker}
         title="Check-out Date"
         value={checkOut}
         minDate={addDays(checkIn, 1)}

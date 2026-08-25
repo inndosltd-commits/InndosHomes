@@ -1274,8 +1274,8 @@ export default function ListPropertyScreen() {
     const price=parseFloat(form.price);
     if(!form.price.trim()||isNaN(price)||price<=0) newErrors.price="Enter a valid price";
     if(!hideBedsBaths(form.listingType)){
-      if(form.beds&&(isNaN(parseInt(form.beds))||parseInt(form.beds)<0)) newErrors.beds="Enter a valid number";
-      if(form.baths&&(isNaN(parseInt(form.baths))||parseInt(form.baths)<0)) newErrors.baths="Enter a valid number";
+      if(!form.beds.trim()||isNaN(parseInt(form.beds))||parseInt(form.beds)<0) newErrors.beds="Enter the number of bedrooms";
+      if(!form.baths.trim()||isNaN(parseInt(form.baths))||parseInt(form.baths)<0) newErrors.baths="Enter the number of bathrooms";
       if(form.sqft&&(isNaN(parseInt(form.sqft))||parseInt(form.sqft)<0)) newErrors.sqft="Enter a valid number";
     }
     if(form.lat.trim()){
@@ -1285,6 +1285,10 @@ export default function ListPropertyScreen() {
     if(form.lng.trim()){
       const lngVal=parseFloat(form.lng);
       if(isNaN(lngVal)||lngVal<-180||lngVal>180) newErrors.lng="Longitude must be -180 to 180";
+    }
+    if(Boolean(form.lat.trim())!==Boolean(form.lng.trim())){
+      newErrors.lat="Enter both latitude and longitude, or leave both blank";
+      newErrors.lng="Enter both latitude and longitude, or leave both blank";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length===0;
@@ -1842,7 +1846,7 @@ export default function ListPropertyScreen() {
           )}
 
           {/* ── Location ── */}
-          <SectionLabel text="Location (optional)" colors={colors}/>
+          <SectionLabel text="Location" colors={colors}/>
           <LocationPicker
             lat={form.lat}
             lng={form.lng}

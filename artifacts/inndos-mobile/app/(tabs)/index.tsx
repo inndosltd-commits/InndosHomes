@@ -73,23 +73,22 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function matchesSubCategory(property: Property, category: string | null): boolean {
   if (!category) return true;
-  const subtype = (property.subtype ?? "").toLowerCase();
-  const title = (property.title ?? "").toLowerCase();
-  const has = (...terms: string[]) => terms.some((term) => subtype.includes(term) || title.includes(term));
+  const subtype = (property.subtype ?? "").toLowerCase().replace(/[_\s]+/g, "-");
+  const is = (...values: string[]) => values.includes(subtype);
 
   switch (category) {
-    case "Studio / Bedsitter": return has("studio", "bedsitter");
+    case "Studio / Bedsitter": return is("studio", "bedsitter");
     case "By Bedrooms": return (property.beds ?? 0) >= 1;
-    case "Penthouse": return has("penthouse");
-    case "Own Compound": return has("compound", "bungalow", "villa", "maisonette");
-    case "Condominiums": return has("condo", "apartment", "flat");
-    case "Office Space": return has("office", "business");
-    case "Godowns": return has("godown");
-    case "Stalls": return has("stall");
-    case "Shops": return has("shop");
-    case "Apartments": return has("apartment", "flat", "condo");
-    case "Homes": return has("home", "house", "bungalow", "villa", "maisonette", "townhouse");
-    case "Lands": return has("land", "plot", "acre");
+    case "Penthouse": return is("penthouse");
+    case "Own Compound": return is("own-compound", "bungalow", "villa", "maisonette");
+    case "Condominiums": return is("condominium", "condo");
+    case "Office Space": return is("business", "office");
+    case "Godowns": return is("godown");
+    case "Stalls": return is("stall");
+    case "Shops": return is("shop");
+    case "Apartments": return is("apartment", "flat", "condominium", "condo");
+    case "Homes": return is("home", "house", "bungalow", "villa", "maisonette", "townhouse");
+    case "Lands": return is("land", "plot");
     default: return true;
   }
 }
@@ -348,8 +347,8 @@ export default function BrowseScreen() {
         `${getApiBaseUrl()}/api/maps/places/${encodeURIComponent(place.placeId)}?sessiontoken=browse-${Date.now()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      const payload = await response.json() as { place?: { latitude: number; longitude: number } };
-      if (!response.ok || !payload.place) throw new Error("Place unavailable");
+      const payload = await response.json() as { place?: { latitude: number; longitude: number }; error?: string };
+      if (!response.ok || !payload.place) throw new Error(payload.error ?? "Place unavailable");
       const region = { latitude: payload.place.latitude, longitude: payload.place.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 };
       setSearch(place.description);
       setDebouncedSearch("");
@@ -362,8 +361,8 @@ export default function BrowseScreen() {
         minLng: region.longitude - region.longitudeDelta / 2,
         maxLng: region.longitude + region.longitudeDelta / 2,
       });
-    } catch {
-      setLocationNotice("That place could not be loaded. Please choose another suggestion.");
+    } catch (error) {
+      setLocationNotice(error instanceof Error ? error.message : "That place could not be loaded. Please choose another suggestion.");
     } finally {
       setPlaceLoading(false);
     }

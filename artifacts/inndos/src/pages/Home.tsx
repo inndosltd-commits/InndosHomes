@@ -174,15 +174,29 @@ export default function Home() {
           lat: results[0].geometry.location.lat(),
           lng: results[0].geometry.location.lng(),
         };
-        mapInstanceRef.current?.panTo(loc);
-        mapInstanceRef.current?.setZoom(14);
+        const viewport = results[0].geometry.viewport;
+        if (viewport) {
+          mapInstanceRef.current?.fitBounds(viewport);
+        } else {
+          mapInstanceRef.current?.panTo(loc);
+          mapInstanceRef.current?.setZoom(14);
+        }
 
-        // Also filter properties near this location
-        const q = prediction.mainText.toLowerCase();
-        const nearby = allProperties.filter(
-          (p) => p.address.toLowerCase().includes(q) || p.title.toLowerCase().includes(q)
-        );
-        setFilteredProperties(nearby.length > 0 ? nearby : allProperties);
+        // Keep pins and cards scoped to the selected place. Never fall back to
+        // every Nairobi listing when this place happens to have no matches.
+        const northEast = viewport?.getNorthEast();
+        const southWest = viewport?.getSouthWest();
+        const nearby = allProperties.filter((property) => {
+          const lat = Number(property.lat);
+          const lng = Number(property.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+          if (northEast && southWest) {
+            return lat >= southWest.lat() && lat <= northEast.lat() &&
+              lng >= southWest.lng() && lng <= northEast.lng();
+          }
+          return Math.abs(lat - loc.lat) <= 0.08 && Math.abs(lng - loc.lng) <= 0.08;
+        });
+        setFilteredProperties(nearby);
       }
     });
   }, [mapsLoaded, allProperties]);

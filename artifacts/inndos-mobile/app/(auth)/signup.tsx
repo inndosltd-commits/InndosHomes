@@ -20,6 +20,16 @@ import { getApiBaseUrl } from "@/utils/api";
 
 type Step = "phone" | "otp" | "details";
 
+async function readApiResponse(response: Response): Promise<{ phoneToken?: string; error?: string }> {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as { phoneToken?: string; error?: string };
+  } catch {
+    return { error: response.ok ? undefined : "The verification service returned an unexpected response." };
+  }
+}
+
 const ROLES: {
   label: string;
   value: string;
@@ -75,20 +85,25 @@ export default function SignupScreen() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/send-otp`, {
+      const baseUrl = getApiBaseUrl();
+      if (!baseUrl.startsWith("http")) {
+        setError("Phone verification is not configured in this app build.");
+        return;
+      }
+      const res = await fetch(`${baseUrl}/api/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: trimmed }),
       });
-      const json = await res.json() as { error?: string };
+      const json = await readApiResponse(res);
       if (!res.ok) {
         setError(json.error ?? "Failed to send code. Please try again.");
       } else {
         setStep("otp");
         startCooldown();
       }
-    } catch {
-      setError("Network error. Check your connection and try again.");
+    } catch (error) {
+      setError(error instanceof Error && error.message ? error.message : "Network error. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -115,20 +130,25 @@ export default function SignupScreen() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/verify-otp`, {
+      const baseUrl = getApiBaseUrl();
+      if (!baseUrl.startsWith("http")) {
+        setError("Phone verification is not configured in this app build.");
+        return;
+      }
+      const res = await fetch(`${baseUrl}/api/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone.trim(), code }),
       });
-      const json = await res.json() as { phoneToken?: string; error?: string };
+      const json = await readApiResponse(res);
       if (!res.ok || !json.phoneToken) {
         setError(json.error ?? "Invalid or expired code. Please try again.");
       } else {
         setPhoneToken(json.phoneToken);
         setStep("details");
       }
-    } catch {
-      setError("Network error. Check your connection and try again.");
+    } catch (error) {
+      setError(error instanceof Error && error.message ? error.message : "Network error. Check your connection and try again.");
     } finally {
       setLoading(false);
     }

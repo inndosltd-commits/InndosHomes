@@ -8,6 +8,15 @@ const SPECIAL_WORDS: Record<string, string> = {
   "247": "24/7",
 };
 
+const EXACT_LABELS: Record<string, string> = {
+  security: "24/7 Security",
+  security_247: "24/7 Security",
+  apt_prem_security_247: "24/7 Security",
+  home_security_247: "24/7 Security",
+  home_prem_security_247: "24/7 Security",
+  godown_security_247: "24/7 Security",
+};
+
 /**
  * Converts stored listing feature IDs into a label suitable for native UI.
  * Listing IDs are intentionally kept canonical in storage; presentation should
@@ -16,10 +25,11 @@ const SPECIAL_WORDS: Record<string, string> = {
 export function resolveAmenityLabel(id: string): string {
   const cleanId = id.trim();
   if (!cleanId) return "";
+  if (EXACT_LABELS[cleanId.toLowerCase()]) return EXACT_LABELS[cleanId.toLowerCase()];
 
   const words = cleanId
     .split("_")
-    .filter((word) => !["apt", "home", "com", "land", "prem"].includes(word))
+    .filter((word) => !["apt", "home", "com", "land", "prem", "surr", "biz", "godown"].includes(word))
     .map((word) => {
       const special = SPECIAL_WORDS[word.toLowerCase()];
       if (special) return special;

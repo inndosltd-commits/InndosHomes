@@ -504,6 +504,23 @@ export default function AddListing() {
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  const applyResolvedLocation = useCallback((
+    pos: google.maps.LatLngLiteral,
+    resolvedAddress?: string
+  ) => {
+    const displayAddress = resolvedAddress?.trim() || `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+    setDraftPin(pos);
+    setPinPosition(pos);
+    setMapCenter(pos);
+    setDraftAddress(displayAddress);
+    setAddress(displayAddress);
+    setSearchQuery(displayAddress);
+    setIsLocationPinned(true);
+    setLocationSearchError("");
+    mapRef.current?.panTo(pos);
+    mapRef.current?.setZoom(16);
+  }, []);
+
   const handlePlaceChanged = useCallback(() => {
     const place = autocompleteRef.current?.getPlace();
     if (!place || !place.geometry?.location) {
@@ -512,13 +529,8 @@ export default function AddListing() {
     }
     const loc = place.geometry.location;
     const pos = { lat: loc.lat(), lng: loc.lng() };
-    setDraftPin(pos);
-    setMapCenter(pos);
-    setDraftAddress(place.formatted_address ?? place.name ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`);
-    setLocationSearchError("");
-    mapRef.current?.panTo(pos);
-    mapRef.current?.setZoom(16);
-  }, []);
+    applyResolvedLocation(pos, place.formatted_address ?? place.name);
+  }, [applyResolvedLocation]);
 
   // Fallback: geocode whatever is typed when Enter is pressed and no autocomplete selection
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -532,26 +544,29 @@ export default function AddListing() {
       if (status === "OK" && results && results[0]) {
         const loc = results[0].geometry.location;
         const pos = { lat: loc.lat(), lng: loc.lng() };
-        setDraftPin(pos);
-        setMapCenter(pos);
-        setDraftAddress(results[0].formatted_address);
-        mapRef.current?.panTo(pos);
-        mapRef.current?.setZoom(16);
+        applyResolvedLocation(pos, results[0].formatted_address);
       } else {
         setLocationSearchError("We could not find that place. Choose a suggestion or drop a pin.");
       }
       setIsResolvingLocation(false);
     });
-  }, []);
+  }, [applyResolvedLocation]);
 
   const reverseGeocodeDraft = useCallback((pos: google.maps.LatLngLiteral) => {
     if (!window.google) return;
+    // A map pin is immediately usable; reverse geocoding only improves the
+    // address label and must never hold the form hostage.
+    applyResolvedLocation(pos);
+    setIsResolvingLocation(true);
     new google.maps.Geocoder().geocode({ location: pos }, (results, status) => {
       if (status === "OK" && results && results[0]) {
-        setDraftAddress(results[0].formatted_address);
+        applyResolvedLocation(pos, results[0].formatted_address);
+      } else {
+        setLocationSearchError("Coordinates saved. You can enter the address manually if needed.");
       }
+      setIsResolvingLocation(false);
     });
-  }, []);
+  }, [applyResolvedLocation]);
 
   // On modal open: restore existing pin or geolocate user
   useEffect(() => {
@@ -1087,19 +1102,20 @@ export default function AddListing() {
     const parsedBaths = parseInt(baths, 10);
     const parsedSqft = parseInt(sqft, 10);
     const isLand = isLandType(listingType);
+    const specsAreApplicable = !hideBedsBaths(listingType);
 
     const clientErrors: Record<string, string[]> = {};
     if (!title.trim()) clientErrors.title = ["Title is required"];
     if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
-    if (!address.trim() && !searchQuery.trim()) clientErrors.address = ["Address is required"];
+    if (!address.trim()) clientErrors.address = ["Address is required"];
     if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel" || listingType === "sale-apartment" || listingType === "sale-home") && !subtype) {
       clientErrors.subtype = ["Please select a property category"];
     }
     if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel") && !priceUnit) {
       clientErrors.priceUnit = ["Please select a price period"];
     }
-    if (!isLand && !isNaN(parsedBeds) && parsedBeds < 0) clientErrors.beds = ["Bedrooms cannot be negative"];
-    if (!isLand && !isNaN(parsedBaths) && parsedBaths < 0) clientErrors.baths = ["Bathrooms cannot be negative"];
+    if (specsAreApplicable && (isNaN(parsedBeds) || parsedBeds < 0)) clientErrors.beds = ["Enter the number of bedrooms"];
+    if (specsAreApplicable && (isNaN(parsedBaths) || parsedBaths < 0)) clientErrors.baths = ["Enter the number of bathrooms"];
 
     if (Object.keys(clientErrors).length > 0) {
       setFieldErrors(clientErrors);
@@ -2054,7 +2070,7 @@ export default function AddListing() {
                     </div>
                     {(isResolvingLocation || locationSearchError) && (
                       <p className={`mt-1 rounded px-2 py-1 text-xs shadow ${locationSearchError ? "bg-red-50 text-red-700" : "bg-white text-gray-600"}`}>
-                        {isResolvingLocation ? "Finding that location…" : locationSearchError}
+                      {isResolvingLocation ? "Finding the address… your coordinates are already saved." : locationSearchError}
                       </p>
                     )}
                   </div>
@@ -2068,7 +2084,6 @@ export default function AddListing() {
                   onClick={(e) => {
                     if (e.latLng) {
                       const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-                      setDraftPin(pos);
                       reverseGeocodeDraft(pos);
                     }
                   }}
@@ -2080,7 +2095,6 @@ export default function AddListing() {
                       onDragEnd={(e) => {
                         if (e.latLng) {
                           const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-                          setDraftPin(pos);
                           reverseGeocodeDraft(pos);
                         }
                       }}
@@ -2111,14 +2125,10 @@ export default function AddListing() {
             <Button variant="outline" onClick={() => setIsMapModalOpen(false)}>Cancel</Button>
             <Button
               className="bg-primary"
-              disabled={!draftPin || isResolvingLocation}
+              disabled={!draftPin}
               onClick={() => {
-                setPinPosition(draftPin);
-                if (draftAddress) {
-                  setAddress(draftAddress);
-                  setSearchQuery(draftAddress);
-                }
-                setIsLocationPinned(true);
+                if (!draftPin) return;
+                applyResolvedLocation(draftPin, draftAddress);
                 setIsMapModalOpen(false);
                 toast({
                   title: "Location Saved",

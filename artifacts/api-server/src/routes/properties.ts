@@ -22,6 +22,53 @@ const MAX_LISTING_VIDEO_BYTES = 250 * 1024 * 1024;
 
 type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
 
+function normalizeSubtype(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+/**
+ * Keep the required listing fields enforced at the write boundary. Clients
+ * provide inline guidance, but direct API calls must not be able to publish
+ * an incomplete listing.
+ */
+function getListingCompletenessErrors(body: Record<string, unknown>, imageList: string[]): string[] {
+  const errors: string[] = [];
+  const type = String(body.type ?? "");
+  const subtype = normalizeSubtype(typeof body.subtype === "string" ? body.subtype : undefined);
+  const priceUnit = String(body.priceUnit ?? "").trim();
+
+  if (imageList.length === 0) errors.push("At least one property photo is required.");
+  if (["rent", "sale", "bnb", "hotel", "hostel"].includes(type) && !subtype) {
+    errors.push("A property category is required.");
+  }
+  if (["rent", "bnb", "hotel", "hostel"].includes(type) && !priceUnit) {
+    errors.push("A price period is required.");
+  }
+
+  const hasLat = body.lat !== undefined && body.lat !== null && String(body.lat).trim() !== "";
+  const hasLng = body.lng !== undefined && body.lng !== null && String(body.lng).trim() !== "";
+  if (hasLat !== hasLng) errors.push("Provide both latitude and longitude, or leave both blank.");
+  if (hasLat && hasLng) {
+    const lat = Number(body.lat);
+    const lng = Number(body.lng);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+      errors.push("Location coordinates are invalid.");
+    }
+  }
+
+  return errors;
+}
+
+function isCommercialSubtype(value: unknown): boolean {
+  return ["office", "business", "godown", "stall", "shop"].includes(
+    normalizeSubtype(typeof value === "string" ? value : undefined)
+  );
+}
+
 async function validateNewListingMedia({
   paths,
   expectedKind,
@@ -251,7 +298,13 @@ router.get("/", async (req, res) => {
 
   const conditions = [];
   if (type && isValidType(type)) conditions.push(eq(properties.type, type));
-  if (subtype) conditions.push(ilike(properties.subtype, `%${subtype}%`));
+  if (subtype) {
+    // Stored values are canonical kebab-case, but normalize older underscore
+    // values too so all clients get the same category results.
+    conditions.push(
+      drizzleSql`LOWER(REPLACE(REPLACE(COALESCE(${properties.subtype}, ''), '_', '-'), ' ', '-')) = ${normalizeSubtype(subtype)}`
+    );
+  }
   if (ownerId) conditions.push(eq(properties.ownerId, ownerId));
   if (search) {
     conditions.push(
@@ -767,6 +820,11 @@ router.post("/", async (req, res) => {
   const imageList: string[] = Array.isArray(body.images) ? body.images : [];
   const videoList: string[] = Array.isArray(body.videos) ? body.videos : [];
   const primaryImage = imageList[0] || body.image || "/images/modern_apartment_exterior.png";
+  const completenessErrors = getListingCompletenessErrors(body, imageList);
+  if (completenessErrors.length > 0) {
+    res.status(400).json({ error: completenessErrors[0], details: completenessErrors });
+    return;
+  }
 
   if (caller.role !== "admin") {
     const sub = await getActiveSubscription(userId);
@@ -827,8 +885,21 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  const normalizedSubtype = typeof body.subtype === "string"
+    ? normalizeSubtype(body.subtype)
+    : undefined;
+  const commercialSpecs = isCommercialSubtype(normalizedSubtype);
   const result = insertPropertySchema.safeParse({
     ...body,
+    subtype: normalizedSubtype,
+    // Commercial spaces deliberately do not collect residential bed/bath/sqft
+    // details. Keep the schema's numeric database contract without rejecting
+    // a valid commercial listing submitted by the native form.
+    ...(commercialSpecs ? {
+      beds: body.beds ?? 0,
+      baths: body.baths ?? 0,
+      sqft: body.sqft ?? 0,
+    } : {}),
     images: imageList,
     videos: videoList,
     videoPosters,
@@ -944,6 +1015,7 @@ router.patch("/:id", async (req, res) => {
 
   const patchBody = {
     ...body,
+    ...(typeof body.subtype === "string" ? { subtype: normalizeSubtype(body.subtype) } : {}),
     ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
     ...(videoList !== undefined ? { videos: videoList, videoPosters } : {}),
   };
@@ -951,6 +1023,18 @@ router.patch("/:id", async (req, res) => {
   const result = updateSchema.safeParse(patchBody);
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
+    return;
+  }
+
+  const effectiveImages = imageList ?? (
+    prop.images?.length ? prop.images : prop.image ? [prop.image] : []
+  );
+  const completenessErrors = getListingCompletenessErrors(
+    { ...prop, ...result.data, images: effectiveImages },
+    effectiveImages
+  );
+  if (completenessErrors.length > 0) {
+    res.status(400).json({ error: completenessErrors[0], details: completenessErrors });
     return;
   }
 
