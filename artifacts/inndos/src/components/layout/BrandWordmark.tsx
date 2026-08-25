@@ -6,7 +6,7 @@ type Props = {
 export function BrandWordmark({ inverse = false, className = "" }: Props) {
   return (
     <img
-      src="/logo-inndos.png"
+      src="/logo.png"
       alt="inndos"
       className={`w-auto ${className}`}
       style={{
