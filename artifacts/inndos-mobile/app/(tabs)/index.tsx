@@ -25,6 +25,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
+import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const MAP_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
@@ -217,7 +218,7 @@ export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { token } = useAuth();
+  const { user, token } = useAuth();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -236,7 +237,18 @@ export default function BrowseScreen() {
   const [placeResults, setPlaceResults] = useState<Array<{ placeId: string; description: string; secondaryText: string }>>([]);
   const [placeLoading, setPlaceLoading] = useState(false);
   const [placeFocused, setPlaceFocused] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const placeRequestRef = useRef(0);
+
+  const handleListPropertyPress = () => {
+    if (!user) {
+      router.push("/(auth)/login" as never);
+    } else if (user.role === "tenant" || user.role === "guest") {
+      setShowUpgradeModal(true);
+    } else {
+      router.push("/(tabs)/list-property" as never);
+    }
+  };
 
   const listParams: ListPropertiesParams = {
     type: activeType,
@@ -429,6 +441,14 @@ export default function BrowseScreen() {
         {/* Header, menu, map, and listings intentionally share one scroll surface. */}
         <View style={styles.header}>
           <BrandLogo />
+          <Pressable
+            style={[styles.listPropertyButton, { borderColor: colors.border, backgroundColor: colors.muted }]}
+            onPress={handleListPropertyPress}
+            testID="browse-list-property"
+          >
+            <Feather name="plus-square" size={15} color={colors.foreground} />
+            <Text style={[styles.listPropertyButtonText, { color: colors.foreground }]}>List</Text>
+          </Pressable>
         </View>
 
         <View style={styles.filterRow}>
@@ -593,6 +613,11 @@ export default function BrowseScreen() {
       {/* Modals */}
       <SubCategoryModal visible={rentModalVisible} onClose={() => setRentModalVisible(false)} title="Rent a Property" sections={RENT_SUBS} activeItem={activeType === "rent" ? activeSubCategory : null} onSelect={(sub) => handleSubCategorySelect("rent", sub)} colors={colors} />
       <SubCategoryModal visible={buyModalVisible} onClose={() => setBuyModalVisible(false)} title="Buy a Property" sections={BUY_SUBS} activeItem={activeType === "sale" ? activeSubCategory : null} onSelect={(sub) => handleSubCategorySelect("sale", sub)} colors={colors} />
+      <AccountUpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        onSuccess={() => router.push("/(tabs)/list-property" as never)}
+      />
     </View>
   );
 }
@@ -607,7 +632,9 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
 
   return StyleSheet.create({
     container: { flex: 1 },
-    header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10 },
+    header: { paddingTop: topPadding + 16, paddingHorizontal: hPad, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    listPropertyButton: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
+    listPropertyButtonText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
     scrollView: { flex: 1 },
     scrollContent: { flexGrow: 1 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },

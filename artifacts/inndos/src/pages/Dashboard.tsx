@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, type User } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { AccountUpgradeDialog } from "@/components/auth/AccountUpgradeDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -819,10 +820,7 @@ export default function Dashboard() {
   const [createUserForm, setCreateUserForm] = useState({ name: "", email: "", password: "", role: "tenant" });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
-  // Upgrade account dialog (tenant → owner/host)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [upgradeTargetRole, setUpgradeTargetRole] = useState<'owner' | 'host' | null>(null);
-  const [isUpgradingRole, setIsUpgradingRole] = useState(false);
   const [isLoadingAdminStats, setIsLoadingAdminStats] = useState(false);
   const [isLoadingModeration, setIsLoadingModeration] = useState(false);
   const [adminProperties, setAdminProperties] = useState<any[]>([]);
@@ -1890,90 +1888,13 @@ export default function Dashboard() {
     }
   };
 
-  // --- UPGRADE ROLE HANDLER ---
-  const handleUpgradeRole = async () => {
-    if (!upgradeTargetRole || !token) return;
-    setIsUpgradingRole(true);
-    try {
-      const res = await fetch("/api/auth/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ role: upgradeTargetRole }),
-      });
-      if (!res.ok) throw new Error("Failed to upgrade account");
-      await refreshUser();
-      setShowUpgradeDialog(false);
-      toast({ title: "Account upgraded!", description: `You are now a ${upgradeTargetRole === 'owner' ? 'Property Owner' : 'Host / Agency'}. You can now list your property.` });
-      window.location.hash = "/add-listing";
-    } catch {
-      toast({ title: "Upgrade failed", description: "Please try again.", variant: "destructive" });
-    } finally {
-      setIsUpgradingRole(false);
-    }
-  };
-
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="min-h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden w-full font-sans">
-      {/* Upgrade Account Dialog — placed at Tabs root level so it's never unmounted */}
-      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Switch Account to List a Property</DialogTitle>
-            <DialogDescription>
-              Tenant accounts can't list properties. Choose the account type that fits you best — you can always manage everything from your dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-            {/* Owner option */}
-            <button
-              onClick={() => setUpgradeTargetRole('owner')}
-              className={`text-left rounded-xl border-2 p-4 transition-all ${upgradeTargetRole === 'owner' ? 'border-zinc-900 bg-zinc-50' : 'border-gray-200 hover:border-gray-300'}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Home className="h-5 w-5 text-zinc-800" />
-                <span className="font-semibold text-sm">Property Owner</span>
-              </div>
-              <ul className="text-xs text-gray-600 space-y-1">
-                <li>✓ List your own properties for rent or sale</li>
-                <li>✓ Receive link-up requests from tenants</li>
-                <li>✓ Manage bookings from your dashboard</li>
-                <li>✓ Get SMS & email alerts on new link-ups</li>
-              </ul>
-            </button>
-            {/* Host / Agency option */}
-            <button
-              onClick={() => setUpgradeTargetRole('host')}
-              className={`text-left rounded-xl border-2 p-4 transition-all ${upgradeTargetRole === 'host' ? 'border-zinc-900 bg-zinc-50' : 'border-gray-200 hover:border-gray-300'}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="h-5 w-5 text-zinc-800" />
-                <span className="font-semibold text-sm">Host / Agency</span>
-              </div>
-              <ul className="text-xs text-gray-600 space-y-1">
-                <li>✓ List multiple properties on behalf of others</li>
-                <li>✓ Register as a firm (business / company)</li>
-                <li>✓ Access agency-level subscription plans</li>
-                <li>✓ Manage all client listings in one dashboard</li>
-              </ul>
-            </button>
-          </div>
-          {upgradeTargetRole && (
-            <p className="text-xs text-muted-foreground mt-1">
-              You're switching to: <strong>{upgradeTargetRole === 'owner' ? 'Property Owner' : 'Host / Agency'}</strong>. This change takes effect immediately.
-            </p>
-          )}
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)} disabled={isUpgradingRole}>Cancel</Button>
-            <Button
-              className="bg-zinc-900 hover:bg-zinc-800 text-white"
-              disabled={!upgradeTargetRole || isUpgradingRole}
-              onClick={handleUpgradeRole}
-            >
-              {isUpgradingRole ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Switching…</> : "Switch & List Property"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AccountUpgradeDialog
+        open={showUpgradeDialog}
+        onOpenChange={setShowUpgradeDialog}
+        onSuccess={() => { window.location.hash = "/add-listing"; }}
+      />
       {/* Mobile Header (Visible only on small screens) */}
       <div className="md:hidden bg-zinc-900 p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => { window.location.hash = "/"; }}>
@@ -2291,7 +2212,7 @@ export default function Dashboard() {
                 {(user?.role === 'tenant' || user?.role === 'guest') && (
                   <Button
                     className="bg-zinc-900 hover:bg-zinc-800 text-white gap-2 shadow-sm rounded-full px-5 h-10"
-                    onClick={() => { setUpgradeTargetRole(null); setShowUpgradeDialog(true); }}
+                    onClick={() => setShowUpgradeDialog(true)}
                   >
                     <Plus className="h-4 w-4" />
                     {t("dash.list_property")}

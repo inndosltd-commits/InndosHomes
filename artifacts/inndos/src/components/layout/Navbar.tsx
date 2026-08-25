@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { MobileTopNav } from "./MobileTopNav";
 import { BrandWordmark } from "./BrandWordmark";
+import { AccountUpgradeDialog } from "@/components/auth/AccountUpgradeDialog";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -18,6 +19,7 @@ export function Navbar() {
   const { language, setLanguage, t } = useLanguage();
   const [navHash, setNavHash] = useState(window.location.hash);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nav-menu-change", { detail: isMenuOpen }));
@@ -32,6 +34,15 @@ export function Navbar() {
   const navType = navHashParts.length > 1
     ? new URLSearchParams(navHashParts[1]).get("type")
     : null;
+
+  const handleListPropertyClick = () => {
+    if (user?.role === "tenant" || user?.role === "guest") {
+      setShowUpgradeDialog(true);
+      return;
+    }
+    window.location.hash = "/add-listing";
+    setIsMenuOpen(false);
+  };
   
   
   return (
@@ -155,7 +166,7 @@ export function Navbar() {
             </div>
           </div>
 
-          <Link href={user ? "/add-listing" : "/login?role=owner"} className="hidden lg:block">
+          <Link href={user ? "#" : "/login?role=owner"} className="hidden lg:block" onClick={user ? (e) => { e.preventDefault(); handleListPropertyClick(); } : undefined}>
             <Button variant="ghost" size="sm" className="gap-2 text-black font-medium hover:bg-gray-100 rounded-full px-3 xl:px-4 h-9">
               <PlusCircle className="h-4 w-4" />
               <span>{t('nav.list_property')}</span>
@@ -252,7 +263,7 @@ export function Navbar() {
                         {t('nav.dashboard')}
                       </span>
                     </Link>
-                    <Link href="/add-listing">
+                    <Link href="#" onClick={(e) => { e.preventDefault(); handleListPropertyClick(); }}>
                       <Button variant="ghost" className="w-full justify-start gap-2 text-primary px-0 hover:bg-transparent text-lg h-auto py-2">
                         <PlusCircle className="h-5 w-5" />
                         {t('nav.list_property')}
@@ -295,6 +306,11 @@ export function Navbar() {
       </div>
     </nav>
     <MobileTopNav />
+    <AccountUpgradeDialog
+      open={showUpgradeDialog}
+      onOpenChange={setShowUpgradeDialog}
+      onSuccess={() => { window.location.hash = "/add-listing"; }}
+    />
     </>
   );
 }

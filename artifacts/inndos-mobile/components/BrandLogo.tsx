@@ -1,21 +1,24 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { useColors } from "@/hooks/useColors";
+import { Image, StyleSheet } from "react-native";
+
+const WEBSITE_LOGO_HEIGHT = 36;
+const WEBSITE_LOGO_ASPECT_RATIO = 1300 / 542;
 
 export function BrandLogo() {
-  const colors = useColors();
   return (
-    <View
+    <Image
+      source={require("@/assets/images/logo-inndos.png")}
       accessibilityRole="image"
       accessibilityLabel="inndos"
-      style={[styles.wordmark, { backgroundColor: colors.background }]}
-    >
-      <Text style={[styles.text, { color: colors.foreground }]}>inndos</Text>
-    </View>
+      resizeMode="contain"
+      style={styles.logo}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  wordmark: { alignSelf: "flex-start" },
-  text: { fontFamily: "Outfit_700Bold", fontSize: 34, letterSpacing: -2.2, lineHeight: 38 },
+  logo: {
+    width: WEBSITE_LOGO_HEIGHT * WEBSITE_LOGO_ASPECT_RATIO,
+    height: WEBSITE_LOGO_HEIGHT,
+  },
 });

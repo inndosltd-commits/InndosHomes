@@ -32,6 +32,7 @@ import { useAuth } from "@/context/AuthContext";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ListingVideoEditor, type ListingVideoEdit } from "@/components/ListingVideoEditor";
 import { getApiBaseUrl } from "@/utils/api";
+import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
 
 // ── Listing types (matches website) ───────────────────────────────────────────
 const LISTING_TYPES = [
@@ -770,6 +771,7 @@ export default function ListPropertyScreen() {
   const [imageLimit, setImageLimit] = useState(0);
   const [videoLimit, setVideoLimit] = useState(0);
   const [mediaLimitsLoaded, setMediaLimitsLoaded] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   // "server" = draft is saved on account, "local" = device-only, null = none
   const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
   const pickerAddressRef = useRef<string|null>(null);
@@ -971,19 +973,42 @@ export default function ListPropertyScreen() {
   }
 
   if(!canList) {
+    const isTenant = user.role === "tenant" || user.role === "guest";
     return (
-      <View style={[styles.container,{backgroundColor:colors.background}]}>
-        <View style={[styles.header,{paddingTop:topPadding+16}]}>
-          <Text style={[styles.title,{color:colors.foreground}]}>List a Property</Text>
-        </View>
-        <View style={styles.guestContainer}>
-          <View style={[styles.iconCircle,{backgroundColor:colors.muted,borderColor:colors.border}]}>
-            <Feather name="lock" size={40} color={colors.mutedForeground}/>
+      <>
+        <View style={[styles.container,{backgroundColor:colors.background}]}>
+          <View style={[styles.header,{paddingTop:topPadding+16}]}>
+            <Text style={[styles.title,{color:colors.foreground}]}>List a Property</Text>
           </View>
-          <Text style={[styles.guestTitle,{color:colors.foreground}]}>Owner account required</Text>
-          <Text style={[styles.guestSubtitle,{color:colors.mutedForeground}]}>Contact support to upgrade your account to owner or host.</Text>
+          <View style={styles.guestContainer}>
+            <View style={[styles.iconCircle,{backgroundColor:colors.muted,borderColor:colors.border}]}>
+              <Feather name={isTenant ? "repeat" : "lock"} size={40} color={colors.mutedForeground}/>
+            </View>
+            <Text style={[styles.guestTitle,{color:colors.foreground}]}>
+              {isTenant ? "Switch account to list" : "Owner account required"}
+            </Text>
+            <Text style={[styles.guestSubtitle,{color:colors.mutedForeground}]}>
+              {isTenant ? "Choose Property Owner or Host / Agency and start your listing immediately." : "Contact support to upgrade your account to owner or host."}
+            </Text>
+            {isTenant && (
+              <Pressable
+                style={[styles.primaryBtn,{backgroundColor:colors.primary}]}
+                onPress={() => setShowUpgradeModal(true)}
+                testID="open-account-upgrade"
+              >
+                <Text style={[styles.primaryBtnText,{color:colors.primaryForeground}]}>Switch Account</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
-      </View>
+        {isTenant && (
+          <AccountUpgradeModal
+            visible={showUpgradeModal}
+            onClose={() => setShowUpgradeModal(false)}
+            onSuccess={() => router.replace("/(tabs)/list-property" as never)}
+          />
+        )}
+      </>
     );
   }
 

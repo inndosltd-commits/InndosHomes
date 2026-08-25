@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { getImageUrl } from "@/utils/imageUrl";
 import { getApiBaseUrl } from "@/utils/api";
+import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
 
 // ── Nav menu item ─────────────────────────────────────────────────────────────
 function MenuItem({ icon, label, badge, onPress, colors }: {
@@ -87,6 +88,7 @@ export default function ProfileScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     if (!token || !user || !["owner", "host"].includes(user.role)) {
@@ -179,6 +181,14 @@ export default function ProfileScreen() {
   const profileFields = displayUser as unknown as { avatar?: string | null; isMarketer?: boolean };
   const isMarketer = role === "marketer" || Boolean(profileFields.isMarketer);
 
+  const handleListPropertyPress = () => {
+    if (isTenant) {
+      setShowUpgradeModal(true);
+    } else {
+      router.push("/(tabs)/list-property" as never);
+    }
+  };
+
   // Profile photo URL
   const photoUrl = avatarUri ?? profileFields.avatar ?? null;
 
@@ -261,6 +271,15 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {isTenant && (
+          <>
+            <SectionTitle label="MY LISTINGS" colors={colors} />
+            <View style={[styles.menuGroup, { borderColor: colors.border }]}>
+              <MenuItem icon="plus-square" label="List a Property" onPress={handleListPropertyPress} colors={colors} />
+            </View>
+          </>
+        )}
+
         {/* Tenant menu */}
         {isTenant && !isMarketer && (
           <>
@@ -304,6 +323,11 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: colors.destructive }]}>Sign Out</Text>
         </Pressable>
       </ScrollView>
+      <AccountUpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        onSuccess={() => router.replace("/(tabs)/list-property" as never)}
+      />
     </View>
   );
 }
