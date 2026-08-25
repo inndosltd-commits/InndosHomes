@@ -787,9 +787,24 @@ export default function PropertyDetails() {
     );
   }
 
-  const beds = property.beds ?? property.specs?.beds ?? 0;
-  const baths = property.baths ?? property.specs?.baths ?? 0;
-  const sqft = property.sqft ?? property.specs?.sqft ?? 0;
+  // A zero is the database placeholder for a spec that a listing type does
+  // not collect. Only show specs that were meaningfully supplied.
+  const beds = property.beds ?? property.specs?.beds;
+  const baths = property.baths ?? property.specs?.baths;
+  const sqft = property.sqft ?? property.specs?.sqft;
+  const visibleSpecs = [
+    beds != null && beds > 0
+      ? { label: t("prop.bedrooms"), value: beds, icon: BedDouble }
+      : null,
+    baths != null && baths > 0
+      ? { label: t("prop.bathrooms"), value: baths, icon: Bath }
+      : null,
+    sqft != null && sqft > 0
+      ? { label: t("prop.sqft"), value: sqft, icon: Square }
+      : null,
+  ].filter(
+    (spec): spec is { label: string; value: number; icon: typeof BedDouble } => spec !== null
+  );
   const lat = property.lat != null ? parseFloat(property.lat) : -1.2921;
   const lng = property.lng != null ? parseFloat(property.lng) : 36.8219;
 
@@ -1195,36 +1210,32 @@ export default function PropertyDetails() {
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 sm:py-4 border-y border-gray-200 mb-4 gap-3 sm:gap-0">
               <div className="flex items-center justify-between w-full sm:w-auto sm:gap-8">
-                <div className="text-center flex-1 sm:flex-none">
-                  <div className="font-bold text-lg sm:text-xl flex items-center justify-center gap-1 sm:gap-2"><BedDouble className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> {beds}</div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">{t("prop.bedrooms")}</div>
-                </div>
-                <div className="w-px h-8 sm:h-10 bg-gray-200 block"></div>
-                <div className="text-center flex-1 sm:flex-none">
-                  <div className="font-bold text-lg sm:text-xl flex items-center justify-center gap-1 sm:gap-2"><Bath className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> {baths}</div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">{t("prop.bathrooms")}</div>
-                </div>
-                <div className="w-px h-8 sm:h-10 bg-gray-200 block"></div>
-                <div className="flex items-center justify-center gap-2 sm:gap-4 flex-1 sm:flex-none">
-                  <div className="text-center flex flex-col items-center justify-center">
-                    <div className="font-bold text-lg sm:text-xl flex items-center justify-center gap-1 sm:gap-2">
-                      <Square className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> {sqft}
+                {visibleSpecs.map((spec, index) => {
+                  const Icon = spec.icon;
+                  return (
+                    <div key={spec.label} className="contents">
+                      {index > 0 && <div className="w-px h-8 sm:h-10 bg-gray-200 block" />}
+                      <div className="text-center flex-1 sm:flex-none">
+                        <div className="font-bold text-lg sm:text-xl flex items-center justify-center gap-1 sm:gap-2">
+                          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> {spec.value}
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">{spec.label}</div>
+                      </div>
                     </div>
-                    <div className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">{t("prop.sqft")}</div>
-                  </div>
-                  <div className="flex sm:hidden gap-1">
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-gray-300 bg-white" onClick={handleShare}>
-                      <Share2 className="h-4 w-4 text-gray-700" />
-                    </Button>
-                    <Button
-                      variant={isLiked ? "default" : "outline"}
-                      size="icon"
-                      className={`h-8 w-8 rounded-lg ${isLiked ? "bg-gray-900 border-gray-900 text-white" : "border-gray-300 bg-white text-gray-700"}`}
-                      onClick={handleLike}
-                    >
-                      <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-                    </Button>
-                  </div>
+                  );
+                })}
+                <div className="flex sm:hidden gap-1">
+                  <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg border-gray-300 bg-white" onClick={handleShare}>
+                    <Share2 className="h-4 w-4 text-gray-700" />
+                  </Button>
+                  <Button
+                    variant={isLiked ? "default" : "outline"}
+                    size="icon"
+                    className={`h-8 w-8 rounded-lg ${isLiked ? "bg-gray-900 border-gray-900 text-white" : "border-gray-300 bg-white text-gray-700"}`}
+                    onClick={handleLike}
+                  >
+                    <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+                  </Button>
                 </div>
               </div>
               <div className="hidden sm:flex gap-2 justify-end w-full sm:w-auto">
@@ -1243,17 +1254,19 @@ export default function PropertyDetails() {
                 </section>
               )}
 
-              <section>
-                <h2 className="text-lg font-bold mb-3">{t("prop.amenities")}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
-                  {(property.tags || []).concat(["Air Conditioning", "Heating", "Dishwasher", "Balcony", "Storage"]).map((tag) => (
+              {property.tags?.length > 0 && (
+                <section>
+                  <h2 className="text-lg font-bold mb-3">{t("prop.amenities")}</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                    {property.tags.map((tag) => (
                     <div key={tag} className="flex items-center gap-1.5 text-gray-600 text-sm">
                       <CheckCircle className="h-3.5 w-3.5 text-primary/60 shrink-0" />
                       {resolveAmenityLabel(tag)}
                     </div>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Review Section — wired to real API */}
               <section className="bg-gray-50 p-4 rounded-xl border border-gray-100">

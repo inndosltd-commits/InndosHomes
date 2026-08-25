@@ -668,7 +668,8 @@ export default function PropertyDetailScreen() {
             <Text style={[styles.addressText, { color: colors.mutedForeground }]}>{property.address}</Text>
           </View>
 
-          <View style={[styles.specsRow, { borderColor: colors.border }]}>
+          {(property.beds > 0 || property.baths > 0 || property.sqft > 0 || (property.guests != null && property.guests > 0)) && (
+            <View style={[styles.specsRow, { borderColor: colors.border }]}>
             {property.beds > 0 && (
               <View style={styles.specItem}>
                 <Feather name="grid" size={20} color={colors.foreground} />
@@ -676,11 +677,13 @@ export default function PropertyDetailScreen() {
                 <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Beds</Text>
               </View>
             )}
-            <View style={styles.specItem}>
-              <Feather name="droplet" size={20} color={colors.foreground} />
-              <Text style={[styles.specValue, { color: colors.foreground }]}>{property.baths}</Text>
-              <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Baths</Text>
-            </View>
+            {property.baths > 0 && (
+              <View style={styles.specItem}>
+                <Feather name="droplet" size={20} color={colors.foreground} />
+                <Text style={[styles.specValue, { color: colors.foreground }]}>{property.baths}</Text>
+                <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Baths</Text>
+              </View>
+            )}
             {property.sqft > 0 && (
               <View style={styles.specItem}>
                 <Feather name="maximize-2" size={20} color={colors.foreground} />
@@ -695,7 +698,8 @@ export default function PropertyDetailScreen() {
                 <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Guests</Text>
               </View>
             )}
-          </View>
+            </View>
+          )}
 
           {property.description ? (
             <View style={styles.descriptionSection}>
