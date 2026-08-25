@@ -91,6 +91,16 @@ function getPriceLabel(type: string, price: number, priceUnit?: string | null): 
   return formatted;
 }
 
+function hasLandPlotSize(details: Record<string, unknown> | undefined): boolean {
+  const land = details?.land;
+  return Boolean(
+    land &&
+    typeof land === "object" &&
+    "plotSizeFt" in land &&
+    (land as { plotSizeFt?: unknown }).plotSizeFt
+  );
+}
+
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-KE", {
     day: "numeric",
@@ -668,23 +678,28 @@ export default function PropertyDetailScreen() {
             <Text style={[styles.addressText, { color: colors.mutedForeground }]}>{property.address}</Text>
           </View>
 
-          {(property.beds > 0 || property.baths > 0 || property.sqft > 0 || (property.guests != null && property.guests > 0)) && (
+          {(() => {
+            const isLand = property.subtype === "land" || Boolean(property.details?.land);
+            const showArea = property.sqft > 0 && (!isLand || hasLandPlotSize(property.details));
+            const showBedsOrBaths = !isLand && (property.beds > 0 || property.baths > 0);
+            const showGuests = property.guests != null && property.guests > 0;
+            return (showBedsOrBaths || showArea || showGuests) && (
             <View style={[styles.specsRow, { borderColor: colors.border }]}>
-            {property.beds > 0 && (
+            {!isLand && property.beds > 0 && (
               <View style={styles.specItem}>
                 <Feather name="grid" size={20} color={colors.foreground} />
                 <Text style={[styles.specValue, { color: colors.foreground }]}>{property.beds}</Text>
                 <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Beds</Text>
               </View>
             )}
-            {property.baths > 0 && (
+            {!isLand && property.baths > 0 && (
               <View style={styles.specItem}>
                 <Feather name="droplet" size={20} color={colors.foreground} />
                 <Text style={[styles.specValue, { color: colors.foreground }]}>{property.baths}</Text>
                 <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>Baths</Text>
               </View>
             )}
-            {property.sqft > 0 && (
+            {showArea && (
               <View style={styles.specItem}>
                 <Feather name="maximize-2" size={20} color={colors.foreground} />
                 <Text style={[styles.specValue, { color: colors.foreground }]}>{property.sqft}</Text>
@@ -699,7 +714,8 @@ export default function PropertyDetailScreen() {
               </View>
             )}
             </View>
-          )}
+            );
+          })()}
 
           {property.description ? (
             <View style={styles.descriptionSection}>

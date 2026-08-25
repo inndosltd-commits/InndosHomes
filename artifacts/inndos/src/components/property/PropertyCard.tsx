@@ -33,6 +33,7 @@ export interface ApiProperty {
   createdAt?: string;
   ownerName?: string | null;
   ownerBusinessName?: string | null;
+  details?: { land?: { plotSizeFt?: string | null } };
   // Legacy mockData compat (specs object)
   specs?: { beds: number; baths: number; sqft: number; guests?: number };
 }
@@ -81,9 +82,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
     }
   };
 
-  const beds = property.beds ?? property.specs?.beds ?? 0;
-  const baths = property.baths ?? property.specs?.baths ?? 0;
-  const sqft = property.sqft ?? property.specs?.sqft ?? 0;
+  const isLand = property.subtype === "land" || Boolean(property.details?.land);
+  const beds = !isLand ? (property.beds ?? property.specs?.beds ?? 0) : 0;
+  const baths = !isLand ? (property.baths ?? property.specs?.baths ?? 0) : 0;
+  const sqftWasEntered = !isLand || Boolean(property.details?.land?.plotSizeFt);
+  const sqft = sqftWasEntered ? (property.sqft ?? property.specs?.sqft ?? 0) : 0;
+  const visibleSpecs = [
+    beds > 0 ? { icon: BedDouble, value: beds, label: "Beds" } : null,
+    baths > 0 ? { icon: Bath, value: baths, label: "Baths" } : null,
+    sqft > 0 ? { icon: Square, value: sqft, label: "sqft" } : null,
+  ].filter((spec): spec is { icon: typeof BedDouble; value: number; label: string } => spec !== null);
   const previewImage = property.images?.length
     ? property.image
     : property.videoPosters?.[0] ?? property.image;
@@ -162,22 +170,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
               </p>
             )}
 
-            <div className="flex justify-between items-center py-3 border-t border-gray-100">
-              {beds > 0 && (
-                <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <BedDouble className="h-4 w-4 text-primary/70" />
-                  <span>{beds} <span className="hidden sm:inline">Beds</span></span>
-                </div>
-              )}
-              <div className="flex items-center gap-1 text-sm text-gray-600">
-                <Bath className="h-4 w-4 text-primary/70" />
-                <span>{baths} <span className="hidden sm:inline">Baths</span></span>
+            {visibleSpecs.length > 0 && (
+              <div className="flex justify-between items-center py-3 border-t border-gray-100">
+                {visibleSpecs.map(({ icon: Icon, value, label }) => (
+                  <div key={label} className="flex items-center gap-1 text-sm text-gray-600">
+                    <Icon className="h-4 w-4 text-primary/70" />
+                    <span>{value} <span className="hidden sm:inline">{label}</span></span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-1 text-sm text-gray-600">
-                <Square className="h-4 w-4 text-primary/70" />
-                <span>{sqft} <span className="hidden sm:inline">sqft</span></span>
-              </div>
-            </div>
+            )}
 
             {property.tags && property.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">

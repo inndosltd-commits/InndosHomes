@@ -789,9 +789,11 @@ export default function PropertyDetails() {
 
   // A zero is the database placeholder for a spec that a listing type does
   // not collect. Only show specs that were meaningfully supplied.
-  const beds = property.beds ?? property.specs?.beds;
-  const baths = property.baths ?? property.specs?.baths;
-  const sqft = property.sqft ?? property.specs?.sqft;
+  const isLand = property.subtype === "land" || Boolean(property.details?.land);
+  const beds = !isLand ? (property.beds ?? property.specs?.beds) : undefined;
+  const baths = !isLand ? (property.baths ?? property.specs?.baths) : undefined;
+  const sqftWasEntered = !isLand || Boolean(property.details?.land?.plotSizeFt);
+  const sqft = sqftWasEntered ? (property.sqft ?? property.specs?.sqft) : undefined;
   const visibleSpecs = [
     beds != null && beds > 0
       ? { label: t("prop.bedrooms"), value: beds, icon: BedDouble }

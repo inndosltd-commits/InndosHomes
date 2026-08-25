@@ -156,24 +156,26 @@ export function PropertyCard({ property }: PropertyCardProps) {
           </Text>
         </View>
 
-        <View style={[styles.specs, { borderTopColor: colors.border }]}>
-          {property.beds > 0 && (
-            <View style={styles.specItem}>
-              <Feather name="grid" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.specText, { color: colors.foreground }]}>{property.beds} bed</Text>
+        {(() => {
+          const isLand = property.subtype === "land" || Boolean(property.details?.land);
+          const specs = [
+            !isLand && property.beds > 0 ? { icon: "grid" as const, value: `${property.beds} bed` } : null,
+            !isLand && property.baths > 0 ? { icon: "droplet" as const, value: `${property.baths} bath` } : null,
+            (!isLand || Boolean(property.details?.land && typeof property.details.land === "object" && "plotSizeFt" in property.details.land && property.details.land.plotSizeFt)) && property.sqft > 0
+              ? { icon: "maximize-2" as const, value: `${property.sqft} sqft` }
+              : null,
+          ].filter((spec): spec is { icon: "grid" | "droplet" | "maximize-2"; value: string } => spec !== null);
+          return specs.length > 0 ? (
+            <View style={[styles.specs, { borderTopColor: colors.border }]}>
+              {specs.map((spec) => (
+                <View key={spec.value} style={styles.specItem}>
+                  <Feather name={spec.icon} size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.specText, { color: colors.foreground }]}>{spec.value}</Text>
+                </View>
+              ))}
             </View>
-          )}
-          <View style={styles.specItem}>
-            <Feather name="droplet" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.specText, { color: colors.foreground }]}>{property.baths} bath</Text>
-          </View>
-          {property.sqft > 0 && (
-            <View style={styles.specItem}>
-              <Feather name="maximize-2" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.specText, { color: colors.foreground }]}>{property.sqft} sqft</Text>
-            </View>
-          )}
-        </View>
+          ) : null;
+        })()}
 
         {property.tags && property.tags.length > 0 && (
           <View style={styles.tagsRow}>
