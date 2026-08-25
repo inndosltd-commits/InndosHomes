@@ -61,6 +61,10 @@ function RootLayoutNav() {
           presentation: "card",
         }}
       />
+      <Stack.Screen
+        name="subscription"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
   );
 }

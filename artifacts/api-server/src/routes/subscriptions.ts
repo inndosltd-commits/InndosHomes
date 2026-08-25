@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { db } from "@workspace/db";
 import { subscriptions, users, properties, payments, settings, subscriptionPlans } from "@workspace/db";
 import { eq, and, desc, count } from "drizzle-orm";
@@ -102,6 +102,20 @@ export function getPlanLimit(plan: string): number {
   return DEFAULT_PLAN_LIMITS[plan] ?? 3;
 }
 
+function redirectAfterPayment(
+  res: Response,
+  state: "success" | "pending" | "failed" | "cancelled" | "error",
+  returnTarget?: string,
+  paymentId?: string
+) {
+  if (returnTarget === "mobile") {
+    const payment = paymentId ? `&paymentId=${encodeURIComponent(paymentId)}` : "";
+    res.redirect(`inndos-mobile://subscription?payment=${state}${payment}`);
+    return;
+  }
+  res.redirect(getWebsiteUrl(`/#/dashboard?tab=subscription&payment=${state}`));
+}
+
 export async function getPlanEntitlements(plan: string): Promise<PlanEntitlements> {
   const plans = await getPlansConfig();
   return plans[plan] ?? plans.free ?? {
@@ -169,10 +183,11 @@ router.post("/upgrade", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { plan, billingCycle, months } = req.body as {
+  const { plan, billingCycle, months, returnTarget } = req.body as {
     plan?: string;
     billingCycle?: string;
     months?: number;
+    returnTarget?: string;
   };
 
   if (!plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
@@ -254,10 +269,11 @@ router.post("/checkout", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { plan, billingCycle, months } = req.body as {
+  const { plan, billingCycle, months, returnTarget } = req.body as {
     plan?: string;
     billingCycle?: string;
     months?: number;
+    returnTarget?: string;
   };
 
   if (!plan || !["basic", "pro"].includes(plan)) {
@@ -310,7 +326,7 @@ router.post("/checkout", async (req, res) => {
   const proto = req.headers["x-forwarded-proto"] ?? "https";
   const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
   const baseUrl = `${proto}://${host}`;
-  const callbackUrl = `${baseUrl}/api/subscriptions/callback?paymentId=${payment.id}&plan=${plan}&months=${billingMonths}&cycle=${cycle}`;
+  const callbackUrl = `${baseUrl}/api/subscriptions/callback?paymentId=${payment.id}&plan=${plan}&months=${billingMonths}&cycle=${cycle}${returnTarget === "mobile" ? "&returnTarget=mobile" : ""}`;
   const ipnUrl = `${baseUrl}/api/subscriptions/ipn`;
 
   // Make sure IPN is registered
@@ -349,16 +365,40 @@ router.post("/checkout", async (req, res) => {
   }
 });
 
+// GET /api/subscriptions/payments/:paymentId — mobile clients poll this after
+// returning from the payment browser, without exposing another user's payment.
+router.get("/payments/:paymentId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const [payment] = await db
+    .select({
+      id: payments.id,
+      status: payments.status,
+      plan: payments.plan,
+      amount: payments.amount,
+      updatedAt: payments.updatedAt,
+    })
+    .from(payments)
+    .where(and(eq(payments.id, req.params.paymentId), eq(payments.userId, userId)))
+    .limit(1);
+  if (!payment) {
+    res.status(404).json({ error: "Payment not found" });
+    return;
+  }
+  res.json(payment);
+});
+
 // GET /api/subscriptions/callback  — PesaPal redirect after payment
 router.get("/callback", async (req, res) => {
-  const { OrderTrackingId, OrderMerchantReference, paymentId, plan, months, cycle } =
+  const { OrderTrackingId, OrderMerchantReference, paymentId, plan, months, cycle, returnTarget } =
     req.query as Record<string, string>;
 
   const trackingId = OrderTrackingId;
   const ref = OrderMerchantReference;
 
   if (!trackingId || !paymentId) {
-    res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=cancelled"));
+    redirectAfterPayment(res, "cancelled", returnTarget, paymentId);
     return;
   }
 
@@ -433,18 +473,25 @@ router.get("/callback", async (req, res) => {
         }
       }
 
-      res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=success"));
+      redirectAfterPayment(res, "success", returnTarget, paymentId);
     } else {
-      await db
-        .update(payments)
-        .set({ status: "failed", pesapalTrackingId: trackingId, updatedAt: new Date() })
-        .where(eq(payments.id, paymentId));
-
-      res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=failed"));
+      const description = txStatus.paymentStatusDescription?.toLowerCase() ?? "";
+      const state = description.includes("cancel")
+        ? "cancelled"
+        : description.includes("failed") || description.includes("invalid")
+          ? "failed"
+          : "pending";
+      if (state !== "pending") {
+        await db
+          .update(payments)
+          .set({ status: state, pesapalTrackingId: trackingId, updatedAt: new Date() })
+          .where(eq(payments.id, paymentId));
+      }
+      redirectAfterPayment(res, state, returnTarget, paymentId);
     }
   } catch (err) {
     req.log?.error({ err }, "Callback processing error");
-    res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=error"));
+    redirectAfterPayment(res, "error", returnTarget, paymentId);
   }
 });
 

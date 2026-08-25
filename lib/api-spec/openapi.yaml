@@ -583,6 +583,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Booking"
 
+  /subscriptions/payments/{paymentId}:
+    get:
+      operationId: getSubscriptionPayment
+      tags: [subscriptions]
+      summary: Get the signed-in user's subscription payment status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionPayment"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -701,6 +722,10 @@ components:
           type: array
           items:
             type: string
+        videoPosters:
+          type: array
+          items:
+            type: string
         details:
           type: object
           additionalProperties: true
@@ -775,6 +800,7 @@ components:
         - image
         - images
         - videos
+        - videoPosters
         - details
         - isVerified
         - tags
@@ -948,6 +974,11 @@ components:
           items:
             type: string
           nullable: true
+        propertyVideoPosters:
+          type: array
+          items:
+            type: string
+          nullable: true
         propertyType:
           type: string
           nullable: true
@@ -1010,3 +1041,20 @@ components:
         - startDate
         - endDate
         - totalPrice
+
+    SubscriptionPayment:
+      type: object
+      required: [id, status, plan, amount]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+        plan:
+          type: string
+        amount:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time

@@ -132,6 +132,7 @@ export default function PropertyDetailScreen() {
   const [isLinkedUp, setIsLinkedUp] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showUnavailableContact, setShowUnavailableContact] = useState(false);
+  const [availabilityConflict, setAvailabilityConflict] = useState<string | null>(null);
 
   const checkOut = addDays(checkIn, bookingNights);
 
@@ -143,7 +144,7 @@ export default function PropertyDetailScreen() {
     ["bnb", "hotel", "hostel"].includes(property.type) &&
     property.priceUnit !== "month"
   );
-  const { data: bookedRanges, isFetching: isCheckingAvailability } = useGetPropertyAvailability(
+  const { data: bookedRanges, isFetching: isCheckingAvailability, refetch: refetchAvailability } = useGetPropertyAvailability(
     id ?? "",
     { query: { queryKey: getGetPropertyAvailabilityQueryKey(id ?? ""), enabled: !!id && isNightlyProperty } }
   );
@@ -394,10 +395,13 @@ export default function PropertyDetailScreen() {
                     ?? (err as { status?: number })?.status;
                   if (status === 409) {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                    Alert.alert(
-                      "Dates Already Linked",
-                      "This property is already linked up for the selected dates. Please choose different dates."
+                    setAvailabilityConflict(
+                      (err as { message?: string }).message
+                        || "Those dates were just booked. Choose a new check-in and check-out date."
                     );
+                    setShowDatePicker(true);
+                    setShowUnavailableContact(true);
+                    void refetchAvailability();
                   } else {
                     Alert.alert("Error", "Failed to link up. Please try again.");
                   }
@@ -455,6 +459,9 @@ export default function PropertyDetailScreen() {
 
   const allPhotos = (property.images && property.images.length > 0)
     ? property.images
+    : Array.isArray((property as { videoPosters?: string[] }).videoPosters) &&
+        (property as { videoPosters?: string[] }).videoPosters!.length > 0
+      ? (property as { videoPosters: string[] }).videoPosters
     : [property.image];
   const propertyVideos = Array.isArray((property as { videos?: string[] }).videos)
     ? (property as { videos: string[] }).videos.filter(Boolean)
@@ -891,11 +898,11 @@ export default function PropertyDetailScreen() {
           )}
 
           {/* Dates-taken banner */}
-          {showUnavailableContact && !isLinkedUp && (
+          {(showUnavailableContact || availabilityConflict) && !isLinkedUp && (
             <View style={[styles.unavailableBanner, { backgroundColor: "#fef2f2", borderColor: "#fca5a5" }]}>
               <Feather name="alert-circle" size={16} color="#dc2626" />
               <Text style={[styles.unavailableBannerText, { color: "#dc2626" }]}>
-                These dates are already taken — please choose different dates or contact the owner above.
+                {availabilityConflict ?? "These dates are already taken — please choose different dates or contact the owner above."}
               </Text>
             </View>
           )}
@@ -917,10 +924,10 @@ export default function PropertyDetailScreen() {
               style={[
                 styles.bookBtn,
                 { backgroundColor: colors.primary },
-                (isBooking || (isNightly && isUnavailable && showDatePicker)) && { opacity: 0.4 },
+                isBooking && { opacity: 0.4 },
               ]}
               onPress={handleLinkUp}
-              disabled={isBooking || (isNightly && isUnavailable && showDatePicker)}
+              disabled={isBooking}
             >
               {isBooking ? (
                 <ActivityIndicator size="small" color={colors.primaryForeground} />
@@ -929,14 +936,14 @@ export default function PropertyDetailScreen() {
                   {isNightlyProperty && !showDatePicker
                     ? "🔗 Link Up"
                     : isNightlyProperty && showDatePicker && isUnavailable
-                      ? "Contact Owner"
+                      ? "Choose new dates"
                       : user ? "🔗 Link Up" : "Sign In to Link Up"}
                 </Text>
               )}
             </Pressable>
             {isNightly && isUnavailable && showDatePicker && (
               <Text style={[styles.bookBtnHint, { color: colors.mutedForeground }]}>
-                These dates are already linked up
+                Choose a different date range to continue
               </Text>
             )}
           </View>

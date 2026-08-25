@@ -169,7 +169,9 @@ export default function BookingsScreen() {
               year: "numeric",
             });
 
-            const coverImage = (item.propertyImages && item.propertyImages.length > 0) ? item.propertyImages[0] : item.propertyImage;
+            const coverImage = (item.propertyImages && item.propertyImages.length > 0)
+              ? item.propertyImages[0]
+              : item.propertyVideoPosters?.[0] ?? item.propertyImage;
             const imageUrl = getImageUrl(coverImage);
 
             return (

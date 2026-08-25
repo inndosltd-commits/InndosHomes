@@ -20,5 +20,6 @@ export interface Booking {
   propertyAddress?: string | null;
   propertyImage?: string | null;
   propertyImages?: string[] | null;
+  propertyVideoPosters?: string[] | null;
   propertyType?: string | null;
 }

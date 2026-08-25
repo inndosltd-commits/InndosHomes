@@ -112,6 +112,7 @@ export const ListPropertiesResponseItem = zod.object({
   image: zod.string(),
   images: zod.array(zod.string()),
   videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
   details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
@@ -183,6 +184,7 @@ export const ListFeaturedPropertiesResponseItem = zod.object({
   image: zod.string(),
   images: zod.array(zod.string()),
   videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
   details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
@@ -259,6 +261,7 @@ export const GetListerProfileResponse = zod.object({
       image: zod.string(),
       images: zod.array(zod.string()),
       videos: zod.array(zod.string()),
+      videoPosters: zod.array(zod.string()),
       details: zod.record(zod.string(), zod.unknown()),
       isVerified: zod.boolean(),
       tags: zod.array(zod.string()),
@@ -321,6 +324,7 @@ export const GetPropertyResponse = zod.object({
   image: zod.string(),
   images: zod.array(zod.string()),
   videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
   details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
@@ -427,6 +431,7 @@ export const ListFavoritesResponseItem = zod.object({
   image: zod.string(),
   images: zod.array(zod.string()),
   videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
   details: zod.record(zod.string(), zod.unknown()),
   isVerified: zod.boolean(),
   tags: zod.array(zod.string()),
@@ -500,6 +505,7 @@ export const ListBookingsResponseItem = zod.object({
   propertyAddress: zod.string().nullish(),
   propertyImage: zod.string().nullish(),
   propertyImages: zod.array(zod.string()).nullish(),
+  propertyVideoPosters: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
 });
 export const ListBookingsResponse = zod.array(ListBookingsResponseItem);
@@ -534,5 +540,21 @@ export const CancelBookingResponse = zod.object({
   propertyAddress: zod.string().nullish(),
   propertyImage: zod.string().nullish(),
   propertyImages: zod.array(zod.string()).nullish(),
+  propertyVideoPosters: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
+});
+
+/**
+ * @summary Get the signed-in user's subscription payment status
+ */
+export const GetSubscriptionPaymentParams = zod.object({
+  paymentId: zod.coerce.string(),
+});
+
+export const GetSubscriptionPaymentResponse = zod.object({
+  id: zod.string(),
+  status: zod.enum(["pending", "completed", "failed", "cancelled"]),
+  plan: zod.string(),
+  amount: zod.number(),
+  updatedAt: zod.coerce.date().optional(),
 });

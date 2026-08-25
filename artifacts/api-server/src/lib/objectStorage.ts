@@ -165,6 +165,27 @@ export class ObjectStorageService {
     });
   }
 
+  async saveObjectEntity(
+    objectPath: string,
+    bytes: Buffer,
+    contentType: string
+  ): Promise<void> {
+    if (!objectPath.startsWith("/objects/")) {
+      throw new ObjectNotFoundError();
+    }
+
+    const entityId = objectPath.slice("/objects/".length);
+    const privateObjectDir = this.getPrivateObjectDir().replace(/\/+$/, "");
+    const { bucketName, objectName } = parseObjectPath(
+      `${privateObjectDir}/${entityId}`
+    );
+    await objectStorageClient.bucket(bucketName).file(objectName).save(bytes, {
+      resumable: false,
+      contentType,
+      metadata: { cacheControl: "public, max-age=31536000, immutable" },
+    });
+  }
+
   async inspectObjectEntity(objectPath: string): Promise<{
     size: number;
     contentType: string;

@@ -23,6 +23,7 @@ export interface Property {
   image: string;
   images: string[];
   videos: string[];
+  videoPosters: string[];
   details: PropertyDetails;
   isVerified: boolean;
   tags: string[];

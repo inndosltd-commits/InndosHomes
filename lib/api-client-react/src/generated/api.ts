@@ -35,6 +35,7 @@ import type {
   SaveListingDraftInput,
   SearchListersParams,
   SignupInput,
+  SubscriptionPayment,
   UploadUrlRequest,
   UploadUrlResponse,
   UserProfile,
@@ -2313,3 +2314,98 @@ export const useCancelBooking = <
 > => {
   return useMutation(getCancelBookingMutationOptions(options));
 };
+
+/**
+ * @summary Get the signed-in user's subscription payment status
+ */
+export const getGetSubscriptionPaymentUrl = (paymentId: string) => {
+  return `/api/subscriptions/payments/${paymentId}`;
+};
+
+export const getSubscriptionPayment = async (
+  paymentId: string,
+  options?: RequestInit,
+): Promise<SubscriptionPayment> => {
+  return customFetch<SubscriptionPayment>(
+    getGetSubscriptionPaymentUrl(paymentId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSubscriptionPaymentQueryKey = (paymentId: string) => {
+  return [`/api/subscriptions/payments/${paymentId}`] as const;
+};
+
+export const getGetSubscriptionPaymentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSubscriptionPayment>>,
+  TError = ErrorType<unknown>,
+>(
+  paymentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSubscriptionPayment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSubscriptionPaymentQueryKey(paymentId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSubscriptionPayment>>
+  > = ({ signal }) =>
+    getSubscriptionPayment(paymentId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!paymentId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSubscriptionPayment>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSubscriptionPaymentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSubscriptionPayment>>
+>;
+export type GetSubscriptionPaymentQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the signed-in user's subscription payment status
+ */
+
+export function useGetSubscriptionPayment<
+  TData = Awaited<ReturnType<typeof getSubscriptionPayment>>,
+  TError = ErrorType<unknown>,
+>(
+  paymentId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSubscriptionPayment>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSubscriptionPaymentQueryOptions(
+    paymentId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

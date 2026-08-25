@@ -25,6 +25,8 @@ export interface ApiProperty {
   hourlyRate?: number | null;
   priceUnit?: string | null;
   images?: string[];
+  videos?: string[];
+  videoPosters?: string[];
   lat?: string | null;
   lng?: string | null;
   description?: string | null;
@@ -82,6 +84,9 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const beds = property.beds ?? property.specs?.beds ?? 0;
   const baths = property.baths ?? property.specs?.baths ?? 0;
   const sqft = property.sqft ?? property.specs?.sqft ?? 0;
+  const previewImage = property.images?.length
+    ? property.image
+    : property.videoPosters?.[0] ?? property.image;
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -121,7 +126,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
         <Card className="overflow-hidden border-none shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col">
           <div className="relative aspect-[4/3] overflow-hidden">
             <img
-              src={property.image?.startsWith("/objects/") ? `/api/storage${property.image}` : property.image}
+              src={previewImage?.startsWith("/objects/") ? `/api/storage${previewImage}` : previewImage}
               alt={property.title}
               className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
               onContextMenu={e => e.preventDefault()}

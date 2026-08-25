@@ -2,7 +2,7 @@ import { useListProperties, useListFeaturedProperties } from "@workspace/api-cli
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -23,6 +23,8 @@ import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyMapView, type MapBBox } from "@/components/PropertyMapView";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "@/context/AuthContext";
+import { getApiBaseUrl } from "@/utils/api";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const MAP_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
@@ -216,6 +218,7 @@ export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { token } = useAuth();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -229,6 +232,12 @@ export default function BrowseScreen() {
   const [rentModalVisible, setRentModalVisible] = useState(false);
   const [buyModalVisible, setBuyModalVisible] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBBox | null>(null);
+  const [mapFocusRegion, setMapFocusRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+  const [placeResults, setPlaceResults] = useState<Array<{ placeId: string; description: string; secondaryText: string }>>([]);
+  const [placeLoading, setPlaceLoading] = useState(false);
+  const [placeFocused, setPlaceFocused] = useState(false);
+  const placeRequestRef = useRef(0);
 
   const listParams: ListPropertiesParams = {
     type: activeType,
@@ -238,6 +247,32 @@ export default function BrowseScreen() {
 
   const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
   const { data: featuredProperties, refetch: refetchFeatured } = useListFeaturedProperties();
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    let active = true;
+    (async () => {
+      setLocationLoading(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!active) return;
+        if (status !== "granted") {
+          setLocationNotice("Location is off. You can still search a place or browse the default map area.");
+          return;
+        }
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (!active) return;
+        const region = { latitude: position.coords.latitude, longitude: position.coords.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 };
+        setUserLocation({ lat: region.latitude, lng: region.longitude });
+        setMapFocusRegion(region);
+      } catch {
+        if (active) setLocationNotice("Your location could not be loaded. You can still search a place or browse the default map area.");
+      } finally {
+        if (active) setLocationLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const filteredProperties = useMemo<Property[]>(() => {
     if (!properties) return [];
@@ -282,6 +317,56 @@ export default function BrowseScreen() {
     setSearch(text);
     clearTimeout((handleSearch as { _t?: ReturnType<typeof setTimeout> })._t);
     (handleSearch as { _t?: ReturnType<typeof setTimeout> })._t = setTimeout(() => setDebouncedSearch(text), 400);
+    const requestId = ++placeRequestRef.current;
+    if (!token || text.trim().length < 2) {
+      setPlaceResults([]);
+      setPlaceLoading(false);
+      return;
+    }
+    setPlaceLoading(true);
+    setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/maps/places?query=${encodeURIComponent(text.trim())}&sessiontoken=browse-${Date.now()}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const payload = await response.json() as { results?: Array<{ placeId: string; description: string; secondaryText: string }> };
+        if (requestId === placeRequestRef.current) setPlaceResults(payload.results ?? []);
+      } catch {
+        if (requestId === placeRequestRef.current) setPlaceResults([]);
+      } finally {
+        if (requestId === placeRequestRef.current) setPlaceLoading(false);
+      }
+    }, 350);
+  };
+
+  const selectPlace = async (place: { placeId: string; description: string }) => {
+    if (!token) return;
+    setPlaceLoading(true);
+    try {
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/maps/places/${encodeURIComponent(place.placeId)}?sessiontoken=browse-${Date.now()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const payload = await response.json() as { place?: { latitude: number; longitude: number } };
+      if (!response.ok || !payload.place) throw new Error("Place unavailable");
+      const region = { latitude: payload.place.latitude, longitude: payload.place.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 };
+      setSearch(place.description);
+      setDebouncedSearch("");
+      setPlaceResults([]);
+      setPlaceFocused(false);
+      setMapFocusRegion(region);
+      setMapBounds({
+        minLat: region.latitude - region.latitudeDelta / 2,
+        maxLat: region.latitude + region.latitudeDelta / 2,
+        minLng: region.longitude - region.longitudeDelta / 2,
+        maxLng: region.longitude + region.longitudeDelta / 2,
+      });
+    } catch {
+      setLocationNotice("That place could not be loaded. Please choose another suggestion.");
+    } finally {
+      setPlaceLoading(false);
+    }
   };
 
   const handleRefresh = async () => {
@@ -416,11 +501,27 @@ export default function BrowseScreen() {
               placeholderTextColor={colors.mutedForeground}
               value={search}
               onChangeText={handleSearch}
+              onFocus={() => setPlaceFocused(true)}
+              onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
               returnKeyType="search"
             />
             {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
           </View>
         </View>
+        {placeFocused && search.trim().length >= 2 && (
+          <View style={[styles.placeSuggestions, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {placeLoading && placeResults.length === 0 ? <ActivityIndicator color={colors.primary} /> : placeResults.map((place) => (
+              <Pressable key={place.placeId} style={[styles.placeSuggestion, { borderBottomColor: colors.border }]} onPress={() => void selectPlace(place)}>
+                <Feather name="map-pin" size={14} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.placeMain, { color: colors.foreground }]} numberOfLines={1}>{place.description}</Text>
+                  {!!place.secondaryText && <Text style={[styles.placeSecondary, { color: colors.mutedForeground }]} numberOfLines={1}>{place.secondaryText}</Text>}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {locationNotice && <Text style={[styles.locationNotice, { color: colors.mutedForeground }]}>{locationNotice}</Text>}
 
         {isLoading ? (
           <View style={[styles.center, styles.loadingState]}>
@@ -438,7 +539,7 @@ export default function BrowseScreen() {
         ) : (
           <>
             <View style={styles.mapWrapper}>
-              <PropertyMapView properties={filteredProperties} onSearchArea={setMapBounds} />
+              <PropertyMapView properties={filteredProperties} onSearchArea={setMapBounds} focusRegion={mapFocusRegion} />
             </View>
 
             {filteredProperties.length === 0 ? (
@@ -521,6 +622,11 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     searchRow: { flexDirection: "row", paddingHorizontal: hPad, paddingTop: 8, gap: 8 },
     searchCol: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 9, borderWidth: 1, borderRadius: 10, gap: 6 },
     searchColInput: { flex: 1, fontSize: 13, padding: 0 },
+    placeSuggestions: { marginHorizontal: hPad, borderWidth: 1, borderRadius: 10, overflow: "hidden", zIndex: 3 },
+    placeSuggestion: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+    placeMain: { fontSize: 13, fontFamily: "Outfit_500Medium" },
+    placeSecondary: { fontSize: 11, fontFamily: "Outfit_400Regular", marginTop: 1 },
+    locationNotice: { marginHorizontal: hPad, paddingTop: 6, fontSize: 12, fontFamily: "Outfit_400Regular" },
     mapWrapper: { height: MAP_HEIGHT, marginTop: 4 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 40 },
     loadingState: { minHeight: MAP_HEIGHT },

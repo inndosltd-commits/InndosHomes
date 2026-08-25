@@ -29,6 +29,7 @@ router.get("/", async (req, res) => {
       propertyAddress: properties.address,
       propertyImage: properties.image,
       propertyImages: properties.images,
+      propertyVideoPosters: properties.videoPosters,
       propertyType: properties.type,
     })
     .from(bookings)
@@ -52,6 +53,7 @@ router.get("/received", async (req, res) => {
       propertyAddress: properties.address,
       propertyImage: properties.image,
       propertyImages: properties.images,
+      propertyVideoPosters: properties.videoPosters,
       guestId: bookings.userId,
       guestName: guests.name,
       status: bookings.status,
@@ -368,6 +370,8 @@ router.patch("/:id/status", async (req, res) => {
     .select({
       id: bookings.id,
       guestId: bookings.userId,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
       totalPrice: bookings.totalPrice,
       ownerId: properties.ownerId,
       propertyId: properties.id,

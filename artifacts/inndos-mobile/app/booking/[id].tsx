@@ -132,6 +132,8 @@ export default function BookingDetailScreen() {
 
   const allPhotos: string[] = (booking.propertyImages && booking.propertyImages.length > 0)
     ? booking.propertyImages
+    : booking.propertyVideoPosters && booking.propertyVideoPosters.length > 0
+      ? booking.propertyVideoPosters
     : booking.propertyImage
       ? [booking.propertyImage]
       : [];

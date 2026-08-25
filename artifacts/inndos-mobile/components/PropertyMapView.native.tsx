@@ -27,6 +27,7 @@ export interface MapBBox {
 interface PropertyMapViewProps {
   properties: Property[];
   onSearchArea?: (bbox: MapBBox) => void;
+  focusRegion?: Region | null;
 }
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -76,7 +77,7 @@ function regionsAreSimilar(a: Region, b: Region, threshold = 0.01): boolean {
   );
 }
 
-export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewProps) {
+export function PropertyMapView({ properties, onSearchArea, focusRegion }: PropertyMapViewProps) {
   const colors = useColors();
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -105,33 +106,13 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
     [properties]
   );
 
-  // Keep the initial home map focused on listings. The user-location marker still
-  // appears when permission is granted, but it must not pan the map away from the
-  // properties the user came here to browse.
   useEffect(() => {
-    if (mappableProperties.length > 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (cancelled || status !== "granted") return;
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        if (cancelled) return;
-        const userRegion: Region = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        };
-        mapRef.current?.animateToRegion(userRegion, 800);
-        setRegion(userRegion);
-        committedRegionRef.current = userRegion;
-      } catch {
-        // Permission denied or location unavailable — keep the default map area.
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [mappableProperties.length]);
+    if (!focusRegion) return;
+    mapRef.current?.animateToRegion(focusRegion, 700);
+    setRegion(focusRegion);
+    committedRegionRef.current = focusRegion;
+    onSearchArea?.(regionToMapBBox(focusRegion));
+  }, [focusRegion, onSearchArea]);
 
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [showSearchButton, setShowSearchButton] = useState(false);
@@ -156,6 +137,11 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
   }, [region, onSearchArea]);
 
   const selectedProperty = mappableProperties.find((p) => p.id === selectedId);
+  const selectedPreview = selectedProperty
+    ? (selectedProperty.images?.length
+      ? selectedProperty.image
+      : selectedProperty.videoPosters?.[0] ?? selectedProperty.image)
+    : null;
 
   const handleRetryMap = useCallback(() => {
     setMapReady(false);
@@ -276,9 +262,9 @@ export function PropertyMapView({ properties, onSearchArea }: PropertyMapViewPro
             })
           }
         >
-          {selectedProperty.image && !thumbError ? (
+          {selectedPreview && !thumbError ? (
             <Image
-              source={{ uri: getImageUrl(selectedProperty.image) }}
+              source={{ uri: getImageUrl(selectedPreview) }}
               style={styles.calloutThumb}
               resizeMode="cover"
               onError={() => setThumbError(true)}

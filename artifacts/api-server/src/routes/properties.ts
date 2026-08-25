@@ -9,6 +9,10 @@ import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage"
 import sharp from "sharp";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -95,6 +99,49 @@ async function validateNewListingMedia({
   return null;
 }
 
+async function createVideoPosters(videoPaths: string[], userId: string): Promise<string[]> {
+  const posters: string[] = [];
+  for (const videoPath of videoPaths) {
+    const video = await objectStorageService.getObjectEntityFile(videoPath);
+    const [videoBytes] = await video.download();
+    const workDir = join(tmpdir(), `inndos-video-poster-${randomUUID()}`);
+    const inputPath = join(workDir, "source");
+    const outputPath = join(workDir, "poster.jpg");
+    try {
+      await mkdir(workDir, { recursive: true });
+      await writeFile(inputPath, videoBytes);
+      await execFileAsync(
+        "ffmpeg",
+        [
+          "-y",
+          "-ss",
+          "0.1",
+          "-i",
+          inputPath,
+          "-frames:v",
+          "1",
+          "-vf",
+          "scale='min(1280,iw)':-2",
+          "-q:v",
+          "3",
+          outputPath,
+        ],
+        { timeout: 60_000, maxBuffer: 1024 * 1024 }
+      );
+      const posterPath = `/objects/listing-posters/${userId}/${randomUUID()}.jpg`;
+      await objectStorageService.saveObjectEntity(
+        posterPath,
+        await readFile(outputPath),
+        "image/jpeg"
+      );
+      posters.push(posterPath);
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  }
+  return posters;
+}
+
 const PROPERTY_COLUMNS = {
   id: properties.id,
   ownerId: properties.ownerId,
@@ -109,6 +156,7 @@ const PROPERTY_COLUMNS = {
   image: properties.image,
   images: properties.images,
   videos: properties.videos,
+  videoPosters: properties.videoPosters,
   details: properties.details,
   description: properties.description,
   isVerified: properties.isVerified,
@@ -639,7 +687,23 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const result = insertPropertySchema.safeParse({ ...body, images: imageList, videos: videoList, image: primaryImage, ownerId: userId });
+  let videoPosters: string[] = [];
+  try {
+    videoPosters = await createVideoPosters(videoList, userId);
+  } catch (error) {
+    req.log?.error({ err: error }, "Listing video poster generation failed");
+    res.status(400).json({ error: "A video preview image could not be generated. Please upload a different video.", code: "INVALID_MEDIA" });
+    return;
+  }
+
+  const result = insertPropertySchema.safeParse({
+    ...body,
+    images: imageList,
+    videos: videoList,
+    videoPosters,
+    image: primaryImage,
+    ownerId: userId,
+  });
   if (!result.success) {
     res.status(400).json({ error: "Invalid input", details: result.error.flatten() });
     return;
@@ -736,10 +800,21 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
+  let videoPosters = prop.videoPosters ?? [];
+  if (videoList !== undefined) {
+    try {
+      videoPosters = await createVideoPosters(videoList, userId);
+    } catch (error) {
+      req.log?.error({ err: error }, "Listing video poster generation failed");
+      res.status(400).json({ error: "A video preview image could not be generated. Please upload a different video.", code: "INVALID_MEDIA" });
+      return;
+    }
+  }
+
   const patchBody = {
     ...body,
     ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
-    ...(videoList !== undefined ? { videos: videoList } : {}),
+    ...(videoList !== undefined ? { videos: videoList, videoPosters } : {}),
   };
   const updateSchema = insertPropertySchema.omit({ ownerId: true, isVerified: true }).partial();
   const result = updateSchema.safeParse(patchBody);

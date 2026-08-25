@@ -62,6 +62,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
   const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
   const isFavoriteLoading = isAdding || isRemoving;
+  const previewImage =
+    property.images?.length
+      ? property.image
+      : property.videoPosters?.[0] ?? property.image;
 
   const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
     if (!user) {
@@ -102,7 +106,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
     >
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: getImageUrl(property.image) }}
+          source={{ uri: getImageUrl(previewImage) }}
           style={styles.image}
           resizeMode="cover"
         />

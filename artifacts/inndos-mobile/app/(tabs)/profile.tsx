@@ -2,7 +2,7 @@ import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -86,6 +86,18 @@ export default function ProfileScreen() {
   const { data: profile, refetch: refetchProfile } = useGetMe({ query: { queryKey: getGetMeQueryKey(), enabled: !!user } });
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !user || !["owner", "host"].includes(user.role)) {
+      setSubscriptionPlan(null);
+      return;
+    }
+    fetch(`${getApiBaseUrl()}/api/subscriptions/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => response.ok ? response.json() : null)
+      .then((subscription: { plan?: string } | null) => setSubscriptionPlan(subscription?.plan ?? "free"))
+      .catch(() => setSubscriptionPlan(null));
+  }, [token, user]);
 
   const handleLogout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -213,6 +225,8 @@ export default function ProfileScreen() {
           <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
           <InfoRow icon="shield" label="Account status" value={displayUser.status} colors={colors} />
           <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+          <InfoRow icon="credit-card" label="Subscription" value={isOwnerOrHost ? `${subscriptionPlan ?? "Loading"} plan` : "Not required"} colors={colors} />
+          <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
           <InfoRow icon="mail" label="Email" value={displayUser.email} colors={colors} />
         </View>
 
@@ -220,6 +234,7 @@ export default function ProfileScreen() {
         <View style={[styles.menuGroup, { borderColor: colors.border }]}>
           <MenuItem icon="edit-3" label="Edit Profile" onPress={() => router.push("/(tabs)/profile-settings" as never)} colors={colors} />
           <MenuItem icon="sun" label="Appearance" onPress={() => router.push("/(tabs)/profile-settings" as never)} colors={colors} />
+          {isOwnerOrHost && <MenuItem icon="credit-card" label="Manage subscription" onPress={() => router.push("/subscription")} colors={colors} />}
         </View>
 
         {/* Navigation menu — All users */}

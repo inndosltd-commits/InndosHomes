@@ -63,7 +63,7 @@ export default function PropertyMap({ properties, userLocation, onMapLoad }: Pro
     <div className="w-full h-full relative">
       <GoogleMap
         mapContainerClassName="w-full h-full"
-        center={NAIROBI_CENTER}
+        center={userLocation ?? (mappable[0] ? { lat: mappable[0].lat, lng: mappable[0].lng } : NAIROBI_CENTER)}
         zoom={11}
         onLoad={handleLoad}
         onClick={() => setSelectedProperty(null)}
@@ -92,7 +92,12 @@ export default function PropertyMap({ properties, userLocation, onMapLoad }: Pro
           >
             <div className="w-48">
               <img
-                src={selectedProperty.property.image?.startsWith("/objects/") ? `/api/storage${selectedProperty.property.image}` : selectedProperty.property.image}
+                src={(() => {
+                  const preview = selectedProperty.property.images?.length
+                    ? selectedProperty.property.image
+                    : selectedProperty.property.videoPosters?.[0] ?? selectedProperty.property.image;
+                  return preview?.startsWith("/objects/") ? `/api/storage${preview}` : preview;
+                })()}
                 alt={selectedProperty.property.title}
                 className="w-full h-24 object-cover rounded-t-md"
               />

@@ -103,6 +103,7 @@ export interface Property {
   image: string;
   images: string[];
   videos: string[];
+  videoPosters: string[];
   details: PropertyDetails;
   isVerified: boolean;
   tags: string[];
@@ -234,6 +235,7 @@ export interface Booking {
   propertyAddress?: string | null;
   propertyImage?: string | null;
   propertyImages?: string[] | null;
+  propertyVideoPosters?: string[] | null;
   propertyType?: string | null;
 }
 
@@ -266,6 +268,24 @@ export interface CreateBookingInput {
   startDate: string;
   endDate: string;
   totalPrice: number;
+}
+
+export type SubscriptionPaymentStatus =
+  (typeof SubscriptionPaymentStatus)[keyof typeof SubscriptionPaymentStatus];
+
+export const SubscriptionPaymentStatus = {
+  pending: "pending",
+  completed: "completed",
+  failed: "failed",
+  cancelled: "cancelled",
+} as const;
+
+export interface SubscriptionPayment {
+  id: string;
+  status: SubscriptionPaymentStatus;
+  plan: string;
+  amount: number;
+  updatedAt?: string;
 }
 
 export type ListPropertiesParams = {
