@@ -258,6 +258,7 @@ export function AdminOperations() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [propertyStatusFilter, setPropertyStatusFilter] = useState("all");
   const [form, setForm] = useState<FormConfig | null>(null);
   const [marketerDetail, setMarketerDetail] = useState<{ details: RecordData; referrals: RecordData[] } | null>(null);
 
@@ -352,6 +353,7 @@ export function AdminOperations() {
   useEffect(() => {
     setLoading(true);
     setQuery("");
+    setPropertyStatusFilter("all");
     loadSection(section).finally(() => setLoading(false));
   }, [loadSection, section]);
 
@@ -414,6 +416,15 @@ export function AdminOperations() {
     const stats = (activeData.stats ?? {}) as RecordData;
     const marketing = (activeData.marketing ?? {}) as RecordData;
     const moderation = records(activeData.moderation);
+    const registrations = records(stats.monthlyRegistrations);
+    const monthlyProperties = records(stats.monthlyProperties);
+    const monthlyBookings = records(stats.monthlyBookings);
+    const monthlyRevenue = records(stats.monthlyRevenue);
+    const now = new Date();
+    const trendMonths = Array.from({ length: 12 }, (_, index) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - 11 + index, 1);
+      return month.toLocaleString("en-US", { month: "short", year: "2-digit" });
+    });
     return (
       <>
         <View style={styles.metrics}>
@@ -449,6 +460,26 @@ export function AdminOperations() {
             <Text style={[styles.strong, { color: colors.foreground }]}>{formatKES(stats.totalMarketplaceValue)}</Text>
           </View>
         </Card>
+        <Card colors={colors}>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>Monthly trends</Text>
+          <Text style={[styles.sectionNote, { color: colors.mutedForeground }]}>Last 12 months · registrations, listings, Link-Ups, and payment revenue</Text>
+          {trendMonths.length === 0 ? (
+            <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>No monthly trend data yet.</Text>
+          ) : trendMonths.map((month) => {
+            const registration = registrations.find((item) => value(item, "month", "") === month);
+            const listing = monthlyProperties.find((item) => value(item, "month", "") === month);
+            const booking = monthlyBookings.find((item) => value(item, "month", "") === month);
+            const revenue = monthlyRevenue.find((item) => value(item, "month", "") === month);
+            return (
+              <View key={month} style={styles.trendRow}>
+                <Text style={[styles.strong, { color: colors.foreground }]}>{month}</Text>
+                <Text style={[styles.minorText, { color: colors.mutedForeground }]}>
+                  {numberValue(registration ?? {}, "count")} users · {numberValue(listing ?? {}, "count")} listings · {numberValue(booking ?? {}, "count")} Link-Ups · {formatKES(revenue?.revenue)}
+                </Text>
+              </View>
+            );
+          })}
+        </Card>
       </>
     );
   };
@@ -457,11 +488,32 @@ export function AdminOperations() {
     const allProperties = records(activeData.properties);
     const pending = records(activeData.moderation);
     const normalized = query.trim().toLowerCase();
-    const filtered = allProperties.filter((item) => [value(item, "title", ""), value(item, "address", ""), value(item, "type", "")]
-      .some((part) => part.toLowerCase().includes(normalized)));
+    const filtered = allProperties.filter((item) => {
+      const matchesSearch = [value(item, "title", ""), value(item, "address", ""), value(item, "type", "")]
+        .some((part) => part.toLowerCase().includes(normalized));
+      if (!matchesSearch) return false;
+      if (propertyStatusFilter === "all") return true;
+      if (propertyStatusFilter === "active") return item.isVerified === true && value(item, "propertyStatus") !== "sold";
+      if (propertyStatusFilter === "inactive") return item.isVerified !== true;
+      return value(item, "propertyStatus", "").toLowerCase() === propertyStatusFilter;
+    });
     return (
       <>
         <TextInput value={query} onChangeText={setQuery} placeholder="Search listings or locations" placeholderTextColor={colors.mutedForeground} style={[styles.search, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card }]} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {["all", "active", "pending", "flagged", "sold", "inactive"].map((status) => {
+            const selected = propertyStatusFilter === status;
+            return (
+              <Pressable
+                key={status}
+                onPress={() => setPropertyStatusFilter(status)}
+                style={[styles.filterChip, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.card }]}
+              >
+                <Text style={[styles.filterChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{statusLabel(status)}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
         {pending.length > 0 ? <Text style={[styles.sectionNote, { color: colors.mutedForeground }]}>{pending.length} listing{pending.length === 1 ? "" : "s"} awaiting review</Text> : null}
         {filtered.length === 0 ? <EmptyState label="No platform properties match this search." colors={colors} /> : filtered.map((property) => {
           const id = value(property, "id", "");
@@ -683,6 +735,7 @@ export function AdminOperations() {
               <Text style={[styles.rowTitle, { color: colors.foreground }]}>{value(template, "label", key)}</Text>
               <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(template, "subject")}</Text>
               <Text style={[styles.minorText, { color: colors.mutedForeground }]} numberOfLines={3}>{value(template, "body")}</Text>
+              <Text style={[styles.minorText, { color: colors.mutedForeground }]}>CTA: {value(template, "ctaLabel", value(template, "cta_label", "None"))}</Text>
               <View style={styles.actions}>
                 <ActionButton label="Edit content" onPress={() => openForm({
                   title: `Edit ${value(template, "label", "template")}`,
@@ -692,7 +745,7 @@ export function AdminOperations() {
                     { key: "body", label: "Message", multiline: true },
                     { key: "ctaLabel", label: "Call to action label" },
                   ],
-                  initial: { subject: value(template, "subject", ""), body: value(template, "body", ""), ctaLabel: value(template, "ctaLabel", "") },
+                  initial: { subject: value(template, "subject", ""), body: value(template, "body", ""), ctaLabel: value(template, "ctaLabel", value(template, "cta_label", "")) },
                   onSubmit: async (values) => mutate(`/api/admin/notification-templates/${key}`, "PUT", values, "Notification template updated."),
                 })} colors={colors} icon="edit-3" />
                 <ActionButton label="Reset" onPress={() => confirm("Reset template?", "This restores the default wording.", () => mutate(`/api/admin/notification-templates/${key}/reset`, "POST", undefined, "Template reset to default."))} colors={colors} icon="rotate-ccw" />
@@ -883,7 +936,7 @@ export function AdminOperations() {
     }
   // The rendered sections intentionally read the current network result and action closures.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeData, colors, query, section]);
+  }, [activeData, colors, propertyStatusFilter, query, section]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -952,6 +1005,7 @@ const styles = StyleSheet.create({
   minorText: { fontSize: 12, fontFamily: "Outfit_400Regular", lineHeight: 18 },
   strong: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
   keyValue: { flexDirection: "row", justifyContent: "space-between", gap: 12, paddingTop: 4 },
+  trendRow: { gap: 3, borderTopWidth: 1, borderTopColor: "rgba(127,127,127,0.18)", paddingTop: 8, marginTop: 3 },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   metric: { width: "31.5%", minHeight: 108, borderRadius: 12, borderWidth: 1, padding: 11, justifyContent: "space-between", gap: 5 },
   metricNumber: { fontFamily: "Outfit_700Bold", fontSize: 16 },
@@ -963,6 +1017,9 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: "Outfit_400Regular", fontSize: 14, textAlign: "center" },
   errorTitle: { fontFamily: "Outfit_700Bold", fontSize: 18, textAlign: "center" },
   search: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontFamily: "Outfit_400Regular", fontSize: 14 },
+  filterRow: { gap: 7, paddingVertical: 2 },
+  filterChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
+  filterChipText: { fontFamily: "Outfit_600SemiBold", fontSize: 11, textTransform: "capitalize" },
   toolbar: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "space-between" },
   toolbarInput: { flex: 1 },
   sectionHeading: { fontSize: 16, fontFamily: "Outfit_700Bold", flexShrink: 1 },
