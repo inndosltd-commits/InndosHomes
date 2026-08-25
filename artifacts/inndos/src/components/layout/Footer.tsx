@@ -18,6 +18,7 @@ const ThreadsIcon = ({ className }: { className?: string }) => (
 
 
 import { useLanguage } from "@/lib/language";
+import { BrandWordmark } from "./BrandWordmark";
 
 export function Footer() {
   const { t } = useLanguage();
@@ -25,7 +26,7 @@ export function Footer() {
     <footer className="bg-primary text-white py-12">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-           <div className="mb-4"><img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none', filter: "invert(1)" }} /></div>
+           <div className="mb-4"><BrandWordmark inverse /></div>
            <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
         </div>
         <div>

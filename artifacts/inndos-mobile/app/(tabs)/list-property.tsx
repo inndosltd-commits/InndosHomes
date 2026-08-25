@@ -30,6 +30,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { LocationPicker } from "@/components/LocationPicker";
+import { ListingVideoEditor, type ListingVideoEdit } from "@/components/ListingVideoEditor";
 import { getApiBaseUrl } from "@/utils/api";
 
 // ── Listing types (matches website) ───────────────────────────────────────────
@@ -430,6 +431,7 @@ interface MediaItem {
   isVideo: boolean;
   mimeType: string;
   fileName: string;
+  durationSeconds?: number;
 }
 
 const VIDEO_MAX_DURATION_MS = 300000; // 5 minutes
@@ -761,6 +763,8 @@ export default function ListPropertyScreen() {
   const [errors, setErrors] = useState<Partial<Record<keyof FormState|"imageUrl",string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [imageLimit, setImageLimit] = useState(0);
@@ -1106,6 +1110,7 @@ export default function ListPropertyScreen() {
       isVideo,
       mimeType: a.mimeType ?? fallbackMime,
       fileName: a.fileName ?? (a.uri.split("/").pop() || `asset.${ext}`),
+      durationSeconds: isVideo && typeof a.duration === "number" ? a.duration / 1000 : undefined,
     };
   };
 
@@ -1195,6 +1200,56 @@ export default function ListPropertyScreen() {
   };
 
   const removeMedia = (index:number)=>setMedia(prev=>prev.filter((_,i)=>i!==index));
+
+  const saveVideoEdit = async (edit: ListingVideoEdit) => {
+    if (editingVideoIndex === null) return;
+    const item = media[editingVideoIndex];
+    if (!item?.uploaded) {
+      Alert.alert("Video still uploading", "Wait for the video upload to finish before editing it.");
+      return;
+    }
+    setIsProcessingVideo(true);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/properties/videos/process`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourcePath: item.uploaded,
+          trimStart: edit.trimStart,
+          trimEnd: edit.trimEnd,
+          cropAspect: edit.cropAspect,
+          caption: edit.caption,
+          captionPosition: edit.captionPosition,
+        }),
+      });
+      const data = await response.json() as { objectPath?: string; duration?: number; error?: string };
+      if (!response.ok || !data.objectPath) {
+        throw new Error(data.error ?? "The video edit could not be saved.");
+      }
+      const base = getApiBaseUrl();
+      setMedia((previous) => previous.map((entry, index) => index === editingVideoIndex
+        ? {
+            ...entry,
+            uploaded: data.objectPath!,
+            uri: `${base}/api/storage${data.objectPath}`,
+            mimeType: "video/mp4",
+            fileName: entry.fileName.replace(/\.[^.]+$/, "") + "-edited.mp4",
+            durationSeconds: data.duration ?? entry.durationSeconds,
+          }
+        : entry,
+      ));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditingVideoIndex(null);
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Could not save edit", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setIsProcessingVideo(false);
+    }
+  };
 
   const moveMedia = (index:number, dir:-1|1)=>{
     setMedia(prev=>{
@@ -1752,7 +1807,7 @@ export default function ListPropertyScreen() {
                     const mediaIndex=media.indexOf(v);
                     return (
                       <View key={mediaIndex} style={[{backgroundColor:colors.card,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:10,gap:10}]}>
-                        <ListingVideoPreview source={v.uploaded ?? v.uri}/>
+                        <ListingVideoPreview source={v.uri}/>
                         <View style={{flexDirection:"row",alignItems:"center",gap:10}}>
                           <Feather name="video" size={20} color={colors.primary}/>
                           <View style={{flex:1}}>
@@ -1767,6 +1822,13 @@ export default function ListPropertyScreen() {
                               <Text style={{fontSize:11,color:"#16a34a",fontFamily:"Outfit_400Regular"}}>Uploaded</Text>
                             )}
                           </View>
+                           <Pressable
+                             onPress={()=>setEditingVideoIndex(mediaIndex)}
+                             disabled={!v.uploaded || isUploading || isProcessingVideo}
+                             style={{opacity: !v.uploaded || isUploading || isProcessingVideo ? 0.45 : 1}}
+                           >
+                             <Feather name="edit-3" size={17} color={colors.primary}/>
+                           </Pressable>
                           <Pressable onPress={()=>removeMedia(mediaIndex)}>
                             <Feather name="trash-2" size={16} color={colors.destructive}/>
                           </Pressable>
@@ -1813,6 +1875,15 @@ export default function ListPropertyScreen() {
             </Pressable>
           </View>
         </ScrollView>
+        {editingVideoIndex !== null && media[editingVideoIndex] ? (
+          <ListingVideoEditor
+            source={media[editingVideoIndex].uri}
+            durationSeconds={media[editingVideoIndex].durationSeconds}
+            processing={isProcessingVideo}
+            onClose={() => !isProcessingVideo && setEditingVideoIndex(null)}
+            onSave={saveVideoEdit}
+          />
+        ) : null}
       </KeyboardAvoidingView>
     </View>
   );

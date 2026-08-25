@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { MobileTopNav } from "./MobileTopNav";
+import { BrandWordmark } from "./BrandWordmark";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -35,11 +36,11 @@ export function Navbar() {
   
   return (
     <>
-    <nav className="sticky top-0 z-[600] w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+    <nav className="sticky top-0 z-[600] w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-black/95">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         <Link href="/">
           <div className="flex items-center cursor-pointer">
-            <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none' }} />
+            <BrandWordmark />
           </div>
         </Link>
 
@@ -210,7 +211,7 @@ export function Navbar() {
                 className="p-4 border-b border-gray-100 flex items-center gap-3 cursor-pointer"
                 onClick={() => { setIsMenuOpen(false); window.location.hash = "/"; }}
               >
-                <img src="/logo-inndos.png" alt="inndos" className="w-auto" style={{ height: '36px', maxWidth: 'none' }} />
+                <BrandWordmark />
               </div>
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
                 <div className="h-px bg-gray-100 my-2" />

@@ -33,13 +33,16 @@ async function validateNewListingMedia({
   userId: string;
   existingPaths?: Set<string>;
 }): Promise<string | null> {
-  const ownerPrefix = `/objects/uploads/${userId}/`;
+  const allowedOwnerPrefixes = [
+    `/objects/uploads/${userId}/`,
+    `/objects/listing-videos/${userId}/`,
+  ];
   const maxBytes =
     expectedKind === "image" ? MAX_LISTING_IMAGE_BYTES : MAX_LISTING_VIDEO_BYTES;
 
   for (const path of paths) {
     if (existingPaths.has(path)) continue;
-    if (!path.startsWith(ownerPrefix)) {
+    if (!allowedOwnerPrefixes.some((prefix) => path.startsWith(prefix))) {
       return `A ${expectedKind} is not owned by this account. Please upload it again.`;
     }
 
@@ -140,6 +143,46 @@ async function createVideoPosters(videoPaths: string[], userId: string): Promise
     }
   }
   return posters;
+}
+
+const VIDEO_CROP_RATIOS = {
+  original: null,
+  "16:9": 16 / 9,
+  "4:3": 4 / 3,
+  "1:1": 1,
+  "9:16": 9 / 16,
+} as const;
+
+function buildVideoFilter({
+  cropAspect,
+  caption,
+  captionPosition,
+  captionFile,
+}: {
+  cropAspect: keyof typeof VIDEO_CROP_RATIOS;
+  caption: string;
+  captionPosition: "top" | "center" | "bottom";
+  captionFile: string;
+}): string {
+  const filters: string[] = [];
+  const ratio = VIDEO_CROP_RATIOS[cropAspect];
+  if (ratio) {
+    filters.push(
+      `crop='if(gte(iw/ih,${ratio}),ih*${ratio},iw)':'if(gte(iw/ih,${ratio}),ih,iw/${ratio})':'(iw-ow)/2':'(ih-oh)/2'`
+    );
+  }
+  if (caption.trim()) {
+    const y = captionPosition === "top"
+      ? "h*0.06"
+      : captionPosition === "center"
+        ? "(h-text_h)/2"
+        : "h-text_h-h*0.06";
+    filters.push(
+      `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:textfile='${captionFile.replace(/'/g, "\\'")}':fontcolor=white:fontsize=h*0.065:x=(w-text_w)/2:y=${y}:box=1:boxcolor=black@0.55:boxborderw=12`
+    );
+  }
+  filters.push("format=yuv420p");
+  return filters.join(",");
 }
 
 const PROPERTY_COLUMNS = {
@@ -342,6 +385,94 @@ router.get("/featured", async (_req, res) => {
     .orderBy(drizzleSql`${properties.featuredAt} DESC`)
     .limit(12);
   res.json(rows);
+});
+
+// Server-side video editing keeps high-resolution transcoding off Android and iOS
+// while preserving the same trim, centered crop, and caption behavior as web.
+router.post("/videos/process", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const {
+    sourcePath,
+    trimStart = 0,
+    trimEnd,
+    cropAspect = "original",
+    caption = "",
+    captionPosition = "bottom",
+  } = req.body as {
+    sourcePath?: string;
+    trimStart?: number;
+    trimEnd?: number;
+    cropAspect?: keyof typeof VIDEO_CROP_RATIOS;
+    caption?: string;
+    captionPosition?: "top" | "center" | "bottom";
+  };
+
+  if (!sourcePath?.startsWith(`/objects/uploads/${userId}/`)) {
+    res.status(403).json({ error: "The selected video is not owned by this account." });
+    return;
+  }
+  if (!(cropAspect in VIDEO_CROP_RATIOS) || !["top", "center", "bottom"].includes(captionPosition)) {
+    res.status(400).json({ error: "The requested video edit is not supported." });
+    return;
+  }
+  if (typeof caption !== "string" || caption.length > 160) {
+    res.status(400).json({ error: "Captions must be 160 characters or fewer." });
+    return;
+  }
+
+  const workDir = join(tmpdir(), `inndos-video-edit-${randomUUID()}`);
+  const inputPath = join(workDir, "source");
+  const outputPath = join(workDir, "edited.mp4");
+  const captionPath = join(workDir, "caption.txt");
+  try {
+    const inspection = await objectStorageService.inspectObjectEntity(sourcePath);
+    if (inspection.mediaKind !== "video") {
+      res.status(400).json({ error: "The selected file is not a valid video." });
+      return;
+    }
+    const video = await objectStorageService.getObjectEntityFile(sourcePath);
+    const [videoBytes] = await video.download();
+    await mkdir(workDir, { recursive: true });
+    await writeFile(inputPath, videoBytes);
+    await writeFile(captionPath, caption.trim());
+
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "default=nokey=1:noprint_wrappers=1", inputPath],
+      { timeout: 30_000, maxBuffer: 1024 * 1024 },
+    );
+    const sourceDuration = Number(stdout.trim());
+    const start = Number(trimStart);
+    const requestedEnd = trimEnd === undefined ? Math.min(sourceDuration, start + 60) : Number(trimEnd);
+    if (!Number.isFinite(sourceDuration) || !Number.isFinite(start) || !Number.isFinite(requestedEnd) ||
+      start < 0 || requestedEnd <= start || requestedEnd > sourceDuration + 0.05 || requestedEnd - start > 60.05) {
+      res.status(400).json({ error: "Choose a valid clip between 1 second and 1 minute long." });
+      return;
+    }
+
+    const duration = Math.min(60, requestedEnd - start);
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y", "-ss", String(start), "-i", inputPath, "-t", String(duration),
+        "-vf", buildVideoFilter({ cropAspect, caption, captionPosition, captionFile: captionPath }),
+        "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+        "-c:a", "aac", "-movflags", "+faststart", "-shortest", outputPath,
+      ],
+      { timeout: 180_000, maxBuffer: 2 * 1024 * 1024 },
+    );
+
+    const editedPath = `/objects/listing-videos/${userId}/${randomUUID()}.mp4`;
+    await objectStorageService.saveObjectEntity(editedPath, await readFile(outputPath), "video/mp4");
+    res.status(201).json({ objectPath: editedPath, duration });
+  } catch (error) {
+    req.log.error({ err: error }, "Video edit failed");
+    res.status(500).json({ error: "We could not process this video. Please try again." });
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
 });
 
 router.get("/:id", async (req, res) => {

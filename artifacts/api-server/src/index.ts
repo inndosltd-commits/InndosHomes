@@ -169,6 +169,7 @@ async function runMigrations() {
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_featured BOOLEAN NOT NULL DEFAULT FALSE`);
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_until TIMESTAMP`);
+  await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS video_posters TEXT[] NOT NULL DEFAULT '{}'::text[]`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS featured_listing_uses (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

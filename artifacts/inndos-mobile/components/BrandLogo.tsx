@@ -1,26 +1,21 @@
 import React from "react";
-import { Image, StyleSheet } from "react-native";
-
-// Keep these values aligned with the website Navbar:
-// <img src="/logo-inndos.png" style={{ height: "36px", width: "auto" }} />
-const WEBSITE_LOGO_HEIGHT = 36;
-const WEBSITE_LOGO_ASPECT_RATIO = 1300 / 542;
+import { StyleSheet, Text, View } from "react-native";
+import { useColors } from "@/hooks/useColors";
 
 export function BrandLogo() {
+  const colors = useColors();
   return (
-    <Image
-      source={require("@/assets/images/logo-inndos.png")}
+    <View
       accessibilityRole="image"
       accessibilityLabel="inndos"
-      resizeMode="contain"
-      style={styles.logo}
-    />
+      style={[styles.wordmark, { backgroundColor: colors.background }]}
+    >
+      <Text style={[styles.text, { color: colors.foreground }]}>inndos</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  logo: {
-    width: WEBSITE_LOGO_HEIGHT * WEBSITE_LOGO_ASPECT_RATIO,
-    height: WEBSITE_LOGO_HEIGHT,
-  },
+  wordmark: { alignSelf: "flex-start" },
+  text: { fontFamily: "Outfit_700Bold", fontSize: 34, letterSpacing: -2.2, lineHeight: 38 },
 });
