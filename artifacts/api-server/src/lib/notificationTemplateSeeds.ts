@@ -6,6 +6,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { rewritePreviewUrls } from "./appUrl";
 
 export interface TemplateSeed {
   key: string;
@@ -402,4 +403,74 @@ export async function seedNotificationTemplates(): Promise<void> {
   }
 
   logger.info({ seeded, skipped }, "Notification templates seeded");
+}
+
+/**
+ * One-time-safe hygiene for templates and bell messages created before the
+ * canonical domain rule. Runtime rendering also applies this rewrite, so a
+ * newly edited template cannot leak a preview URL between server restarts.
+ */
+export async function canonicalizeStoredNotificationLinks(): Promise<void> {
+  let templatesUpdated = 0;
+  let notificationsUpdated = 0;
+
+  try {
+    const templateResult = await db.execute(sql`
+      SELECT id, subject, body, default_subject, default_body
+      FROM notification_templates
+    `);
+
+    for (const row of templateResult.rows as Record<string, unknown>[]) {
+      const subject = typeof row.subject === "string" ? rewritePreviewUrls(row.subject) : null;
+      const body = typeof row.body === "string" ? rewritePreviewUrls(row.body) : "";
+      const defaultSubject = typeof row.default_subject === "string"
+        ? rewritePreviewUrls(row.default_subject)
+        : null;
+      const defaultBody = typeof row.default_body === "string"
+        ? rewritePreviewUrls(row.default_body)
+        : "";
+
+      if (
+        subject !== row.subject ||
+        body !== row.body ||
+        defaultSubject !== row.default_subject ||
+        defaultBody !== row.default_body
+      ) {
+        await db.execute(sql`
+          UPDATE notification_templates
+          SET subject = ${subject},
+              body = ${body},
+              default_subject = ${defaultSubject},
+              default_body = ${defaultBody}
+          WHERE id = ${String(row.id)}
+        `);
+        templatesUpdated++;
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not canonicalize notification template links");
+  }
+
+  try {
+    const notificationResult = await db.execute(sql`
+      SELECT id, message FROM notifications
+    `);
+
+    for (const row of notificationResult.rows as Record<string, unknown>[]) {
+      if (typeof row.message !== "string") continue;
+      const message = rewritePreviewUrls(row.message);
+      if (message !== row.message) {
+        await db.execute(sql`
+          UPDATE notifications SET message = ${message} WHERE id = ${String(row.id)}
+        `);
+        notificationsUpdated++;
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not canonicalize saved bell notification links");
+  }
+
+  if (templatesUpdated || notificationsUpdated) {
+    logger.info({ templatesUpdated, notificationsUpdated }, "Canonicalized saved notification links");
+  }
 }

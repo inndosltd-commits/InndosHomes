@@ -7,15 +7,17 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { rewritePreviewUrls } from "./appUrl";
 
 type Vars = Record<string, string | number>;
 
 /** Replace {{key}} placeholders with values from vars. */
 export function interpolate(template: string, vars: Vars): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+  const interpolated = template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
     const val = vars[key];
     return val != null ? String(val) : `{{${key}}}`;
   });
+  return rewritePreviewUrls(interpolated);
 }
 
 /**

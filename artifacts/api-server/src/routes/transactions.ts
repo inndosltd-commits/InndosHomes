@@ -16,6 +16,7 @@ import { eq, or, and, inArray, desc, gte, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { sendSms } from "../lib/sms";
 import { sendTransactionConfirmationEmail } from "../lib/email";
+import { getDashboardUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -53,11 +54,6 @@ function computeStatus(
     return "not_completed";
   }
   return "disputed";
-}
-
-function getBaseUrl(): string {
-  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-  return domains ? `https://${domains}` : "https://inndos.com";
 }
 
 // ─── GET /api/transactions ─────────────────────────────────────────────────────
@@ -189,8 +185,7 @@ router.post("/:id/confirm", async (req, res) => {
     .where(eq(propertyTransactions.id, req.params.id))
     .returning();
 
-  const baseUrl = getBaseUrl();
-  const dashboardUrl = `${baseUrl}/#/dashboard`;
+  const dashboardUrl = getDashboardUrl();
 
   // If fully resolved, update property and notify both parties
   if (newStatus === "rented_via_inndos" || newStatus === "sold_via_inndos") {
@@ -403,7 +398,6 @@ router.post("/admin/:id/resolve", async (req, res) => {
     .where(eq(propertyTransactions.id, req.params.id))
     .returning();
 
-  const baseUrl = getBaseUrl();
   const message = `Admin has resolved the transaction for "${tx.propertyTitle}" → ${status.replace(/_/g, " ")}.`;
 
   for (const uid of [tx.ownerId, tx.tenantId]) {

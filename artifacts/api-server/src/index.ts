@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { subscriptionPlans } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { startSubscriptionReminderJob } from "./lib/reminderJob";
-import { seedNotificationTemplates } from "./lib/notificationTemplateSeeds";
+import { canonicalizeStoredNotificationLinks, seedNotificationTemplates } from "./lib/notificationTemplateSeeds";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) {
@@ -360,6 +360,7 @@ app.listen(port, async (err) => {
   }
   try {
     await seedNotificationTemplates();
+    await canonicalizeStoredNotificationLinks();
   } catch (e) {
     logger.error({ err: e }, "Failed to seed notification templates");
   }

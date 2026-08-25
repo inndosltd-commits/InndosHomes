@@ -5,13 +5,8 @@ import { eq, count, sum, ne, asc, desc, and, inArray, gte, sql } from "drizzle-o
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
+import { getDashboardUrl } from "../lib/appUrl";
 import bcrypt from "bcryptjs";
-
-function getDashboardUrl(req: import("express").Request): string {
-  const host = (process.env.REPLIT_DOMAINS ?? "").split(",")[0]?.trim();
-  const origin = host ? `https://${host}` : `${req.protocol}://${req.get("host")}`;
-  return `${origin}/owner`;
-}
 
 const router = Router();
 
@@ -233,7 +228,7 @@ router.patch("/properties/:id/verify", async (req, res) => {
       ownerEmail: owner.email,
       ownerName: owner.name ?? "there",
       propertyTitle: prop.title,
-      dashboardUrl: getDashboardUrl(req),
+      dashboardUrl: getDashboardUrl(),
     }).catch((err: unknown) => {
       req.log.error({ err }, "Failed to send listing approved email");
     });
@@ -480,7 +475,7 @@ router.delete("/properties/:id", async (req, res) => {
       ownerName: owner.name ?? "there",
       propertyTitle: prop.title,
       reason: prop.adminComment ?? undefined,
-      dashboardUrl: getDashboardUrl(req),
+      dashboardUrl: getDashboardUrl(),
     }).catch((err: unknown) => {
       req.log.error({ err }, "Failed to send listing rejected email");
     });

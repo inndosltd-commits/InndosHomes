@@ -11,6 +11,7 @@ import { logger } from "./logger";
 import { sendSms } from "./sms";
 import { sendSubscriptionReminderEmail, sendTransactionConfirmationEmail, sendSubscriptionExpiredEmail, sendSubscriptionRenewalConfirmationEmail } from "./email";
 import { resolveTemplates } from "./templateEngine";
+import { getContactUrl, getDashboardUrl } from "./appUrl";
 
 const REMIND_DAYS = [7, 3, 1];
 
@@ -31,10 +32,8 @@ function formatDate(iso: string): string {
 export async function runSubscriptionReminders(): Promise<void> {
   logger.info("Running subscription renewal reminder check…");
 
-  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-  const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
-  const renewalUrl = `${baseUrl}/#/dashboard?tab=subscription`;
-  const helpUrl    = `${baseUrl}/#/contact`;
+  const renewalUrl = getDashboardUrl("subscription");
+  const helpUrl    = getContactUrl();
 
   for (const days of REMIND_DAYS) {
     const targetDate = utcDatePlusDays(days);
@@ -233,9 +232,7 @@ function daysAgo(n: number): Date {
 export async function runTransactionConfirmationReminders(): Promise<void> {
   logger.info("Running transaction confirmation reminder check…");
 
-  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-  const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
-  const dashboardUrl = `${baseUrl}/#/dashboard`;
+  const dashboardUrl = getDashboardUrl();
 
   for (const days of [1, 3] as const) {
     const cutoff = daysAgo(days);

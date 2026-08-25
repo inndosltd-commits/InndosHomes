@@ -4,6 +4,7 @@ import { subscriptions, users, properties, payments, settings, subscriptionPlans
 import { eq, and, desc, count } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { sendSubscriptionRenewalConfirmationEmail } from "../lib/email";
+import { getDashboardUrl, getWebsiteUrl } from "../lib/appUrl";
 import {
   submitOrder,
   getTransactionStatus,
@@ -225,8 +226,6 @@ router.post("/upgrade", async (req, res) => {
     .returning();
 
   // Send renewal confirmation email (best-effort)
-  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-  const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
   const [usr] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).catch(() => [null]);
   if (usr?.email) {
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -239,7 +238,7 @@ router.post("/upgrade", async (req, res) => {
       amount:       newSub.amountPaid ?? 0,
       newExpiryDate: expiryFmt,
       billingCycle: newSub.billingCycle ?? "monthly",
-      dashboardUrl: `${baseUrl}/#/dashboard?tab=subscription`,
+      dashboardUrl: getDashboardUrl("subscription"),
     }).catch(() => {});
   }
 
@@ -359,7 +358,7 @@ router.get("/callback", async (req, res) => {
   const ref = OrderMerchantReference;
 
   if (!trackingId || !paymentId) {
-    res.redirect("/#/dashboard?tab=subscription&payment=cancelled");
+    res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=cancelled"));
     return;
   }
 
@@ -417,8 +416,6 @@ router.get("/callback", async (req, res) => {
           .where(eq(payments.id, paymentId));
 
         // Send renewal confirmation email
-        const domains2 = process.env.REPLIT_DOMAINS?.split(",")[0];
-        const baseUrl2 = domains2 ? `https://${domains2}` : "https://inndos.com";
         const [ppUser] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, payment.userId)).catch(() => [null]);
         if (ppUser?.email && newSub) {
           const months2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -431,23 +428,23 @@ router.get("/callback", async (req, res) => {
             amount:        payment.amount ?? 0,
             newExpiryDate: expiryFmt2,
             billingCycle:  billingCycle,
-            dashboardUrl:  `${baseUrl2}/#/dashboard?tab=subscription`,
+            dashboardUrl:  getDashboardUrl("subscription"),
           }).catch(() => {});
         }
       }
 
-      res.redirect("/#/dashboard?tab=subscription&payment=success");
+      res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=success"));
     } else {
       await db
         .update(payments)
         .set({ status: "failed", pesapalTrackingId: trackingId, updatedAt: new Date() })
         .where(eq(payments.id, paymentId));
 
-      res.redirect("/#/dashboard?tab=subscription&payment=failed");
+      res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=failed"));
     }
   } catch (err) {
     req.log?.error({ err }, "Callback processing error");
-    res.redirect("/#/dashboard?tab=subscription&payment=error");
+    res.redirect(getWebsiteUrl("/#/dashboard?tab=subscription&payment=error"));
   }
 });
 

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { notifications, bookings, properties, users } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
+import { rewritePreviewUrls } from "../lib/appUrl";
 
 const router = Router();
 
@@ -32,7 +33,10 @@ router.get("/", async (req, res) => {
       .where(eq(notifications.userId, userId))
       .orderBy(notifications.createdAt);
 
-    res.json(rows);
+    res.json(rows.map((row) => ({
+      ...row,
+      message: rewritePreviewUrls(row.message),
+    })));
   } catch {
     res.json([]);
   }

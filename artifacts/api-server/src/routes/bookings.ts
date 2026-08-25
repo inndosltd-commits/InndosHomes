@@ -7,6 +7,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
 import { sendNewBookingEmail, sendBookingStatusEmail, sendGuestCancelledEmail, sendTransactionConfirmationEmail } from "../lib/email";
 import { resolveTemplates } from "../lib/templateEngine";
+import { getDashboardUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -176,9 +177,7 @@ router.post("/", async (req, res) => {
   const guestName = guest?.name ?? "A guest";
 
   try {
-    const domains0 = process.env.REPLIT_DOMAINS?.split(",")[0];
-    const baseUrl0 = domains0 ? `https://${domains0}` : "https://inndos.com";
-    const bkVars = { guestName, propertyTitle: prop.title, startDate, endDate, dashboardUrl: `${baseUrl0}/#/dashboard` };
+    const bkVars = { guestName, propertyTitle: prop.title, startDate, endDate, dashboardUrl: getDashboardUrl() };
     const bkTmpl = await resolveTemplates(
       ["booking.new.owner.bell", "booking.new.owner.sms", "booking.new.admin.bell", "booking.new.admin.sms"],
       bkVars,
@@ -230,10 +229,6 @@ router.post("/", async (req, res) => {
       .where(eq(users.id, prop.ownerId));
 
     if (owner) {
-      const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-      const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
-      const dashboardUrl = `${baseUrl}/#/dashboard`;
-
       await sendNewBookingEmail({
         ownerEmail: owner.email,
         ownerName: owner.name,
@@ -241,7 +236,7 @@ router.post("/", async (req, res) => {
         propertyTitle: prop.title,
         startDate,
         endDate,
-        dashboardUrl,
+        dashboardUrl: getDashboardUrl(),
       });
 
       req.log.info({ bookingId: booking.id, ownerEmail: owner.email }, "Booking email sent to owner");
@@ -291,7 +286,13 @@ router.patch("/:id/cancel", async (req, res) => {
   try {
     const [guest] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
     const guestName = guest?.name ?? "A guest";
-    const cancelVars = { guestName, propertyTitle: booking.propertyTitle, startDate: booking.startDate, endDate: booking.endDate, dashboardUrl: "" };
+    const cancelVars = {
+      guestName,
+      propertyTitle: booking.propertyTitle ?? "your property",
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      dashboardUrl: getDashboardUrl(),
+    };
     const cancelTmpl = await resolveTemplates(
       ["booking.cancelled.owner.bell", "booking.cancelled.owner.sms", "booking.cancelled.admin.bell", "booking.cancelled.admin.sms"],
       cancelVars,
@@ -318,8 +319,6 @@ router.patch("/:id/cancel", async (req, res) => {
         );
       }
       if (ownerUser?.email && booking.propertyTitle) {
-        const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-        const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
         sendGuestCancelledEmail({
           ownerEmail: ownerUser.email,
           ownerName: ownerUser.name ?? "",
@@ -327,7 +326,7 @@ router.patch("/:id/cancel", async (req, res) => {
           propertyTitle: booking.propertyTitle,
           startDate: booking.startDate,
           endDate: booking.endDate,
-          dashboardUrl: `${baseUrl}/#/dashboard`,
+          dashboardUrl: getDashboardUrl(),
         }).catch((e: unknown) => req.log.error({ e }, "Owner cancel email failed"));
       }
     }
@@ -398,7 +397,13 @@ router.patch("/:id/status", async (req, res) => {
 
   const isConfirmed = status === "confirmed";
   const statusTmplKey = isConfirmed ? "booking.confirmed.guest" : "booking.declined.guest";
-  const statusVars = { guestName: "there", propertyTitle: booking.propertyTitle, startDate: booking.startDate ?? "", endDate: booking.endDate ?? "", dashboardUrl: "" };
+  const statusVars = {
+    guestName: "there",
+    propertyTitle: booking.propertyTitle,
+    startDate: booking.startDate ?? "",
+    endDate: booking.endDate ?? "",
+    dashboardUrl: getDashboardUrl(),
+  };
   const statusTmpl = await resolveTemplates(
     [`${statusTmplKey}.bell`, `${statusTmplKey}.sms`],
     statusVars,
@@ -425,14 +430,12 @@ router.patch("/:id/status", async (req, res) => {
     }
     // Send guest email for confirmed / declined
     if (guestUser?.email) {
-      const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-      const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
       sendBookingStatusEmail({
         guestEmail: guestUser.email,
         guestName: guestUser.name ?? "Guest",
         propertyTitle: booking.propertyTitle,
         status: status as "confirmed" | "cancelled",
-        dashboardUrl: `${baseUrl}/#/dashboard`,
+        dashboardUrl: getDashboardUrl(),
       }).catch((e: unknown) => req.log.error({ e }, "Guest status email failed"));
     }
   } catch (err) {
@@ -466,9 +469,7 @@ router.patch("/:id/status", async (req, res) => {
           status: "pending_confirmation",
         });
 
-        const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-        const baseUrl = domains ? `https://${domains}` : "https://inndos.com";
-        const dashboardUrl = `${baseUrl}/#/dashboard`;
+        const dashboardUrl = getDashboardUrl();
         const promptMsg = `Please confirm your ${realTxType} for "${booking.propertyTitle}" via your dashboard.`;
 
         // Notify both owner and tenant to confirm

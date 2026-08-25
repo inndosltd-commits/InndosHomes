@@ -10,6 +10,7 @@ import { logger } from "../lib/logger";
 import { sendSms, normalizePhone } from "../lib/sms";
 import { sendPasswordResetEmail } from "../lib/email";
 import { resolveTemplates } from "../lib/templateEngine";
+import { getWebsiteUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -389,8 +390,7 @@ router.post("/forgot-password", async (req, res) => {
     .set({ resetToken: token, resetTokenExpiry: expiry })
     .where(eq(users.id, user.id));
 
-  const host = process.env["APP_DOMAIN"] ?? "inndos.com";
-  const resetLink = `https://${host}/#/reset-password?token=${token}`;
+  const resetLink = getWebsiteUrl(`/#/reset-password?token=${token}`);
 
   try {
     await sendPasswordResetEmail({ to: user.email, name: user.name, resetLink });
