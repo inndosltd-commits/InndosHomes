@@ -87,6 +87,7 @@ export const PropertyPropertyStatus = {
   approved: "approved",
   flagged: "flagged",
   sold: "sold",
+  deactivated: "deactivated",
 } as const;
 
 export interface Property {
@@ -163,6 +164,60 @@ export interface CreatePropertyInput {
   priceUnit?: string;
   /** @minimum 1 */
   totalUnits?: number;
+}
+
+export type PropertyStatusActionInputAction =
+  (typeof PropertyStatusActionInputAction)[keyof typeof PropertyStatusActionInputAction];
+
+export const PropertyStatusActionInputAction = {
+  deactivate: "deactivate",
+  reactivate: "reactivate",
+  sold: "sold",
+} as const;
+
+export interface PropertyStatusActionInput {
+  action: PropertyStatusActionInputAction;
+}
+
+export interface PropertyManagementCalendarEntryInput {
+  startDate: string;
+  endDate: string;
+  /** @maxLength 2000 */
+  note?: string;
+  bookingId?: string;
+}
+
+export interface PropertyManagementCalendarEntry {
+  id: string;
+  propertyId: string;
+  /** @nullable */
+  bookingId?: string | null;
+  ownerId: string;
+  startDate: string;
+  endDate: string;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PropertyManagementCalendarLinkUp {
+  id: string;
+  propertyId: string;
+  userId: string;
+  /** @nullable */
+  guestName?: string | null;
+  status: string;
+  startDate: string;
+  endDate: string;
+  totalPrice: number;
+  createdAt: string;
+}
+
+export interface PropertyManagementCalendar {
+  property: Property;
+  entries: PropertyManagementCalendarEntry[];
+  linkUps: PropertyManagementCalendarLinkUp[];
 }
 
 export interface UploadUrlRequest {

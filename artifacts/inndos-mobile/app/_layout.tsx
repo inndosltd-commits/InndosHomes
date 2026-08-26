@@ -65,6 +65,10 @@ function RootLayoutNav() {
         name="subscription"
         options={{ headerShown: false, presentation: "card" }}
       />
+      <Stack.Screen
+        name="management-calendar/[id]"
+        options={{ headerShown: false, presentation: "card" }}
+      />
     </Stack>
   );
 }

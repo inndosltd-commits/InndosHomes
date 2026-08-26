@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { properties, users, bookings, propertyBlocks, insertPropertySchema, subscriptions, featuredListingUses } from "@workspace/db";
+import { properties, users, bookings, propertyBlocks, propertyManagementCalendarEntries, insertPropertySchema, subscriptions, featuredListingUses } from "@workspace/db";
 import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit, getPlanEntitlements, getUserPlanEntitlements } from "./subscriptions";
-import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, inArray, count, gte, lte, desc, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { deletePropertyTransactionally } from "../lib/propertyDeletion";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -446,6 +447,10 @@ const PROPERTY_DETAIL_COLUMNS = {
 } as const;
 
 const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];
+const PUBLIC_PROPERTY_CONDITIONS = [
+  eq(properties.isVerified, true),
+  eq(properties.propertyStatus, "approved"),
+] as const;
 
 function isValidType(t: string): t is PropertyType {
   return VALID_TYPES.includes(t as PropertyType);
@@ -509,9 +514,7 @@ router.get("/", async (req, res) => {
   const isOwnerQuery = ownerId && ownerId === caller.userId;
   const isAdmin = caller.role === "admin";
   if (!isAdmin && !isOwnerQuery) {
-    conditions.push(eq(properties.isVerified, true));
-    // Exclude sold properties from public search results
-    conditions.push(drizzleSql`${properties.propertyStatus} != 'sold'`);
+    conditions.push(...PUBLIC_PROPERTY_CONDITIONS);
   }
 
   const rows = conditions.length > 0
@@ -543,7 +546,7 @@ router.get("/listers", async (req, res) => {
       INNER JOIN properties p
         ON  p.owner_id       = u.id
         AND p.is_verified    = true
-        AND p.property_status != 'sold'
+        AND p.property_status = 'approved'
        WHERE (u.name ILIKE ${pattern} OR COALESCE(u.business_name, '') ILIKE ${pattern})
       GROUP BY u.id, u.name, u.avatar
       ORDER BY u.name
@@ -586,7 +589,7 @@ router.get("/listers/:id", async (req, res) => {
       .where(and(
         eq(properties.ownerId, req.params.id),
         eq(properties.isVerified, true),
-        drizzleSql`${properties.propertyStatus} != 'sold'`,
+        eq(properties.propertyStatus, "approved"),
       ));
     res.json({ lister, properties: listingRows });
   } catch (err) {
@@ -605,7 +608,7 @@ router.get("/featured", async (_req, res) => {
     .where(and(
       eq(properties.isVerified, true),
       eq(properties.isFeatured, true),
-      drizzleSql`${properties.propertyStatus} != 'sold'`,
+      eq(properties.propertyStatus, "approved"),
       drizzleSql`${properties.featuredUntil} > now()`,
     ))
     .orderBy(drizzleSql`${properties.featuredAt} DESC`)
@@ -756,14 +759,8 @@ router.get("/:id", async (req, res) => {
 
   const isOwner = caller.userId && caller.userId === prop.ownerId;
   const isAdmin = caller.role === "admin";
-  if (!prop.isVerified && !isOwner && !isAdmin) {
+  if ((!prop.isVerified || prop.propertyStatus !== "approved") && !isOwner && !isAdmin) {
     res.status(404).json({ error: "Property not found" });
-    return;
-  }
-
-  // Sold properties are hidden from public — owner and admin can still view them
-  if (prop.propertyStatus === "sold" && !isOwner && !isAdmin) {
-    res.status(410).json({ error: "This property has been sold", sold: true });
     return;
   }
 
@@ -836,6 +833,93 @@ router.get("/:id/availability", async (req, res) => {
 
   const blocks = blockRows.map(b => ({ ...b, status: "blocked" as const }));
   res.json([...bookingRows, ...blocks]);
+});
+
+router.get("/:id/management-calendar", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const [prop] = await db.select().from(properties).where(eq(properties.id, req.params.id));
+  if (!prop) return void res.status(404).json({ error: "Property not found" });
+  if (prop.ownerId !== userId) {
+    return void res.status(403).json({ error: "Only the property owner may view this calendar." });
+  }
+  if (prop.type === "sale") return void res.status(400).json({ error: "Management calendars are not available for sale listings." });
+  const [entries, linkUps] = await Promise.all([
+    db.select().from(propertyManagementCalendarEntries)
+      .where(eq(propertyManagementCalendarEntries.propertyId, prop.id))
+      .orderBy(propertyManagementCalendarEntries.startDate),
+    db.select({
+      id: bookings.id,
+      propertyId: bookings.propertyId,
+      userId: bookings.userId,
+      guestName: users.name,
+      status: bookings.status,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      totalPrice: bookings.totalPrice,
+      createdAt: bookings.createdAt,
+    })
+      .from(bookings)
+      .leftJoin(users, eq(bookings.userId, users.id))
+      .where(eq(bookings.propertyId, prop.id))
+      .orderBy(desc(bookings.createdAt)),
+  ]);
+  res.json({ property: prop, entries, linkUps });
+});
+
+router.post("/:id/management-calendar", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const { startDate, endDate, note, bookingId } = req.body as {
+    startDate?: string; endDate?: string; note?: string; bookingId?: string;
+  };
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!startDate || !endDate || !datePattern.test(startDate) || !datePattern.test(endDate) || startDate > endDate) {
+    return void res.status(400).json({ error: "Valid startDate and endDate values are required, and endDate cannot be before startDate." });
+  }
+  if (note !== undefined && (typeof note !== "string" || note.length > 2000)) {
+    return void res.status(400).json({ error: "note must be 2,000 characters or fewer." });
+  }
+  const outcome = await db.transaction(async (tx) => {
+    const [prop] = await tx.select().from(properties).where(eq(properties.id, req.params.id)).for("update");
+    if (!prop) return { kind: "not-found" as const };
+    if (prop.ownerId !== userId) return { kind: "forbidden" as const };
+    if (prop.type === "sale") return { kind: "sale" as const };
+    if (bookingId) {
+      const [booking] = await tx.select({ id: bookings.id }).from(bookings)
+        .where(and(eq(bookings.id, bookingId), eq(bookings.propertyId, prop.id)));
+      if (!booking) return { kind: "bad-booking" as const };
+    }
+    const [entry] = await tx.insert(propertyManagementCalendarEntries)
+      .values({ propertyId: prop.id, ownerId: userId, bookingId: bookingId || null, startDate, endDate, note: note?.trim() || null })
+      .returning();
+    return { kind: "created" as const, entry };
+  });
+  if (outcome.kind === "not-found") return void res.status(404).json({ error: "Property not found" });
+  if (outcome.kind === "forbidden") return void res.status(403).json({ error: "Only the property owner may manage this calendar." });
+  if (outcome.kind === "sale") return void res.status(400).json({ error: "Management calendars are not available for sale listings." });
+  if (outcome.kind === "bad-booking") return void res.status(400).json({ error: "bookingId must belong to this property." });
+  res.status(201).json(outcome.entry);
+});
+
+router.delete("/:id/management-calendar/:entryId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const outcome = await db.transaction(async (tx) => {
+    const [prop] = await tx.select({ ownerId: properties.ownerId }).from(properties).where(eq(properties.id, req.params.id));
+    if (!prop) return "not-found" as const;
+    if (prop.ownerId !== userId) return "forbidden" as const;
+    const [entry] = await tx.delete(propertyManagementCalendarEntries).where(and(
+      eq(propertyManagementCalendarEntries.id, req.params.entryId),
+      eq(propertyManagementCalendarEntries.propertyId, req.params.id),
+      eq(propertyManagementCalendarEntries.ownerId, userId),
+    )).returning({ id: propertyManagementCalendarEntries.id });
+    return entry ? "deleted" as const : "entry-not-found" as const;
+  });
+  if (outcome === "not-found") return void res.status(404).json({ error: "Property not found" });
+  if (outcome === "forbidden") return void res.status(403).json({ error: "Only the property owner may manage this calendar." });
+  if (outcome === "entry-not-found") return void res.status(404).json({ error: "Calendar entry not found" });
+  res.json({ success: true });
 });
 
 router.get("/:id/blocks", async (req, res) => {
@@ -948,7 +1032,7 @@ router.post("/:id/feature", async (req, res) => {
     const [prop] = await tx.select().from(properties).where(eq(properties.id, req.params.id));
     if (!prop) return { kind: "not-found" as const };
     if (prop.ownerId !== userId) return { kind: "forbidden" as const };
-    if (!prop.isVerified || prop.propertyStatus === "sold") return { kind: "ineligible" as const };
+    if (!prop.isVerified || prop.propertyStatus !== "approved") return { kind: "ineligible" as const };
     if (prop.isFeatured && prop.featuredUntil && prop.featuredUntil > new Date()) return { kind: "already" as const, prop };
     const sub = await getActiveSubscription(userId);
     const plan = await getPlanEntitlements(sub?.plan ?? "free");
@@ -1181,9 +1265,55 @@ router.post("/", async (req, res) => {
   res.status(201).json(prop);
 });
 
+router.patch("/:id/status", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const { action } = req.body as { action?: string };
+  if (!["deactivate", "reactivate", "sold"].includes(action ?? "")) {
+    return void res.status(400).json({ error: "action must be 'deactivate', 'reactivate', or 'sold'." });
+  }
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  const outcome = await db.transaction(async (tx) => {
+    const [prop] = await tx.select().from(properties).where(eq(properties.id, req.params.id)).for("update");
+    if (!prop) return { kind: "not-found" as const };
+    if (prop.ownerId !== userId && caller?.role !== "admin") {
+      return { kind: "forbidden" as const };
+    }
+    const soldSubtypes = new Set(["apartment", "home", "land"]);
+    if (action === "sold" && (prop.type !== "sale" || !soldSubtypes.has(normalizeSubtype(prop.subtype)))) {
+      return { kind: "ineligible" as const };
+    }
+    const nextStatus = action === "deactivate"
+      ? "deactivated" as const
+      : action === "reactivate"
+        ? (prop.isVerified ? "approved" as const : "pending" as const)
+        : "sold" as const;
+    const [updated] = await tx.update(properties)
+      .set({ propertyStatus: nextStatus, ...(action === "reactivate" ? { adminComment: null } : {}) })
+      .where(eq(properties.id, prop.id))
+      .returning();
+    return { kind: "updated" as const, updated };
+  });
+  if (outcome.kind === "not-found") return void res.status(404).json({ error: "Property not found" });
+  if (outcome.kind === "forbidden") {
+    return void res.status(403).json({ error: "Only the property owner or an admin may change its status." });
+  }
+  if (outcome.kind === "ineligible") {
+    return void res.status(400).json({ error: "Only sale listings categorized as apartment, home, or land can be marked sold." });
+  }
+  res.json(outcome.updated);
+});
+
 router.patch("/:id", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (Object.prototype.hasOwnProperty.call(req.body, "propertyStatus")) {
+    res.status(400).json({
+      error: "Use the property status action to deactivate, reactivate, or mark an eligible sale listing as sold.",
+      code: "USE_STATUS_ACTION",
+    });
+    return;
+  }
 
   const [prop] = await db.select().from(properties).where(eq(properties.id, req.params.id));
 
@@ -1201,7 +1331,7 @@ router.patch("/:id", async (req, res) => {
   }
 
   const sentKeys = new Set(Object.keys(req.body));
-  const { isVerified: _ignored, ...body } = req.body;
+  const { isVerified: _ignored, adminComment: _adminCommentIgnored, ...body } = req.body;
   const imageList: string[] | undefined = Array.isArray(body.images) ? body.images : undefined;
   const videoList: string[] | undefined = Array.isArray(body.videos) ? body.videos : undefined;
 
@@ -1408,8 +1538,14 @@ router.delete("/:id", async (req, res) => {
     return;
   }
 
-  await db.delete(properties).where(eq(properties.id, req.params.id));
-  res.json({ success: true });
+  try {
+    const deleted = await deletePropertyTransactionally(prop.id);
+    if (!deleted) return void res.status(404).json({ error: "Property not found" });
+    res.json({ success: true });
+  } catch (error) {
+    req.log.error({ err: error, propertyId: prop.id }, "Property deletion failed");
+    res.status(500).json({ error: "Property could not be deleted. No data was removed." });
+  }
 });
 
 export default router;

@@ -88,8 +88,9 @@ router.post("/", async (req, res) => {
   }
 
   const outcome = await db.transaction(async (tx) => {
-    const [prop] = await tx.select().from(properties).where(eq(properties.id, propertyId));
+    const [prop] = await tx.select().from(properties).where(eq(properties.id, propertyId)).for("update");
     if (!prop) return { kind: "not-found" as const };
+    if (!prop.isVerified || prop.propertyStatus !== "approved") return { kind: "not-public" as const };
     if (prop.ownerId === userId) return { kind: "own-property" as const };
 
     const [booking] = await tx
@@ -106,6 +107,10 @@ router.post("/", async (req, res) => {
   }
   if (outcome.kind === "own-property") {
     res.status(403).json({ error: "You cannot link up your own property." });
+    return;
+  }
+  if (outcome.kind === "not-public") {
+    res.status(409).json({ error: "This property is not currently available for new link-ups." });
     return;
   }
   const { booking, prop } = outcome;

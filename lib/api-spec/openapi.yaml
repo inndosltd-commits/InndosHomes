@@ -347,6 +347,92 @@ paths:
         "404":
           description: Not found
 
+  /properties/{id}/status:
+    patch:
+      operationId: updatePropertyStatus
+      tags: [properties]
+      summary: Deactivate, reactivate, or mark an eligible sale listing as sold
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyStatusActionInput"
+      responses:
+        "200":
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+
+  /properties/{id}/management-calendar:
+    get:
+      operationId: getPropertyManagementCalendar
+      tags: [properties]
+      summary: Get a non-sale property's private management calendar and Link-Up history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Private management calendar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyManagementCalendar"
+    post:
+      operationId: createPropertyManagementCalendarEntry
+      tags: [properties]
+      summary: Add a private owner date or note to a non-sale property
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyManagementCalendarEntryInput"
+      responses:
+        "201":
+          description: Created private calendar entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyManagementCalendarEntry"
+
+  /properties/{id}/management-calendar/{entryId}:
+    delete:
+      operationId: deletePropertyManagementCalendarEntry
+      tags: [properties]
+      summary: Delete an owner-entered private management calendar entry
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: entryId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Entry deleted
+
   /storage/uploads/request-url:
     post:
       tags: [Storage]
@@ -760,7 +846,7 @@ components:
           minimum: 1
         propertyStatus:
           type: string
-          enum: [pending, approved, flagged, sold]
+          enum: [pending, approved, flagged, sold, deactivated]
         activeBookingsCount:
           type: integer
         ownerPhone:
@@ -864,6 +950,98 @@ components:
         - type
         - price
         - address
+
+    PropertyStatusActionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [deactivate, reactivate, sold]
+
+    PropertyManagementCalendarEntryInput:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        note:
+          type: string
+          maxLength: 2000
+        bookingId:
+          type: string
+
+    PropertyManagementCalendarEntry:
+      type: object
+      required: [id, propertyId, ownerId, startDate, endDate, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        propertyId:
+          type: string
+        bookingId:
+          type: ["string", "null"]
+        ownerId:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PropertyManagementCalendarLinkUp:
+      type: object
+      required: [id, propertyId, userId, status, startDate, endDate, totalPrice, createdAt]
+      properties:
+        id:
+          type: string
+        propertyId:
+          type: string
+        userId:
+          type: string
+        guestName:
+          type: ["string", "null"]
+        status:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        totalPrice:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    PropertyManagementCalendar:
+      type: object
+      required: [property, entries, linkUps]
+      properties:
+        property:
+          $ref: "#/components/schemas/Property"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyManagementCalendarEntry"
+        linkUps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyManagementCalendarLinkUp"
 
     UploadUrlRequest:
       type: object

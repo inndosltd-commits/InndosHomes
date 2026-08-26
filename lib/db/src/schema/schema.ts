@@ -73,7 +73,7 @@ export const properties = pgTable("properties", {
   hourlyRate: integer("hourly_rate"),
   adminComment: text("admin_comment"),
   propertyStatus: text("property_status")
-    .$type<"pending" | "approved" | "flagged" | "sold">()
+    .$type<"pending" | "approved" | "flagged" | "deactivated" | "sold">()
     .notNull()
     .default("pending"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
@@ -257,6 +257,25 @@ export const propertyBlocks = pgTable("property_blocks", {
 
 export type PropertyBlock = typeof propertyBlocks.$inferSelect;
 export type InsertPropertyBlock = typeof propertyBlocks.$inferInsert;
+
+// Private owner planning records. These are deliberately separate from public
+// availability and do not participate in booking eligibility or conflict checks.
+export const propertyManagementCalendarEntries = pgTable("property_management_calendar_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  bookingId: varchar("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type PropertyManagementCalendarEntry =
+  typeof propertyManagementCalendarEntries.$inferSelect;
+export type InsertPropertyManagementCalendarEntry =
+  typeof propertyManagementCalendarEntries.$inferInsert;
 
 export const otpCodes = pgTable("otp_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

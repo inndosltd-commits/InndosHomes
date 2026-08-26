@@ -493,15 +493,14 @@ export function AdminOperations() {
         .some((part) => part.toLowerCase().includes(normalized));
       if (!matchesSearch) return false;
       if (propertyStatusFilter === "all") return true;
-      if (propertyStatusFilter === "active") return item.isVerified === true && value(item, "propertyStatus") !== "sold";
-      if (propertyStatusFilter === "inactive") return item.isVerified !== true;
+      if (propertyStatusFilter === "active") return item.isVerified === true && value(item, "propertyStatus") === "approved";
       return value(item, "propertyStatus", "").toLowerCase() === propertyStatusFilter;
     });
     return (
       <>
         <TextInput value={query} onChangeText={setQuery} placeholder="Search listings or locations" placeholderTextColor={colors.mutedForeground} style={[styles.search, { color: colors.foreground, borderColor: colors.input, backgroundColor: colors.card }]} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {["all", "active", "pending", "flagged", "sold", "inactive"].map((status) => {
+          {["all", "active", "pending", "flagged", "deactivated", "sold"].map((status) => {
             const selected = propertyStatusFilter === status;
             return (
               <Pressable
@@ -518,14 +517,44 @@ export function AdminOperations() {
         {filtered.length === 0 ? <EmptyState label="No platform properties match this search." colors={colors} /> : filtered.map((property) => {
           const id = value(property, "id", "");
           const verified = property.isVerified === true;
+          const propertyStatus = value(property, "propertyStatus", "pending").toLowerCase();
+          const isDeactivated = propertyStatus === "deactivated";
+          const isSold = propertyStatus === "sold";
+          const canMarkSold =
+            value(property, "type", "").toLowerCase() === "sale" &&
+            ["apartment", "home", "land"].includes(value(property, "subtype", "").toLowerCase());
           return (
             <Card key={id} colors={colors}>
               <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>{value(property, "title")}</Text>
               <Text style={[styles.bodyText, { color: colors.mutedForeground }]} numberOfLines={1}>{value(property, "address")} · {statusLabel(property.propertyStatus)} · {formatKES(property.price)}</Text>
               <View style={styles.actions}>
                 <ActionButton label="View" onPress={() => router.push(`/property/${id}` as never)} colors={colors} icon="eye" />
-                {!verified ? <ActionButton label="Approve" onPress={() => mutate(`/api/admin/properties/${id}/verify`, "PATCH", {}, "Listing approved and published.")} colors={colors} tone="primary" icon="check" /> : null}
-                <ActionButton label={verified ? "Deactivate" : "Activate"} onPress={() => mutate(`/api/admin/properties/${id}`, "PATCH", {}, verified ? "Listing deactivated." : "Listing activated.")} colors={colors} icon="power" />
+                {!verified && !isDeactivated && !isSold ? <ActionButton label="Approve" onPress={() => mutate(`/api/admin/properties/${id}/verify`, "PATCH", {}, "Listing approved and published.")} colors={colors} tone="primary" icon="check" /> : null}
+                {!isSold ? (
+                  <ActionButton
+                    label={isDeactivated ? "Reactivate" : "Deactivate"}
+                    onPress={() => mutate(
+                      `/api/properties/${id}/status`,
+                      "PATCH",
+                      { action: isDeactivated ? "reactivate" : "deactivate" },
+                      isDeactivated ? "Listing reactivated." : "Listing deactivated.",
+                    )}
+                    colors={colors}
+                    icon="power"
+                  />
+                ) : null}
+                {canMarkSold && !isSold ? (
+                  <ActionButton
+                    label="Mark sold"
+                    onPress={() => confirm(
+                      "Mark listing as sold?",
+                      "The listing will stay in management views but disappear from customers and stop accepting Link-Ups.",
+                      () => mutate(`/api/properties/${id}/status`, "PATCH", { action: "sold" }, "Listing marked sold."),
+                    )}
+                    colors={colors}
+                    icon="tag"
+                  />
+                ) : null}
                 <ActionButton label="Flag" onPress={() => openForm({
                   title: "Flag listing",
                   submitLabel: "Return to owner",

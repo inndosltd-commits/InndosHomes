@@ -125,7 +125,7 @@ export const ListPropertiesResponseItem = zod.object({
   priceUnit: zod.string().nullish(),
   totalUnits: zod.number().min(1),
   propertyStatus: zod
-    .enum(["pending", "approved", "flagged", "sold"])
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
     .optional(),
   activeBookingsCount: zod.number().optional(),
   ownerPhone: zod.string().nullish(),
@@ -197,7 +197,7 @@ export const ListFeaturedPropertiesResponseItem = zod.object({
   priceUnit: zod.string().nullish(),
   totalUnits: zod.number().min(1),
   propertyStatus: zod
-    .enum(["pending", "approved", "flagged", "sold"])
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
     .optional(),
   activeBookingsCount: zod.number().optional(),
   ownerPhone: zod.string().nullish(),
@@ -274,7 +274,7 @@ export const GetListerProfileResponse = zod.object({
       priceUnit: zod.string().nullish(),
       totalUnits: zod.number().min(1),
       propertyStatus: zod
-        .enum(["pending", "approved", "flagged", "sold"])
+        .enum(["pending", "approved", "flagged", "sold", "deactivated"])
         .optional(),
       activeBookingsCount: zod.number().optional(),
       ownerPhone: zod.string().nullish(),
@@ -337,7 +337,7 @@ export const GetPropertyResponse = zod.object({
   priceUnit: zod.string().nullish(),
   totalUnits: zod.number().min(1),
   propertyStatus: zod
-    .enum(["pending", "approved", "flagged", "sold"])
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
     .optional(),
   activeBookingsCount: zod.number().optional(),
   ownerPhone: zod.string().nullish(),
@@ -372,6 +372,159 @@ export const GetPropertyAvailabilityResponseItem = zod.object({
 export const GetPropertyAvailabilityResponse = zod.array(
   GetPropertyAvailabilityResponseItem,
 );
+
+/**
+ * @summary Deactivate, reactivate, or mark an eligible sale listing as sold
+ */
+export const UpdatePropertyStatusParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdatePropertyStatusBody = zod.object({
+  action: zod.enum(["deactivate", "reactivate", "sold"]),
+});
+
+export const UpdatePropertyStatusResponse = zod.object({
+  id: zod.string(),
+  ownerId: zod.string(),
+  title: zod.string(),
+  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  price: zod.number(),
+  address: zod.string(),
+  beds: zod.number(),
+  baths: zod.number(),
+  sqft: zod.number(),
+  guests: zod.number().nullish(),
+  image: zod.string(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
+  isVerified: zod.boolean(),
+  tags: zod.array(zod.string()),
+  lat: zod.string().nullish(),
+  lng: zod.string().nullish(),
+  createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Get a non-sale property's private management calendar and Link-Up history
+ */
+export const GetPropertyManagementCalendarParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPropertyManagementCalendarResponse = zod.object({
+  property: zod.object({
+    id: zod.string(),
+    ownerId: zod.string(),
+    title: zod.string(),
+    type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+    price: zod.number(),
+    address: zod.string(),
+    beds: zod.number(),
+    baths: zod.number(),
+    sqft: zod.number(),
+    guests: zod.number().nullish(),
+    image: zod.string(),
+    images: zod.array(zod.string()),
+    videos: zod.array(zod.string()),
+    videoPosters: zod.array(zod.string()),
+    details: zod.record(zod.string(), zod.unknown()),
+    isVerified: zod.boolean(),
+    tags: zod.array(zod.string()),
+    lat: zod.string().nullish(),
+    lng: zod.string().nullish(),
+    createdAt: zod.string().optional(),
+    description: zod.string().nullish(),
+    subtype: zod.string().nullish(),
+    hourlyRate: zod.number().nullish(),
+    priceUnit: zod.string().nullish(),
+    totalUnits: zod.number().min(1),
+    propertyStatus: zod
+      .enum(["pending", "approved", "flagged", "sold", "deactivated"])
+      .optional(),
+    activeBookingsCount: zod.number().optional(),
+    ownerPhone: zod.string().nullish(),
+    ownerEmail: zod.string().nullish(),
+    ownerAvatar: zod.string().nullish(),
+    ownerBusinessName: zod.string().nullish(),
+    savedAt: zod.string().nullish(),
+    ownerName: zod.string().nullish(),
+    isFeatured: zod.boolean().optional(),
+    featuredUntil: zod.coerce.date().nullish(),
+  }),
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      propertyId: zod.string(),
+      bookingId: zod.string().nullish(),
+      ownerId: zod.string(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      note: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  linkUps: zod.array(
+    zod.object({
+      id: zod.string(),
+      propertyId: zod.string(),
+      userId: zod.string(),
+      guestName: zod.string().nullish(),
+      status: zod.string(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      totalPrice: zod.number(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Add a private owner date or note to a non-sale property
+ */
+export const CreatePropertyManagementCalendarEntryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const createPropertyManagementCalendarEntryBodyNoteMax = 2000;
+
+export const CreatePropertyManagementCalendarEntryBody = zod.object({
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  note: zod
+    .string()
+    .max(createPropertyManagementCalendarEntryBodyNoteMax)
+    .optional(),
+  bookingId: zod.string().optional(),
+});
+
+/**
+ * @summary Delete an owner-entered private management calendar entry
+ */
+export const DeletePropertyManagementCalendarEntryParams = zod.object({
+  id: zod.coerce.string(),
+  entryId: zod.coerce.string(),
+});
 
 /**
  * Returns a short-lived presigned GCS URL for an authenticated upload.
@@ -444,7 +597,7 @@ export const ListFavoritesResponseItem = zod.object({
   priceUnit: zod.string().nullish(),
   totalUnits: zod.number().min(1),
   propertyStatus: zod
-    .enum(["pending", "approved", "flagged", "sold"])
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
     .optional(),
   activeBookingsCount: zod.number().optional(),
   ownerPhone: zod.string().nullish(),

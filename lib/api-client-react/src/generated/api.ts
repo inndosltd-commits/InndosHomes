@@ -32,6 +32,10 @@ import type {
   ListingDraft,
   LoginInput,
   Property,
+  PropertyManagementCalendar,
+  PropertyManagementCalendarEntry,
+  PropertyManagementCalendarEntryInput,
+  PropertyStatusActionInput,
   SaveListingDraftInput,
   SearchListersParams,
   SignupInput,
@@ -1469,6 +1473,377 @@ export function useGetPropertyAvailability<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Deactivate, reactivate, or mark an eligible sale listing as sold
+ */
+export const getUpdatePropertyStatusUrl = (id: string) => {
+  return `/api/properties/${id}/status`;
+};
+
+export const updatePropertyStatus = async (
+  id: string,
+  propertyStatusActionInput: PropertyStatusActionInput,
+  options?: RequestInit,
+): Promise<Property> => {
+  return customFetch<Property>(getUpdatePropertyStatusUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(propertyStatusActionInput),
+  });
+};
+
+export const getUpdatePropertyStatusMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePropertyStatus>>,
+    TError,
+    { id: string; data: BodyType<PropertyStatusActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePropertyStatus>>,
+  TError,
+  { id: string; data: BodyType<PropertyStatusActionInput> },
+  TContext
+> => {
+  const mutationKey = ["updatePropertyStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePropertyStatus>>,
+    { id: string; data: BodyType<PropertyStatusActionInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updatePropertyStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePropertyStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePropertyStatus>>
+>;
+export type UpdatePropertyStatusMutationBody =
+  BodyType<PropertyStatusActionInput>;
+export type UpdatePropertyStatusMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Deactivate, reactivate, or mark an eligible sale listing as sold
+ */
+export const useUpdatePropertyStatus = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePropertyStatus>>,
+    TError,
+    { id: string; data: BodyType<PropertyStatusActionInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePropertyStatus>>,
+  TError,
+  { id: string; data: BodyType<PropertyStatusActionInput> },
+  TContext
+> => {
+  return useMutation(getUpdatePropertyStatusMutationOptions(options));
+};
+
+/**
+ * @summary Get a non-sale property's private management calendar and Link-Up history
+ */
+export const getGetPropertyManagementCalendarUrl = (id: string) => {
+  return `/api/properties/${id}/management-calendar`;
+};
+
+export const getPropertyManagementCalendar = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PropertyManagementCalendar> => {
+  return customFetch<PropertyManagementCalendar>(
+    getGetPropertyManagementCalendarUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPropertyManagementCalendarQueryKey = (id: string) => {
+  return [`/api/properties/${id}/management-calendar`] as const;
+};
+
+export const getGetPropertyManagementCalendarQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPropertyManagementCalendar>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPropertyManagementCalendar>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPropertyManagementCalendarQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPropertyManagementCalendar>>
+  > = ({ signal }) =>
+    getPropertyManagementCalendar(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPropertyManagementCalendar>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPropertyManagementCalendarQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPropertyManagementCalendar>>
+>;
+export type GetPropertyManagementCalendarQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a non-sale property's private management calendar and Link-Up history
+ */
+
+export function useGetPropertyManagementCalendar<
+  TData = Awaited<ReturnType<typeof getPropertyManagementCalendar>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPropertyManagementCalendar>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPropertyManagementCalendarQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a private owner date or note to a non-sale property
+ */
+export const getCreatePropertyManagementCalendarEntryUrl = (id: string) => {
+  return `/api/properties/${id}/management-calendar`;
+};
+
+export const createPropertyManagementCalendarEntry = async (
+  id: string,
+  propertyManagementCalendarEntryInput: PropertyManagementCalendarEntryInput,
+  options?: RequestInit,
+): Promise<PropertyManagementCalendarEntry> => {
+  return customFetch<PropertyManagementCalendarEntry>(
+    getCreatePropertyManagementCalendarEntryUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(propertyManagementCalendarEntryInput),
+    },
+  );
+};
+
+export const getCreatePropertyManagementCalendarEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>,
+    TError,
+    { id: string; data: BodyType<PropertyManagementCalendarEntryInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>,
+  TError,
+  { id: string; data: BodyType<PropertyManagementCalendarEntryInput> },
+  TContext
+> => {
+  const mutationKey = ["createPropertyManagementCalendarEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>,
+    { id: string; data: BodyType<PropertyManagementCalendarEntryInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createPropertyManagementCalendarEntry(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePropertyManagementCalendarEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>
+>;
+export type CreatePropertyManagementCalendarEntryMutationBody =
+  BodyType<PropertyManagementCalendarEntryInput>;
+export type CreatePropertyManagementCalendarEntryMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Add a private owner date or note to a non-sale property
+ */
+export const useCreatePropertyManagementCalendarEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>,
+    TError,
+    { id: string; data: BodyType<PropertyManagementCalendarEntryInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPropertyManagementCalendarEntry>>,
+  TError,
+  { id: string; data: BodyType<PropertyManagementCalendarEntryInput> },
+  TContext
+> => {
+  return useMutation(
+    getCreatePropertyManagementCalendarEntryMutationOptions(options),
+  );
+};
+
+/**
+ * @summary Delete an owner-entered private management calendar entry
+ */
+export const getDeletePropertyManagementCalendarEntryUrl = (
+  id: string,
+  entryId: string,
+) => {
+  return `/api/properties/${id}/management-calendar/${entryId}`;
+};
+
+export const deletePropertyManagementCalendarEntry = async (
+  id: string,
+  entryId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(
+    getDeletePropertyManagementCalendarEntryUrl(id, entryId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeletePropertyManagementCalendarEntryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>,
+    TError,
+    { id: string; entryId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>,
+  TError,
+  { id: string; entryId: string },
+  TContext
+> => {
+  const mutationKey = ["deletePropertyManagementCalendarEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>,
+    { id: string; entryId: string }
+  > = (props) => {
+    const { id, entryId } = props ?? {};
+
+    return deletePropertyManagementCalendarEntry(id, entryId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeletePropertyManagementCalendarEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>
+>;
+
+export type DeletePropertyManagementCalendarEntryMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Delete an owner-entered private management calendar entry
+ */
+export const useDeletePropertyManagementCalendarEntry = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>,
+    TError,
+    { id: string; entryId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deletePropertyManagementCalendarEntry>>,
+  TError,
+  { id: string; entryId: string },
+  TContext
+> => {
+  return useMutation(
+    getDeletePropertyManagementCalendarEntryMutationOptions(options),
+  );
+};
 
 /**
  * Returns a short-lived presigned GCS URL for an authenticated upload.

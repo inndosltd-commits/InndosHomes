@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MessagingSystem } from "@/components/dashboard/MessagingSystem";
-import { PropertyCalendar } from "@/components/dashboard/PropertyCalendar";
+import { ManagementCalendar } from "@/components/dashboard/ManagementCalendar";
 import { TransactionConfirmations } from "@/components/dashboard/TransactionConfirmations";
 import { AdminAnalyticsDashboard } from "@/components/dashboard/AdminAnalyticsDashboard";
 import { NotificationTemplatesPanel } from "@/pages/AdminNotifications";
@@ -787,6 +787,19 @@ function resolvePropertyImageUrl(path: string | null | undefined): string {
   return path;
 }
 
+function isEligibleSaleListing(property: any): boolean {
+  const listingType = String(property.listingType ?? "").toLowerCase();
+  const type = String(property.type ?? "").toLowerCase();
+  const subtype = String(property.subtype ?? property.category ?? "").toLowerCase();
+  return ["sale-apartment", "sale-home", "sale-land"].includes(listingType)
+    || (type === "sale" && ["apartment", "home", "land"].includes(subtype));
+}
+
+function isSaleListing(property: any): boolean {
+  return String(property.type ?? "").toLowerCase() === "sale"
+    || String(property.listingType ?? "").toLowerCase().startsWith("sale-");
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user, token, isLoading, logout, refreshUser } = useAuth();
@@ -840,8 +853,8 @@ export default function Dashboard() {
   // Owner State
   const [ownerProperties, setOwnerProperties] = useState<any[]>([]);
   const [isLoadingProperties, setIsLoadingProperties] = useState(false);
-
-  const [deactivatedProperties, setDeactivatedProperties] = useState<string[]>([]);
+  const [ownerPropertyActionLoading, setOwnerPropertyActionLoading] = useState<Record<string, boolean>>({});
+  const [deletePropertyId, setDeletePropertyId] = useState<string | null>(null);
 
   // Favorites & messages (for tenants/guests overview cards)
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -1646,7 +1659,8 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
-        toast({ title: "Delete failed", description: "Could not delete this property.", variant: "destructive" });
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Delete failed", description: (data as { error?: string }).error || "Could not delete this property.", variant: "destructive" });
         return;
       }
       setAdminProperties(prev => prev.filter(p => p.id !== id));
@@ -1659,23 +1673,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleAdminToggleProperty = async (id: string) => {
+  const handleAdminPropertyStatus = async (id: string, action: "deactivate" | "reactivate" | "sold") => {
     if (!token) return;
     setAdminPropertyActionLoading(prev => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(`/api/admin/properties/${id}`, {
+      const res = await fetch(`/api/properties/${id}/status`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
       });
       if (!res.ok) {
-        toast({ title: "Update failed", description: "Could not update this property.", variant: "destructive" });
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Update failed", description: (data as { error?: string }).error || "Could not update this property.", variant: "destructive" });
         return;
       }
-      const updated = await res.json();
-      setAdminProperties(prev => prev.map(p => p.id === id ? { ...p, isVerified: updated.isVerified } : p));
+      await fetchAdminProperties();
+      await fetchAdminStats();
       toast({
-        title: updated.isVerified ? "Property Activated" : "Property Deactivated",
-        description: updated.isVerified ? "This listing is now live." : "This listing has been taken offline.",
+        title: action === "reactivate" ? "Property Reactivated" : action === "sold" ? "Property Marked Sold" : "Property Deactivated",
+        description: action === "reactivate" ? "This listing is now live." : action === "sold" ? "This sale listing is marked sold." : "This listing has been taken offline.",
       });
     } catch {
       toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
@@ -1809,6 +1825,7 @@ export default function Dashboard() {
         return;
       }
       setOwnerProperties(prev => prev.filter(p => p.id !== id));
+      setDeletePropertyId(null);
       toast({
         title: "Property Removed",
         description: "Listing deleted successfully.",
@@ -1818,18 +1835,29 @@ export default function Dashboard() {
     }
   };
 
-  const handleTogglePropertyStatus = (id: string) => {
-    setOwnerProperties(prev => prev.map(p => {
-      if (p.id === id) {
-        const newStatus = p.status === 'active' ? 'inactive' : 'active';
-        toast({
-          title: `Property ${newStatus === 'active' ? 'Activated' : 'Deactivated'}`,
-          description: `The listing is now ${newStatus}.`,
-        });
-        return { ...p, status: newStatus };
+  const handleOwnerPropertyStatus = async (id: string, action: "deactivate" | "reactivate" | "sold") => {
+    if (!token) return;
+    setOwnerPropertyActionLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/properties/${id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || "Could not update this property.");
       }
-      return p;
-    }));
+      await fetchOwnerProperties();
+      toast({
+        title: action === "reactivate" ? "Property Reactivated" : action === "sold" ? "Property Marked Sold" : "Property Deactivated",
+        description: action === "reactivate" ? "Your listing is live again." : action === "sold" ? "Your sale listing remains visible as sold." : "Your listing remains visible to you as deactivated.",
+      });
+    } catch (error) {
+      toast({ title: "Update failed", description: error instanceof Error ? error.message : "Could not update this property.", variant: "destructive" });
+    } finally {
+      setOwnerPropertyActionLoading(prev => ({ ...prev, [id]: false }));
+    }
   };
 
   const handleBookingStatusUpdate = async (bookingId: string, status: "confirmed" | "cancelled") => {
@@ -2499,6 +2527,7 @@ export default function Dashboard() {
                           <option value="active">Active</option>
                           <option value="pending">Pending</option>
                           <option value="flagged">Flagged</option>
+                          <option value="deactivated">Deactivated</option>
                           <option value="sold">Sold</option>
                         </select>
                         {(myPropSearch || myPropStatusFilter !== "all") && (
@@ -2514,19 +2543,24 @@ export default function Dashboard() {
                     <div className="space-y-4">
                       {ownerProperties.filter(p => {
                         if (myPropSearch) { const q = myPropSearch.toLowerCase(); if (!(p.title||"").toLowerCase().includes(q) && !(p.address||"").toLowerCase().includes(q)) return false; }
-                        if (myPropStatusFilter === "active" && (!p.isVerified || p.propertyStatus === 'flagged' || p.propertyStatus === 'sold')) return false;
+                        const isDeactivated = p.propertyStatus === 'deactivated' || p.status === 'inactive';
+                        if (myPropStatusFilter === "active" && (!p.isVerified || isDeactivated || p.propertyStatus === 'flagged' || p.propertyStatus === 'sold')) return false;
                         if (myPropStatusFilter === "pending" && (p.isVerified || p.propertyStatus === 'flagged' || p.propertyStatus === 'sold')) return false;
                         if (myPropStatusFilter === "flagged" && p.propertyStatus !== 'flagged') return false;
+                        if (myPropStatusFilter === "deactivated" && !isDeactivated) return false;
                         if (myPropStatusFilter === "sold" && p.propertyStatus !== 'sold') return false;
                         return true;
                       }).map(p => {
                         const isSold = p.propertyStatus === 'sold';
                         const isFlagged = p.propertyStatus === 'flagged';
-                        const isPending = !p.isVerified && !isFlagged && !isSold;
+                        const isDeactivated = p.propertyStatus === 'deactivated' || p.status === 'inactive';
+                        const isPending = !p.isVerified && !isFlagged && !isSold && !isDeactivated;
+                        const canMarkSold = isEligibleSaleListing(p);
+                        const isActioning = !!ownerPropertyActionLoading[p.id];
                         return (
-                        <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isSold ? 'bg-gray-50/60 border-gray-300' : isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
+                        <div key={p.id} className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors shadow-sm ${isSold || isDeactivated ? 'bg-gray-50/60 border-gray-300' : isFlagged ? 'bg-red-50/40 border-red-200' : isPending ? 'bg-yellow-50/40 border-yellow-200' : 'bg-white hover:bg-gray-50'}`}>
                           <div className="flex items-start gap-3">
-                            <img src={getImageUrl(p.image)} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${isSold || !p.isVerified ? 'opacity-70 grayscale-[40%]' : ''}`} alt={p.title} />
+                            <img src={getImageUrl(p.image)} className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md flex-shrink-0 ${isSold || isDeactivated || !p.isVerified ? 'opacity-70 grayscale-[40%]' : ''}`} alt={p.title} />
                             <div className="flex-1 min-w-0">
                               <Link href={`/property/${p.id}`}>
                                 <h4 className="font-semibold text-base sm:text-lg truncate hover:text-primary cursor-pointer">{p.title}</h4>
@@ -2535,6 +2569,8 @@ export default function Dashboard() {
                               <div className="flex gap-2 mt-1.5 flex-wrap">
                                 {isSold ? (
                                   <Badge variant="outline" className="bg-gray-200 text-gray-700 border-gray-400 text-xs">Sold</Badge>
+                                ) : isDeactivated ? (
+                                  <Badge variant="outline" className="bg-gray-200 text-gray-700 border-gray-400 text-xs">Deactivated</Badge>
                                 ) : isFlagged ? (
                                   <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">Flagged</Badge>
                                 ) : isPending ? (
@@ -2553,17 +2589,22 @@ export default function Dashboard() {
                                 <ArrowUpRight className="h-3 w-3" /> Resubmit
                               </Button>
                             )}
-                            {p.isVerified && !isSold && (
-                              <Button size="sm" variant={p.status === 'inactive' ? 'default' : 'outline'} onClick={() => handleTogglePropertyStatus(p.id)}>
-                                {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                            {(p.isVerified || isDeactivated) && !isSold && !isFlagged && (
+                              <Button size="sm" variant={isDeactivated ? 'default' : 'outline'} disabled={isActioning} onClick={() => handleOwnerPropertyStatus(p.id, isDeactivated ? "reactivate" : "deactivate")}>
+                                {isActioning ? <Loader2 className="h-3 w-3 animate-spin" /> : isDeactivated ? 'Reactivate' : 'Deactivate'}
                               </Button>
                             )}
-                               {p.isVerified && !isSold && (
+                            {p.isVerified && !isSold && canMarkSold && (
+                              <Button size="sm" variant="outline" disabled={isActioning} onClick={() => handleOwnerPropertyStatus(p.id, "sold")}>
+                                Sold
+                              </Button>
+                            )}
+                            {p.isVerified && p.propertyStatus === "approved" && (
                                  <Button size="sm" variant={p.isFeatured ? "secondary" : "outline"} disabled={featureLoading[p.id]} onClick={() => handleFeatureListing(p)}>
                                    {featureLoading[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : p.isFeatured ? "Unfeature" : "Feature"}
                                  </Button>
                                )}
-                            {p.isVerified && !isSold && (p.confirmedBookings ?? 0) > 0 && (
+                            {!isSaleListing(p) && (
                               <Button
                                 size="sm" variant="outline"
                                 className="gap-1 text-primary border-primary/30 hover:bg-primary/5"
@@ -2582,7 +2623,7 @@ export default function Dashboard() {
                                 <Button size="sm" variant="outline">Edit</Button>
                               </Link>
                             )}
-                            <Button size="sm" variant="destructive" className="gap-1" onClick={() => handleDeleteProperty(p.id)}>
+                            <Button size="sm" variant="destructive" className="gap-1" onClick={() => setDeletePropertyId(p.id)}>
                               <Trash2 className="h-3 w-3" /> Delete
                             </Button>
                           </div>
@@ -3202,7 +3243,8 @@ export default function Dashboard() {
                       <select value={propStatusFilter} onChange={e => setPropStatusFilter(e.target.value)} className="text-sm border rounded-lg px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-zinc-800 sm:w-36">
                         <option value="all">All Statuses</option>
                         <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="inactive">Deactivated</option>
+                        <option value="sold">Sold</option>
                       </select>
                       {(propSearch || propLocationSearch || propStatusFilter !== "all") && (
                         <button onClick={() => { setPropSearch(""); setPropLocationSearch(""); setPropStatusFilter("all"); }} className="text-xs text-muted-foreground hover:text-foreground underline px-1 shrink-0">Clear</button>
@@ -3219,8 +3261,10 @@ export default function Dashboard() {
                     const filteredProps = adminProperties.filter(p => {
                       if (propSearch) { const q = propSearch.toLowerCase(); if (!(p.title || "").toLowerCase().includes(q) && !(p.id || "").toLowerCase().includes(q)) return false; }
                       if (propLocationSearch) { const q = propLocationSearch.toLowerCase(); if (!(p.address || "").toLowerCase().includes(q) && !(p.location || "").toLowerCase().includes(q)) return false; }
-                      if (propStatusFilter === "active" && !p.isVerified) return false;
-                      if (propStatusFilter === "inactive" && p.isVerified) return false;
+                       const isDeactivated = p.propertyStatus === "deactivated" || p.status === "inactive";
+                       if (propStatusFilter === "active" && (!p.isVerified || isDeactivated || p.propertyStatus === "sold")) return false;
+                       if (propStatusFilter === "inactive" && !isDeactivated) return false;
+                       if (propStatusFilter === "sold" && p.propertyStatus !== "sold") return false;
                       return true;
                     }).sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
                     return filteredProps.length === 0 ? (
@@ -3231,11 +3275,14 @@ export default function Dashboard() {
                     ) : (
                   <div className="space-y-4">
                     {filteredProps.map(p => {
-                      const isDeactivated = !p.isVerified;
+                      const isSold = p.propertyStatus === "sold";
+                      const isDeactivated = p.propertyStatus === "deactivated" || p.status === "inactive";
+                      const isFlagged = p.propertyStatus === "flagged";
+                      const canMarkSold = isEligibleSaleListing(p);
                       const isActioning = !!adminPropertyActionLoading[p.id];
                       return (
-                      <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
-                        <img src={getImageUrl(p.image)} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated ? 'grayscale' : ''}`} alt={p.title} />
+                      <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated || isSold ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
+                        <img src={getImageUrl(p.image)} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated || isSold ? 'grayscale' : ''}`} alt={p.title} />
                         <div className="flex-1 min-w-0 w-full">
                           <div className="flex justify-between items-start">
                              <div>
@@ -3249,8 +3296,8 @@ export default function Dashboard() {
                           
                           <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                             <div className="flex gap-2">
-                              <Badge variant="outline" className={isDeactivated ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-gray-700 border-green-200"}>
-                                {isDeactivated ? 'Inactive' : 'Active'}
+                              <Badge variant="outline" className={isDeactivated || isSold || isFlagged || !p.isVerified ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-gray-700 border-green-200"}>
+                                {isSold ? 'Sold' : isDeactivated ? 'Deactivated' : isFlagged ? 'Flagged' : !p.isVerified ? 'Pending' : 'Active'}
                               </Badge>
                               <Badge variant="secondary">{p.type}</Badge>
                               <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
@@ -3320,12 +3367,12 @@ export default function Dashboard() {
                                      </Link>
                                      <Button
                                        variant="outline"
-                                       disabled={isActioning}
+                                       disabled={isActioning || isSold}
                                        className={isDeactivated ? "text-gray-600 hover:bg-green-50 hover:text-gray-700 border-green-200" : "text-gray-600 hover:bg-gray-50 hover:text-gray-700 border-gray-200"}
-                                       onClick={() => handleAdminToggleProperty(p.id)}
+                                        onClick={() => handleAdminPropertyStatus(p.id, isDeactivated ? "reactivate" : "deactivate")}
                                      >
                                         {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : (isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />)}
-                                        {isDeactivated ? 'Activate' : 'Deactivate'}
+                                         {isDeactivated ? 'Reactivate' : 'Deactivate'}
                                      </Button>
                                      <Button
                                        variant="outline"
@@ -3353,13 +3400,18 @@ export default function Dashboard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={isActioning}
+                                disabled={isActioning || isSold}
                                 className={isDeactivated ? "text-gray-600 hover:text-gray-700 hover:bg-green-50" : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"}
-                                onClick={() => handleAdminToggleProperty(p.id)}
+                                onClick={() => handleAdminPropertyStatus(p.id, isDeactivated ? "reactivate" : "deactivate")}
                               >
                                 {isActioning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : (isDeactivated ? <Check className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />)}
-                                {isDeactivated ? 'Activate' : 'Deactivate'}
+                                 {isDeactivated ? 'Reactivate' : 'Deactivate'}
                               </Button>
+                              {!isSold && canMarkSold && (
+                                <Button size="sm" variant="outline" disabled={isActioning} onClick={() => handleAdminPropertyStatus(p.id, "sold")}>
+                                  Sold
+                                </Button>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="destructive" 
@@ -5716,24 +5768,36 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Property Calendar dialog */}
+      {/* Private owner management calendar dialog */}
       <Dialog open={!!calendarProperty} onOpenChange={(open) => { if (!open) setCalendarProperty(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              Availability Calendar
+              Private Management Calendar
             </DialogTitle>
             {calendarProperty && (
-              <p className="text-sm text-muted-foreground">{calendarProperty.title}</p>
+              <p className="text-sm text-muted-foreground">{calendarProperty.title} · Private to you; never changes the customer display or Link-Ups.</p>
             )}
           </DialogHeader>
           {calendarProperty && (
-            <PropertyCalendar
-              propertyId={calendarProperty.id}
-              propertyTitle={calendarProperty.title}
-            />
+            <ManagementCalendar propertyId={calendarProperty.id} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletePropertyId} onOpenChange={(open) => { if (!open) setDeletePropertyId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Permanently delete listing?</DialogTitle>
+            <DialogDescription>This cannot be undone. The listing and its associated data will be permanently removed.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePropertyId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deletePropertyId && handleDeleteProperty(deletePropertyId)}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -5746,9 +5810,9 @@ export default function Dashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-[55vh] overflow-y-auto">
-            {ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus !== "sold").length === 0 ? (
+            {ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus === "approved").length === 0 ? (
               <p className="py-6 text-sm text-muted-foreground text-center">Approved, available listings will appear here after an administrator verifies them.</p>
-            ) : ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus !== "sold").map((property: any) => (
+            ) : ownerProperties.filter((property: any) => property.isVerified && property.propertyStatus === "approved").map((property: any) => (
               <div key={property.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
                 <div className="min-w-0">
                   <p className="font-medium truncate">{property.title}</p>

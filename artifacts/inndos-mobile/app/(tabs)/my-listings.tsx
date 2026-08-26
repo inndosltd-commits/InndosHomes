@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Platform,
   Pressable,
@@ -57,14 +58,28 @@ function ListingCard({
   property,
   colors,
   savesCount,
+  onStatus,
+  onDelete,
+  isMutating,
 }: {
   property: Property;
   colors: ReturnType<typeof useColors>;
   /** null = saves data not yet loaded or failed; badge is hidden */
   savesCount: number | null;
+  onStatus: (property: Property, action: "deactivate" | "reactivate" | "sold") => void;
+  onDelete: (property: Property) => void;
+  isMutating: boolean;
 }) {
   const router = useRouter();
   const isPending = !property.isVerified;
+  const status = String((property as Property & { propertyStatus?: string }).propertyStatus ?? "");
+  const isDeactivated = status === "inactive" || status === "deactivated";
+  const isSold = status === "sold";
+  const canMarkSold =
+    property.type === "sale" &&
+    ["apartment", "home", "land"].includes(
+      String(property.subtype ?? "").toLowerCase()
+    );
 
   return (
     <View
@@ -103,6 +118,18 @@ function ListingCard({
             <View style={styles.verifiedBadge}>
               <Feather name="check-circle" size={11} color="#166534" />
               <Text style={styles.verifiedBadgeText}>Verified</Text>
+            </View>
+          )}
+          {isDeactivated && (
+            <View style={styles.inactiveBadge}>
+              <Feather name="pause-circle" size={11} color="#92400e" />
+              <Text style={styles.inactiveBadgeText}>Deactivated</Text>
+            </View>
+          )}
+          {isSold && (
+            <View style={styles.soldBadge}>
+              <Feather name="tag" size={11} color="#1d4ed8" />
+              <Text style={styles.soldBadgeText}>Sold</Text>
             </View>
           )}
         </View>
@@ -170,6 +197,48 @@ function ListingCard({
             </Text>
           </View>
         )}
+        <View style={[styles.actions, { borderTopColor: colors.border }]}>
+          {property.type !== "sale" && (
+            <Pressable
+              style={[styles.actionButton, { borderColor: colors.border }]}
+              disabled={isMutating}
+              onPress={() => router.push({ pathname: "/management-calendar/[id]", params: { id: property.id } })}
+            >
+              <Feather name="calendar" size={15} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.foreground }]}>Manage dates</Text>
+            </Pressable>
+          )}
+          {!isSold && (
+            <Pressable
+              style={[styles.actionButton, { borderColor: colors.border }]}
+              disabled={isMutating}
+              onPress={() => onStatus(property, isDeactivated ? "reactivate" : "deactivate")}
+            >
+              <Feather name={isDeactivated ? "play-circle" : "pause-circle"} size={15} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.foreground }]}>
+                {isDeactivated ? "Reactivate" : "Deactivate"}
+              </Text>
+            </Pressable>
+          )}
+          {canMarkSold && !isSold && (
+            <Pressable
+              style={[styles.actionButton, { borderColor: colors.border }]}
+              disabled={isMutating}
+              onPress={() => onStatus(property, "sold")}
+            >
+              <Feather name="tag" size={15} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.foreground }]}>Mark sold</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={[styles.actionButton, { borderColor: "#fecaca" }]}
+            disabled={isMutating}
+            onPress={() => onDelete(property)}
+          >
+            <Feather name="trash-2" size={15} color="#dc2626" />
+            <Text style={[styles.actionText, { color: "#dc2626" }]}>Delete</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -203,6 +272,7 @@ export default function MyListingsScreen() {
   // Fetch saves counts from /api/favorites/my-properties.
   // null = not yet loaded or failed (badge hidden); Record = successfully loaded.
   const [savesMap, setSavesMap] = useState<Record<string, number> | null>(null);
+  const [mutatingId, setMutatingId] = useState<string | null>(null);
   const fetchSaves = useCallback(async () => {
     if (!user || !token || !canList) return;
     try {
@@ -226,6 +296,65 @@ export default function MyListingsScreen() {
 
   const topPadding = isWeb ? 67 : insets.top;
   const bottomPadding = isWeb ? 34 + 84 : insets.bottom + 84;
+
+  const request = useCallback(async (url: string, method: "PATCH" | "DELETE", body?: unknown) => {
+    if (!token) throw new Error("Please sign in again to manage this listing.");
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+      throw new Error(data?.error ?? data?.message ?? "Could not update this listing.");
+    }
+  }, [token]);
+
+  const handleStatus = useCallback((property: Property, action: "deactivate" | "reactivate" | "sold") => {
+    const label = action === "sold" ? "mark this listing as sold" : action === "deactivate" ? "deactivate this listing" : "reactivate this listing";
+    Alert.alert(
+      action === "sold" ? "Mark as sold?" : action === "deactivate" ? "Deactivate listing?" : "Reactivate listing?",
+      `Are you sure you want to ${label}?`,
+      [{ text: "Cancel", style: "cancel" }, {
+        text: action === "sold" ? "Mark sold" : action === "deactivate" ? "Deactivate" : "Reactivate",
+        style: action === "deactivate" ? "destructive" : "default",
+        onPress: () => void (async () => {
+          setMutatingId(property.id);
+          try {
+            await request(`/api/properties/${property.id}/status`, "PATCH", { action });
+            await refetch();
+          } catch (error) {
+            Alert.alert("Update failed", error instanceof Error ? error.message : "Could not update this listing.");
+          } finally {
+            setMutatingId(null);
+          }
+        })(),
+      }]
+    );
+  }, [refetch, request]);
+
+  const handleDelete = useCallback((property: Property) => {
+    Alert.alert(
+      "Permanently delete listing?",
+      `"${property.title}" and its associated listing information will be permanently deleted. This cannot be undone.`,
+      [{ text: "Cancel", style: "cancel" }, {
+        text: "Delete permanently",
+        style: "destructive",
+        onPress: () => void (async () => {
+          setMutatingId(property.id);
+          try {
+            await request(`/api/properties/${property.id}`, "DELETE");
+            await refetch();
+            await fetchSaves();
+          } catch (error) {
+            Alert.alert("Deletion failed", error instanceof Error ? error.message : "Could not delete this listing.");
+          } finally {
+            setMutatingId(null);
+          }
+        })(),
+      }]
+    );
+  }, [fetchSaves, refetch, request]);
 
   if (!user) {
     return (
@@ -396,6 +525,9 @@ export default function MyListingsScreen() {
                 property={property}
                 colors={colors}
                 savesCount={savesMap !== null ? (savesMap[property.id] ?? 0) : null}
+                onStatus={handleStatus}
+                onDelete={handleDelete}
+                isMutating={mutatingId === property.id}
               />
             ))
           )}
@@ -538,6 +670,14 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_600SemiBold",
     color: "#166534",
   },
+  inactiveBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "#fef3c7",
+  },
+  inactiveBadgeText: { fontSize: 11, fontFamily: "Outfit_600SemiBold", color: "#92400e" },
+  soldBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: "#dbeafe",
+  },
+  soldBadgeText: { fontSize: 11, fontFamily: "Outfit_600SemiBold", color: "#1d4ed8" },
   priceOverlay: {
     position: "absolute",
     bottom: 0,
@@ -611,4 +751,11 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 17,
   },
+  actions: {
+    marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", flexWrap: "wrap", gap: 8,
+  },
+  actionButton: {
+    flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 7,
+  },
+  actionText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
 });

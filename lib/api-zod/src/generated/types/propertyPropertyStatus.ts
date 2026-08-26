@@ -14,4 +14,5 @@ export const PropertyPropertyStatus = {
   approved: "approved",
   flagged: "flagged",
   sold: "sold",
+  deactivated: "deactivated",
 } as const;

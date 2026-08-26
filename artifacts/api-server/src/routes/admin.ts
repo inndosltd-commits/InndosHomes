@@ -7,6 +7,7 @@ import { invalidateTokenCache, registerIPN } from "../services/pesapal";
 import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
 import { getDashboardUrl } from "../lib/appUrl";
 import bcrypt from "bcryptjs";
+import { deletePropertyTransactionally } from "../lib/propertyDeletion";
 
 const router = Router();
 
@@ -466,8 +467,17 @@ router.delete("/properties/:id", async (req, res) => {
     .from(users)
     .where(eq(users.id, prop.ownerId));
 
-  await db.delete(bookings).where(eq(bookings.propertyId, req.params.id));
-  await db.delete(properties).where(eq(properties.id, req.params.id));
+  try {
+    const deleted = await deletePropertyTransactionally(prop.id);
+    if (!deleted) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+  } catch (error) {
+    req.log.error({ err: error, propertyId: prop.id }, "Admin property deletion failed");
+    res.status(500).json({ error: "Property could not be deleted. No data was removed." });
+    return;
+  }
 
   if (owner?.email) {
     sendListingRejectedEmail({
