@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, XCircle, Calendar, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images, Download, Play, Minimize2 } from "lucide-react";
+import { BedDouble, Bath, Square, MapPin, Share2, Heart, CheckCircle, ShieldCheck, Mail, MessageSquare, PhoneCall, MessageCircle, Star, Loader2, Copy, Navigation, Compass, Lock, ChevronLeft, ChevronRight, X, Images, Download, Play, Minimize2 } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -14,7 +14,6 @@ import { useLanguage } from "@/lib/language";
 import { useAuth } from "@/lib/auth";
 import type { ApiProperty } from "@/components/property/PropertyCard";
 import { resolveAmenityLabel } from "@/lib/amenities";
-import { useGetPropertyAvailability, getGetPropertyAvailabilityQueryKey } from "@workspace/api-client-react";
 import { GoogleMap, useJsApiLoader, DirectionsRenderer } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
 
@@ -423,64 +422,7 @@ export default function PropertyDetails() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [videoExpanded, setVideoExpanded] = useState(false);
-  // Nightly types: calendar hidden until Link Up is first clicked
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  // For all types: show "unavailable — contact owner" inline
-  const [showUnavailableContact, setShowUnavailableContact] = useState(false);
-
   const todayStr = new Date().toISOString().slice(0, 10);
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const [checkIn, setCheckIn] = useState(todayStr);
-  const [checkOut, setCheckOut] = useState(tomorrowStr);
-
-  const isNightlyType = Boolean(
-    (property?.type === "bnb" || property?.type === "hotel" || property?.type === "hostel") &&
-    property?.priceUnit !== "month"
-  );
-
-  const { data: bookedRanges = [] } = useGetPropertyAvailability(
-    params?.id ?? "",
-    {
-      query: {
-        queryKey: getGetPropertyAvailabilityQueryKey(params?.id ?? ""),
-        enabled: !!params?.id && isNightlyType,
-      },
-    }
-  );
-
-  const isDateRangeAvailable = (() => {
-    if (!isNightlyType) return null;
-    if (!checkIn || !checkOut || checkIn >= checkOut) return null;
-    if (!property) return null;
-    const totalUnits = property.totalUnits ?? 1;
-    const overlappingRanges = bookedRanges.filter(
-      (r) => checkIn < r.endDate && checkOut > r.startDate
-    );
-    // A range explicitly marked "blocked" makes the dates unavailable outright
-    const hasBlocked = overlappingRanges.some(
-      (r) => (r as any).status === "blocked"
-    );
-    if (hasBlocked) return false;
-    // Only simultaneous pending/confirmed bookings count against available
-    // units. Bookings on different days must not be added together.
-    const overlappingBookings = overlappingRanges.filter(
-      (r) => r.status === "pending" || r.status === "confirmed"
-    );
-    const capacityCheckDates = [
-      checkIn,
-      ...overlappingBookings
-        .map((r) => r.startDate)
-        .filter((date) => date > checkIn && date < checkOut),
-    ];
-    const reachesCapacity = capacityCheckDates.some((date) => {
-      const occupiedUnits = overlappingBookings.filter(
-        (r) => r.startDate <= date && r.endDate > date
-      ).length;
-      return occupiedUnits >= totalUnits;
-    });
-    if (reachesCapacity) return false;
-    return true;
-  })();
 
   useEffect(() => {
     if (!params?.id) return;
@@ -547,16 +489,6 @@ export default function PropertyDetails() {
       })
       .catch(() => {});
   }, [user?.id, token, property?.id]);
-
-  // For nightly types: auto-show contacts when dates are unavailable; auto-dismiss when dates become available
-  useEffect(() => {
-    if (!isNightlyType) return;
-    if (isDateRangeAvailable === false) {
-      setShowUnavailableContact(true);
-    } else {
-      setShowUnavailableContact(false);
-    }
-  }, [isDateRangeAvailable, isNightlyType]);
 
   // Check if user already reviewed this property via their confirmed booking
   useEffect(() => {
@@ -660,29 +592,11 @@ export default function PropertyDetails() {
       return;
     }
 
-    // Nightly: first click reveals the date picker; subsequent clicks submit
-    if (isNightlyType && !showDatePicker) {
-      setShowDatePicker(true);
-      return;
-    }
-
-    // Nightly: if selected dates are unavailable, show contacts instead of failing the API call
-    if (isNightlyType && isDateRangeAvailable === false) {
-      setShowUnavailableContact(true);
-      return;
-    }
-
     setIsLinkingUp(true);
 
-    // Dates: nightly types use the date picker; others use today → +30 days as an enquiry window
-    const startDate = isNightlyType ? checkIn : todayStr;
-    const endDateRaw = isNightlyType
-      ? checkOut
-      : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    const nights = isNightlyType
-      ? Math.max(1, (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
-      : 1;
-    const totalPrice = Math.round(property.price * nights);
+    // Link-Ups are date-free customer enquiries. Dates are internal placeholders
+    // required by the existing booking record shape and are never customer-selected.
+    const endDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
     try {
       const res = await fetch("/api/bookings", {
@@ -693,9 +607,9 @@ export default function PropertyDetails() {
         },
         body: JSON.stringify({
           propertyId: property.id,
-          startDate,
-          endDate: endDateRaw,
-          totalPrice,
+          startDate: todayStr,
+          endDate,
+          totalPrice: property.price,
         }),
       });
 
@@ -1497,61 +1411,8 @@ export default function PropertyDetails() {
                         </div>
                       )}
 
-                      {/* Date picker — revealed after first Link Up click for nightly types */}
-                      {isNightlyType && (showDatePicker || isLinkedUp) && (
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-3 shadow-sm relative z-20">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 block">Select Dates</label>
-                          <div className="grid grid-cols-2 gap-2 mb-3">
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> Check-in
-                              </label>
-                              <input
-                                type="date"
-                                value={checkIn}
-                                min={todayStr}
-                                onChange={(e) => {
-                                  setCheckIn(e.target.value);
-                                  if (e.target.value >= checkOut) {
-                                    const next = new Date(e.target.value);
-                                    next.setDate(next.getDate() + 1);
-                                    setCheckOut(next.toISOString().slice(0, 10));
-                                  }
-                                }}
-                                className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-500 mb-1 block">Check-out</label>
-                              <input
-                                type="date"
-                                value={checkOut}
-                                min={checkIn > todayStr ? checkIn : tomorrowStr}
-                                onChange={(e) => setCheckOut(e.target.value)}
-                                className="w-full text-sm border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              />
-                            </div>
-                          </div>
-                          {isDateRangeAvailable === true && (
-                            <Badge className="w-full justify-center gap-1.5 bg-green-100 text-green-700 hover:bg-green-100 border-green-200 border">
-                              <CheckCircle className="h-3.5 w-3.5" /> Available
-                            </Badge>
-                          )}
-                          {isDateRangeAvailable === false && (
-                            <Badge className="w-full justify-center gap-1.5 bg-red-100 text-red-700 hover:bg-red-100 border-red-200 border">
-                              <XCircle className="h-3.5 w-3.5" /> Unavailable — contact owner to confirm
-                            </Badge>
-                          )}
-                          {isDateRangeAvailable === null && (
-                            <Badge variant="outline" className="w-full justify-center gap-1.5 text-gray-500">
-                              <Calendar className="h-3.5 w-3.5" /> Select valid dates
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-
                       {/* Primary CTA */}
-                      {!isLinkedUp && !showUnavailableContact ? (
+                      {!isLinkedUp ? (
                         <Button
                           className="w-full bg-primary hover:bg-primary/90 h-12 text-lg font-bold tracking-wide gap-2"
                           onClick={handleLinkUp}
@@ -1563,73 +1424,13 @@ export default function PropertyDetails() {
                             <>🔗 {t("prop.book_now")}</>
                           )}
                         </Button>
-                      ) : showUnavailableContact && !isLinkedUp ? (
-                        /* Non-nightly: property already linked up — show unavailability alert */
-                        <div className="rounded-xl border border-red-200 overflow-hidden shadow-sm">
-                          <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
-                            <XCircle className="h-4 w-4 text-red-500 shrink-0" />
-                            <div>
-                              <p className="text-sm font-bold text-red-700">Currently Unavailable</p>
-                              <p className="text-xs text-red-600 mt-0.5 leading-relaxed">This property is already linked up. Contact the owner to check if it's still available or discuss terms.</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-2 p-3 bg-white">
-                            {property.ownerPhone && (
-                              <a
-                                href={`tel:${property.ownerPhone}`}
-                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
-                              >
-                                <PhoneCall className="h-4 w-4 text-primary shrink-0" />
-                                <div>
-                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Call</div>
-                                  <div>{property.ownerPhone}</div>
-                                </div>
-                              </a>
-                            )}
-                            {property.ownerPhone && (
-                              <a
-                                href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I found your property "${property.title}" on inndos. Is it still available?`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-4 py-3 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
-                              >
-                                <MessageCircle className="h-4 w-4 shrink-0" />
-                                <div>
-                                  <div className="text-xs text-white/70 leading-none mb-0.5">WhatsApp</div>
-                                  <div>{property.ownerPhone}</div>
-                                </div>
-                              </a>
-                            )}
-                            {property.ownerEmail && (
-                              <a
-                                href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Availability Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on inndos and would like to check if it is still available.\n\nThank you.`)}`}
-                                className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
-                              >
-                                <Mail className="h-4 w-4 text-primary shrink-0" />
-                                <div>
-                                  <div className="text-xs text-gray-500 leading-none mb-0.5">Email</div>
-                                  <div>{property.ownerEmail}</div>
-                                </div>
-                              </a>
-                            )}
-                            {!property.ownerPhone && !property.ownerEmail && (
-                              <p className="text-xs text-gray-500 italic px-2">No direct contact listed — try messaging below.</p>
-                            )}
-                          </div>
-                          <button
-                            className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 border-t border-gray-100 bg-white transition-colors"
-                            onClick={() => setShowUnavailableContact(false)}
-                          >
-                            ← Back
-                          </button>
-                        </div>
                       ) : (
                         /* After linking up — show contact options only, no "booked" status */
                         <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                           <div className="bg-zinc-900 px-4 py-3">
                             <p className="text-sm font-bold text-white">Contact to confirm availability</p>
                             <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
-                              Reach the owner/host directly to confirm the property is available for your dates.
+                              Reach the owner/host directly to discuss availability and next steps.
                             </p>
                           </div>
                           <div className="flex flex-col gap-2 p-3 bg-white">

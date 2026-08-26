@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { bookings, properties, propertyBlocks, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
-import { and, eq, lt, gt, inArray, desc, sql } from "drizzle-orm";
+import { bookings, properties, users, notifications, insertBookingSchema, propertyTransactions } from "@workspace/db";
+import { and, eq, inArray, desc } from "drizzle-orm";
 import { sendSms } from "../lib/sms";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../lib/requireAuth";
@@ -88,59 +88,9 @@ router.post("/", async (req, res) => {
   }
 
   const outcome = await db.transaction(async (tx) => {
-    // Serialize bookings and owner blocks for this property so two concurrent
-    // requests cannot both observe the same remaining unit and overbook it.
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtextextended(${propertyId}, 0))`
-    );
-
     const [prop] = await tx.select().from(properties).where(eq(properties.id, propertyId));
     if (!prop) return { kind: "not-found" as const };
     if (prop.ownerId === userId) return { kind: "own-property" as const };
-
-    const overlapping = await tx
-      .select({ startDate: bookings.startDate, endDate: bookings.endDate })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.propertyId, propertyId),
-          inArray(bookings.status, ["confirmed", "pending"]),
-          lt(bookings.startDate, endDate),
-          gt(bookings.endDate, startDate)
-        )
-      );
-
-    const [blockedRange] = await tx
-      .select({ id: propertyBlocks.id })
-      .from(propertyBlocks)
-      .where(
-        and(
-          eq(propertyBlocks.propertyId, propertyId),
-          lt(propertyBlocks.startDate, endDate),
-          gt(propertyBlocks.endDate, startDate)
-        )
-      )
-      .limit(1);
-
-    if (blockedRange) return { kind: "blocked" as const };
-
-    const totalUnits = prop.totalUnits ?? 1;
-    const capacityCheckDates = [
-      startDate,
-      ...overlapping
-        .map((range) => range.startDate)
-        .filter((date) => date > startDate && date < endDate),
-    ];
-    const reachesCapacity = capacityCheckDates.some((date) => {
-      const occupiedUnits = overlapping.filter(
-        (range) => range.startDate <= date && range.endDate > date
-      ).length;
-      return occupiedUnits >= totalUnits;
-    });
-
-    if (reachesCapacity) {
-      return { kind: "full" as const, totalUnits };
-    }
 
     const [booking] = await tx
       .insert(bookings)
@@ -158,18 +108,6 @@ router.post("/", async (req, res) => {
     res.status(403).json({ error: "You cannot link up your own property." });
     return;
   }
-  if (outcome.kind === "blocked") {
-    res.status(409).json({ error: "The property is unavailable for part of the selected dates." });
-    return;
-  }
-  if (outcome.kind === "full") {
-    const msg = outcome.totalUnits > 1
-      ? `All ${outcome.totalUnits} units are booked for these dates. Please choose different dates.`
-      : "These dates are already booked. Please choose different dates.";
-    res.status(409).json({ error: msg });
-    return;
-  }
-
   const { booking, prop } = outcome;
 
   const [guest] = await db
@@ -184,10 +122,10 @@ router.post("/", async (req, res) => {
       ["booking.new.owner.bell", "booking.new.owner.sms", "booking.new.admin.bell", "booking.new.admin.sms"],
       bkVars,
       {
-        "booking.new.owner.bell": `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`,
-        "booking.new.owner.sms":  `${guestName} linked up "${prop.title}" from ${startDate} to ${endDate}.`,
-        "booking.new.admin.bell": `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`,
-        "booking.new.admin.sms":  `New link-up: ${guestName} booked "${prop.title}" (${startDate} → ${endDate}).`,
+        "booking.new.owner.bell": `${guestName} sent a link-up request for "${prop.title}".`,
+        "booking.new.owner.sms":  `${guestName} sent a link-up request for "${prop.title}".`,
+        "booking.new.admin.bell": `New link-up request: ${guestName} for "${prop.title}".`,
+        "booking.new.admin.sms":  `New link-up request: ${guestName} for "${prop.title}".`,
       }
     );
     await db.insert(notifications).values({

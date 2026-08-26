@@ -573,6 +573,10 @@ router.get("/:id/availability", async (req, res) => {
 
   const isOwner = caller.userId && caller.userId === prop.ownerId;
   const isAdmin = caller.role === "admin";
+  if (!isOwner && !isAdmin) {
+    res.status(403).json({ error: "Availability calendars are private." });
+    return;
+  }
   if (prop.propertyStatus === "sold" && !isOwner && !isAdmin) {
     res.status(410).json({ error: "This property has been sold", sold: true });
     return;
