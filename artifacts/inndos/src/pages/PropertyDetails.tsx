@@ -621,6 +621,12 @@ export default function PropertyDetails() {
         return;
       }
 
+      const refreshedProperty = await fetch(`/api/properties/${property.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (refreshedProperty.ok) {
+        setProperty(await refreshedProperty.json());
+      }
       setIsLinkedUp(true);
       toast({
         title: "Linked Up! 🔗",
