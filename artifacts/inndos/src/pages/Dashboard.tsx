@@ -929,9 +929,6 @@ export default function Dashboard() {
   const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
   const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
   const [calendarProperty, setCalendarProperty] = useState<{ id: string; title: string } | null>(null);
-  const [assignPlan, setAssignPlan] = useState<"free" | "basic" | "pro" | "enterprise">("basic");
-  const [assignMonths, setAssignMonths] = useState(1);
-  const [assignFeaturedLimit, setAssignFeaturedLimit] = useState(0);
   const [isAssigning, setIsAssigning] = useState(false);
 
   // Admin plan management state
@@ -3861,7 +3858,7 @@ export default function Dashboard() {
                                 <Eye className="h-3 w-3" /> View Profile
                               </Button>
                               <Button size="sm" variant="outline" className="gap-1 text-zinc-700 border-zinc-300 hover:bg-zinc-50"
-                                onClick={() => { setAssignSubDialog({ userId: u.id, userName: u.name }); setAssignPlan("basic"); setAssignMonths(1); setAssignFeaturedLimit(0); }}>
+                                onClick={() => setAssignSubDialog({ userId: u.id, userName: u.name })}>
                                 <Crown className="h-3 w-3" /> Assign Plan
                               </Button>
                               {!isSelf && u.status !== 'suspended' ? (
@@ -4252,7 +4249,7 @@ export default function Dashboard() {
                                   <Button
                                     size="sm" variant="outline"
                                     className="text-xs h-7 px-2"
-                                    onClick={() => { setAssignSubDialog({ userId: sub.userId, userName: sub.userName ?? sub.userEmail ?? "User" }); setAssignPlan(sub.plan); setAssignMonths(sub.billingMonths || 1); setAssignFeaturedLimit(sub.featuredLimitOverride ?? 0); }}
+                                    onClick={() => setAssignSubDialog({ userId: sub.userId, userName: sub.userName ?? sub.userEmail ?? "User" })}
                                   >
                                     Reassign
                                   </Button>
@@ -5865,42 +5862,13 @@ export default function Dashboard() {
       <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Assign Subscription Plan</DialogTitle>
+            <DialogTitle>Move Subscriber to Free</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">Assigning to: <span className="font-semibold">{assignSubDialog?.userName}</span></p>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Plan</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['free', 'basic', 'pro', 'enterprise'] as const).map(p => (
-                  <button key={p} onClick={() => setAssignPlan(p)} className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${assignPlan === p ? 'border-zinc-800 bg-zinc-900 text-white' : 'border-zinc-200 hover:border-zinc-400'}`}>{p}</button>
-                ))}
-              </div>
-            </div>
-            {assignPlan !== 'free' && (
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Duration (months)</label>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setAssignMonths(m => Math.max(1, m - 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">−</button>
-                  <span className="w-8 text-center font-bold text-lg">{assignMonths}</span>
-                  <button onClick={() => setAssignMonths(m => Math.min(24, m + 1))} className="h-8 w-8 rounded-full border flex items-center justify-center hover:bg-zinc-100 font-bold text-lg leading-none">+</button>
-                  <span className="text-sm text-gray-500">months</span>
-                </div>
-              </div>
-            )}
-            {assignPlan === 'enterprise' && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold">Featured allocation per month</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={assignFeaturedLimit}
-                  onChange={(event) => setAssignFeaturedLimit(Math.max(0, Number(event.target.value)))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-                <p className="text-xs text-gray-500">This negotiated allowance is specific to this subscriber.</p>
-              </div>
-            )}
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold">{assignSubDialog?.userName}</span> will be moved to the Free plan.
+              Basic, Pro, and Enterprise plans are activated only after a completed PesaPal payment.
+            </p>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
@@ -5914,12 +5882,12 @@ export default function Dashboard() {
                   const r = await fetch("/api/admin/subscriptions/assign", {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: assignPlan, billingMonths: assignMonths, featuredLimitOverride: assignPlan === "enterprise" ? assignFeaturedLimit : null }),
+                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: "free" }),
                   });
                   if (r.ok) {
                     await fetchAdminSubscriptions();
                     setAssignSubDialog(null);
-                    toast({ title: "Plan assigned", description: `${assignSubDialog.userName} is now on ${assignPlan} plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
+                    toast({ title: "Plan updated", description: `${assignSubDialog.userName} is now on the Free plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
                   } else {
                     const d = await r.json();
                     toast({ title: "Failed", description: d.error, variant: "destructive" });
@@ -5928,7 +5896,7 @@ export default function Dashboard() {
               }}
             >
               {isAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Assign Plan
+              Move to Free
             </Button>
           </DialogFooter>
         </DialogContent>

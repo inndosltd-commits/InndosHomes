@@ -7,4 +7,4 @@ Paid subscriptions must be created only from a gateway result bound to the exact
 
 **Why:** A client-visible manual activation route and loosely bound gateway callbacks can let an unpaid or different completed order activate a paid plan.
 
-**How to apply:** Keep customer-facing paid activation behind checkout and verified callback/IPN processing. Explicit plan assignment may remain available only through authenticated admin operations.
+**How to apply:** Keep every paid activation and paid-term extension behind checkout and verified callback/IPN processing, including admin tools. Admins may cancel paid subscriptions or move users to Free, but must not assign, reactivate, convert, or extend a paid plan without a completed bound payment.

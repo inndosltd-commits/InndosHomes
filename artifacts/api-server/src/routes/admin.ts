@@ -528,6 +528,13 @@ router.post("/subscriptions/assign", async (req, res) => {
     res.status(400).json({ error: "userId and plan (free/basic/pro/enterprise) are required" });
     return;
   }
+  if (plan !== "free") {
+    res.status(402).json({
+      error: "Paid plans can only be activated after a completed PesaPal payment.",
+      code: "PAYMENT_REQUIRED",
+    });
+    return;
+  }
 
   const [targetUser] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId));
   if (!targetUser) {
@@ -542,45 +549,18 @@ router.post("/subscriptions/assign", async (req, res) => {
     .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
 
   const now = new Date();
-
-  if (plan === "free") {
-    // Free plan — create a no-expiry active record
-    const [newSub] = await db
-      .insert(subscriptions)
-      .values({
-        userId,
-        plan: "free",
-        status: "active",
-        billingCycle: "custom",
-        billingMonths: 0,
-        amountPaid: 0,
-        startDate: now.toISOString().slice(0, 10),
-        endDate: "9999-12-31",
-        featuredLimitOverride: null,
-      })
-      .returning();
-    res.status(201).json(newSub);
-    return;
-  }
-
-  const months = billingMonths && billingMonths >= 1 ? Math.floor(billingMonths) : 1;
-  const endDate = new Date(now);
-  endDate.setMonth(endDate.getMonth() + months);
-
   const [newSub] = await db
     .insert(subscriptions)
     .values({
       userId,
-      plan: plan as "basic" | "pro" | "enterprise",
+      plan: "free",
       status: "active",
       billingCycle: "custom",
-      billingMonths: months,
+      billingMonths: 0,
       amountPaid: 0,
       startDate: now.toISOString().slice(0, 10),
-      endDate: endDate.toISOString().slice(0, 10),
-      featuredLimitOverride: plan === "enterprise" && featuredLimitOverride != null
-        ? Math.max(0, Math.floor(featuredLimitOverride))
-        : null,
+      endDate: "9999-12-31",
+      featuredLimitOverride: null,
     })
     .returning();
 
@@ -598,6 +578,38 @@ router.patch("/subscriptions/:id", async (req, res) => {
     billingMonths?: number;
     featuredLimitOverride?: number | null;
   };
+
+  const [existing] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.id, req.params.id));
+  if (!existing) {
+    res.status(404).json({ error: "Subscription not found" });
+    return;
+  }
+  if (plan && plan !== existing.plan) {
+    res.status(402).json({
+      error: plan === "free"
+        ? "Use the Free-plan assignment action to downgrade this subscriber."
+        : "Paid plans can only be activated after a completed PesaPal payment.",
+      code: plan === "free" ? "USE_FREE_ASSIGNMENT" : "PAYMENT_REQUIRED",
+    });
+    return;
+  }
+  if (status === "active" && existing.status !== "active") {
+    res.status(402).json({
+      error: "A paid subscription can only be activated after a completed PesaPal payment.",
+      code: "PAYMENT_REQUIRED",
+    });
+    return;
+  }
+  if (existing.plan !== "free" && (endDate !== undefined || billingMonths !== undefined)) {
+    res.status(400).json({
+      error: "Paid subscription dates are controlled by the completed payment.",
+      code: "PAYMENT_IMMUTABLE",
+    });
+    return;
+  }
 
   const updates: Record<string, unknown> = {};
   if (plan && ["free", "basic", "pro", "enterprise"].includes(plan)) updates.plan = plan;

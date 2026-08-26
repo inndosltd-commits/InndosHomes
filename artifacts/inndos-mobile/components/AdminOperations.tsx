@@ -599,16 +599,14 @@ export function AdminOperations() {
       <>
         <View style={styles.toolbar}>
           <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Subscriptions</Text>
-          <ActionButton label="Assign" onPress={() => openForm({
-            title: "Assign subscription",
-            submitLabel: "Assign plan",
+          <ActionButton label="Move to Free" onPress={() => openForm({
+            title: "Move subscriber to Free",
+            submitLabel: "Move to Free",
             fields: [
               { key: "userId", label: "User ID", placeholder: "Paste the user ID" },
-              { key: "plan", label: "Plan", options: ["free", "basic", "pro", "enterprise"] },
-              { key: "billingMonths", label: "Months", placeholder: "1" },
             ],
-            initial: { plan: "basic", billingMonths: "1" },
-            onSubmit: async (values) => mutate("/api/admin/subscriptions/assign", "POST", { ...values, billingMonths: Number(values.billingMonths) }, "Subscription assigned."),
+            initial: {},
+            onSubmit: async (values) => mutate("/api/admin/subscriptions/assign", "POST", { userId: values.userId, plan: "free" }, "Subscriber moved to Free."),
           })} colors={colors} tone="primary" icon="plus" />
         </View>
         {subscriptions.map((subscription) => {
@@ -619,17 +617,6 @@ export function AdminOperations() {
               <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(subscription, "userEmail")} · {statusLabel(subscription.plan)} · {statusLabel(subscription.status)}</Text>
               <Text style={[styles.minorText, { color: colors.mutedForeground }]}>Ends {shortDate(subscription.endDate)} · {formatKES(subscription.amountPaid)}</Text>
               <View style={styles.actions}>
-                <ActionButton label="Change plan" onPress={() => openForm({
-                  title: "Update subscription",
-                  submitLabel: "Save changes",
-                  fields: [
-                    { key: "plan", label: "Plan", options: ["free", "basic", "pro", "enterprise"] },
-                    { key: "status", label: "Status", options: ["active", "expired", "cancelled"] },
-                    { key: "billingMonths", label: "Months", placeholder: "1" },
-                  ],
-                  initial: { plan: value(subscription, "plan", "basic"), status: value(subscription, "status", "active"), billingMonths: value(subscription, "billingMonths", "1") },
-                  onSubmit: async (values) => mutate(`/api/admin/subscriptions/${id}`, "PATCH", { ...values, billingMonths: Number(values.billingMonths) }, "Subscription updated."),
-                })} colors={colors} icon="edit-3" />
                 <ActionButton label="Cancel" onPress={() => confirm("Cancel subscription?", "The subscription will be marked cancelled.", () => mutate(`/api/admin/subscriptions/${id}`, "DELETE", undefined, "Subscription cancelled."))} colors={colors} tone="danger" icon="x-circle" />
               </View>
             </Card>
