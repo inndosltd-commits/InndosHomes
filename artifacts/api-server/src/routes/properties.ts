@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -20,9 +20,18 @@ const execFileAsync = promisify(execFile);
 const MAX_LISTING_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_LISTING_VIDEO_BYTES = 250 * 1024 * 1024;
 const MAX_LISTING_VIDEO_SECONDS = 300;
-const MEDIA_READY_RETRY_DELAYS_MS = [0, 250, 750, 1_500];
+const MEDIA_READY_RETRY_DELAYS_MS = [0, 500, 1_500, 3_000, 5_000, 10_000];
 
 type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
+
+class MediaObjectSizeError extends Error {
+  constructor(
+    readonly actualBytes: number,
+    readonly maxBytes: number,
+  ) {
+    super(`Stored media size ${actualBytes} exceeds ${maxBytes}`);
+  }
+}
 
 async function inspectObjectEntityWhenReady(path: string) {
   let lastReadinessError: unknown;
@@ -37,15 +46,36 @@ async function inspectObjectEntityWhenReady(path: string) {
   throw lastReadinessError;
 }
 
-async function downloadObjectEntityWhenReady(path: string): Promise<Buffer> {
+async function downloadObjectEntityWhenReady(path: string, maxBytes: number): Promise<Buffer> {
   let lastReadinessError: unknown;
   for (const delayMs of MEDIA_READY_RETRY_DELAYS_MS) {
     if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(path);
-      const [bytes] = await objectFile.download();
-      return bytes;
+      const [metadata] = await objectFile.getMetadata();
+      const storedSize = Number(metadata.size ?? 0);
+      if (Number.isFinite(storedSize) && storedSize > maxBytes) {
+        throw new MediaObjectSizeError(storedSize, maxBytes);
+      }
+      const chunks: Buffer[] = [];
+      let bytesRead = 0;
+      await new Promise<void>((resolve, reject) => {
+        const stream = objectFile.createReadStream();
+        stream.on("data", (chunk: Buffer | Uint8Array) => {
+          const bytes = Buffer.from(chunk);
+          bytesRead += bytes.length;
+          if (bytesRead > maxBytes) {
+            stream.destroy(new MediaObjectSizeError(bytesRead, maxBytes));
+            return;
+          }
+          chunks.push(bytes);
+        });
+        stream.on("end", resolve);
+        stream.on("error", reject);
+      });
+      return Buffer.concat(chunks, bytesRead);
     } catch (error) {
+      if (error instanceof MediaObjectSizeError) throw error;
       lastReadinessError = error;
     }
   }
@@ -150,7 +180,7 @@ async function validateNewListingMedia({
           // Validate the complete stored object. A preliminary ranged header read
           // is intentionally avoided because it can fail independently on valid
           // direct uploads from browsers and native devices.
-          const videoBytes = await downloadObjectEntityWhenReady(path);
+          const videoBytes = await downloadObjectEntityWhenReady(path, maxBytes);
           if (videoBytes.length < 1 || videoBytes.length > maxBytes) {
             return videoBytes.length < 1
               ? "An uploaded video is empty. Please choose the file again."
@@ -164,24 +194,24 @@ async function validateNewListingMedia({
             [
               "-v", "error",
               "-select_streams", "v:0",
-              "-show_entries", "stream=codec_type:format=format_name,duration",
+              "-show_entries", "stream=codec_type,duration:format=format_name,duration",
               "-of", "json",
               inputPath,
             ],
-            { timeout: 45_000, maxBuffer: 1024 * 1024 }
+            { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 }
           );
           const probe = JSON.parse(stdout) as {
-            streams?: Array<{ codec_type?: string }>;
+            streams?: Array<{ codec_type?: string; duration?: string }>;
             format?: { format_name?: string; duration?: string };
           };
-          const formats = probe.format?.format_name?.split(",") ?? [];
-          const duration = Number(probe.format?.duration ?? 0);
           const hasVideoStream = probe.streams?.some((stream) => stream.codec_type === "video") ?? false;
-          const isSupportedContainer = formats.some((format) =>
-            ["mov", "mp4", "matroska", "webm"].includes(format)
-          );
-          if (!hasVideoStream || !isSupportedContainer || !Number.isFinite(duration) || duration <= 0) {
-            return "This video could not be decoded. Please upload an MP4, MOV, or WebM file.";
+          const durationCandidates = [
+            Number(probe.format?.duration),
+            ...(probe.streams ?? []).map((stream) => Number(stream.duration)),
+          ].filter((value) => Number.isFinite(value) && value > 0);
+          const duration = durationCandidates.length > 0 ? Math.max(...durationCandidates) : 0;
+          if (!hasVideoStream || duration <= 0) {
+            return "This video could not be decoded. Please choose a valid video file.";
           }
           if (duration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
             return "Listing videos must be five minutes or shorter.";
@@ -191,6 +221,9 @@ async function validateNewListingMedia({
         }
       }
     } catch (error) {
+      if (error instanceof MediaObjectSizeError) {
+        return `A ${expectedKind} exceeds the ${Math.floor(error.maxBytes / (1024 * 1024))} MB limit.`;
+      }
       if (error instanceof ObjectNotFoundError) {
         return `An uploaded ${expectedKind} could not be found. Please upload it again.`;
       }
@@ -200,7 +233,7 @@ async function validateNewListingMedia({
         error,
       });
       return expectedKind === "video"
-        ? "This video could not be verified. Please upload an MP4, MOV, or WebM file that is not damaged."
+        ? "This video could not be verified. Please choose a valid video file that is not damaged."
         : "An uploaded image could not be verified. Please upload it again.";
     }
   }
@@ -249,6 +282,65 @@ async function createVideoPosters(videoPaths: string[], userId: string): Promise
     }
   }
   return posters;
+}
+
+async function normalizeNewListingVideos(
+  videoPaths: string[],
+  existingVideoPaths: Set<string>,
+  userId: string,
+): Promise<string[]> {
+  const normalizedPaths: string[] = [];
+  for (const videoPath of videoPaths) {
+    if (existingVideoPaths.has(videoPath)) {
+      normalizedPaths.push(videoPath);
+      continue;
+    }
+
+    const workDir = join(tmpdir(), `inndos-video-normalize-${randomUUID()}`);
+    const inputPath = join(workDir, "source-video");
+    const outputPath = join(workDir, "normalized.mp4");
+    try {
+      const videoBytes = await downloadObjectEntityWhenReady(
+        videoPath,
+        MAX_LISTING_VIDEO_BYTES,
+      );
+      await mkdir(workDir, { recursive: true });
+      await writeFile(inputPath, videoBytes);
+      await execFileAsync(
+        "ffmpeg",
+        [
+          "-y",
+          "-i", inputPath,
+          "-map", "0:v:0",
+          "-map", "0:a?",
+          "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-crf", "25",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-movflags", "+faststart",
+          "-shortest",
+          outputPath,
+        ],
+        { timeout: 240_000, maxBuffer: 4 * 1024 * 1024 },
+      );
+      const outputStats = await stat(outputPath);
+      if (outputStats.size < 1 || outputStats.size > MAX_LISTING_VIDEO_BYTES) {
+        throw new MediaObjectSizeError(outputStats.size, MAX_LISTING_VIDEO_BYTES);
+      }
+      const normalizedPath = `/objects/listing-videos/${userId}/${randomUUID()}.mp4`;
+      await objectStorageService.saveObjectEntity(
+        normalizedPath,
+        await readFile(outputPath),
+        "video/mp4",
+      );
+      normalizedPaths.push(normalizedPath);
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+    }
+  }
+  return normalizedPaths;
 }
 
 async function syncVideoPosters(
@@ -590,7 +682,7 @@ router.post("/videos/process", async (req, res) => {
   const outputPath = join(workDir, "edited.mp4");
   const captionPath = join(workDir, "caption.txt");
   try {
-    const videoBytes = await downloadObjectEntityWhenReady(sourcePath);
+    const videoBytes = await downloadObjectEntityWhenReady(sourcePath, MAX_LISTING_VIDEO_BYTES);
     if (videoBytes.length < 1 || videoBytes.length > MAX_LISTING_VIDEO_BYTES) {
       res.status(400).json({
         error: videoBytes.length < 1
@@ -1033,9 +1125,25 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  let normalizedVideoList: string[];
+  try {
+    normalizedVideoList = await normalizeNewListingVideos(
+      videoList,
+      new Set(),
+      userId,
+    );
+  } catch (error) {
+    req.log?.error({ err: error }, "Listing video normalization failed");
+    res.status(400).json({
+      error: "This video could not be converted for playback. Please choose a valid video file.",
+      code: "INVALID_MEDIA",
+    });
+    return;
+  }
+
   let videoPosters: string[] = [];
   try {
-    videoPosters = await createVideoPosters(videoList, userId);
+    videoPosters = await createVideoPosters(normalizedVideoList, userId);
   } catch (error) {
     req.log?.error({ err: error }, "Listing video poster generation failed");
     res.status(400).json({ error: "A video preview image could not be generated. Please upload a different video.", code: "INVALID_MEDIA" });
@@ -1058,7 +1166,7 @@ router.post("/", async (req, res) => {
       sqft: body.sqft ?? 0,
     } : {}),
     images: imageList,
-    videos: videoList,
+    videos: normalizedVideoList,
     videoPosters,
     image: primaryImage,
     ownerId: userId,
@@ -1159,11 +1267,29 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  let videoPosters = prop.videoPosters ?? [];
+  let normalizedVideoList = videoList;
   if (videoList !== undefined) {
     try {
-      videoPosters = await syncVideoPosters(
+      normalizedVideoList = await normalizeNewListingVideos(
         videoList,
+        new Set(prop.videos ?? []),
+        userId,
+      );
+    } catch (error) {
+      req.log?.error({ err: error }, "Listing video normalization failed");
+      res.status(400).json({
+        error: "This video could not be converted for playback. Please choose a valid video file.",
+        code: "INVALID_MEDIA",
+      });
+      return;
+    }
+  }
+
+  let videoPosters = prop.videoPosters ?? [];
+  if (normalizedVideoList !== undefined) {
+    try {
+      videoPosters = await syncVideoPosters(
+        normalizedVideoList,
         prop.videos ?? [],
         prop.videoPosters ?? [],
         userId,
@@ -1179,7 +1305,7 @@ router.patch("/:id", async (req, res) => {
     ...body,
     ...(typeof body.subtype === "string" ? { subtype: normalizeSubtype(body.subtype) } : {}),
     ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
-    ...(videoList !== undefined ? { videos: videoList, videoPosters } : {}),
+    ...(normalizedVideoList !== undefined ? { videos: normalizedVideoList, videoPosters } : {}),
   };
   const updateSchema = insertPropertySchema.omit({ ownerId: true, isVerified: true }).partial();
   const result = updateSchema.safeParse(patchBody);
@@ -1220,11 +1346,11 @@ router.patch("/:id", async (req, res) => {
     }
   }
 
-  if (videoList !== undefined) {
-    const videosChanged = JSON.stringify(videoList) !== JSON.stringify(prop.videos ?? []);
+  if (normalizedVideoList !== undefined) {
+    const videosChanged = JSON.stringify(normalizedVideoList) !== JSON.stringify(prop.videos ?? []);
     const postersChanged = JSON.stringify(videoPosters) !== JSON.stringify(prop.videoPosters ?? []);
     if (videosChanged || postersChanged) {
-      updatePayload.videos = videoList;
+      updatePayload.videos = normalizedVideoList;
       updatePayload.videoPosters = videoPosters;
     }
   }

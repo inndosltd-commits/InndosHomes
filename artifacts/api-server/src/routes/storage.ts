@@ -27,10 +27,27 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
 ]);
-const ALLOWED_VIDEO_TYPES = new Set([
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
+const VIDEO_FILE_EXTENSIONS = new Set([
+  "3g2",
+  "3gp",
+  "asf",
+  "avi",
+  "flv",
+  "m2ts",
+  "m4v",
+  "mkv",
+  "mov",
+  "mp4",
+  "mpe",
+  "mpeg",
+  "mpg",
+  "mts",
+  "ogv",
+  "qt",
+  "ts",
+  "vob",
+  "webm",
+  "wmv",
 ]);
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf"]);
 
@@ -54,8 +71,12 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   try {
     const { name, size, contentType } = parsed.data;
     const normalizedType = contentType.toLowerCase().split(";")[0]?.trim() ?? "";
-    const isImage = ALLOWED_IMAGE_TYPES.has(normalizedType);
-    const isVideo = ALLOWED_VIDEO_TYPES.has(normalizedType);
+    const extension = name.split(".").pop()?.toLowerCase() ?? "";
+    // Picker/browser MIME values are not authoritative. Native libraries often
+    // report application/octet-stream or vendor-specific video/* values.
+    // The property write boundary probes the stored bytes before accepting it.
+    const isVideo = normalizedType.startsWith("video/") || VIDEO_FILE_EXTENSIONS.has(extension);
+    const isImage = !isVideo && ALLOWED_IMAGE_TYPES.has(normalizedType);
     const isDocument = ALLOWED_DOCUMENT_TYPES.has(normalizedType);
 
     if (!isImage && !isVideo && !isDocument) {
@@ -200,6 +221,34 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // Direct-upload metadata is untrusted. Never serve active content using an
+    // attacker-selected MIME type from the same origin as the application.
+    const storedType = response.headers.get("content-type")?.toLowerCase().split(";")[0]?.trim() ?? "";
+    const safePrivateTypes = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+      "video/3gpp",
+      "video/3gpp2",
+      "video/x-msvideo",
+      "video/x-matroska",
+      "video/mpeg",
+      "video/ogg",
+      "video/x-ms-wmv",
+      "video/x-flv",
+      "video/x-m4v",
+      "application/pdf",
+    ]);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (!safePrivateTypes.has(storedType)) {
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", "attachment");
+    }
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);

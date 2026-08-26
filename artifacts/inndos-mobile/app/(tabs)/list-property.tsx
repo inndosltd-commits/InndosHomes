@@ -1157,14 +1157,33 @@ export default function ListPropertyScreen() {
   // Build a MediaItem from a picker asset, preserving mimeType & fileName.
   const toMediaItem = (a:ImagePicker.ImagePickerAsset, isVideo:boolean): MediaItem => {
     const ext = (a.fileName?.split(".").pop() || a.uri.split(".").pop() || (isVideo?"mp4":"jpg")).toLowerCase();
+    const videoMimeByExtension:Record<string,string> = {
+      "3g2":"video/3gpp2",
+      "3gp":"video/3gpp",
+      avi:"video/x-msvideo",
+      flv:"video/x-flv",
+      m4v:"video/x-m4v",
+      mkv:"video/x-matroska",
+      mov:"video/quicktime",
+      mp4:"video/mp4",
+      mpeg:"video/mpeg",
+      mpg:"video/mpeg",
+      ogv:"video/ogg",
+      webm:"video/webm",
+      wmv:"video/x-ms-wmv",
+    };
     const fallbackMime = isVideo
-      ? `video/${ext==="mov"?"quicktime":ext}`
+      ? videoMimeByExtension[ext] ?? "application/octet-stream"
       : `image/${ext==="jpg"?"jpeg":ext}`;
+    const pickerMime = a.mimeType?.toLowerCase().split(";")[0]?.trim();
+    const mimeType = isVideo && (!pickerMime || pickerMime === "application/octet-stream")
+      ? fallbackMime
+      : pickerMime ?? fallbackMime;
     return {
       uri: a.uri,
       uploaded: null,
       isVideo,
-      mimeType: a.mimeType ?? fallbackMime,
+      mimeType,
       fileName: a.fileName ?? (a.uri.split("/").pop() || `asset.${ext}`),
       durationSeconds: isVideo && typeof a.duration === "number" ? a.duration / 1000 : undefined,
     };
