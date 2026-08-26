@@ -68,7 +68,7 @@ function toApiType(raw: string): "rent"|"sale"|"bnb"|"hotel"|"hostel" {
 function toApiSubtype(raw: string, subtype: string): string | undefined {
   if (isCommercial(raw)) return raw.replace("rent-", "");
   if (isSaleVariant(raw)) return raw.replace("sale-", "");
-  if (raw === "hotel" || raw === "hostel") return raw;
+  if (raw === "hotel" || raw === "hostel") return subtype.trim() || raw;
   return subtype.trim() || undefined;
 }
 

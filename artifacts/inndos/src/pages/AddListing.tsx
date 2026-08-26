@@ -328,6 +328,12 @@ const isSaleVariant = (t: string) => ["sale-land", "sale-apartment", "sale-home"
 const isCommercialVariant = (t: string) =>
   ["rent-godown", "rent-business", "rent-stall", "rent-shop"].includes(t);
 const hideBedsBaths = (t: string) => isLandType(t) || isCommercialVariant(t);
+const toApiSubtype = (listingType: string, selectedSubtype: string) => {
+  if (isCommercialVariant(listingType)) return listingType.replace("rent-", "");
+  if (isSaleVariant(listingType)) return listingType.replace("sale-", "");
+  if (listingType === "hotel" || listingType === "hostel") return selectedSubtype.trim() || listingType;
+  return selectedSubtype.trim() || undefined;
+};
 const hasStandardAmenities = (t: string) => !isLandType(t);
 
 function getEditId(): string | null {
@@ -1103,12 +1109,13 @@ export default function AddListing() {
     const parsedSqft = parseInt(sqft, 10);
     const isLand = isLandType(listingType);
     const specsAreApplicable = !hideBedsBaths(listingType);
+    const effectiveSubtype = toApiSubtype(listingType, subtype);
 
     const clientErrors: Record<string, string[]> = {};
     if (!title.trim()) clientErrors.title = ["Title is required"];
     if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
     if (!address.trim()) clientErrors.address = ["Address is required"];
-    if ((listingType === "rent" || listingType === "bnb" || listingType === "hotel" || listingType === "hostel" || listingType === "sale-apartment" || listingType === "sale-home") && !subtype) {
+    if ((listingType === "rent" || listingType === "bnb") && !effectiveSubtype) {
       clientErrors.subtype = ["Please select a property category"];
     }
     // B&B listings use the required daily rate as their default "per night"
@@ -1121,6 +1128,11 @@ export default function AddListing() {
 
     if (Object.keys(clientErrors).length > 0) {
       setFieldErrors(clientErrors);
+      const firstInvalidField = Object.keys(clientErrors)[0];
+      requestAnimationFrame(() => {
+        document.getElementById(firstInvalidField)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document.getElementById(firstInvalidField)?.focus();
+      });
       toast({ title: "Please fix the errors below", variant: "destructive" });
       return;
     }
@@ -1171,11 +1183,7 @@ export default function AddListing() {
         videos,
         tags: selectedAmenities,
         // Persist the category as subtype so Search can filter correctly
-        subtype: isCommercialVariant(listingType)
-          ? listingType.replace("rent-", "")   // "rent-godown" → "godown", "rent-business" → "business", etc.
-          : isSaleVariant(listingType)
-            ? listingType.replace("sale-", "") // "sale-apartment" → "apartment", "sale-home" → "home", "sale-land" → "land"
-            : (subtype || undefined),
+        subtype: effectiveSubtype,
         hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
         priceUnit: listingType === "bnb" ? "night" : (priceUnit || undefined),
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
@@ -1194,6 +1202,11 @@ export default function AddListing() {
         const data = await res.json().catch(() => ({})) as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
         if (data.details?.fieldErrors && Object.keys(data.details.fieldErrors).length > 0) {
           setFieldErrors(data.details.fieldErrors);
+          const firstInvalidField = Object.keys(data.details.fieldErrors)[0];
+          requestAnimationFrame(() => {
+            document.getElementById(firstInvalidField)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById(firstInvalidField)?.focus();
+          });
           toast({
             title: isEditing ? "Update failed" : "Submission failed",
             description: "Please fix the highlighted errors below.",
@@ -1293,7 +1306,16 @@ export default function AddListing() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="type">Listing Type</Label>
-                      <Select value={listingType} onValueChange={setListingType} required>
+                      <Select
+                        value={listingType}
+                        onValueChange={(value) => {
+                          setListingType(value);
+                          setSubtype("");
+                          setPriceUnit("");
+                          setFieldErrors(prev => ({ ...prev, subtype: [], priceUnit: [] }));
+                        }}
+                        required
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -1326,7 +1348,7 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label htmlFor="subtype">Apartment Type</Label>
                     <Select value={subtype} onValueChange={setSubtype}>
-                      <SelectTrigger>
+                      <SelectTrigger id="subtype" className={fieldErrors.subtype?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select apartment type (optional)" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1340,6 +1362,7 @@ export default function AddListing() {
                         <SelectItem value="condominium">Condominium</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.subtype?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Helps guests find your property under the right category.</p>
                   </div>
                   )}
@@ -1349,7 +1372,7 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label htmlFor="rent_price_unit">Price Per</Label>
                     <Select value={priceUnit} onValueChange={setPriceUnit}>
-                      <SelectTrigger>
+                      <SelectTrigger id="priceUnit" className={fieldErrors.priceUnit?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select payment period" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1358,6 +1381,7 @@ export default function AddListing() {
                         <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.priceUnit?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Select how often the rent is charged.</p>
                   </div>
                   )}
@@ -1367,7 +1391,7 @@ export default function AddListing() {
                   <div className="space-y-3">
                     <Label htmlFor="bnb_subtype">B&B Property Type</Label>
                     <Select value={subtype} onValueChange={setSubtype}>
-                      <SelectTrigger>
+                      <SelectTrigger id="subtype" className={fieldErrors.subtype?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select B&B type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1427,6 +1451,7 @@ export default function AddListing() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.subtype?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Helps guests understand what kind of stay they are booking.</p>
                   </div>
                   )}
@@ -1457,7 +1482,7 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label htmlFor="hostel_price_unit">Price Per</Label>
                     <Select value={priceUnit} onValueChange={setPriceUnit}>
-                      <SelectTrigger>
+                      <SelectTrigger id="priceUnit" className={fieldErrors.priceUnit?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select payment period" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1467,6 +1492,7 @@ export default function AddListing() {
                         <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.priceUnit?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Select the payment period so students know when they book.</p>
                   </div>
                   )}
@@ -1475,7 +1501,7 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label htmlFor="hotel_price_unit">Price Per</Label>
                     <Select value={priceUnit} onValueChange={setPriceUnit}>
-                      <SelectTrigger>
+                      <SelectTrigger id="priceUnit" className={fieldErrors.priceUnit?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select pricing period" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1483,6 +1509,7 @@ export default function AddListing() {
                         <SelectItem value="month">Per Month</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.priceUnit?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Default is per night. Choose per month for long-stay guests.</p>
                   </div>
                   )}
@@ -1491,7 +1518,7 @@ export default function AddListing() {
                   <div className="space-y-2">
                     <Label htmlFor="commercial_price_unit">Price Per</Label>
                     <Select value={priceUnit} onValueChange={setPriceUnit}>
-                      <SelectTrigger>
+                      <SelectTrigger id="priceUnit" className={fieldErrors.priceUnit?.length ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select pricing unit" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1500,6 +1527,7 @@ export default function AddListing() {
                         <SelectItem value="year">Per Year</SelectItem>
                       </SelectContent>
                     </Select>
+                    {fieldErrors.priceUnit?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     <p className="text-xs text-muted-foreground">Select the pricing unit for this commercial space.</p>
                   </div>
                   )}

@@ -2284,14 +2284,8 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            {b.startDate && b.endDate && (
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
-                              </p>
-                            )}
-                            {b.totalPrice != null && (
-                              <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
-                            )}
+                            <p className="text-sm font-medium text-primary">Customer enquiry</p>
+                            <p className="text-xs text-muted-foreground mt-1">Discuss availability directly</p>
                           </div>
                         </div>
                       ))}
@@ -2341,14 +2335,8 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            {b.startDate && b.endDate && (
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
-                              </p>
-                            )}
-                            {b.totalPrice != null && (
-                              <p className="font-bold text-lg text-primary mt-1">KES {Number(b.totalPrice).toLocaleString()}</p>
-                            )}
+                            <p className="text-sm font-medium text-primary">Link-Up request</p>
+                            <p className="text-xs text-muted-foreground mt-1">Owner will contact you</p>
                             {b.status === "confirmed" && (
                               reviewedBookingIds.has(b.id) ? (
                                 <span className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500"><Star className="h-3 w-3 fill-gray-400 text-gray-400" /> Reviewed</span>
@@ -2737,14 +2725,8 @@ export default function Dashboard() {
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-2 shrink-0">
-                              {b.startDate && b.endDate && (
-                                <p className="text-sm text-muted-foreground">
-                                  {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
-                                </p>
-                              )}
-                              {b.totalPrice != null && (
-                                <p className="font-bold text-lg text-primary">KES {Number(b.totalPrice).toLocaleString()}</p>
-                              )}
+                              <p className="text-sm font-medium text-primary">Customer enquiry</p>
+                              <p className="text-xs text-muted-foreground">Discuss availability directly</p>
                               {b.status === 'pending' && (
                                 <div className="flex gap-2 mt-1">
                                   <Button

@@ -16,7 +16,7 @@ export interface NewBookingEmailParams {
 }
 
 export async function sendNewBookingEmail(params: NewBookingEmailParams): Promise<void> {
-  const { ownerEmail, ownerName, guestName, propertyTitle, startDate, endDate, dashboardUrl } = params;
+  const { ownerEmail, ownerName, guestName, propertyTitle, dashboardUrl } = params;
 
   const { error } = await resend.emails.send({
     from: EMAIL_FROM,
@@ -50,7 +50,7 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
 
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:24px;">
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
+                  <td style="padding:16px 20px;">
                     <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Property</p>
                     <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${propertyTitle}</p>
                   </td>
@@ -59,18 +59,6 @@ export async function sendNewBookingEmail(params: NewBookingEmailParams): Promis
                   <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
                     <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Guest</p>
                     <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${guestName}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Check-in</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${startDate}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Check-out</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${endDate}</p>
                   </td>
                 </tr>
               </table>
@@ -203,7 +191,7 @@ export interface GuestCancelledEmailParams {
 }
 
 export async function sendGuestCancelledEmail(params: GuestCancelledEmailParams): Promise<void> {
-  const { ownerEmail, ownerName, guestName, propertyTitle, startDate, endDate, dashboardUrl } = params;
+  const { ownerEmail, ownerName, guestName, propertyTitle, dashboardUrl } = params;
 
   const { error } = await resend.emails.send({
     from: EMAIL_FROM,
@@ -235,7 +223,7 @@ export async function sendGuestCancelledEmail(params: GuestCancelledEmailParams)
 
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border-radius:8px;border:1px solid #fecaca;overflow:hidden;margin-bottom:24px;">
                 <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #fecaca;">
+                  <td style="padding:16px 20px;">
                     <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Property</p>
                     <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${propertyTitle}</p>
                   </td>
@@ -246,21 +234,9 @@ export async function sendGuestCancelledEmail(params: GuestCancelledEmailParams)
                     <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${guestName}</p>
                   </td>
                 </tr>
-                <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid #fecaca;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Check-in</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${startDate}</p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:#b91c1c;text-transform:uppercase;letter-spacing:0.5px;">Check-out</p>
-                    <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">${endDate}</p>
-                  </td>
-                </tr>
               </table>
 
-              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">These dates are now open again. Head to your dashboard to see your updated booking calendar.</p>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">Head to your dashboard to see your updated link-up requests.</p>
 
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>

@@ -158,16 +158,6 @@ export default function BookingsScreen() {
           }
           renderItem={({ item }) => {
             const status = item.status as BookingStatus;
-            const startDate = new Date(item.startDate).toLocaleDateString("en-KE", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            });
-            const endDate = new Date(item.endDate).toLocaleDateString("en-KE", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            });
 
             const coverImage = (item.propertyImages && item.propertyImages.length > 0)
               ? item.propertyImages[0]
@@ -225,18 +215,9 @@ export default function BookingsScreen() {
 
                 <View style={styles.bookingDates}>
                   <View style={styles.dateBlock}>
-                    <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
-                    <Text style={[styles.dateValue, { color: colors.foreground }]}>{startDate}</Text>
-                  </View>
-                  <Feather name="arrow-right" size={16} color={colors.mutedForeground} />
-                  <View style={styles.dateBlock}>
-                    <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
-                    <Text style={[styles.dateValue, { color: colors.foreground }]}>{endDate}</Text>
-                  </View>
-                  <View style={styles.priceBlock}>
-                    <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>TOTAL</Text>
-                    <Text style={[styles.priceValue, { color: colors.foreground }]}>
-                      KES {item.totalPrice.toLocaleString()}
+                    <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>LINK-UP REQUEST</Text>
+                    <Text style={[styles.dateValue, { color: colors.foreground }]}>
+                      Owner will contact you about availability and next steps
                     </Text>
                   </View>
                 </View>

@@ -91,7 +91,9 @@ export function PropertyCalendar({ propertyId, propertyTitle }: PropertyCalendar
         fetch(`/api/properties/${propertyId}/blocks`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`/api/properties/${propertyId}/availability`),
+        fetch(`/api/properties/${propertyId}/availability`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
       if (blocksRes.ok) setBlocks(await blocksRes.json());
       if (availRes.ok) {

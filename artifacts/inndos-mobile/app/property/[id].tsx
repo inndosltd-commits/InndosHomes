@@ -1,8 +1,6 @@
 import {
   useCreateBooking,
   useGetProperty,
-  useGetPropertyAvailability,
-  getGetPropertyAvailabilityQueryKey,
   useCheckFavorite,
   useAddFavorite,
   useRemoveFavorite,
@@ -31,7 +29,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -41,7 +38,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { BookingCalendar } from "@/components/BookingCalendar";
 import { PropertyLocationMap } from "@/components/PropertyLocationMap";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -101,33 +97,6 @@ function hasLandPlotSize(details: Record<string, unknown> | undefined): boolean 
   );
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-KE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function startOfDay(d: Date): Date {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}
-
-function daysBetween(a: Date, b: Date): number {
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)));
-}
-
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -137,11 +106,6 @@ export default function PropertyDetailScreen() {
   const queryClient = useQueryClient();
   const isWeb = Platform.OS === "web";
 
-  const [checkIn, setCheckIn] = useState<Date>(today);
-  const [bookingNights, setBookingNights] = useState(1);
-  const [showCheckInPicker, setShowCheckInPicker] = useState(false);
-  const [showCheckOutPicker, setShowCheckOutPicker] = useState(false);
-
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -149,131 +113,9 @@ export default function PropertyDetailScreen() {
   const lightboxRef = useRef<FlatList>(null);
 
   const [isLinkedUp, setIsLinkedUp] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showUnavailableContact, setShowUnavailableContact] = useState(false);
-  const [availabilityConflict, setAvailabilityConflict] = useState<string | null>(null);
-
-  const checkOut = addDays(checkIn, bookingNights);
 
   const { data: property, isLoading, error } = useGetProperty(id ?? "");
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
-
-  const isNightlyProperty = Boolean(
-    property &&
-    ["bnb", "hotel", "hostel"].includes(property.type) &&
-    property.priceUnit !== "month"
-  );
-  const { data: bookedRanges, isFetching: isCheckingAvailability, refetch: refetchAvailability } = useGetPropertyAvailability(
-    id ?? "",
-    { query: { queryKey: getGetPropertyAvailabilityQueryKey(id ?? ""), enabled: !!id && isNightlyProperty } }
-  );
-
-  const totalUnits = React.useMemo(
-    () => Math.max(1, (property as unknown as { totalUnits?: number })?.totalUnits ?? 1),
-    [property]
-  );
-
-  const isUnavailable = React.useMemo(() => {
-    if (!bookedRanges || bookedRanges.length === 0) return false;
-    const checkInMs = checkIn.getTime();
-    const checkOutMs = checkOut.getTime();
-
-    // A blocked range makes the selected window unavailable regardless of units.
-    const isBlocked = bookedRanges.some((range) => {
-      if (range.status !== "blocked") return false;
-      const start = new Date(range.startDate).getTime();
-      const end = new Date(range.endDate).getTime();
-      return checkInMs < end && checkOutMs > start;
-    });
-    if (isBlocked) return true;
-
-    // Count only simultaneous pending/confirmed bookings. Separate bookings on
-    // different days must not be added together as if they occupied units at
-    // the same time.
-    const overlapping = bookedRanges.filter((range) => {
-      if (range.status !== "pending" && range.status !== "confirmed") return false;
-      const start = new Date(range.startDate).getTime();
-      const end = new Date(range.endDate).getTime();
-      return checkInMs < end && checkOutMs > start;
-    });
-    const capacityCheckTimes = [
-      checkInMs,
-      ...overlapping
-        .map((range) => new Date(range.startDate).getTime())
-        .filter((time) => time > checkInMs && time < checkOutMs),
-    ];
-    return capacityCheckTimes.some((time) => {
-      const occupiedUnits = overlapping.filter((range) => {
-        const start = new Date(range.startDate).getTime();
-        const end = new Date(range.endDate).getTime();
-        return start <= time && end > time;
-      }).length;
-      return occupiedUnits >= totalUnits;
-    });
-  }, [bookedRanges, checkIn, checkOut, totalUnits]);
-
-  // The earliest future date the guest cannot check out past. Only capacity-
-  // limiting dates count: a single booking on a multi-unit property must not cap
-  // checkout, so we only stop at blocked ranges or dates that would reach
-  // capacity with pending/confirmed bookings.
-  const maxCheckoutDate = React.useMemo<Date | null>(() => {
-    if (!bookedRanges || bookedRanges.length === 0) return null;
-    const checkInMs = startOfDay(checkIn).getTime();
-
-    // Earliest future blocked-range start always caps checkout.
-    let earliestBlocked: number | null = null;
-    for (const r of bookedRanges) {
-      if (r.status !== "blocked") continue;
-      const s = startOfDay(new Date(r.startDate)).getTime();
-      if (s > checkInMs && (earliestBlocked === null || s < earliestBlocked)) {
-        earliestBlocked = s;
-      }
-    }
-
-    // Earliest future date where pending/confirmed bookings reach capacity.
-    let earliestFull: number | null = null;
-    const activeStarts = bookedRanges
-      .filter((r) => r.status === "pending" || r.status === "confirmed")
-      .map((r) => startOfDay(new Date(r.startDate)).getTime())
-      .filter((s) => s > checkInMs)
-      .sort((a, b) => a - b);
-    for (const day of activeStarts) {
-      const occupied = bookedRanges.filter((r) => {
-        if (r.status !== "pending" && r.status !== "confirmed") return false;
-        const s = startOfDay(new Date(r.startDate)).getTime();
-        const e = startOfDay(new Date(r.endDate)).getTime();
-        return day >= s && day < e;
-      }).length;
-      if (occupied >= totalUnits) {
-        earliestFull = day;
-        break;
-      }
-    }
-
-    const candidates = [earliestBlocked, earliestFull].filter(
-      (v): v is number => v !== null
-    );
-    if (candidates.length === 0) return null;
-    return new Date(Math.min(...candidates));
-  }, [bookedRanges, checkIn, totalUnits]);
-
-  const isCheckOutDateDisabled = React.useCallback((date: Date): boolean => {
-    if (maxCheckoutDate && startOfDay(date).getTime() > maxCheckoutDate.getTime()) return true;
-    return false;
-  }, [maxCheckoutDate]);
-
-  React.useEffect(() => {
-    if (maxCheckoutDate && startOfDay(checkOut).getTime() > maxCheckoutDate.getTime()) {
-      const nights = daysBetween(checkIn, maxCheckoutDate);
-      setBookingNights(Math.max(1, nights));
-    }
-  }, [maxCheckoutDate, checkIn, checkOut]);
-
-  React.useEffect(() => {
-    if (!isNightlyProperty) return;
-    if (isUnavailable) setShowUnavailableContact(true);
-    else setShowUnavailableContact(false);
-  }, [isUnavailable, isNightlyProperty]);
 
   const { data: favoriteStatus } = useCheckFavorite(id ?? "");
   const isFavorited = favoriteStatus?.isFavorited ?? false;
@@ -337,25 +179,6 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  const handleCheckInSelect = (date: Date) => {
-    const picked = startOfDay(date);
-    if (picked < today) return;
-    setCheckIn(picked);
-    if (picked >= checkOut) {
-      setBookingNights(1);
-    }
-  };
-
-  const handleCheckOutSelect = (date: Date) => {
-    const picked = startOfDay(date);
-    if (picked <= checkIn) return;
-    setBookingNights(daysBetween(checkIn, picked));
-  };
-
-  const adjustNights = (delta: number) => {
-    setBookingNights((n) => Math.max(1, n + delta));
-  };
-
   const handleLinkUp = () => {
     if (!user) {
       router.push("/(auth)/login");
@@ -363,28 +186,10 @@ export default function PropertyDetailScreen() {
     }
     if (!property) return;
 
-    // First click on nightly property reveals calendar
-    if (isNightlyProperty && !showDatePicker) {
-      setShowDatePicker(true);
-      return;
-    }
-
-    // Dates taken => show contacts
-    if (isNightlyProperty && isUnavailable) {
-      setShowUnavailableContact(true);
-      return;
-    }
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const totalPrice = isNightlyProperty ? property.price * bookingNights : property.price;
-    const confirmationDetails = isNightlyProperty
-      ? `\n\nCheck-in: ${formatDate(checkIn)}\nCheck-out: ${formatDate(checkOut)}\nNights: ${bookingNights}\n\nTotal: KES ${totalPrice.toLocaleString()}`
-      : "\n\nThe owner will review your request and contact you about the next steps.";
-
     Alert.alert(
       "Confirm Link Up",
-      `Link Up with "${property.title}"?${confirmationDetails}`,
+      `Link Up with "${property.title}"?\n\nThe owner will review your request and contact you about availability and next steps.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -394,9 +199,9 @@ export default function PropertyDetailScreen() {
               {
                 data: {
                   propertyId: property.id,
-                  startDate: checkIn.toISOString(),
-                  endDate: (isNightlyProperty ? checkOut : addDays(checkIn, 30)).toISOString(),
-                  totalPrice,
+                  startDate: "1970-01-01",
+                  endDate: "1970-01-02",
+                  totalPrice: property.price,
                 },
               },
               {
@@ -409,22 +214,7 @@ export default function PropertyDetailScreen() {
                     { text: "OK" },
                   ]);
                 },
-                onError: (err: unknown) => {
-                  const status = (err as { response?: { status?: number }; status?: number })?.response?.status
-                    ?? (err as { status?: number })?.status;
-                  if (status === 409) {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                    setAvailabilityConflict(
-                      (err as { message?: string }).message
-                        || "Those dates were just booked. Choose a new check-in and check-out date."
-                    );
-                    setShowDatePicker(true);
-                    setShowUnavailableContact(true);
-                    void refetchAvailability();
-                  } else {
-                    Alert.alert("Error", "Failed to link up. Please try again.");
-                  }
-                },
+                onError: () => Alert.alert("Error", "Failed to link up. Please try again."),
               }
             );
           },
@@ -472,9 +262,7 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  const isNightly = ["bnb", "hotel", "hostel"].includes(property.type) && property.priceUnit !== "month";
-  const showBooking = property.type !== "sale";
-  const totalPrice = property.price * bookingNights;
+  const showBooking = true;
 
   const allPhotos = (property.images && property.images.length > 0)
     ? property.images
@@ -790,134 +578,7 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {showBooking && isNightly && (
-            <View style={[styles.bookingSection, { borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT DATES</Text>
-
-              {isNightlyProperty && (showDatePicker || isLinkedUp) && (
-                <>
-                  <View style={styles.datePickerRow}>
-                    <View style={styles.datePickerBlock}>
-                      <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
-                      {isWeb ? (
-                        <TextInput
-                          style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
-                          value={checkIn.toISOString().split("T")[0]}
-                          onChangeText={(val) => {
-                            const d = new Date(val);
-                            if (!isNaN(d.getTime()) && d >= today) setCheckIn(d);
-                          }}
-                          placeholder="YYYY-MM-DD"
-                          placeholderTextColor={colors.mutedForeground}
-                        />
-                      ) : (
-                        <Pressable
-                          style={[styles.datePickerBtn, { borderColor: colors.border }]}
-                          onPress={() => setShowCheckInPicker(true)}
-                        >
-                          <Feather name="calendar" size={14} color={colors.primary} />
-                          <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
-                            {formatDate(checkIn)}
-                          </Text>
-                        </Pressable>
-                      )}
-                    </View>
-
-                    <Feather name="arrow-right" size={16} color={colors.mutedForeground} style={styles.dateArrow} />
-
-                    <View style={styles.datePickerBlock}>
-                      <Text style={[styles.datePickerLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
-                      {isWeb ? (
-                        <TextInput
-                          style={[styles.webDateInput, { color: colors.foreground, borderColor: colors.border }]}
-                          value={checkOut.toISOString().split("T")[0]}
-                          onChangeText={(val) => {
-                            const d = new Date(val);
-                            if (!isNaN(d.getTime()) && d > checkIn) {
-                              setBookingNights(daysBetween(checkIn, d));
-                            }
-                          }}
-                          placeholder="YYYY-MM-DD"
-                          placeholderTextColor={colors.mutedForeground}
-                        />
-                      ) : (
-                        <Pressable
-                          style={[styles.datePickerBtn, { borderColor: colors.border }]}
-                          onPress={() => setShowCheckOutPicker(true)}
-                        >
-                          <Feather name="calendar" size={14} color={colors.primary} />
-                          <Text style={[styles.datePickerValue, { color: colors.foreground }]}>
-                            {formatDate(checkOut)}
-                          </Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={[styles.availabilityRow]}>
-                    {isCheckingAvailability ? (
-                      <ActivityIndicator size="small" color={colors.mutedForeground} />
-                    ) : bookedRanges !== undefined ? (
-                      <View style={[
-                        styles.availabilityBadge,
-                        { backgroundColor: isUnavailable ? "#fef2f2" : "#f0fdf4", borderColor: isUnavailable ? "#fca5a5" : "#86efac" },
-                      ]}>
-                        <Feather
-                          name={isUnavailable ? "x-circle" : "check-circle"}
-                          size={14}
-                          color={isUnavailable ? "#dc2626" : "#16a34a"}
-                        />
-                        <Text style={[styles.availabilityText, { color: isUnavailable ? "#dc2626" : "#16a34a" }]}>
-                          {isUnavailable ? "Unavailable" : "Available"}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.nightsRow}>
-                    <Text style={[styles.nightsLabel, { color: colors.foreground }]}>
-                      {bookingNights} night{bookingNights !== 1 ? "s" : ""}
-                    </Text>
-                    <View style={styles.nightsControls}>
-                      <Pressable
-                        style={[styles.nightsBtn, { borderColor: colors.border }]}
-                        onPress={() => adjustNights(-1)}
-                      >
-                        <Feather name="minus" size={16} color={colors.foreground} />
-                      </Pressable>
-                      <Text style={[styles.nightsCount, { color: colors.foreground }]}>{bookingNights}</Text>
-                      <Pressable
-                        style={[styles.nightsBtn, { borderColor: colors.border }]}
-                        onPress={() => adjustNights(1)}
-                      >
-                        <Feather name="plus" size={16} color={colors.foreground} />
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  <View style={[styles.priceSummary, { backgroundColor: colors.muted }]}>
-                    <View style={styles.priceSummaryRow}>
-                      <Text style={[styles.priceSummaryLabel, { color: colors.mutedForeground }]}>
-                        KES {property.price.toLocaleString()} × {bookingNights} night{bookingNights !== 1 ? "s" : ""}
-                      </Text>
-                      <Text style={[styles.priceSummaryValue, { color: colors.foreground }]}>
-                        KES {totalPrice.toLocaleString()}
-                      </Text>
-                    </View>
-                    <View style={[styles.priceDivider, { backgroundColor: colors.border }]} />
-                    <View style={styles.priceSummaryRow}>
-                      <Text style={[styles.priceTotalLabel, { color: colors.foreground }]}>Total</Text>
-                      <Text style={[styles.priceTotalValue, { color: colors.primary }]}>
-                        KES {totalPrice.toLocaleString()}
-                      </Text>
-                    </View>
-                  </View>
-                </>
-              )}
-            </View>
-          )}
-
-          {showBooking && !isNightly && property.type === "rent" && (
+          {showBooking && property.type === "rent" && (
             <View style={[styles.rentSummary, { backgroundColor: colors.muted }]}>
               <Feather name="info" size={16} color={colors.mutedForeground} />
               <Text style={[styles.rentSummaryText, { color: colors.mutedForeground }]}>
@@ -926,15 +587,6 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {/* Dates-taken banner */}
-          {(showUnavailableContact || availabilityConflict) && !isLinkedUp && (
-            <View style={[styles.unavailableBanner, { backgroundColor: "#fef2f2", borderColor: "#fca5a5" }]}>
-              <Feather name="alert-circle" size={16} color="#dc2626" />
-              <Text style={[styles.unavailableBannerText, { color: "#dc2626" }]}>
-                {availabilityConflict ?? "These dates are already taken — please choose different dates or contact the owner above."}
-              </Text>
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -942,10 +594,10 @@ export default function PropertyDetailScreen() {
         <View style={[styles.bookingBar, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: bottomPad + 12 }]}>
           <View>
             <Text style={[styles.bookingPriceLabel, { color: colors.mutedForeground }]}>
-              {isNightly ? `${bookingNights} night${bookingNights !== 1 ? "s" : ""}` : "Monthly"}
+              Listed price
             </Text>
             <Text style={[styles.bookingTotalPrice, { color: colors.foreground }]}>
-              KES {(isNightly ? totalPrice : property.price).toLocaleString()}
+              {getPriceLabel(property.type, property.price, property.priceUnit)}
             </Text>
           </View>
           <View style={styles.bookBtnWrapper}>
@@ -962,46 +614,14 @@ export default function PropertyDetailScreen() {
                 <ActivityIndicator size="small" color={colors.primaryForeground} />
               ) : (
                 <Text style={[styles.bookBtnText, { color: colors.primaryForeground }]}>
-                  {isNightlyProperty && !showDatePicker
-                    ? "🔗 Link Up"
-                    : isNightlyProperty && showDatePicker && isUnavailable
-                      ? "Choose new dates"
-                      : user ? "🔗 Link Up" : "Sign In to Link Up"}
+                  {user ? "🔗 Link Up" : "Sign In to Link Up"}
                 </Text>
               )}
             </Pressable>
-            {isNightly && isUnavailable && showDatePicker && (
-              <Text style={[styles.bookBtnHint, { color: colors.mutedForeground }]}>
-                Choose a different date range to continue
-              </Text>
-            )}
           </View>
         </View>
       )}
 
-      <BookingCalendar
-        visible={isNightlyProperty && showCheckInPicker}
-        title="Check-in Date"
-        value={checkIn}
-        minDate={today}
-        bookedRanges={bookedRanges ?? []}
-        totalUnits={totalUnits}
-        onSelect={handleCheckInSelect}
-        onClose={() => setShowCheckInPicker(false)}
-      />
-
-      <BookingCalendar
-        visible={isNightlyProperty && showCheckOutPicker}
-        title="Check-out Date"
-        value={checkOut}
-        minDate={addDays(checkIn, 1)}
-        bookedRanges={bookedRanges ?? []}
-        totalUnits={totalUnits}
-        allowBookedStartDates
-        isDateDisabled={isCheckOutDateDisabled}
-        onSelect={handleCheckOutSelect}
-        onClose={() => setShowCheckOutPicker(false)}
-      />
     </View>
   );
 }

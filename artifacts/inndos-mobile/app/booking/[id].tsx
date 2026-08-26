@@ -41,21 +41,6 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled: "Cancelled",
 };
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-KE", {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function nightsBetween(start: string, end: string): number {
-  const a = new Date(start).getTime();
-  const b = new Date(end).getTime();
-  return Math.max(1, Math.round((b - a) / (1000 * 60 * 60 * 24)));
-}
-
 function getTypeLabel(type: string): string {
   switch (type) {
     case "rent": return "For Rent";
@@ -128,8 +113,6 @@ export default function BookingDetailScreen() {
   }
 
   const status = booking.status as BookingStatus;
-  const nights = nightsBetween(booking.startDate, booking.endDate);
-
   const allPhotos: string[] = (booking.propertyImages && booking.propertyImages.length > 0)
     ? booking.propertyImages
     : booking.propertyVideoPosters && booking.propertyVideoPosters.length > 0
@@ -249,38 +232,16 @@ export default function BookingDetailScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          {/* Dates & Price */}
+          {/* Link-Up details */}
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>BOOKING DETAILS</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>LINK-UP DETAILS</Text>
 
             <View style={[styles.datesCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.dateRow}>
                 <View style={styles.dateBlock}>
-                  <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>CHECK IN</Text>
+                  <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>REQUEST</Text>
                   <Text style={[styles.dateValue, { color: colors.foreground }]}>
-                    {formatDate(booking.startDate)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.dateDivider, { backgroundColor: colors.border }]} />
-
-              <View style={styles.dateRow}>
-                <View style={styles.dateBlock}>
-                  <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>CHECK OUT</Text>
-                  <Text style={[styles.dateValue, { color: colors.foreground }]}>
-                    {formatDate(booking.endDate)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.dateDivider, { backgroundColor: colors.border }]} />
-
-              <View style={styles.dateRow}>
-                <View style={styles.dateBlock}>
-                  <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>DURATION</Text>
-                  <Text style={[styles.dateValue, { color: colors.foreground }]}>
-                    {nights} {nights === 1 ? "night" : "nights"}
+                    The owner will contact you about availability and next steps.
                   </Text>
                 </View>
               </View>
@@ -289,7 +250,7 @@ export default function BookingDetailScreen() {
             <View
               style={[styles.priceCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}
             >
-              <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>TOTAL PRICE</Text>
+              <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>LISTED PRICE</Text>
               <Text style={[styles.priceValue, { color: colors.foreground }]}>
                 KES {booking.totalPrice.toLocaleString()}
               </Text>

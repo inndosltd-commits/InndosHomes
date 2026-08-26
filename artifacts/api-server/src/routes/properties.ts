@@ -35,28 +35,32 @@ function normalizeSubtype(value: string | null | undefined): string {
  * provide inline guidance, but direct API calls must not be able to publish
  * an incomplete listing.
  */
-function getListingCompletenessErrors(body: Record<string, unknown>, imageList: string[]): string[] {
-  const errors: string[] = [];
+function getListingCompletenessErrors(body: Record<string, unknown>, imageList: string[]): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
   const type = String(body.type ?? "");
   const subtype = normalizeSubtype(typeof body.subtype === "string" ? body.subtype : undefined);
   const priceUnit = String(body.priceUnit ?? "").trim();
 
-  if (imageList.length === 0) errors.push("At least one property photo is required.");
+  if (imageList.length === 0) errors.images = ["At least one property photo is required."];
   if (["rent", "sale", "bnb", "hotel", "hostel"].includes(type) && !subtype) {
-    errors.push("A property category is required.");
+    errors.subtype = ["A property category is required."];
   }
   if (["rent", "bnb", "hotel", "hostel"].includes(type) && !priceUnit) {
-    errors.push("A price period is required.");
+    errors.priceUnit = ["A price period is required."];
   }
 
   const hasLat = body.lat !== undefined && body.lat !== null && String(body.lat).trim() !== "";
   const hasLng = body.lng !== undefined && body.lng !== null && String(body.lng).trim() !== "";
-  if (hasLat !== hasLng) errors.push("Provide both latitude and longitude, or leave both blank.");
+  if (hasLat !== hasLng) {
+    errors.lat = ["Provide both latitude and longitude, or leave both blank."];
+    errors.lng = ["Provide both latitude and longitude, or leave both blank."];
+  }
   if (hasLat && hasLng) {
     const lat = Number(body.lat);
     const lng = Number(body.lng);
     if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
-      errors.push("Location coordinates are invalid.");
+      errors.lat = ["Location coordinates are invalid."];
+      errors.lng = ["Location coordinates are invalid."];
     }
   }
 
@@ -840,8 +844,9 @@ router.post("/", async (req, res) => {
   const videoList: string[] = Array.isArray(body.videos) ? body.videos : [];
   const primaryImage = imageList[0] || body.image || "/images/modern_apartment_exterior.png";
   const completenessErrors = getListingCompletenessErrors(body, imageList);
-  if (completenessErrors.length > 0) {
-    res.status(400).json({ error: completenessErrors[0], details: completenessErrors });
+  if (Object.keys(completenessErrors).length > 0) {
+    const firstError = Object.values(completenessErrors)[0]?.[0] ?? "The listing is incomplete.";
+    res.status(400).json({ error: firstError, details: { fieldErrors: completenessErrors } });
     return;
   }
 
@@ -1052,8 +1057,9 @@ router.patch("/:id", async (req, res) => {
     { ...prop, ...result.data, images: effectiveImages },
     effectiveImages
   );
-  if (completenessErrors.length > 0) {
-    res.status(400).json({ error: completenessErrors[0], details: completenessErrors });
+  if (Object.keys(completenessErrors).length > 0) {
+    const firstError = Object.values(completenessErrors)[0]?.[0] ?? "The listing is incomplete.";
+    res.status(400).json({ error: firstError, details: { fieldErrors: completenessErrors } });
     return;
   }
 

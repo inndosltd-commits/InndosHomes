@@ -422,8 +422,6 @@ export default function PropertyDetails() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [videoExpanded, setVideoExpanded] = useState(false);
-  const todayStr = new Date().toISOString().slice(0, 10);
-
   useEffect(() => {
     if (!params?.id) return;
     setIsLoading(true);
@@ -596,8 +594,6 @@ export default function PropertyDetails() {
 
     // Link-Ups are date-free customer enquiries. Dates are internal placeholders
     // required by the existing booking record shape and are never customer-selected.
-    const endDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -607,8 +603,8 @@ export default function PropertyDetails() {
         },
         body: JSON.stringify({
           propertyId: property.id,
-          startDate: todayStr,
-          endDate,
+          startDate: "1970-01-01",
+          endDate: "1970-01-02",
           totalPrice: property.price,
         }),
       });
