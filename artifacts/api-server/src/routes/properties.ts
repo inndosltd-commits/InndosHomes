@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { properties, users, bookings, propertyBlocks, insertPropertySchema, subscriptions, featuredListingUses } from "@workspace/db";
-import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit, getPlanEntitlements } from "./subscriptions";
+import { getVideoLimit, getImageLimit, getActiveSubscription, getPlanLimit, getPlanEntitlements, getUserPlanEntitlements } from "./subscriptions";
 import { eq, and, ilike, or, inArray, count, gte, lte, sql as drizzleSql, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { verifyToken } from "./auth";
@@ -19,8 +19,23 @@ const objectStorageService = new ObjectStorageService();
 const execFileAsync = promisify(execFile);
 const MAX_LISTING_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_LISTING_VIDEO_BYTES = 250 * 1024 * 1024;
+const MAX_LISTING_VIDEO_SECONDS = 300;
+const MEDIA_READY_RETRY_DELAYS_MS = [0, 250, 750, 1_500];
 
 type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
+
+async function inspectObjectEntityWhenReady(path: string) {
+  let lastReadinessError: unknown;
+  for (const delayMs of MEDIA_READY_RETRY_DELAYS_MS) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    try {
+      return await objectStorageService.inspectObjectEntity(path);
+    } catch (error) {
+      lastReadinessError = error;
+    }
+  }
+  throw lastReadinessError;
+}
 
 function normalizeSubtype(value: string | null | undefined): string {
   return (value ?? "")
@@ -98,9 +113,11 @@ async function validateNewListingMedia({
     }
 
     try {
-      const inspection = await objectStorageService.inspectObjectEntity(path);
+      const inspection = await inspectObjectEntityWhenReady(path);
       if (inspection.size < 1 || inspection.size > maxBytes) {
-        return `A ${expectedKind} exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`;
+        return inspection.size < 1
+          ? `An uploaded ${expectedKind} is empty. Please choose the file again.`
+          : `A ${expectedKind} exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`;
       }
       if (inspection.mediaKind !== expectedKind) {
         return `A file in the ${expectedKind} list is not a valid ${expectedKind}.`;
@@ -113,40 +130,51 @@ async function validateNewListingMedia({
           return "An uploaded image could not be decoded.";
         }
       } else {
-        const downloadUrl = await objectStorageService.getObjectEntityDownloadURL(path);
-        const { stdout } = await execFileAsync(
-          "ffprobe",
-          [
-            "-v",
-            "error",
-            "-show_entries",
-            "format=format_name,duration",
-            "-of",
-            "json",
-            downloadUrl,
-          ],
-          { timeout: 30_000, maxBuffer: 1024 * 1024 }
-        );
-        const probe = JSON.parse(stdout) as {
-          format?: { format_name?: string; duration?: string };
-        };
-        const formats = probe.format?.format_name?.split(",") ?? [];
-        const duration = Number(probe.format?.duration ?? 0);
-        const isSupportedContainer = formats.some((format) =>
-          ["mov", "mp4", "m4a", "3gp", "3g2", "mj2", "matroska", "webm"].includes(format)
-        );
-        if (!isSupportedContainer || !Number.isFinite(duration) || duration <= 0) {
-          return "An uploaded video could not be decoded.";
-        }
-        if (duration > 300) {
-          return "Listing videos must be five minutes or shorter.";
+        const workDir = join(tmpdir(), `inndos-video-verify-${randomUUID()}`);
+        try {
+          const objectFile = await objectStorageService.getObjectEntityFile(path);
+          const [videoBytes] = await objectFile.download();
+          await mkdir(workDir, { recursive: true });
+          const inputPath = join(workDir, "source-video");
+          await writeFile(inputPath, videoBytes);
+          const { stdout } = await execFileAsync(
+            "ffprobe",
+            [
+              "-v", "error",
+              "-select_streams", "v:0",
+              "-show_entries", "stream=codec_type:format=format_name,duration",
+              "-of", "json",
+              inputPath,
+            ],
+            { timeout: 45_000, maxBuffer: 1024 * 1024 }
+          );
+          const probe = JSON.parse(stdout) as {
+            streams?: Array<{ codec_type?: string }>;
+            format?: { format_name?: string; duration?: string };
+          };
+          const formats = probe.format?.format_name?.split(",") ?? [];
+          const duration = Number(probe.format?.duration ?? 0);
+          const hasVideoStream = probe.streams?.some((stream) => stream.codec_type === "video") ?? false;
+          const isSupportedContainer = formats.some((format) =>
+            ["mov", "mp4", "matroska", "webm"].includes(format)
+          );
+          if (!hasVideoStream || !isSupportedContainer || !Number.isFinite(duration) || duration <= 0) {
+            return "This video could not be decoded. Please upload an MP4, MOV, or WebM file.";
+          }
+          if (duration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
+            return "Listing videos must be five minutes or shorter.";
+          }
+        } finally {
+          await rm(workDir, { recursive: true, force: true });
         }
       }
     } catch (error) {
       if (error instanceof ObjectNotFoundError) {
         return `An uploaded ${expectedKind} could not be found. Please upload it again.`;
       }
-      return `An uploaded ${expectedKind} could not be verified. Please upload it again.`;
+      return expectedKind === "video"
+        ? "This video could not be verified. Please upload an MP4, MOV, or WebM file that is not damaged."
+        : "An uploaded image could not be verified. Please upload it again.";
     }
   }
 
@@ -194,6 +222,24 @@ async function createVideoPosters(videoPaths: string[], userId: string): Promise
     }
   }
   return posters;
+}
+
+async function syncVideoPosters(
+  nextVideos: string[],
+  currentVideos: string[],
+  currentPosters: string[],
+  userId: string,
+): Promise<string[]> {
+  const newVideoPaths = nextVideos.filter((path) => !currentVideos.includes(path));
+  const newPosters = await createVideoPosters(newVideoPaths, userId);
+  const generatedByVideo = new Map(newVideoPaths.map((path, index) => [path, newPosters[index]]));
+  return nextVideos.map((path) => {
+    const currentIndex = currentVideos.indexOf(path);
+    if (currentIndex >= 0 && currentPosters[currentIndex]) return currentPosters[currentIndex];
+    const generated = generatedByVideo.get(path);
+    if (!generated) throw new Error(`No poster was generated for ${path}`);
+    return generated;
+  });
 }
 
 const VIDEO_CROP_RATIOS = {
@@ -450,6 +496,31 @@ router.post("/videos/process", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
+  const [caller] = await db
+    .select({ role: users.role, status: users.status })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!caller || caller.status !== "active") {
+    res.status(403).json({ error: "This account cannot process listing videos." });
+    return;
+  }
+  if (!["owner", "host", "admin"].includes(caller.role)) {
+    res.status(403).json({ error: "Only owners and hosts can process listing videos." });
+    return;
+  }
+  if (caller?.role !== "admin") {
+    const { plan, entitlements } = await getUserPlanEntitlements(userId);
+    if (entitlements.videoLimit < 1) {
+      res.status(403).json({
+        error: `Your ${plan} plan does not include listing videos. Please upgrade your subscription.`,
+        code: "VIDEO_LIMIT",
+        plan,
+        videoLimit: entitlements.videoLimit,
+      });
+      return;
+    }
+  }
+
   const {
     sourcePath,
     trimStart = 0,
@@ -466,7 +537,11 @@ router.post("/videos/process", async (req, res) => {
     captionPosition?: "top" | "center" | "bottom";
   };
 
-  if (!sourcePath?.startsWith(`/objects/uploads/${userId}/`)) {
+  const ownedSourcePrefixes = [
+    `/objects/uploads/${userId}/`,
+    `/objects/listing-videos/${userId}/`,
+  ];
+  if (!sourcePath || !ownedSourcePrefixes.some((prefix) => sourcePath.startsWith(prefix))) {
     res.status(403).json({ error: "The selected video is not owned by this account." });
     return;
   }
@@ -484,7 +559,15 @@ router.post("/videos/process", async (req, res) => {
   const outputPath = join(workDir, "edited.mp4");
   const captionPath = join(workDir, "caption.txt");
   try {
-    const inspection = await objectStorageService.inspectObjectEntity(sourcePath);
+    const inspection = await inspectObjectEntityWhenReady(sourcePath);
+    if (inspection.size < 1 || inspection.size > MAX_LISTING_VIDEO_BYTES) {
+      res.status(400).json({
+        error: inspection.size < 1
+          ? "The selected video is empty. Please choose it again."
+          : "Videos must be 250 MB or smaller.",
+      });
+      return;
+    }
     if (inspection.mediaKind !== "video") {
       res.status(400).json({ error: "The selected file is not a valid video." });
       return;
@@ -501,9 +584,17 @@ router.post("/videos/process", async (req, res) => {
       { timeout: 30_000, maxBuffer: 1024 * 1024 },
     );
     const sourceDuration = Number(stdout.trim());
+    if (!Number.isFinite(sourceDuration) || sourceDuration <= 0) {
+      res.status(400).json({ error: "This video could not be decoded. Please upload an MP4, MOV, or WebM file." });
+      return;
+    }
+    if (sourceDuration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
+      res.status(400).json({ error: "Listing videos must be five minutes or shorter." });
+      return;
+    }
     const start = Number(trimStart);
     const requestedEnd = trimEnd === undefined ? Math.min(sourceDuration, start + 60) : Number(trimEnd);
-    if (!Number.isFinite(sourceDuration) || !Number.isFinite(start) || !Number.isFinite(requestedEnd) ||
+    if (!Number.isFinite(start) || !Number.isFinite(requestedEnd) ||
       start < 0 || requestedEnd <= start || requestedEnd > sourceDuration + 0.05 || requestedEnd - start > 60.05) {
       res.status(400).json({ error: "Choose a valid clip between 1 second and 1 minute long." });
       return;
@@ -1029,7 +1120,12 @@ router.patch("/:id", async (req, res) => {
   let videoPosters = prop.videoPosters ?? [];
   if (videoList !== undefined) {
     try {
-      videoPosters = await createVideoPosters(videoList, userId);
+      videoPosters = await syncVideoPosters(
+        videoList,
+        prop.videos ?? [],
+        prop.videoPosters ?? [],
+        userId,
+      );
     } catch (error) {
       req.log?.error({ err: error }, "Listing video poster generation failed");
       res.status(400).json({ error: "A video preview image could not be generated. Please upload a different video.", code: "INVALID_MEDIA" });
@@ -1079,6 +1175,15 @@ router.patch("/:id", async (req, res) => {
     const derivedImage = imageList[0] || prop.image || "/images/modern_apartment_exterior.png";
     if (derivedImage !== prop.image) {
       updatePayload.image = derivedImage;
+    }
+  }
+
+  if (videoList !== undefined) {
+    const videosChanged = JSON.stringify(videoList) !== JSON.stringify(prop.videos ?? []);
+    const postersChanged = JSON.stringify(videoPosters) !== JSON.stringify(prop.videoPosters ?? []);
+    if (videosChanged || postersChanged) {
+      updatePayload.videos = videoList;
+      updatePayload.videoPosters = videoPosters;
     }
   }
 

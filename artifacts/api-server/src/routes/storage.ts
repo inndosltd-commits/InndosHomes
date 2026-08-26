@@ -10,7 +10,7 @@ import { ObjectPermission } from "../lib/objectAcl";
 import { db, users } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
-import { getActiveSubscription, getVideoLimit } from "./subscriptions";
+import { getUserPlanEntitlements } from "./subscriptions";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -68,6 +68,10 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
       : isImage
         ? MAX_IMAGE_BYTES
         : MAX_DOCUMENT_BYTES;
+    if (size < 1) {
+      res.status(400).json({ error: "The selected file is empty. Please choose it again." });
+      return;
+    }
     if (size > maxBytes) {
       res.status(413).json({
         error: `File is too large. Maximum size is ${Math.floor(maxBytes / (1024 * 1024))} MB.`,
@@ -89,14 +93,13 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
         res.status(403).json({ error: "Only owners and hosts can upload listing videos" });
         return;
       }
-      const subscription = await getActiveSubscription(userId);
-      const plan = subscription?.plan ?? "free";
-      if (getVideoLimit(plan) < 1) {
+      const { plan, entitlements } = await getUserPlanEntitlements(userId);
+      if (entitlements.videoLimit < 1) {
         res.status(403).json({
           error: `Your ${plan} plan does not include listing videos. Please upgrade your subscription.`,
           code: "VIDEO_LIMIT",
           plan,
-          videoLimit: 0,
+          videoLimit: entitlements.videoLimit,
         });
         return;
       }

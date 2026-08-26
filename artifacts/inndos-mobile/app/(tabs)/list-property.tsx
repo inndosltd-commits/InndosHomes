@@ -1119,7 +1119,12 @@ export default function ListPropertyScreen() {
       body:JSON.stringify({name:item.fileName, size, contentType:item.mimeType}),
     });
     if(!reqRes.ok){
-      throw new Error(`Failed to get upload URL (HTTP ${reqRes.status})`);
+      const errorBody = await reqRes.json().catch(()=>null) as {error?:unknown}|null;
+      throw new Error(
+        typeof errorBody?.error === "string"
+          ? errorBody.error
+          : `Failed to prepare upload (HTTP ${reqRes.status})`
+      );
     }
     const {uploadURL, objectPath} = await reqRes.json() as {uploadURL:string;objectPath:string};
 
@@ -1169,8 +1174,12 @@ export default function ListPropertyScreen() {
     setIsUploading(true);
     const newItems: MediaItem[] = assets.map(a=>toMediaItem(a, isVideo));
     setMedia(prev=>[...prev,...newItems]);
+    const uploadErrors: string[] = [];
     const results = await Promise.all(newItems.map(item=>
-      uploadAsset(item).catch((): null => null)
+      uploadAsset(item).catch((error:unknown): null => {
+        uploadErrors.push(error instanceof Error ? error.message : "The upload failed.");
+        return null;
+      })
     ));
     setMedia(prev=>{
       const updated=[...prev];
@@ -1183,7 +1192,10 @@ export default function ListPropertyScreen() {
     const failed=results.filter(u=>u===null).length;
     if(failed>0){
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Upload failed",`${failed} file(s) could not be uploaded. Please remove and try again.`);
+      Alert.alert(
+        "Upload failed",
+        uploadErrors[0] ?? `${failed} file(s) could not be uploaded. Please remove and try again.`
+      );
     }
     setIsUploading(false);
   };

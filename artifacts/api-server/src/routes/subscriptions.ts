@@ -119,6 +119,15 @@ export async function getActiveSubscription(userId: string) {
   return null;
 }
 
+export async function getUserPlanEntitlements(userId: string) {
+  const subscription = await getActiveSubscription(userId);
+  const plan = subscription?.plan ?? "free";
+  return {
+    plan,
+    entitlements: await getPlanEntitlements(plan),
+  };
+}
+
 export function getPlanLimit(plan: string): number {
   return DEFAULT_PLAN_LIMITS[plan] ?? 3;
 }
