@@ -12,6 +12,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -241,7 +242,7 @@ export default function BookingDetailScreen() {
                 <View style={styles.dateBlock}>
                   <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>REQUEST</Text>
                   <Text style={[styles.dateValue, { color: colors.foreground }]}>
-                    The owner will contact you about availability and next steps.
+                     Linked {booking.createdAt ? new Date(booking.createdAt).toLocaleString() : "recently"}
                   </Text>
                 </View>
               </View>
@@ -298,7 +299,7 @@ export default function BookingDetailScreen() {
           )}
 
           {/* Owner Info */}
-          {property?.ownerName && (
+          {(booking.ownerName || property?.ownerName) && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.section}>
@@ -306,12 +307,27 @@ export default function BookingDetailScreen() {
                 <View style={[styles.ownerCard, { backgroundColor: colors.muted }]}>
                   <View style={[styles.ownerAvatar, { backgroundColor: colors.primary }]}>
                     <Text style={[styles.ownerInitial, { color: colors.primaryForeground }]}>
-                      {property.ownerName.charAt(0).toUpperCase()}
+                       {(booking.ownerBusinessName || booking.ownerName || property?.ownerName || "L").charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <View>
-                    <Text style={[styles.ownerName, { color: colors.foreground }]}>{property.ownerName}</Text>
+                   <View style={styles.ownerDetails}>
+                     <Text style={[styles.ownerName, { color: colors.foreground }]}>
+                       {booking.ownerBusinessName || booking.ownerName || property?.ownerName}
+                     </Text>
+                     {booking.ownerBusinessName && booking.ownerName ? (
+                       <Text style={[styles.ownerSub, { color: colors.mutedForeground }]}>{booking.ownerName}</Text>
+                     ) : null}
                     <Text style={[styles.ownerSub, { color: colors.mutedForeground }]}>Property Owner</Text>
+                     {booking.ownerPhone ? (
+                       <Pressable onPress={() => void Linking.openURL(`tel:${booking.ownerPhone}`)}>
+                         <Text style={[styles.contactLink, { color: colors.primary }]}>{booking.ownerPhone}</Text>
+                       </Pressable>
+                     ) : null}
+                     {booking.ownerEmail ? (
+                       <Pressable onPress={() => void Linking.openURL(`mailto:${booking.ownerEmail}`)}>
+                         <Text style={[styles.contactLink, { color: colors.primary }]}>{booking.ownerEmail}</Text>
+                       </Pressable>
+                     ) : null}
                   </View>
                 </View>
               </View>
@@ -327,7 +343,7 @@ export default function BookingDetailScreen() {
           >
             <Feather name="home" size={16} color={colors.primaryForeground} />
             <Text style={[styles.viewPropertyText, { color: colors.primaryForeground }]}>
-              View Property
+              View linked property
             </Text>
           </Pressable>
         </View>
@@ -580,6 +596,15 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     ownerSub: {
       fontSize: 12,
       fontFamily: "Outfit_400Regular",
+    },
+    ownerDetails: {
+      flex: 1,
+      gap: 2,
+    },
+    contactLink: {
+      fontSize: 13,
+      fontFamily: "Outfit_500Medium",
+      marginTop: 3,
     },
     viewPropertyBtn: {
       flexDirection: "row",

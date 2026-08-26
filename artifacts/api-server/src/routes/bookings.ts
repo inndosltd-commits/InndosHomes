@@ -14,6 +14,7 @@ const router = Router();
 router.get("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  const owners = alias(users, "owners");
 
   const rows = await db
     .select({
@@ -31,10 +32,17 @@ router.get("/", async (req, res) => {
       propertyImages: properties.images,
       propertyVideoPosters: properties.videoPosters,
       propertyType: properties.type,
+      ownerId: properties.ownerId,
+      ownerName: owners.name,
+      ownerBusinessName: owners.businessName,
+      ownerEmail: owners.email,
+      ownerPhone: owners.phone,
     })
     .from(bookings)
-    .leftJoin(properties, eq(bookings.propertyId, properties.id))
-    .where(eq(bookings.userId, userId));
+    .innerJoin(properties, eq(bookings.propertyId, properties.id))
+    .leftJoin(owners, eq(properties.ownerId, owners.id))
+    .where(eq(bookings.userId, userId))
+    .orderBy(desc(bookings.createdAt));
 
   res.json(rows);
 });
@@ -44,6 +52,7 @@ router.get("/received", async (req, res) => {
   if (!userId) return;
 
   const guests = alias(users, "guests");
+  const owners = alias(users, "owners");
 
   const rows = await db
     .select({
@@ -54,8 +63,17 @@ router.get("/received", async (req, res) => {
       propertyImage: properties.image,
       propertyImages: properties.images,
       propertyVideoPosters: properties.videoPosters,
+      propertyType: properties.type,
+      userId: bookings.userId,
       guestId: bookings.userId,
       guestName: guests.name,
+      guestEmail: guests.email,
+      guestPhone: guests.phone,
+      ownerId: properties.ownerId,
+      ownerName: owners.name,
+      ownerBusinessName: owners.businessName,
+      ownerEmail: owners.email,
+      ownerPhone: owners.phone,
       status: bookings.status,
       startDate: bookings.startDate,
       endDate: bookings.endDate,
@@ -65,7 +83,9 @@ router.get("/received", async (req, res) => {
     .from(bookings)
     .innerJoin(properties, eq(bookings.propertyId, properties.id))
     .leftJoin(guests, eq(bookings.userId, guests.id))
-    .where(eq(properties.ownerId, userId));
+    .leftJoin(owners, eq(properties.ownerId, owners.id))
+    .where(eq(properties.ownerId, userId))
+    .orderBy(desc(bookings.createdAt));
 
   res.json(rows);
 });

@@ -22,4 +22,13 @@ export interface Booking {
   propertyImages?: string[] | null;
   propertyVideoPosters?: string[] | null;
   propertyType?: string | null;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  ownerBusinessName?: string | null;
+  ownerEmail?: string | null;
+  ownerPhone?: string | null;
+  guestId?: string | null;
+  guestName?: string | null;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
 }

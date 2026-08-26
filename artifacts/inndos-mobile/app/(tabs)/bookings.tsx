@@ -1,4 +1,10 @@
-import { useCancelBooking, useListBookings, getListBookingsQueryKey } from "@workspace/api-client-react";
+import {
+  useCancelBooking,
+  useListBookings,
+  getListBookingsQueryKey,
+  useListReceivedBookings,
+  getListReceivedBookingsQueryKey,
+} from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
@@ -7,6 +13,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -37,16 +44,25 @@ export default function BookingsScreen() {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const isWeb = Platform.OS === "web";
+  const isLister = user?.role === "owner" || user?.role === "host";
 
   const { data: bookings, isLoading, error, refetch } = useListBookings({
     query: { queryKey: getListBookingsQueryKey(), enabled: !!user },
+  });
+  const {
+    data: receivedBookings,
+    isLoading: receivedLoading,
+    error: receivedError,
+    refetch: refetchReceived,
+  } = useListReceivedBookings({
+    query: { queryKey: getListReceivedBookingsQueryKey(), enabled: !!user && isLister },
   });
 
   const { mutate: cancelBooking, isPending: isCancelling } = useCancelBooking();
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await (isLister ? Promise.all([refetch(), refetchReceived()]) : refetch());
     setRefreshing(false);
   };
 
@@ -78,6 +94,12 @@ export default function BookingsScreen() {
 
   const topPadding = isWeb ? 67 : insets.top;
   const styles = getStyles(colors);
+  const receivedIds = new Set((receivedBookings ?? []).map((item) => item.id));
+  const visibleBookings = isLister
+    ? [...(receivedBookings ?? []), ...(bookings ?? []).filter((item) => !receivedIds.has(item.id))]
+    : bookings;
+  const visibleLoading = isLister ? (receivedLoading || isLoading) : isLoading;
+  const visibleError = isLister ? (receivedError || error) : error;
 
   if (!user) {
     return (
@@ -108,11 +130,11 @@ export default function BookingsScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Link-Ups</Text>
       </View>
 
-      {isLoading ? (
+      {visibleLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : error ? (
+      ) : visibleError ? (
         <View style={styles.center}>
           <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
           <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
@@ -120,16 +142,16 @@ export default function BookingsScreen() {
           </Text>
           <Pressable
             style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => refetch()}
+            onPress={() => void (isLister ? Promise.all([refetch(), refetchReceived()]) : refetch())}
           >
             <Text style={[styles.retryText, { color: colors.primaryForeground }]}>Retry</Text>
           </Pressable>
         </View>
       ) : (
         <FlatList
-          data={bookings ?? []}
+          data={visibleBookings ?? []}
           keyExtractor={(item) => item.id}
-          scrollEnabled={!!bookings && bookings.length > 0}
+          scrollEnabled={!!visibleBookings && visibleBookings.length > 0}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -146,7 +168,7 @@ export default function BookingsScreen() {
               <Feather name="calendar" size={40} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No link-ups yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                Browse properties to make your first link-up
+                {isLister ? "Received and sent Link-Ups will appear here" : "Browse properties to make your first link-up"}
               </Text>
               <Pressable
                 style={[styles.browseBtn, { borderColor: colors.primary }]}
@@ -158,6 +180,7 @@ export default function BookingsScreen() {
           }
           renderItem={({ item }) => {
             const status = item.status as BookingStatus;
+            const isReceived = isLister && receivedIds.has(item.id);
 
             const coverImage = (item.propertyImages && item.propertyImages.length > 0)
               ? item.propertyImages[0]
@@ -167,7 +190,7 @@ export default function BookingsScreen() {
             return (
               <Pressable
                 style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => router.push(`/booking/${item.id}` as never)}
+                onPress={() => router.push((isReceived ? `/property/${item.propertyId}` : `/booking/${item.id}`) as never)}
               >
                 {imageUrl ? (
                   <Image
@@ -215,14 +238,59 @@ export default function BookingsScreen() {
 
                 <View style={styles.bookingDates}>
                   <View style={styles.dateBlock}>
-                    <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>LINK-UP REQUEST</Text>
+                    <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>
+                      {isReceived ? "RECEIVED FROM CUSTOMER" : "SENT TO LISTER"}
+                    </Text>
                     <Text style={[styles.dateValue, { color: colors.foreground }]}>
-                      Owner will contact you about availability and next steps
+                      {isReceived
+                        ? (item.guestName ?? "Customer")
+                        : (item.ownerBusinessName || item.ownerName || "Property lister")}
+                    </Text>
+                    {isReceived ? (
+                      <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
+                        Listed by {item.ownerBusinessName || item.ownerName || "your account"}
+                      </Text>
+                    ) : null}
+                    {!isReceived && item.ownerBusinessName && item.ownerName ? (
+                      <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>{item.ownerName}</Text>
+                    ) : null}
+                    <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
+                      {isReceived ? (item.guestPhone || "No phone provided") : (item.ownerPhone || "No phone provided")}
+                    </Text>
+                    <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
+                      {isReceived ? (item.guestEmail || "No email provided") : (item.ownerEmail || "No email provided")}
+                    </Text>
+                    <Text style={[styles.linkedDate, { color: colors.mutedForeground }]}>
+                      Linked {item.createdAt ? new Date(item.createdAt).toLocaleString() : "recently"}
                     </Text>
                   </View>
                 </View>
 
-                {status !== "cancelled" && (
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={[styles.viewPropertyBtn, { backgroundColor: colors.primary }]}
+                    onPress={(event) => {
+                      event.stopPropagation?.();
+                      router.push(`/property/${item.propertyId}` as never);
+                    }}
+                  >
+                    <Feather name="home" size={14} color={colors.primaryForeground} />
+                    <Text style={[styles.viewPropertyText, { color: colors.primaryForeground }]}>View linked property</Text>
+                  </Pressable>
+                  {((isReceived ? item.guestPhone : item.ownerPhone)) ? (
+                    <Pressable
+                      style={[styles.contactBtn, { borderColor: colors.border }]}
+                      onPress={(event) => {
+                        event.stopPropagation?.();
+                        void Linking.openURL(`tel:${isReceived ? item.guestPhone : item.ownerPhone}`);
+                      }}
+                    >
+                      <Feather name="phone" size={14} color={colors.foreground} />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {!isReceived && status !== "cancelled" && (
                   <Pressable
                     style={[styles.cancelBtn, { borderColor: colors.border }]}
                     onPress={(e) => {
@@ -364,6 +432,44 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     dateValue: {
       fontSize: 13,
       fontFamily: "Outfit_500Medium",
+    },
+    contactValue: {
+      fontSize: 12,
+      fontFamily: "Outfit_400Regular",
+      marginTop: 3,
+    },
+    linkedDate: {
+      fontSize: 11,
+      fontFamily: "Outfit_500Medium",
+      marginTop: 8,
+    },
+    cardActions: {
+      flexDirection: "row",
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingBottom: 2,
+    },
+    viewPropertyBtn: {
+      flex: 1,
+      minHeight: 40,
+      borderRadius: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      paddingHorizontal: 12,
+    },
+    viewPropertyText: {
+      fontSize: 12,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    contactBtn: {
+      width: 42,
+      minHeight: 40,
+      borderWidth: 1,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
     },
     priceBlock: {
       alignItems: "flex-end",

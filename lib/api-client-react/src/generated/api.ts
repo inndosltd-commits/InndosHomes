@@ -2607,6 +2607,81 @@ export const useCreateBooking = <
 };
 
 /**
+ * @summary List Link-Ups received on the current lister's properties
+ */
+export const getListReceivedBookingsUrl = () => {
+  return `/api/bookings/received`;
+};
+
+export const listReceivedBookings = async (
+  options?: RequestInit,
+): Promise<Booking[]> => {
+  return customFetch<Booking[]>(getListReceivedBookingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListReceivedBookingsQueryKey = () => {
+  return [`/api/bookings/received`] as const;
+};
+
+export const getListReceivedBookingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listReceivedBookings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listReceivedBookings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListReceivedBookingsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listReceivedBookings>>
+  > = ({ signal }) => listReceivedBookings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listReceivedBookings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListReceivedBookingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listReceivedBookings>>
+>;
+export type ListReceivedBookingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Link-Ups received on the current lister's properties
+ */
+
+export function useListReceivedBookings<
+  TData = Awaited<ReturnType<typeof listReceivedBookings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listReceivedBookings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListReceivedBookingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Cancel a booking
  */
 export const getCancelBookingUrl = (id: string) => {

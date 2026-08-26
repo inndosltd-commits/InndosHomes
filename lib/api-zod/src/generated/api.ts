@@ -660,6 +660,15 @@ export const ListBookingsResponseItem = zod.object({
   propertyImages: zod.array(zod.string()).nullish(),
   propertyVideoPosters: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
+  ownerId: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerPhone: zod.string().nullish(),
+  guestId: zod.string().nullish(),
+  guestName: zod.string().nullish(),
+  guestEmail: zod.string().nullish(),
+  guestPhone: zod.string().nullish(),
 });
 export const ListBookingsResponse = zod.array(ListBookingsResponseItem);
 
@@ -672,6 +681,38 @@ export const CreateBookingBody = zod.object({
   endDate: zod.string(),
   totalPrice: zod.number(),
 });
+
+/**
+ * @summary List Link-Ups received on the current lister's properties
+ */
+export const ListReceivedBookingsResponseItem = zod.object({
+  id: zod.string(),
+  propertyId: zod.string(),
+  userId: zod.string(),
+  status: zod.enum(["pending", "confirmed", "cancelled"]),
+  startDate: zod.string(),
+  endDate: zod.string(),
+  totalPrice: zod.number(),
+  createdAt: zod.string().optional(),
+  propertyTitle: zod.string().nullish(),
+  propertyAddress: zod.string().nullish(),
+  propertyImage: zod.string().nullish(),
+  propertyImages: zod.array(zod.string()).nullish(),
+  propertyVideoPosters: zod.array(zod.string()).nullish(),
+  propertyType: zod.string().nullish(),
+  ownerId: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerPhone: zod.string().nullish(),
+  guestId: zod.string().nullish(),
+  guestName: zod.string().nullish(),
+  guestEmail: zod.string().nullish(),
+  guestPhone: zod.string().nullish(),
+});
+export const ListReceivedBookingsResponse = zod.array(
+  ListReceivedBookingsResponseItem,
+);
 
 /**
  * @summary Cancel a booking
@@ -695,6 +736,15 @@ export const CancelBookingResponse = zod.object({
   propertyImages: zod.array(zod.string()).nullish(),
   propertyVideoPosters: zod.array(zod.string()).nullish(),
   propertyType: zod.string().nullish(),
+  ownerId: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerPhone: zod.string().nullish(),
+  guestId: zod.string().nullish(),
+  guestName: zod.string().nullish(),
+  guestEmail: zod.string().nullish(),
+  guestPhone: zod.string().nullish(),
 });
 
 /**

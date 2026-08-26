@@ -2238,6 +2238,7 @@ export default function Dashboard() {
           <TabsContent value="bookings" className="space-y-6">
             {/* Owner/Host: show bookings received on their properties */}
             {(user.role === 'owner' || user.role === 'host') ? (
+              <>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -2269,6 +2270,15 @@ export default function Dashboard() {
                             <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
                             <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
                             <p className="text-sm font-medium mt-1">Guest: {b.guestName || '—'}</p>
+                             <p className="text-xs text-muted-foreground mt-1">
+                               Listed by {b.ownerBusinessName || b.ownerName || user.businessName || user.name}
+                             </p>
+                             <p className="text-xs text-muted-foreground mt-1">
+                               {b.guestPhone || "No phone provided"} · {b.guestEmail || "No email provided"}
+                             </p>
+                             <p className="text-xs text-muted-foreground mt-1">
+                               Linked {b.createdAt ? new Date(b.createdAt).toLocaleString() : "recently"}
+                             </p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                 {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
@@ -2278,6 +2288,11 @@ export default function Dashboard() {
                           <div className="text-right shrink-0">
                             <p className="text-sm font-medium text-primary">Customer enquiry</p>
                             <p className="text-xs text-muted-foreground mt-1">Discuss availability directly</p>
+                             <Link href={`/property/${b.propertyId}`}>
+                               <Button size="sm" variant="outline" className="mt-3 gap-1">
+                                 <ExternalLink className="h-3 w-3" /> View linked property
+                               </Button>
+                             </Link>
                           </div>
                         </div>
                       ))}
@@ -2285,6 +2300,48 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
+              {bookings.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ExternalLink className="h-5 w-5 text-primary" /> Sent Link-Ups
+                    </CardTitle>
+                    <CardDescription>Properties you personally linked up with as a customer.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {bookings.map((b: any) => {
+                        const rawCover = (b.propertyImages && b.propertyImages.length > 0) ? b.propertyImages[0] : (b.propertyImage || null);
+                        const coverPhoto = resolvePropertyImageUrl(rawCover);
+                        return (
+                          <div key={`sent-${b.id}`} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg bg-white shadow-sm hover:bg-gray-50 transition-colors">
+                            <img src={coverPhoto} alt={b.propertyTitle || "Property"} className="h-20 w-20 object-cover rounded-md shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/modern_apartment_exterior.png"; }} />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
+                              <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                              <p className="text-sm font-medium mt-1">Lister: {b.ownerBusinessName || b.ownerName || "Property lister"}</p>
+                              {b.ownerBusinessName && b.ownerName && <p className="text-xs text-muted-foreground mt-1">{b.ownerName}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">{b.ownerPhone || "No phone provided"} · {b.ownerEmail || "No email provided"}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Linked {b.createdAt ? new Date(b.createdAt).toLocaleString() : "recently"}</p>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                                  {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Link href={`/property/${b.propertyId}`}>
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <ExternalLink className="h-3 w-3" /> View linked property
+                              </Button>
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              </>
             ) : (
               /* Tenant/Guest: show their own bookings */
               <Card>
@@ -2319,6 +2376,18 @@ export default function Dashboard() {
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-base truncate">{b.propertyTitle || "Unknown Property"}</h4>
                             <p className="text-sm text-muted-foreground truncate">{b.propertyAddress}</p>
+                             <p className="text-sm font-medium mt-1">
+                               Lister: {b.ownerBusinessName || b.ownerName || "Property lister"}
+                             </p>
+                             {b.ownerBusinessName && b.ownerName && (
+                               <p className="text-xs text-muted-foreground mt-1">{b.ownerName}</p>
+                             )}
+                             <p className="text-xs text-muted-foreground mt-1">
+                               {b.ownerPhone || "No phone provided"} · {b.ownerEmail || "No email provided"}
+                             </p>
+                             <p className="text-xs text-muted-foreground mt-1">
+                               Linked {b.createdAt ? new Date(b.createdAt).toLocaleString() : "recently"}
+                             </p>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                 {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
@@ -2328,7 +2397,12 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-sm font-medium text-primary">Link-Up request</p>
-                            <p className="text-xs text-muted-foreground mt-1">Owner will contact you</p>
+                             <p className="text-xs text-muted-foreground mt-1">Contact the lister directly</p>
+                             <Link href={`/property/${b.propertyId}`}>
+                               <Button size="sm" variant="outline" className="mt-2 gap-1">
+                                 <ExternalLink className="h-3 w-3" /> View linked property
+                               </Button>
+                             </Link>
                             {b.status === "confirmed" && (
                               reviewedBookingIds.has(b.id) ? (
                                 <span className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500"><Star className="h-3 w-3 fill-gray-400 text-gray-400" /> Reviewed</span>
@@ -2723,6 +2797,12 @@ export default function Dashboard() {
                                 </div>
                                 <span className="text-sm font-medium text-gray-700">{b.guestName || "Guest"}</span>
                               </div>
+                               <p className="text-xs text-muted-foreground mt-1">
+                                 {b.guestPhone || "No phone provided"} · {b.guestEmail || "No email provided"}
+                               </p>
+                               <p className="text-xs text-muted-foreground mt-1">
+                                 Linked {b.createdAt ? new Date(b.createdAt).toLocaleString() : "recently"}
+                               </p>
                               <div className="flex flex-wrap gap-2 mt-2">
                                 <Badge variant={b.status === 'confirmed' ? 'default' : b.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                   {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Pending'}
@@ -2732,6 +2812,11 @@ export default function Dashboard() {
                             <div className="flex flex-col items-end gap-2 shrink-0">
                               <p className="text-sm font-medium text-primary">Customer enquiry</p>
                               <p className="text-xs text-muted-foreground">Discuss availability directly</p>
+                               <Link href={`/property/${b.propertyId}`}>
+                                 <Button size="sm" variant="outline" className="gap-1">
+                                   <ExternalLink className="h-3 w-3" /> View linked property
+                                 </Button>
+                               </Link>
                               {b.status === 'pending' && (
                                 <div className="flex gap-2 mt-1">
                                   <Button
