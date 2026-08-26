@@ -1261,7 +1261,15 @@ router.post("/", async (req, res) => {
   }
 
   const { propertyStatus: _ps, adminComment: _ac, ...insertData } = result.data;
-  const [prop] = await db.insert(properties).values({ ...insertData, isVerified: false }).returning();
+  const [prop] = await db
+    .insert(properties)
+    .values({
+      ...insertData,
+      isVerified: false,
+      propertyStatus: "pending",
+      adminComment: null,
+    })
+    .returning();
   res.status(201).json(prop);
 });
 
@@ -1278,6 +1286,9 @@ router.patch("/:id/status", async (req, res) => {
     if (!prop) return { kind: "not-found" as const };
     if (prop.ownerId !== userId && caller?.role !== "admin") {
       return { kind: "forbidden" as const };
+    }
+    if (!prop.isVerified && prop.propertyStatus === "pending") {
+      return { kind: "pending-review" as const };
     }
     const soldSubtypes = new Set(["apartment", "home", "land"]);
     if (action === "sold" && (prop.type !== "sale" || !soldSubtypes.has(normalizeSubtype(prop.subtype)))) {
@@ -1297,6 +1308,12 @@ router.patch("/:id/status", async (req, res) => {
   if (outcome.kind === "not-found") return void res.status(404).json({ error: "Property not found" });
   if (outcome.kind === "forbidden") {
     return void res.status(403).json({ error: "Only the property owner or an admin may change its status." });
+  }
+  if (outcome.kind === "pending-review") {
+    return void res.status(409).json({
+      error: "This property is pending admin review. An admin must activate it before lifecycle actions are available.",
+      code: "PENDING_REVIEW",
+    });
   }
   if (outcome.kind === "ineligible") {
     return void res.status(400).json({ error: "Only sale listings categorized as apartment, home, or land can be marked sold." });

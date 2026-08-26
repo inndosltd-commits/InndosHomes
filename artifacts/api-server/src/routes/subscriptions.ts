@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import { db } from "@workspace/db";
 import { subscriptions, users, properties, payments, settings, subscriptionPlans, featuredListingUses } from "@workspace/db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { sendSubscriptionRenewalConfirmationEmail } from "../lib/email";
 import { getDashboardUrl, getWebsiteUrl } from "../lib/appUrl";
@@ -184,6 +184,7 @@ async function finalizePaidSubscription(
   status: PesapalStatus
 ) {
   return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`subscription:${payment.userId}`}))`);
     const [claimedPayment] = await tx
       .update(payments)
       .set({
@@ -326,10 +327,13 @@ router.post("/upgrade", async (req, res) => {
   }
 
   if (plan === "free") {
-    await db
-      .update(subscriptions)
-      .set({ status: "cancelled" })
-      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`subscription:${userId}`}))`);
+      await tx
+        .update(subscriptions)
+        .set({ status: "cancelled" })
+        .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
+    });
 
     res.json({ plan: "free", status: "active", message: "Downgraded to Free Plan" });
     return;
@@ -451,22 +455,57 @@ router.get("/payments/:paymentId", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const [payment] = await db
-    .select({
-      id: payments.id,
-      status: payments.status,
-      plan: payments.plan,
-      amount: payments.amount,
-      updatedAt: payments.updatedAt,
-    })
+  const [storedPayment] = await db
+    .select()
     .from(payments)
     .where(and(eq(payments.id, req.params.paymentId), eq(payments.userId, userId)))
     .limit(1);
-  if (!payment) {
+  if (!storedPayment) {
     res.status(404).json({ error: "Payment not found" });
     return;
   }
-  res.json(payment);
+
+  let payment = storedPayment;
+  if (
+    payment.status === "pending" &&
+    payment.pesapalTrackingId &&
+    payment.merchantReference
+  ) {
+    try {
+      const txStatus = await getTransactionStatus(payment.pesapalTrackingId);
+      if (
+        isCompletedPayment(txStatus) &&
+        paymentMatchesGateway(
+          payment,
+          payment.pesapalTrackingId,
+          payment.merchantReference,
+          txStatus,
+        )
+      ) {
+        await finalizePaidSubscription(payment, payment.pesapalTrackingId, txStatus);
+      } else {
+        const description = txStatus.paymentStatusDescription?.toLowerCase() ?? "";
+        if (description.includes("failed") || description.includes("invalid") || description.includes("cancel")) {
+          const nextStatus = description.includes("cancel") ? "cancelled" as const : "failed" as const;
+          await db
+            .update(payments)
+            .set({ status: nextStatus, updatedAt: new Date() })
+            .where(and(eq(payments.id, payment.id), eq(payments.status, "pending")));
+        }
+      }
+      [payment] = await db.select().from(payments).where(eq(payments.id, payment.id)).limit(1);
+    } catch (error) {
+      req.log?.warn({ error, paymentId: payment.id }, "Could not reconcile pending PesaPal payment during status poll");
+    }
+  }
+
+  res.json({
+    id: payment.id,
+    status: payment.status,
+    plan: payment.plan,
+    amount: payment.amount,
+    updatedAt: payment.updatedAt,
+  });
 });
 
 // GET /api/subscriptions/callback  — PesaPal redirect after payment

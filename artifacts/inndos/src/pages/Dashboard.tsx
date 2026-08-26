@@ -950,6 +950,15 @@ export default function Dashboard() {
   const [adminPayments, setAdminPayments] = useState<any[]>([]);
   const [isLoadingAdminPayments, setIsLoadingAdminPayments] = useState(false);
   const [assignSubDialog, setAssignSubDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [assignSubForm, setAssignSubForm] = useState({
+    plan: "free",
+    billingMonths: "1",
+    amount: "",
+    reference: "",
+    paymentMethod: "mobile_money",
+    featuredLimitOverride: "",
+    note: "",
+  });
   const [calendarProperty, setCalendarProperty] = useState<{ id: string; title: string } | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -1568,10 +1577,10 @@ export default function Dashboard() {
         return;
       }
       setModerationQueue(prev => prev.filter(item => item.id !== id));
-      await fetchAdminStats();
+      await Promise.all([fetchAdminStats(), fetchAdminProperties()]);
       toast({
-        title: "Listing Approved",
-        description: "Property is now live on the platform.",
+        title: "Listing Activated",
+        description: "The property moved from Pending to Active and is now live on the platform.",
         className: "bg-gray-50 border-gray-200 text-gray-800",
       });
     } catch {
@@ -3381,6 +3390,7 @@ export default function Dashboard() {
                       const isSold = p.propertyStatus === "sold";
                       const isDeactivated = p.propertyStatus === "deactivated" || p.status === "inactive";
                       const isFlagged = p.propertyStatus === "flagged";
+                      const isPendingReview = !p.isVerified && p.propertyStatus === "pending";
                       const canMarkSold = isEligibleSaleListing(p);
                       const isActioning = !!adminPropertyActionLoading[p.id];
                       return (
@@ -3468,6 +3478,16 @@ export default function Dashboard() {
                                          <Eye className="h-4 w-4" /> Preview Listing
                                        </Button>
                                      </Link>
+                                     {isPendingReview ? (
+                                     <Button
+                                       className="bg-zinc-900 hover:bg-zinc-800 text-white"
+                                       disabled={isActioning}
+                                       onClick={() => handleApprove(p.id)}
+                                     >
+                                       {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                                       Activate Listing
+                                     </Button>
+                                     ) : (
                                      <Button
                                        variant="outline"
                                        disabled={isActioning || isSold}
@@ -3477,6 +3497,7 @@ export default function Dashboard() {
                                         {isActioning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : (isDeactivated ? <Check className="h-4 w-4 mr-2" /> : <AlertTriangle className="h-4 w-4 mr-2" />)}
                                          {isDeactivated ? 'Reactivate' : 'Deactivate'}
                                      </Button>
+                                     )}
                                      <Button
                                        variant="outline"
                                        disabled={isActioning}
@@ -3500,6 +3521,17 @@ export default function Dashboard() {
                                   <Edit className="h-3 w-3" /> Edit
                                 </Button>
                               </Link>
+                              {isPendingReview ? (
+                              <Button
+                                size="sm"
+                                className="bg-zinc-900 hover:bg-zinc-800 text-white"
+                                disabled={isActioning}
+                                onClick={() => handleApprove(p.id)}
+                              >
+                                {isActioning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+                                Activate
+                              </Button>
+                              ) : (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -3510,7 +3542,8 @@ export default function Dashboard() {
                                 {isActioning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : (isDeactivated ? <Check className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />)}
                                  {isDeactivated ? 'Reactivate' : 'Deactivate'}
                               </Button>
-                              {!isSold && canMarkSold && (
+                              )}
+                              {!isPendingReview && !isSold && canMarkSold && (
                                 <Button size="sm" variant="outline" disabled={isActioning} onClick={() => handleAdminPropertyStatus(p.id, "sold")}>
                                   Sold
                                 </Button>
@@ -6027,15 +6060,71 @@ export default function Dashboard() {
       </Dialog>
       {/* ── Assign Plan dialog — at Tabs root so it opens instantly from any tab ── */}
       <Dialog open={!!assignSubDialog} onOpenChange={(open) => { if (!open) setAssignSubDialog(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Move Subscriber to Free</DialogTitle>
+            <DialogTitle>Assign Subscription Plan</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
             <p className="text-sm text-muted-foreground">
-              <span className="font-semibold">{assignSubDialog?.userName}</span> will be moved to the Free plan.
-              Basic, Pro, and Enterprise plans are activated only after a completed PesaPal payment.
+              Update <span className="font-semibold">{assignSubDialog?.userName}</span>. Paid plans require the details of money already received offline; online PesaPal payments continue to activate automatically after verification.
             </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-plan">Plan</Label>
+              <select
+                id="assign-plan"
+                value={assignSubForm.plan}
+                onChange={(event) => setAssignSubForm((current) => ({ ...current, plan: event.target.value }))}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="free">Free</option>
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            {assignSubForm.plan !== "free" && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assign-months">Months</Label>
+                    <Input id="assign-months" type="number" min={1} max={120} value={assignSubForm.billingMonths} onChange={(event) => setAssignSubForm((current) => ({ ...current, billingMonths: event.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assign-amount">Amount received (KES)</Label>
+                    <Input id="assign-amount" type="number" min={1} value={assignSubForm.amount} onChange={(event) => setAssignSubForm((current) => ({ ...current, amount: event.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="assign-reference">Receipt / transaction reference</Label>
+                  <Input id="assign-reference" value={assignSubForm.reference} onChange={(event) => setAssignSubForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Bank, M-Pesa, cash receipt, or card reference" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="assign-method">Payment method</Label>
+                  <select
+                    id="assign-method"
+                    value={assignSubForm.paymentMethod}
+                    onChange={(event) => setAssignSubForm((current) => ({ ...current, paymentMethod: event.target.value }))}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="mobile_money">Mobile money</option>
+                    <option value="bank_transfer">Bank transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                {assignSubForm.plan === "enterprise" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assign-featured">Featured listings per month</Label>
+                    <Input id="assign-featured" type="number" min={0} value={assignSubForm.featuredLimitOverride} onChange={(event) => setAssignSubForm((current) => ({ ...current, featuredLimitOverride: event.target.value }))} placeholder="0" />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="assign-note">Admin note (optional)</Label>
+                  <Input id="assign-note" value={assignSubForm.note} onChange={(event) => setAssignSubForm((current) => ({ ...current, note: event.target.value }))} placeholder="Where or how payment was confirmed" />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setAssignSubDialog(null)}>Cancel</Button>
@@ -6046,15 +6135,34 @@ export default function Dashboard() {
                 if (!assignSubDialog || !token) return;
                 setIsAssigning(true);
                 try {
-                  const r = await fetch("/api/admin/subscriptions/assign", {
+                  const isFree = assignSubForm.plan === "free";
+                  const r = await fetch(isFree ? "/api/admin/subscriptions/assign" : "/api/admin/subscriptions/offline-payment", {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId: assignSubDialog.userId, plan: "free" }),
+                    body: JSON.stringify(isFree
+                      ? { userId: assignSubDialog.userId, plan: "free" }
+                      : {
+                          userId: assignSubDialog.userId,
+                          plan: assignSubForm.plan,
+                          billingMonths: Number(assignSubForm.billingMonths),
+                          amount: Number(assignSubForm.amount),
+                          reference: assignSubForm.reference,
+                          paymentMethod: assignSubForm.paymentMethod,
+                          featuredLimitOverride: assignSubForm.featuredLimitOverride === "" ? null : Number(assignSubForm.featuredLimitOverride),
+                          note: assignSubForm.note,
+                        }),
                   });
                   if (r.ok) {
-                    await fetchAdminSubscriptions();
+                    await Promise.all([fetchAdminSubscriptions(), fetchAdminPayments()]);
                     setAssignSubDialog(null);
-                    toast({ title: "Plan updated", description: `${assignSubDialog.userName} is now on the Free plan.`, className: "bg-gray-50 border-gray-200 text-gray-800" });
+                    setAssignSubForm({ plan: "free", billingMonths: "1", amount: "", reference: "", paymentMethod: "mobile_money", featuredLimitOverride: "", note: "" });
+                    toast({
+                      title: "Plan updated",
+                      description: isFree
+                        ? `${assignSubDialog.userName} is now on the Free plan.`
+                        : `Offline payment recorded. ${assignSubDialog.userName} is now on the ${assignSubForm.plan.charAt(0).toUpperCase() + assignSubForm.plan.slice(1)} plan.`,
+                      className: "bg-gray-50 border-gray-200 text-gray-800",
+                    });
                   } else {
                     const d = await r.json();
                     toast({ title: "Failed", description: d.error, variant: "destructive" });
@@ -6063,7 +6171,7 @@ export default function Dashboard() {
               }}
             >
               {isAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              Move to Free
+              {assignSubForm.plan === "free" ? "Move to Free" : "Record Payment & Activate"}
             </Button>
           </DialogFooter>
         </DialogContent>

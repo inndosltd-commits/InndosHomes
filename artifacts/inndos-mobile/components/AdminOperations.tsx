@@ -529,8 +529,8 @@ export function AdminOperations() {
               <Text style={[styles.bodyText, { color: colors.mutedForeground }]} numberOfLines={1}>{value(property, "address")} · {statusLabel(property.propertyStatus)} · {formatKES(property.price)}</Text>
               <View style={styles.actions}>
                 <ActionButton label="View" onPress={() => router.push(`/property/${id}` as never)} colors={colors} icon="eye" />
-                {!verified && !isDeactivated && !isSold ? <ActionButton label="Approve" onPress={() => mutate(`/api/admin/properties/${id}/verify`, "PATCH", {}, "Listing approved and published.")} colors={colors} tone="primary" icon="check" /> : null}
-                {!isSold ? (
+                {!verified && propertyStatus === "pending" ? <ActionButton label="Activate" onPress={() => mutate(`/api/admin/properties/${id}/verify`, "PATCH", {}, "Listing activated and published.")} colors={colors} tone="primary" icon="check" /> : null}
+                {verified && !isSold ? (
                   <ActionButton
                     label={isDeactivated ? "Reactivate" : "Deactivate"}
                     onPress={() => mutate(
@@ -543,7 +543,7 @@ export function AdminOperations() {
                     icon="power"
                   />
                 ) : null}
-                {canMarkSold && !isSold ? (
+                {verified && canMarkSold && !isSold ? (
                   <ActionButton
                     label="Mark sold"
                     onPress={() => confirm(
@@ -604,6 +604,35 @@ export function AdminOperations() {
               <Text style={[styles.minorText, { color: colors.mutedForeground }]} numberOfLines={1}>User ID: {id}</Text>
               <View style={styles.actions}>
                 <ActionButton label="Copy ID" onPress={() => Clipboard.setStringAsync(id).then(() => Alert.alert("Copied", "User ID copied to the clipboard."))} colors={colors} icon="copy" />
+                <ActionButton label="Plan" onPress={() => openForm({
+                  title: `Manage plan for ${value(member, "name")}`,
+                  submitLabel: "Update plan",
+                  fields: [
+                    { key: "plan", label: "Plan", options: ["free", "basic", "pro", "enterprise"] },
+                    { key: "billingMonths", label: "Paid plan months", placeholder: "1" },
+                    { key: "amount", label: "Offline amount received (KES)", placeholder: "Required for paid plans" },
+                    { key: "reference", label: "Receipt / transaction reference", placeholder: "Required for paid plans" },
+                    { key: "paymentMethod", label: "Payment method", options: ["mobile_money", "bank_transfer", "cash", "card", "other"] },
+                    { key: "featuredLimitOverride", label: "Enterprise featured limit (optional)", placeholder: "0" },
+                    { key: "note", label: "Admin note (optional)", multiline: true },
+                  ],
+                  initial: { plan: "free", billingMonths: "1", paymentMethod: "mobile_money" },
+                  onSubmit: async (values) => {
+                    if (values.plan === "free") {
+                      return mutate("/api/admin/subscriptions/assign", "POST", { userId: id, plan: "free" }, "Subscriber moved to Free.");
+                    }
+                    return mutate("/api/admin/subscriptions/offline-payment", "POST", {
+                      userId: id,
+                      plan: values.plan,
+                      billingMonths: Number(values.billingMonths),
+                      amount: Number(values.amount),
+                      reference: values.reference,
+                      paymentMethod: values.paymentMethod,
+                      featuredLimitOverride: values.featuredLimitOverride ? Number(values.featuredLimitOverride) : null,
+                      note: values.note,
+                    }, "Offline payment recorded and subscription activated.");
+                  },
+                })} colors={colors} icon="award" />
                 {documentUrl ? <ActionButton label="ID document" onPress={() => Linking.openURL(getImageUrl(documentUrl)).catch(() => Alert.alert("Unavailable", "This verification file could not be opened."))} colors={colors} icon="file-text" /> : null}
                 <ActionButton label={active ? "Suspend" : "Activate"} onPress={() => mutate(`/api/admin/users/${id}/status`, "PATCH", { status: active ? "suspended" : "active" }, `User ${active ? "suspended" : "activated"}.`)} colors={colors} icon={active ? "user-x" : "user-check"} />
                 {member.role !== "admin" ? <ActionButton label="Reset password" onPress={() => openForm({
@@ -628,14 +657,30 @@ export function AdminOperations() {
       <>
         <View style={styles.toolbar}>
           <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Subscriptions</Text>
-          <ActionButton label="Move to Free" onPress={() => openForm({
-            title: "Move subscriber to Free",
-            submitLabel: "Move to Free",
+          <ActionButton label="Record offline payment" onPress={() => openForm({
+            title: "Record offline payment",
+            submitLabel: "Record & activate",
             fields: [
               { key: "userId", label: "User ID", placeholder: "Paste the user ID" },
+              { key: "plan", label: "Paid plan", options: ["basic", "pro", "enterprise"] },
+              { key: "billingMonths", label: "Billing months", placeholder: "1" },
+              { key: "amount", label: "Amount received (KES)", placeholder: "599" },
+              { key: "reference", label: "Receipt / transaction reference", placeholder: "M-Pesa, bank, cash, or card reference" },
+              { key: "paymentMethod", label: "Payment method", options: ["mobile_money", "bank_transfer", "cash", "card", "other"] },
+              { key: "featuredLimitOverride", label: "Enterprise featured limit (optional)", placeholder: "0" },
+              { key: "note", label: "Admin note (optional)", placeholder: "How payment was confirmed", multiline: true },
             ],
-            initial: {},
-            onSubmit: async (values) => mutate("/api/admin/subscriptions/assign", "POST", { userId: values.userId, plan: "free" }, "Subscriber moved to Free."),
+            initial: { plan: "basic", billingMonths: "1", paymentMethod: "mobile_money" },
+            onSubmit: async (values) => mutate("/api/admin/subscriptions/offline-payment", "POST", {
+              userId: values.userId,
+              plan: values.plan,
+              billingMonths: Number(values.billingMonths),
+              amount: Number(values.amount),
+              reference: values.reference,
+              paymentMethod: values.paymentMethod,
+              featuredLimitOverride: values.featuredLimitOverride ? Number(values.featuredLimitOverride) : null,
+              note: values.note,
+            }, "Offline payment recorded and subscription activated."),
           })} colors={colors} tone="primary" icon="plus" />
         </View>
         {subscriptions.map((subscription) => {
@@ -646,6 +691,31 @@ export function AdminOperations() {
               <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(subscription, "userEmail")} · {statusLabel(subscription.plan)} · {statusLabel(subscription.status)}</Text>
               <Text style={[styles.minorText, { color: colors.mutedForeground }]}>Ends {shortDate(subscription.endDate)} · {formatKES(subscription.amountPaid)}</Text>
               <View style={styles.actions}>
+                <ActionButton label="Offline upgrade" onPress={() => openForm({
+                  title: `Offline upgrade for ${value(subscription, "userName")}`,
+                  submitLabel: "Record & activate",
+                  fields: [
+                    { key: "plan", label: "Paid plan", options: ["basic", "pro", "enterprise"] },
+                    { key: "billingMonths", label: "Billing months", placeholder: "1" },
+                    { key: "amount", label: "Amount received (KES)", placeholder: "599" },
+                    { key: "reference", label: "Receipt / transaction reference" },
+                    { key: "paymentMethod", label: "Payment method", options: ["mobile_money", "bank_transfer", "cash", "card", "other"] },
+                    { key: "featuredLimitOverride", label: "Enterprise featured limit (optional)", placeholder: "0" },
+                    { key: "note", label: "Admin note (optional)", multiline: true },
+                  ],
+                  initial: { plan: value(subscription, "plan", "basic"), billingMonths: "1", paymentMethod: "mobile_money" },
+                  onSubmit: async (values) => mutate("/api/admin/subscriptions/offline-payment", "POST", {
+                    userId: value(subscription, "userId"),
+                    plan: values.plan,
+                    billingMonths: Number(values.billingMonths),
+                    amount: Number(values.amount),
+                    reference: values.reference,
+                    paymentMethod: values.paymentMethod,
+                    featuredLimitOverride: values.featuredLimitOverride ? Number(values.featuredLimitOverride) : null,
+                    note: values.note,
+                  }, "Offline payment recorded and subscription activated."),
+                })} colors={colors} icon="credit-card" />
+                <ActionButton label="Move to Free" onPress={() => confirm("Move subscriber to Free?", "The active subscription will be replaced with the Free plan.", () => mutate("/api/admin/subscriptions/assign", "POST", { userId: value(subscription, "userId"), plan: "free" }, "Subscriber moved to Free."))} colors={colors} icon="arrow-down-circle" />
                 <ActionButton label="Cancel" onPress={() => confirm("Cancel subscription?", "The subscription will be marked cancelled.", () => mutate(`/api/admin/subscriptions/${id}`, "DELETE", undefined, "Subscription cancelled."))} colors={colors} tone="danger" icon="x-circle" />
               </View>
             </Card>

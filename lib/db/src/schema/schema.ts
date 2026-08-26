@@ -145,30 +145,38 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
-export const subscriptions = pgTable("subscriptions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .notNull()
-    .references(() => users.id),
-  plan: text("plan")
-    .$type<"free" | "basic" | "pro" | "enterprise">()
-    .notNull()
-    .default("free"),
-  status: text("status")
-    .$type<"active" | "expired" | "cancelled">()
-    .notNull()
-    .default("active"),
-  billingCycle: text("billing_cycle")
-    .$type<"monthly" | "yearly" | "custom">()
-    .notNull()
-    .default("monthly"),
-  billingMonths: integer("billing_months").notNull().default(1),
-  amountPaid: integer("amount_paid").notNull().default(0),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date").notNull(),
-  featuredLimitOverride: integer("featured_limit_override"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id),
+    plan: text("plan")
+      .$type<"free" | "basic" | "pro" | "enterprise">()
+      .notNull()
+      .default("free"),
+    status: text("status")
+      .$type<"active" | "expired" | "cancelled">()
+      .notNull()
+      .default("active"),
+    billingCycle: text("billing_cycle")
+      .$type<"monthly" | "yearly" | "custom">()
+      .notNull()
+      .default("monthly"),
+    billingMonths: integer("billing_months").notNull().default(1),
+    amountPaid: integer("amount_paid").notNull().default(0),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    featuredLimitOverride: integer("featured_limit_override"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("subscriptions_one_active_per_user_idx")
+      .on(table.userId)
+      .where(sql`${table.status} = 'active'`),
+  ],
+);
 
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;

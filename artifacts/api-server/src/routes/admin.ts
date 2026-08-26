@@ -4,7 +4,11 @@ import { users, properties, bookings, subscriptions, payments, settings, subscri
 import { eq, count, sum, ne, asc, desc, and, inArray, gte, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { invalidateTokenCache, registerIPN } from "../services/pesapal";
-import { sendListingApprovedEmail, sendListingRejectedEmail } from "../lib/email";
+import {
+  sendListingApprovedEmail,
+  sendListingRejectedEmail,
+  sendSubscriptionRenewalConfirmationEmail,
+} from "../lib/email";
 import { getDashboardUrl } from "../lib/appUrl";
 import bcrypt from "bcryptjs";
 import { deletePropertyTransactionally } from "../lib/propertyDeletion";
@@ -211,11 +215,26 @@ router.patch("/properties/:id/verify", async (req, res) => {
   const [prop] = await db
     .update(properties)
     .set({ isVerified: true, propertyStatus: "approved", adminComment: null })
-    .where(eq(properties.id, req.params.id))
+    .where(and(
+      eq(properties.id, req.params.id),
+      eq(properties.isVerified, false),
+      eq(properties.propertyStatus, "pending"),
+    ))
     .returning();
 
   if (!prop) {
-    res.status(404).json({ error: "Property not found" });
+    const [existing] = await db
+      .select({ id: properties.id })
+      .from(properties)
+      .where(eq(properties.id, req.params.id));
+    if (!existing) {
+      res.status(404).json({ error: "Property not found" });
+      return;
+    }
+    res.status(409).json({
+      error: "Only a pending property can be activated. Flagged, deactivated, sold, and already-active listings keep their current state.",
+      code: "INVALID_MODERATION_TRANSITION",
+    });
     return;
   }
 
@@ -436,20 +455,10 @@ router.delete("/users/:id", async (req, res) => {
 router.patch("/properties/:id", async (req, res) => {
   const userId = await requireAdmin(req, res);
   if (!userId) return;
-
-  const [prop] = await db.select({ id: properties.id, isVerified: properties.isVerified }).from(properties).where(eq(properties.id, req.params.id));
-  if (!prop) {
-    res.status(404).json({ error: "Property not found" });
-    return;
-  }
-
-  const [updated] = await db
-    .update(properties)
-    .set({ isVerified: !prop.isVerified })
-    .where(eq(properties.id, req.params.id))
-    .returning();
-
-  res.json(updated);
+  res.status(400).json({
+    error: "Direct verification toggles are disabled. Use Activate, Flag, or a property lifecycle action.",
+    code: "USE_EXPLICIT_PROPERTY_ACTION",
+  });
 });
 
 router.delete("/properties/:id", async (req, res) => {
@@ -552,29 +561,208 @@ router.post("/subscriptions/assign", async (req, res) => {
     return;
   }
 
-  // Cancel only currently active subscriptions for this user
-  await db
-    .update(subscriptions)
-    .set({ status: "cancelled" })
-    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
-
   const now = new Date();
-  const [newSub] = await db
-    .insert(subscriptions)
-    .values({
-      userId,
-      plan: "free",
-      status: "active",
-      billingCycle: "custom",
-      billingMonths: 0,
-      amountPaid: 0,
-      startDate: now.toISOString().slice(0, 10),
-      endDate: "9999-12-31",
-      featuredLimitOverride: null,
-    })
-    .returning();
+  const newSub = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`subscription:${userId}`}))`);
+    await tx
+      .update(subscriptions)
+      .set({ status: "cancelled" })
+      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
+
+    const [inserted] = await tx
+      .insert(subscriptions)
+      .values({
+        userId,
+        plan: "free",
+        status: "active",
+        billingCycle: "custom",
+        billingMonths: 0,
+        amountPaid: 0,
+        startDate: now.toISOString().slice(0, 10),
+        endDate: "9999-12-31",
+        featuredLimitOverride: null,
+      })
+      .returning();
+    return inserted;
+  });
 
   res.status(201).json(newSub);
+});
+
+router.post("/subscriptions/offline-payment", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const {
+    userId,
+    plan,
+    billingMonths: rawBillingMonths,
+    amount: rawAmount,
+    reference,
+    paymentMethod,
+    featuredLimitOverride: rawFeaturedLimitOverride,
+    note,
+  } = req.body as Record<string, unknown>;
+
+  const billingMonths = Math.floor(Number(rawBillingMonths));
+  const amount = Math.round(Number(rawAmount));
+  const featuredLimitOverride =
+    rawFeaturedLimitOverride === undefined || rawFeaturedLimitOverride === null || rawFeaturedLimitOverride === ""
+      ? null
+      : Math.floor(Number(rawFeaturedLimitOverride));
+  const normalizedPlan = typeof plan === "string" ? plan.trim().toLowerCase() : "";
+  const normalizedReference = typeof reference === "string" ? reference.trim() : "";
+  const normalizedMethod = typeof paymentMethod === "string" ? paymentMethod.trim().toLowerCase() : "";
+
+  if (typeof userId !== "string" || !userId.trim()) {
+    res.status(400).json({ error: "A user ID is required." });
+    return;
+  }
+  if (!["basic", "pro", "enterprise"].includes(normalizedPlan)) {
+    res.status(400).json({ error: "Offline paid activation supports Basic, Pro, or Enterprise." });
+    return;
+  }
+  if (!Number.isInteger(billingMonths) || billingMonths < 1 || billingMonths > 120) {
+    res.status(400).json({ error: "Billing months must be between 1 and 120." });
+    return;
+  }
+  if (!Number.isInteger(amount) || amount <= 0) {
+    res.status(400).json({ error: "The received offline amount must be greater than zero." });
+    return;
+  }
+  if (!normalizedReference || normalizedReference.length > 160) {
+    res.status(400).json({ error: "An offline receipt or transaction reference is required." });
+    return;
+  }
+  if (!["cash", "bank_transfer", "mobile_money", "card", "other"].includes(normalizedMethod)) {
+    res.status(400).json({ error: "Payment method must be cash, bank_transfer, mobile_money, card, or other." });
+    return;
+  }
+  if (
+    featuredLimitOverride !== null &&
+    (!Number.isInteger(featuredLimitOverride) || featuredLimitOverride < 0)
+  ) {
+    res.status(400).json({ error: "Featured listing override must be zero or greater." });
+    return;
+  }
+
+  const [targetUser] = await db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId.trim()));
+  if (!targetUser) {
+    res.status(404).json({ error: "User not found." });
+    return;
+  }
+
+  const [configuredPlan] = await db
+    .select({ name: subscriptionPlans.name, isActive: subscriptionPlans.isActive })
+    .from(subscriptionPlans)
+    .where(eq(subscriptionPlans.name, normalizedPlan));
+  if (!configuredPlan?.isActive) {
+    res.status(400).json({ error: "That subscription plan is not currently active." });
+    return;
+  }
+
+  const merchantReference = `OFFLINE:${normalizedReference}`;
+  const now = new Date();
+  const startDate = now.toISOString().slice(0, 10);
+  const end = new Date(now);
+  end.setMonth(end.getMonth() + billingMonths);
+  const endDate = end.toISOString().slice(0, 10);
+  const billingCycle =
+    billingMonths === 12 ? "yearly" as const :
+    billingMonths === 1 ? "monthly" as const :
+    "custom" as const;
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${merchantReference}))`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`subscription:${targetUser.id}`}))`);
+
+      const [duplicate] = await tx
+        .select({ id: payments.id })
+        .from(payments)
+        .where(eq(payments.merchantReference, merchantReference))
+        .limit(1);
+      if (duplicate) return { duplicate: true as const };
+
+      const [payment] = await tx
+        .insert(payments)
+        .values({
+          userId: targetUser.id,
+          merchantReference,
+          amount,
+          currency: "KES",
+          plan: normalizedPlan as "basic" | "pro" | "enterprise",
+          billingMonths,
+          status: "completed",
+          paymentMethod: `offline:${normalizedMethod}`,
+          description: [
+            `${normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1)} Plan - ${billingMonths} month${billingMonths === 1 ? "" : "s"}`,
+            `Recorded by admin ${adminId}`,
+            typeof note === "string" && note.trim() ? note.trim() : null,
+          ].filter(Boolean).join(" · "),
+          updatedAt: now,
+        })
+        .returning();
+
+      await tx
+        .update(subscriptions)
+        .set({ status: "cancelled" })
+        .where(and(eq(subscriptions.userId, targetUser.id), eq(subscriptions.status, "active")));
+
+      const [subscription] = await tx
+        .insert(subscriptions)
+        .values({
+          userId: targetUser.id,
+          plan: normalizedPlan as "basic" | "pro" | "enterprise",
+          status: "active",
+          billingCycle,
+          billingMonths,
+          amountPaid: amount,
+          startDate,
+          endDate,
+          featuredLimitOverride: normalizedPlan === "enterprise" ? featuredLimitOverride : null,
+        })
+        .returning();
+
+      await tx
+        .update(payments)
+        .set({ subscriptionId: subscription.id })
+        .where(eq(payments.id, payment.id));
+
+      return {
+        duplicate: false as const,
+        payment: { ...payment, subscriptionId: subscription.id },
+        subscription,
+      };
+    });
+
+    if (result.duplicate) {
+      res.status(409).json({ error: "This offline payment reference has already been recorded.", code: "DUPLICATE_REFERENCE" });
+      return;
+    }
+
+    if (targetUser.email) {
+      sendSubscriptionRenewalConfirmationEmail({
+        toEmail: targetUser.email,
+        ownerName: targetUser.name ?? "Valued Customer",
+        planName: normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1),
+        amount,
+        newExpiryDate: endDate,
+        billingCycle,
+        dashboardUrl: getDashboardUrl("subscription"),
+      }).catch((error: unknown) => {
+        req.log.error({ error, userId: targetUser.id }, "Failed to send offline subscription confirmation email");
+      });
+    }
+
+    res.status(201).json(result);
+  } catch (error) {
+    req.log.error({ error, userId: targetUser.id }, "Offline subscription activation failed");
+    res.status(500).json({ error: "Could not record the offline payment and activate the subscription." });
+  }
 });
 
 router.patch("/subscriptions/:id", async (req, res) => {

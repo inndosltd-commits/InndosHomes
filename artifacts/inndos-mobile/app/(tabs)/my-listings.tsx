@@ -208,7 +208,7 @@ function ListingCard({
               <Text style={[styles.actionText, { color: colors.foreground }]}>Manage dates</Text>
             </Pressable>
           )}
-          {!isSold && (
+          {!isPending && !isSold && (
             <Pressable
               style={[styles.actionButton, { borderColor: colors.border }]}
               disabled={isMutating}
@@ -220,7 +220,7 @@ function ListingCard({
               </Text>
             </Pressable>
           )}
-          {canMarkSold && !isSold && (
+          {!isPending && canMarkSold && !isSold && (
             <Pressable
               style={[styles.actionButton, { borderColor: colors.border }]}
               disabled={isMutating}
