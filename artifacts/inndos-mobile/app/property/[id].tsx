@@ -4,6 +4,8 @@ import {
   useCheckFavorite,
   useAddFavorite,
   useRemoveFavorite,
+  useListBookings,
+  getGetPropertyQueryKey,
   getListFavoritesQueryKey,
   getCheckFavoriteQueryKey,
 } from "@workspace/api-client-react";
@@ -114,7 +116,19 @@ export default function PropertyDetailScreen() {
 
   const [isLinkedUp, setIsLinkedUp] = useState(false);
 
-  const { data: property, isLoading, error } = useGetProperty(id ?? "");
+  const propertyQueryKey = [
+    ...getGetPropertyQueryKey(id ?? ""),
+    user?.id ?? "signed-out",
+  ];
+  const { data: property, isLoading, error } = useGetProperty(id ?? "", {
+    query: { queryKey: propertyQueryKey },
+  });
+  const { data: bookings } = useListBookings({
+    query: {
+      queryKey: [...getListBookingsQueryKey(), user?.id ?? "signed-out"],
+      enabled: !!user,
+    },
+  });
   const { mutate: createBooking, isPending: isBooking } = useCreateBooking();
 
   const { data: favoriteStatus } = useCheckFavorite(id ?? "");
@@ -122,6 +136,11 @@ export default function PropertyDetailScreen() {
   const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
   const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
   const isFavoriteLoading = isAdding || isRemoving;
+  const hasActiveLinkUp = isLinkedUp || (
+    bookings?.some((booking) =>
+      booking.propertyId === id && booking.status !== "cancelled"
+    ) ?? false
+  );
 
   const handleShare = async () => {
     if (!id) return;
@@ -205,9 +224,12 @@ export default function PropertyDetailScreen() {
                 },
               },
               {
-                onSuccess: () => {
+                onSuccess: async () => {
                   setIsLinkedUp(true);
-                  queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() });
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() }),
+                    queryClient.invalidateQueries({ queryKey: propertyQueryKey }),
+                  ]);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   Alert.alert("Linked Up! 🔗", "Your link-up has been submitted and is pending confirmation.", [
                     { text: "View Link-Ups", onPress: () => router.push("/(tabs)/bookings") },
@@ -547,8 +569,8 @@ export default function PropertyDetailScreen() {
             />
           )}
 
-          {/* Owner contact actions — shown unconditionally when contact info is available */}
-          {(property.ownerPhone || property.ownerEmail) && (
+          {/* Direct contacts are private until this customer has linked up. */}
+          {hasActiveLinkUp && (property.ownerPhone || property.ownerEmail) && (
             <View style={[styles.contactCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
               <Text style={[styles.contactTitle, { color: colors.foreground }]}>Contact Owner / Host</Text>
               <Text style={[styles.contactSubtitle, { color: colors.mutedForeground }]}>
@@ -590,7 +612,7 @@ export default function PropertyDetailScreen() {
         </View>
       </ScrollView>
 
-      {showBooking && (
+      {showBooking && !hasActiveLinkUp && (
         <View style={[styles.bookingBar, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: bottomPad + 12 }]}>
           <View>
             <Text style={[styles.bookingPriceLabel, { color: colors.mutedForeground }]}>

@@ -37,6 +37,21 @@ async function inspectObjectEntityWhenReady(path: string) {
   throw lastReadinessError;
 }
 
+async function downloadObjectEntityWhenReady(path: string): Promise<Buffer> {
+  let lastReadinessError: unknown;
+  for (const delayMs of MEDIA_READY_RETRY_DELAYS_MS) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(path);
+      const [bytes] = await objectFile.download();
+      return bytes;
+    } catch (error) {
+      lastReadinessError = error;
+    }
+  }
+  throw lastReadinessError;
+}
+
 function normalizeSubtype(value: string | null | undefined): string {
   return (value ?? "")
     .trim()
@@ -113,16 +128,16 @@ async function validateNewListingMedia({
     }
 
     try {
-      const inspection = await inspectObjectEntityWhenReady(path);
-      if (inspection.size < 1 || inspection.size > maxBytes) {
-        return inspection.size < 1
-          ? `An uploaded ${expectedKind} is empty. Please choose the file again.`
-          : `A ${expectedKind} exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`;
-      }
-      if (inspection.mediaKind !== expectedKind) {
-        return `A file in the ${expectedKind} list is not a valid ${expectedKind}.`;
-      }
       if (expectedKind === "image") {
+        const inspection = await inspectObjectEntityWhenReady(path);
+        if (inspection.size < 1 || inspection.size > maxBytes) {
+          return inspection.size < 1
+            ? "An uploaded image is empty. Please choose the file again."
+            : `An image exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`;
+        }
+        if (inspection.mediaKind !== "image") {
+          return "A file in the image list is not a valid image.";
+        }
         const objectFile = await objectStorageService.getObjectEntityFile(path);
         const [imageBytes] = await objectFile.download();
         const metadata = await sharp(imageBytes).metadata();
@@ -132,8 +147,15 @@ async function validateNewListingMedia({
       } else {
         const workDir = join(tmpdir(), `inndos-video-verify-${randomUUID()}`);
         try {
-          const objectFile = await objectStorageService.getObjectEntityFile(path);
-          const [videoBytes] = await objectFile.download();
+          // Validate the complete stored object. A preliminary ranged header read
+          // is intentionally avoided because it can fail independently on valid
+          // direct uploads from browsers and native devices.
+          const videoBytes = await downloadObjectEntityWhenReady(path);
+          if (videoBytes.length < 1 || videoBytes.length > maxBytes) {
+            return videoBytes.length < 1
+              ? "An uploaded video is empty. Please choose the file again."
+              : `A video exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB limit.`;
+          }
           await mkdir(workDir, { recursive: true });
           const inputPath = join(workDir, "source-video");
           await writeFile(inputPath, videoBytes);
@@ -172,6 +194,11 @@ async function validateNewListingMedia({
       if (error instanceof ObjectNotFoundError) {
         return `An uploaded ${expectedKind} could not be found. Please upload it again.`;
       }
+      console.error("Listing media verification failed", {
+        expectedKind,
+        path,
+        error,
+      });
       return expectedKind === "video"
         ? "This video could not be verified. Please upload an MP4, MOV, or WebM file that is not damaged."
         : "An uploaded image could not be verified. Please upload it again.";
@@ -311,8 +338,6 @@ const PROPERTY_COLUMNS = {
   lng: properties.lng,
   createdAt: properties.createdAt,
   ownerName: users.name,
-  ownerPhone: users.phone,
-  ownerEmail: users.email,
   ownerAvatar: users.avatar,
   ownerBusinessName: users.businessName,
   isFeatured: properties.isFeatured,
@@ -320,6 +345,12 @@ const PROPERTY_COLUMNS = {
   avgRating: drizzleSql<string | null>`(SELECT ROUND(AVG(r.rating)::numeric,1)::text FROM reviews r WHERE r.property_id = ${properties.id})`,
   favoritesCount: drizzleSql<number>`(SELECT COUNT(*)::int FROM favorites f WHERE f.property_id = ${properties.id})`,
   activeBookingsCount: drizzleSql<number>`(SELECT COUNT(*)::int FROM bookings b WHERE b.property_id = ${properties.id} AND b.status = 'confirmed')`,
+} as const;
+
+const PROPERTY_DETAIL_COLUMNS = {
+  ...PROPERTY_COLUMNS,
+  ownerPhone: users.phone,
+  ownerEmail: users.email,
 } as const;
 
 const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];
@@ -559,21 +590,15 @@ router.post("/videos/process", async (req, res) => {
   const outputPath = join(workDir, "edited.mp4");
   const captionPath = join(workDir, "caption.txt");
   try {
-    const inspection = await inspectObjectEntityWhenReady(sourcePath);
-    if (inspection.size < 1 || inspection.size > MAX_LISTING_VIDEO_BYTES) {
+    const videoBytes = await downloadObjectEntityWhenReady(sourcePath);
+    if (videoBytes.length < 1 || videoBytes.length > MAX_LISTING_VIDEO_BYTES) {
       res.status(400).json({
-        error: inspection.size < 1
+        error: videoBytes.length < 1
           ? "The selected video is empty. Please choose it again."
           : "Videos must be 250 MB or smaller.",
       });
       return;
     }
-    if (inspection.mediaKind !== "video") {
-      res.status(400).json({ error: "The selected file is not a valid video." });
-      return;
-    }
-    const video = await objectStorageService.getObjectEntityFile(sourcePath);
-    const [videoBytes] = await video.download();
     await mkdir(workDir, { recursive: true });
     await writeFile(inputPath, videoBytes);
     await writeFile(captionPath, caption.trim());
@@ -627,7 +652,7 @@ router.get("/:id", async (req, res) => {
   const caller = await getCallerInfo(req);
 
   const [prop] = await db
-    .select(PROPERTY_COLUMNS)
+    .select(PROPERTY_DETAIL_COLUMNS)
     .from(properties)
     .leftJoin(users, eq(properties.ownerId, users.id))
     .where(eq(properties.id, req.params.id));
@@ -650,7 +675,24 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
-  res.json(prop);
+  let canViewContacts = Boolean(isOwner || isAdmin);
+  if (!canViewContacts && caller.userId) {
+    const [activeLinkUp] = await db
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(and(
+        eq(bookings.propertyId, prop.id),
+        eq(bookings.userId, caller.userId),
+        inArray(bookings.status, ["pending", "confirmed"]),
+      ))
+      .limit(1);
+    canViewContacts = Boolean(activeLinkUp);
+  }
+
+  res.json(canViewContacts
+    ? prop
+    : { ...prop, ownerPhone: null, ownerEmail: null }
+  );
 });
 
 router.get("/:id/availability", async (req, res) => {

@@ -472,6 +472,8 @@ export default function PropertyDetails() {
 
   // Persist isLinkedUp — check if user has a confirmed booking for this property & store bookingId
   useEffect(() => {
+    setIsLinkedUp(false);
+    setLinkedUpBookingId(null);
     if (!user || !token || !property?.id) return;
     fetch("/api/bookings", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : []))
@@ -1332,7 +1334,7 @@ export default function PropertyDetails() {
                     </p>
                   </div>
                 ) : (
-                  /* Logged in — show owner identity + contacts immediately, then link-up flow */
+                  /* Logged in — reveal direct contacts only after Link Up */
                   <>
                     {/* Owner identity — always visible to authenticated customers */}
                     <div>
@@ -1363,50 +1365,6 @@ export default function PropertyDetails() {
                     </div>
 
                     <div className="space-y-3">
-                      {/* Owner contact actions — revealed to authenticated customers when contact data exists */}
-                      {(property.ownerPhone || property.ownerEmail) && (
-                        <div className="flex flex-col gap-2 mb-1">
-                          {property.ownerPhone && (
-                            <a
-                              href={`tel:${property.ownerPhone}`}
-                              className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
-                            >
-                              <PhoneCall className="h-4 w-4 text-primary shrink-0" />
-                              <div>
-                                <div className="text-xs text-gray-500 leading-none mb-0.5">Call owner</div>
-                                <div>{property.ownerPhone}</div>
-                              </div>
-                            </a>
-                          )}
-                          {property.ownerPhone && (
-                            <a
-                              href={`https://wa.me/${toWhatsApp(property.ownerPhone)}?text=${encodeURIComponent(`Hi, I found your property "${property.title}" on inndos and would like to confirm availability.`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 px-4 py-2.5 bg-[#25D366] rounded-lg text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
-                            >
-                              <MessageCircle className="h-4 w-4 shrink-0" />
-                              <div>
-                                <div className="text-xs text-white/70 leading-none mb-0.5">WhatsApp</div>
-                                <div>{property.ownerPhone}</div>
-                              </div>
-                            </a>
-                          )}
-                          {property.ownerEmail && (
-                            <a
-                              href={`mailto:${property.ownerEmail}?subject=${encodeURIComponent(`Availability Inquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi,\n\nI found your property "${property.title}" on inndos and would like to confirm availability.\n\nThank you.`)}`}
-                              className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-primary/5 hover:border-primary/40 transition-colors"
-                            >
-                              <Mail className="h-4 w-4 text-primary shrink-0" />
-                              <div>
-                                <div className="text-xs text-gray-500 leading-none mb-0.5">Email</div>
-                                <div>{property.ownerEmail}</div>
-                              </div>
-                            </a>
-                          )}
-                        </div>
-                      )}
-
                       {/* Primary CTA */}
                       {!isLinkedUp ? (
                         <Button
