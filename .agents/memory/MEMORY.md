@@ -5,3 +5,4 @@
 - [Native Google Maps attribution](native-google-maps-attribution.md) — Keep the provider-rendered watermark untouched; its text, color, and placement are not app styling controls.
 - [Presigned listing media trust](presigned-listing-media-trust.md) — Treat upload-grant metadata as untrusted; verify owner and stored bytes before attaching media.
 - [Authorization-dependent query caches](authorization-dependent-query-caches.md) — Scope caches by user when an API response changes with caller authorization.
+- [Subscription payment binding](subscription-payment-binding.md) — Activate paid plans only from a completed gateway result bound to the exact pending payment.

@@ -154,6 +154,87 @@ export async function getPlanEntitlements(plan: string): Promise<PlanEntitlement
   };
 }
 
+type StoredPayment = typeof payments.$inferSelect;
+type PesapalStatus = Awaited<ReturnType<typeof getTransactionStatus>>;
+
+function isCompletedPayment(status: PesapalStatus): boolean {
+  return (
+    status.paymentStatusDescription.trim().toLowerCase() === "completed" ||
+    status.status.trim().toLowerCase() === "completed"
+  );
+}
+
+function paymentMatchesGateway(
+  payment: StoredPayment,
+  trackingId: string,
+  merchantReference: string,
+  status: PesapalStatus
+): boolean {
+  if (!payment.pesapalTrackingId || payment.pesapalTrackingId !== trackingId) return false;
+  if (!payment.merchantReference || payment.merchantReference !== merchantReference) return false;
+  if (!status.merchantReference || status.merchantReference !== payment.merchantReference) return false;
+  if (!Number.isFinite(status.amount) || status.amount !== payment.amount) return false;
+  if (status.currency && status.currency.toUpperCase() !== payment.currency.toUpperCase()) return false;
+  return true;
+}
+
+async function finalizePaidSubscription(
+  payment: StoredPayment,
+  trackingId: string,
+  status: PesapalStatus
+) {
+  return db.transaction(async (tx) => {
+    const [claimedPayment] = await tx
+      .update(payments)
+      .set({
+        status: "completed",
+        paymentMethod: status.paymentMethod,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(payments.id, payment.id),
+        eq(payments.status, "pending"),
+        eq(payments.pesapalTrackingId, trackingId)
+      ))
+      .returning();
+
+    if (!claimedPayment) return null;
+
+    const billingCycle =
+      payment.billingMonths === 12 ? "yearly" as const :
+      payment.billingMonths === 1 ? "monthly" as const :
+      "custom" as const;
+    const startDate = toDateStr(new Date());
+    const endDate = toDateStr(addMonths(new Date(), payment.billingMonths));
+
+    await tx
+      .update(subscriptions)
+      .set({ status: "cancelled" })
+      .where(and(eq(subscriptions.userId, payment.userId), eq(subscriptions.status, "active")));
+
+    const [newSubscription] = await tx
+      .insert(subscriptions)
+      .values({
+        userId: payment.userId,
+        plan: payment.plan,
+        status: "active",
+        billingCycle,
+        billingMonths: payment.billingMonths,
+        amountPaid: payment.amount,
+        startDate,
+        endDate,
+      })
+      .returning();
+
+    await tx
+      .update(payments)
+      .set({ subscriptionId: newSubscription.id })
+      .where(eq(payments.id, payment.id));
+
+    return newSubscription;
+  });
+}
+
 async function calcAmount(plan: string, cycle: string, months: number): Promise<number> {
   const plans = await getPlansConfig();
   const pricePerMonth = plans[plan]?.price ?? DEFAULT_PLAN_PRICES[plan] ?? 0;
@@ -226,16 +307,13 @@ router.get("/me", async (req, res) => {
   });
 });
 
-// POST /api/subscriptions/upgrade  (free/manual — no payment)
+// POST /api/subscriptions/upgrade  (Free-plan downgrade only)
 router.post("/upgrade", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const { plan, billingCycle, months, returnTarget } = req.body as {
+  const { plan } = req.body as {
     plan?: string;
-    billingCycle?: string;
-    months?: number;
-    returnTarget?: string;
   };
 
   if (!plan || !["free", "basic", "pro", "enterprise"].includes(plan)) {
@@ -257,58 +335,12 @@ router.post("/upgrade", async (req, res) => {
     return;
   }
 
-  const cycle = billingCycle && ["monthly", "yearly", "custom"].includes(billingCycle)
-    ? (billingCycle as "monthly" | "yearly" | "custom")
-    : "monthly";
-
-  let billingMonths = 1;
-  if (cycle === "yearly") billingMonths = 12;
-  else if (cycle === "custom" && months && months >= 1) billingMonths = Math.floor(months);
-
-  const amountPaid = await calcAmount(plan, cycle, billingMonths);
-  const startDate = toDateStr(new Date());
-  const endDate = toDateStr(addMonths(new Date(), billingMonths));
-
-  await db
-    .update(subscriptions)
-    .set({ status: "cancelled" })
-    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, "active")));
-
-  const [newSub] = await db
-    .insert(subscriptions)
-    .values({
-      userId,
-      plan: plan as "basic" | "pro" | "enterprise",
-      status: "active",
-      billingCycle: cycle,
-      billingMonths,
-      amountPaid,
-      startDate,
-      endDate,
-    })
-    .returning();
-
-  // Send renewal confirmation email (best-effort)
-  const [usr] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, userId)).catch(() => [null]);
-  if (usr?.email) {
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const expiryParts = newSub.endDate.split("-");
-    const expiryFmt = `${parseInt(expiryParts[2], 10)} ${months[parseInt(expiryParts[1], 10) - 1]} ${expiryParts[0]}`;
-    sendSubscriptionRenewalConfirmationEmail({
-      toEmail:      usr.email,
-      ownerName:    usr.name ?? "Valued Customer",
-      planName:     plan.charAt(0).toUpperCase() + plan.slice(1),
-      amount:       newSub.amountPaid ?? 0,
-      newExpiryDate: expiryFmt,
-      billingCycle: newSub.billingCycle ?? "monthly",
-      dashboardUrl: getDashboardUrl("subscription"),
-    }).catch(() => {});
-  }
-
-  res.status(201).json({
-    ...newSub,
-    ...(await getPlanEntitlements(plan)),
-    message: `Upgraded to ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`,
+  // Paid subscriptions are created only after PesaPal confirms payment in
+  // the callback or IPN handlers below. This also protects stale clients and
+  // direct API callers that still know about the former manual activation.
+  res.status(402).json({
+    error: "Payment is required to activate a paid subscription. Start checkout instead.",
+    code: "PAYMENT_REQUIRED",
   });
 });
 
@@ -439,73 +471,40 @@ router.get("/payments/:paymentId", async (req, res) => {
 
 // GET /api/subscriptions/callback  — PesaPal redirect after payment
 router.get("/callback", async (req, res) => {
-  const { OrderTrackingId, OrderMerchantReference, paymentId, plan, months, cycle, returnTarget } =
+  const { OrderTrackingId, OrderMerchantReference, paymentId, returnTarget } =
     req.query as Record<string, string>;
 
   const trackingId = OrderTrackingId;
   const ref = OrderMerchantReference;
 
-  if (!trackingId || !paymentId) {
+  if (!trackingId || !ref || !paymentId) {
     redirectAfterPayment(res, "cancelled", returnTarget, paymentId);
     return;
   }
 
   try {
+    const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId)).limit(1);
+    if (!payment) {
+      redirectAfterPayment(res, "error", returnTarget, paymentId);
+      return;
+    }
+
     const txStatus = await getTransactionStatus(trackingId);
-    const isSuccess =
-      txStatus.paymentStatusDescription?.toLowerCase() === "completed" ||
-      txStatus.status === "200";
+    if (!paymentMatchesGateway(payment, trackingId, ref, txStatus)) {
+      req.log?.warn({ paymentId, trackingId }, "Rejected mismatched PesaPal callback");
+      redirectAfterPayment(res, "error", returnTarget, paymentId);
+      return;
+    }
 
-    if (isSuccess) {
-      // Find the pending payment
-      const [payment] = await db
-        .select()
-        .from(payments)
-        .where(eq(payments.id, paymentId));
-
-      if (payment && payment.status !== "completed") {
-        const billingMonths = Number(months) || payment.billingMonths;
-        const billingCycle = (cycle as "monthly" | "yearly" | "custom") || "monthly";
-        const startDate = toDateStr(new Date());
-        const endDate = toDateStr(addMonths(new Date(), billingMonths));
-
-        // Cancel old subscriptions
-        await db
-          .update(subscriptions)
-          .set({ status: "cancelled" })
-          .where(and(eq(subscriptions.userId, payment.userId), eq(subscriptions.status, "active")));
-
-        // Create new subscription
-        const [newSub] = await db
-          .insert(subscriptions)
-          .values({
-            userId: payment.userId,
-            plan: payment.plan,
-            status: "active",
-            billingCycle,
-            billingMonths,
-            amountPaid: payment.amount,
-            startDate,
-            endDate,
-          })
-          .returning();
-
-        // Update payment record
-        await db
-          .update(payments)
-          .set({
-            status: "completed",
-            subscriptionId: newSub.id,
-            pesapalTrackingId: trackingId,
-            paymentMethod: txStatus.paymentMethod,
-            merchantReference: ref,
-            updatedAt: new Date(),
-          })
-          .where(eq(payments.id, paymentId));
-
+    if (isCompletedPayment(txStatus)) {
+      const newSub = payment.status === "pending"
+        ? await finalizePaidSubscription(payment, trackingId, txStatus)
+        : null;
+      if (newSub) {
+        const billingCycle = newSub.billingCycle ?? "monthly";
         // Send renewal confirmation email
         const [ppUser] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, payment.userId)).catch(() => [null]);
-        if (ppUser?.email && newSub) {
+        if (ppUser?.email) {
           const months2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           const ep = newSub.endDate.split("-");
           const expiryFmt2 = `${parseInt(ep[2], 10)} ${months2[parseInt(ep[1], 10) - 1]} ${ep[0]}`;
@@ -520,7 +519,6 @@ router.get("/callback", async (req, res) => {
           }).catch(() => {});
         }
       }
-
       redirectAfterPayment(res, "success", returnTarget, paymentId);
     } else {
       const description = txStatus.paymentStatusDescription?.toLowerCase() ?? "";
@@ -532,8 +530,8 @@ router.get("/callback", async (req, res) => {
       if (state !== "pending") {
         await db
           .update(payments)
-          .set({ status: state, pesapalTrackingId: trackingId, updatedAt: new Date() })
-          .where(eq(payments.id, paymentId));
+          .set({ status: state, updatedAt: new Date() })
+          .where(and(eq(payments.id, paymentId), eq(payments.status, "pending")));
       }
       redirectAfterPayment(res, state, returnTarget, paymentId);
     }
@@ -548,17 +546,12 @@ router.get("/ipn", async (req, res) => {
   const { OrderTrackingId, OrderMerchantReference, OrderNotificationType } =
     req.query as Record<string, string>;
 
-  if (!OrderTrackingId) {
-    res.status(400).json({ error: "Missing OrderTrackingId" });
+  if (!OrderTrackingId || !OrderMerchantReference) {
+    res.status(400).json({ error: "Missing payment identifiers" });
     return;
   }
 
   try {
-    const txStatus = await getTransactionStatus(OrderTrackingId);
-    const isSuccess =
-      txStatus.paymentStatusDescription?.toLowerCase() === "completed" ||
-      txStatus.status === "200";
-
     // Find the payment by merchant reference
     const [payment] = await db
       .select()
@@ -566,41 +559,21 @@ router.get("/ipn", async (req, res) => {
       .where(eq(payments.merchantReference, OrderMerchantReference ?? ""))
       .limit(1);
 
+    if (!payment) {
+      res.status(404).json({ error: "Payment not found" });
+      return;
+    }
+
+    const txStatus = await getTransactionStatus(OrderTrackingId);
+    if (!paymentMatchesGateway(payment, OrderTrackingId, OrderMerchantReference, txStatus)) {
+      req.log?.warn({ paymentId: payment.id, trackingId: OrderTrackingId }, "Rejected mismatched PesaPal IPN");
+      res.status(400).json({ error: "Payment identifiers do not match" });
+      return;
+    }
+
     if (payment && payment.status === "pending") {
-      if (isSuccess) {
-        const billingCycle = "monthly" as const;
-        const startDate = toDateStr(new Date());
-        const endDate = toDateStr(addMonths(new Date(), payment.billingMonths));
-
-        await db
-          .update(subscriptions)
-          .set({ status: "cancelled" })
-          .where(and(eq(subscriptions.userId, payment.userId), eq(subscriptions.status, "active")));
-
-        const [newSub] = await db
-          .insert(subscriptions)
-          .values({
-            userId: payment.userId,
-            plan: payment.plan,
-            status: "active",
-            billingCycle,
-            billingMonths: payment.billingMonths,
-            amountPaid: payment.amount,
-            startDate,
-            endDate,
-          })
-          .returning();
-
-        await db
-          .update(payments)
-          .set({
-            status: "completed",
-            subscriptionId: newSub.id,
-            pesapalTrackingId: OrderTrackingId,
-            paymentMethod: txStatus.paymentMethod,
-            updatedAt: new Date(),
-          })
-          .where(eq(payments.id, payment.id));
+      if (isCompletedPayment(txStatus)) {
+        await finalizePaidSubscription(payment, OrderTrackingId, txStatus);
       } else if (
         txStatus.paymentStatusDescription?.toLowerCase() === "failed" ||
         txStatus.paymentStatusDescription?.toLowerCase() === "invalid"

@@ -1372,39 +1372,6 @@ export default function Dashboard() {
     }
   }, [user, token]);
 
-  const handleSubscriptionUpgrade = async () => {
-    if (!upgradeDialogPlan || !token) return;
-    setIsUpgrading(true);
-    try {
-      const res = await fetch("/api/subscriptions/upgrade", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: upgradeDialogPlan,
-          billingCycle,
-          months: customMonths,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Upgrade failed", description: data.error || "Could not upgrade plan.", variant: "destructive" });
-        return;
-      }
-      await fetchSubscription();
-      setUpgradeDialogPlan(null);
-      setFeatureSelectionOpen(true);
-      toast({
-        title: "Plan Activated!",
-        description: data.message || "Your subscription has been upgraded.",
-        className: "bg-gray-50 border-gray-200 text-gray-800",
-      });
-    } catch {
-      toast({ title: "Network error", description: "Could not reach the server.", variant: "destructive" });
-    } finally {
-      setIsUpgrading(false);
-    }
-  };
-
   const handleDowngradeToFree = async () => {
     if (!token) return;
     setIsUpgrading(true);
@@ -5740,23 +5707,9 @@ export default function Dashboard() {
                   {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                   Pay via PesaPal
                 </Button>
-                <div className="flex items-center gap-3 w-full">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-xs text-gray-400">or activate manually (demo)</span>
-                  <div className="flex-1 h-px bg-gray-200" />
-                </div>
-                <div className="flex gap-2 w-full">
-                  <Button variant="outline" className="flex-1" onClick={() => setUpgradeDialogPlan(null)}>Cancel</Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 text-xs"
-                    onClick={handleSubscriptionUpgrade}
-                    disabled={isUpgrading}
-                  >
-                    {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Activate (Skip Payment)
-                  </Button>
-                </div>
+                <Button variant="outline" className="w-full" onClick={() => setUpgradeDialogPlan(null)} disabled={isUpgrading}>
+                  Cancel
+                </Button>
               </DialogFooter>
               )}
             </DialogContent>

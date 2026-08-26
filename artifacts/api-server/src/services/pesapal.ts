@@ -155,9 +155,11 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<{
   amount: number;
   createdDate: string;
   confirmedDate: string;
-  status: string; // COMPLETED | FAILED | INVALID | REVERSED
+  status: string;
   description: string;
   paymentStatusDescription: string; // Completed | Failed | Invalid | Reversed
+  merchantReference: string;
+  currency: string;
 }> {
   const config = await getPesapalConfig();
   const base = getBaseUrl(config.mode);
@@ -178,15 +180,18 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<{
     throw new Error(`PesaPal status check failed: ${res.status} ${body}`);
   }
 
-  return res.json() as Promise<{
-    paymentMethod: string;
-    amount: number;
-    createdDate: string;
-    confirmedDate: string;
-    status: string;
-    description: string;
-    paymentStatusDescription: string;
-  }>;
+  const data = await res.json() as Record<string, unknown>;
+  return {
+    paymentMethod: String(data.payment_method ?? data.paymentMethod ?? ""),
+    amount: Number(data.amount),
+    createdDate: String(data.created_date ?? data.createdDate ?? ""),
+    confirmedDate: String(data.confirmed_date ?? data.confirmedDate ?? ""),
+    status: String(data.status_code ?? data.status ?? ""),
+    description: String(data.description ?? ""),
+    paymentStatusDescription: String(data.payment_status_description ?? data.paymentStatusDescription ?? ""),
+    merchantReference: String(data.merchant_reference ?? data.merchantReference ?? ""),
+    currency: String(data.currency ?? ""),
+  };
 }
 
 export function invalidateTokenCache() {
