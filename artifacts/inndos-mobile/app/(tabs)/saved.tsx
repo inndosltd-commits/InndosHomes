@@ -21,7 +21,9 @@ export default function SavedScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const { data: properties, isLoading } = useListFavorites();
+  const { data: properties, isLoading } = useListFavorites({
+    query: { queryKey: getListFavoritesQueryKey(), enabled: !!user },
+  });
 
   if (!user) {
     return (

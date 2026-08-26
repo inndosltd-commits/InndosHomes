@@ -904,6 +904,15 @@ export default function Dashboard() {
     return new URLSearchParams(query).get("tab") || "overview";
   });
 
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const query = window.location.hash.split("?")[1] ?? "";
+      setActiveTab(new URLSearchParams(query).get("tab") || "overview");
+    };
+    window.addEventListener("hashchange", syncTabFromUrl);
+    return () => window.removeEventListener("hashchange", syncTabFromUrl);
+  }, []);
+
   // Subscription state
   const [subscription, setSubscription] = useState<{
     plan: string; status: string; billingCycle: string; billingMonths: number;
@@ -1430,6 +1439,10 @@ export default function Dashboard() {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
+    const nextHash = tab === "overview" ? "/dashboard" : `/dashboard?tab=${encodeURIComponent(tab)}`;
+    if (window.location.hash.replace(/^#/, "") !== nextHash) {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${nextHash}`);
+    }
     if (tab === "reservations" || tab === "bookings") {
       markNotificationsRead();
     }
@@ -1926,11 +1939,10 @@ export default function Dashboard() {
               </span>
             )}
           </TabsTrigger>
-          {(user.role === 'tenant' || user.role === 'guest') && (
-            <TabsTrigger value="saved" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
-              Saved
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="saved" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
+            Saved
+            {favorites.length > 0 && <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-white text-zinc-900 text-[10px] font-bold leading-none">{favorites.length}</span>}
+          </TabsTrigger>
           <TabsTrigger value="analytics" className="whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full text-gray-300 data-[state=active]:bg-white/20 data-[state=active]:text-white border-none shadow-none">
             {t("dash.analytics")}
           </TabsTrigger>
@@ -2053,12 +2065,10 @@ export default function Dashboard() {
                   </span>
                 )}
             </TabsTrigger>
-            {(user.role === 'tenant' || user.role === 'guest') && (
-                <TabsTrigger value="saved" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
+            <TabsTrigger value="saved" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <Heart className="w-5 h-5 mr-3" /> Saved Properties
                 {favorites.length > 0 && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-900 text-white text-[10px] font-bold leading-none">{favorites.length}</span>}
-                </TabsTrigger>
-            )}
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="w-full justify-start px-4 py-3 text-sm font-medium rounded-lg text-[#b8d4f0] data-[state=active]:bg-zinc-700 data-[state=active]:text-white hover:bg-white/5 hover:text-white transition-colors border-none shadow-none">
                 <BarChart3 className="w-5 h-5 mr-3" /> {t("dash.analytics")}
             </TabsTrigger>
@@ -2440,7 +2450,7 @@ export default function Dashboard() {
           {(user.role === 'owner' || user.role === 'host') && (
             <>
               <TabsContent value="overview" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                   <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-blue-500" onClick={() => setActiveTab("listings")}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-center mb-2">
@@ -2501,6 +2511,16 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {t("dash.from_confirmed")}
                       </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="hover:shadow-md transition-all cursor-pointer bg-white border-l-4 border-l-red-500" onClick={() => handleTabChange("saved")}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Saved Properties</p>
+                        <Heart className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <div className="text-2xl font-bold">{favorites.length}</div>
+                      <p className="text-xs text-muted-foreground mt-1">View properties you favorited</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -3029,9 +3049,8 @@ export default function Dashboard() {
             </TabsContent>
           )}
 
-          {/* SAVED PROPERTIES TAB — tenant/guest */}
-          {(user.role === 'tenant' || user.role === 'guest') && (
-            <TabsContent value="saved" className="space-y-6">
+          {/* SAVED PROPERTIES TAB — available to every signed-in account */}
+          <TabsContent value="saved" className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">Saved Properties</h2>
@@ -3086,8 +3105,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </TabsContent>
-          )}
+          </TabsContent>
 
           {/* PROPERTY LIKES TAB — owner/host */}
           {(user.role === 'owner' || user.role === 'host') && (
