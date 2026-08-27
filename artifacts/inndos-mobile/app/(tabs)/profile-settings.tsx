@@ -1,9 +1,11 @@
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Switch,
@@ -18,6 +20,60 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTheme, ThemePreference } from "@/context/ThemeContext";
 import { getApiBaseUrl } from "@/utils/api";
+import { getImageUrl } from "@/utils/imageUrl";
+
+type DocumentUser = NonNullable<ReturnType<typeof useAuth>["user"]>;
+
+function DocumentUploadRow({
+  label,
+  hint,
+  path,
+  busy,
+  colors,
+  onPress,
+}: {
+  label: string;
+  hint: string;
+  path?: string | null;
+  busy: boolean;
+  colors: ReturnType<typeof useColors>;
+  onPress: () => void;
+}) {
+  const imageUrl = path ? getImageUrl(path) : "";
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      style={[
+        styles.documentRow,
+        {
+          borderColor: path ? colors.primary : colors.border,
+          backgroundColor: colors.card,
+          opacity: busy ? 0.65 : 1,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${path ? "Replace" : "Upload"} ${label}`}
+    >
+      {busy ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : path && imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.documentThumb} resizeMode="cover" />
+      ) : (
+        <View style={[styles.documentIcon, { backgroundColor: colors.muted }]}>
+          <Feather name={path ? "file-text" : "upload-cloud"} size={20} color={colors.primary} />
+        </View>
+      )}
+      <View style={styles.documentCopy}>
+        <Text style={[styles.documentLabel, { color: colors.foreground }]}>{label}</Text>
+        <Text style={[styles.documentHint, { color: colors.mutedForeground }]}>
+          {busy ? "Uploading…" : path ? "Uploaded · tap to replace" : hint}
+        </Text>
+      </View>
+      <Feather name={path ? "refresh-cw" : "plus"} size={18} color={colors.mutedForeground} />
+    </Pressable>
+  );
+}
 
 // ── Appearance picker ─────────────────────────────────────────────────────────
 const THEME_OPTIONS: { label: string; value: ThemePreference; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
@@ -40,6 +96,15 @@ export default function ProfileSettingsScreen() {
   const [firmType, setFirmType] = useState<"business_name" | "registered_company">(
     user?.firmType === "registered_company" ? "registered_company" : "business_name"
   );
+  const [idFrontPath, setIdFrontPath] = useState<string | null>(user?.idFront ?? null);
+  const [idBackPath, setIdBackPath] = useState<string | null>(user?.idBack ?? null);
+  const [firmCertRegPath, setFirmCertRegPath] = useState<string | null>(user?.firmCertRegistration ?? null);
+  const [firmCertIncPath, setFirmCertIncPath] = useState<string | null>(user?.firmCertIncorporation ?? null);
+  const [firmCr12Path, setFirmCr12Path] = useState<string | null>(user?.firmCr12 ?? null);
+  const [firmDirectorIdPaths, setFirmDirectorIdPaths] = useState<string[]>(user?.firmDirectorIds ?? []);
+  const [businessCertPath, setBusinessCertPath] = useState<string | null>(user?.businessCertRegistration ?? null);
+  const [businessPermitPath, setBusinessPermitPath] = useState<string | null>(user?.businessPermit ?? null);
+  const [uploadingDocument, setUploadingDocument] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [phoneToken, setPhoneToken] = useState<string | null>(null);
   const [sendingCode, setSendingCode] = useState(false);
@@ -92,6 +157,98 @@ export default function ProfileSettingsScreen() {
       Alert.alert("Could not verify code", error instanceof Error ? error.message : "Try again.");
     } finally {
       setVerifyingCode(false);
+    }
+  };
+
+  const uploadDocument = async (
+    key: string,
+    profileField: keyof DocumentUser,
+    setPath: (path: string) => void,
+    currentArray?: string[],
+    arrayMode?: "append" | number,
+  ) => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo access to upload a clear photo or scan of this document.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 20 * 1024 * 1024) {
+      Alert.alert("File too large", "Please choose an image smaller than 20 MB.");
+      return;
+    }
+
+    setUploadingDocument(key);
+    try {
+      const filename = asset.fileName || asset.uri.split("/").pop() || `${key}.jpg`;
+      const extension = filename.split(".").pop()?.toLowerCase() || "jpg";
+      const mimeType = asset.mimeType?.startsWith("image/")
+        ? asset.mimeType
+        : extension === "png" ? "image/png" : "image/jpeg";
+      const formData = new FormData();
+      formData.append("file", { uri: asset.uri, name: filename, type: mimeType } as never);
+
+      const uploadResponse = await fetch(`${getApiBaseUrl()}/api/storage/objects`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const uploadPayload = await uploadResponse.json() as { path?: string; url?: string; error?: string };
+      if (!uploadResponse.ok) throw new Error(uploadPayload.error ?? "The document could not be uploaded");
+      const objectPath = uploadPayload.path || uploadPayload.url;
+      if (!objectPath) throw new Error("The upload did not return a document path");
+
+      let value: string | string[] = objectPath;
+      if (arrayMode === "append") {
+        value = [...(currentArray ?? []), objectPath];
+      } else if (typeof arrayMode === "number") {
+        value = [...(currentArray ?? [])];
+        value[arrayMode] = objectPath;
+      }
+      const profileResponse = await fetch(`${getApiBaseUrl()}/api/auth/profile`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ [profileField]: value }),
+      });
+      const profilePayload = await profileResponse.json() as DocumentUser & { error?: string };
+      if (!profileResponse.ok) throw new Error(profilePayload.error ?? "The document could not be saved");
+
+      if (arrayMode !== undefined) {
+        setFirmDirectorIdPaths(value as string[]);
+      } else {
+        setPath(objectPath);
+      }
+      await updateUser(profilePayload);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Document saved", `${key} has been uploaded successfully.`);
+    } catch (error) {
+      Alert.alert("Upload failed", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setUploadingDocument(null);
+    }
+  };
+
+  const removeDirectorId = async (index: number) => {
+    const updated = firmDirectorIdPaths.filter((_, itemIndex) => itemIndex !== index);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/profile`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ firmDirectorIds: updated }),
+      });
+      const payload = await response.json() as DocumentUser & { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Could not remove document");
+      setFirmDirectorIdPaths(updated);
+      await updateUser(payload);
+    } catch (error) {
+      Alert.alert("Could not remove document", error instanceof Error ? error.message : "Try again.");
     }
   };
 
@@ -228,6 +385,127 @@ export default function ProfileSettingsScreen() {
           </View>
         )}
 
+        {/* ── Verification documents ─────────────────────────────────────── */}
+        {!isRegisteredFirm ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>IDENTITY DOCUMENTS</Text>
+            <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+              Upload clear photos or scans of both sides of your Kenyan National ID.
+            </Text>
+            <DocumentUploadRow
+              label="National ID — front side"
+              hint="Tap to upload a clear photo"
+              path={idFrontPath}
+              busy={uploadingDocument === "idFront"}
+              colors={colors}
+              onPress={() => uploadDocument("ID front", "idFront", setIdFrontPath)}
+            />
+            <DocumentUploadRow
+              label="National ID — back side"
+              hint="Tap to upload a clear photo"
+              path={idBackPath}
+              busy={uploadingDocument === "idBack"}
+              colors={colors}
+              onPress={() => uploadDocument("ID back", "idBack", setIdBackPath)}
+            />
+            {idFrontPath && idBackPath ? (
+              <Text style={[styles.documentStatus, { color: colors.primary }]}>✓ Both ID sides uploaded</Text>
+            ) : (
+              <Text style={[styles.documentStatus, { color: colors.mutedForeground }]}>Both sides are required for verification.</Text>
+            )}
+          </>
+        ) : (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>FIRM DOCUMENTS</Text>
+            <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+              Upload clear photos or scans of the documents for your selected firm type.
+            </Text>
+            {firmType === "business_name" ? (
+              <DocumentUploadRow
+                label="Certificate of Registration"
+                hint="Issued by the Registrar of Business Names"
+                path={firmCertRegPath}
+                busy={uploadingDocument === "firmCertRegistration"}
+                colors={colors}
+                onPress={() => uploadDocument("Certificate of Registration", "firmCertRegistration", setFirmCertRegPath)}
+              />
+            ) : (
+              <>
+                <DocumentUploadRow
+                  label="Certificate of Incorporation"
+                  hint="Tap to upload a clear photo or scan"
+                  path={firmCertIncPath}
+                  busy={uploadingDocument === "firmCertIncorporation"}
+                  colors={colors}
+                  onPress={() => uploadDocument("Certificate of Incorporation", "firmCertIncorporation", setFirmCertIncPath)}
+                />
+                <DocumentUploadRow
+                  label="CR12 Certificate"
+                  hint="Official list of directors"
+                  path={firmCr12Path}
+                  busy={uploadingDocument === "firmCr12"}
+                  colors={colors}
+                  onPress={() => uploadDocument("CR12 certificate", "firmCr12", setFirmCr12Path)}
+                />
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Director ID documents</Text>
+                {firmDirectorIdPaths.map((path, index) => (
+                  <View key={`${path}-${index}`} style={styles.directorRow}>
+                    <DocumentUploadRow
+                      label={`Director ${index + 1} ID`}
+                      hint="Uploaded document"
+                      path={path}
+                      busy={false}
+                      colors={colors}
+                      onPress={() => uploadDocument(`Director ${index + 1} ID`, "firmDirectorIds", () => undefined, firmDirectorIdPaths, index)}
+                    />
+                    <Pressable
+                      onPress={() => removeDirectorId(index)}
+                      style={[styles.removeDocumentButton, { borderColor: colors.border }]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove director ${index + 1} ID`}
+                    >
+                      <Feather name="trash-2" size={15} color={colors.destructive} />
+                    </Pressable>
+                  </View>
+                ))}
+                <DocumentUploadRow
+                  label="Add director ID"
+                  hint="Upload a National ID or passport for a director"
+                  busy={uploadingDocument === "firmDirectorIds"}
+                  colors={colors}
+                  onPress={() => uploadDocument("Director ID", "firmDirectorIds", () => undefined, firmDirectorIdPaths, "append")}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {/* Website-equivalent optional business documents for owners and hosts */}
+        {(user.role === "owner" || user.role === "host") && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>BUSINESS DOCUMENTS (OPTIONAL)</Text>
+            <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+              Add a registration certificate or business permit to build trust with guests and tenants.
+            </Text>
+            <DocumentUploadRow
+              label="Business registration certificate"
+              hint="Tap to upload a clear photo or scan"
+              path={businessCertPath}
+              busy={uploadingDocument === "businessCertRegistration"}
+              colors={colors}
+              onPress={() => uploadDocument("Business registration certificate", "businessCertRegistration", setBusinessCertPath)}
+            />
+            <DocumentUploadRow
+              label="Business permit"
+              hint="Tap to upload a clear photo or scan"
+              path={businessPermitPath}
+              busy={uploadingDocument === "businessPermit"}
+              colors={colors}
+              onPress={() => uploadDocument("Business permit", "businessPermit", setBusinessPermitPath)}
+            />
+          </>
+        )}
+
         <Pressable disabled={saving} onPress={saveProfile} style={[styles.saveButton, { backgroundColor: colors.primary, opacity: saving ? 0.65 : 1 }]}>
           {saving ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.saveButtonText, { color: colors.primaryForeground }]}>Save changes</Text>}
         </Pressable>
@@ -265,4 +543,13 @@ const styles = StyleSheet.create({
   themeRow: { flexDirection: "row", gap: 8, borderWidth: 1, borderRadius: 10, padding: 8 },
   themeOption: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 8, borderWidth: 1 },
   themeLabel: { fontSize: 13, fontFamily: "Outfit_500Medium" },
+  documentRow: { minHeight: 68, borderWidth: 1, borderStyle: "dashed", borderRadius: 10, padding: 10, flexDirection: "row", alignItems: "center", gap: 10 },
+  documentThumb: { width: 48, height: 48, borderRadius: 7 },
+  documentIcon: { width: 48, height: 48, borderRadius: 7, alignItems: "center", justifyContent: "center" },
+  documentCopy: { flex: 1, gap: 3 },
+  documentLabel: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
+  documentHint: { fontSize: 11, lineHeight: 15, fontFamily: "Outfit_400Regular" },
+  documentStatus: { fontSize: 12, fontFamily: "Outfit_500Medium" },
+  directorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  removeDocumentButton: { width: 38, height: 38, borderWidth: 1, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 });

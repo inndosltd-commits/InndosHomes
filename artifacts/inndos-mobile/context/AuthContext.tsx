@@ -15,6 +15,14 @@ export interface User {
   businessName?: string | null;
   isRegisteredFirm?: boolean;
   firmType?: "business_name" | "registered_company" | null;
+  idFront?: string | null;
+  idBack?: string | null;
+  firmCertRegistration?: string | null;
+  firmCertIncorporation?: string | null;
+  firmCr12?: string | null;
+  firmDirectorIds?: string[];
+  businessCertRegistration?: string | null;
+  businessPermit?: string | null;
 }
 
 interface AuthContextValue {

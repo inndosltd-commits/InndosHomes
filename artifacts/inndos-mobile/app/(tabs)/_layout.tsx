@@ -227,7 +227,7 @@ function ClassicTabLayout({ savedCount }: TabLayoutProps) {
           title: "My Account",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.fill" tintColor={color} size={24} />
+              <SymbolView name="person.crop.circle.fill" tintColor={color} size={24} />
             ) : (
               <Feather name="user" size={22} color={color} />
             ),
