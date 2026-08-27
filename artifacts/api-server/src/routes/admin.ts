@@ -11,7 +11,7 @@ import {
 } from "../lib/email";
 import { getDashboardUrl } from "../lib/appUrl";
 import bcrypt from "bcryptjs";
-import { deletePropertyTransactionally } from "../lib/propertyDeletion";
+import { deletePropertyTransactionally, deleteUserTransactionally } from "../lib/propertyDeletion";
 
 const router = Router();
 
@@ -431,23 +431,16 @@ router.delete("/users/:id", async (req, res) => {
     return;
   }
 
-  // Cascade: notifications → favorites → bookings on user's properties → user's properties → bookings by user → subscriptions → user
-  const userProperties = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, targetId));
-  const propIds = userProperties.map(p => p.id);
-
-  if (propIds.length > 0) {
-    await db.delete(notifications).where(inArray(notifications.bookingId,
-      db.select({ id: bookings.id }).from(bookings).where(inArray(bookings.propertyId, propIds)) as unknown as string[]
-    )).catch(() => {});
-    await db.delete(bookings).where(inArray(bookings.propertyId, propIds));
-    await db.delete(properties).where(inArray(properties.id, propIds));
+  try {
+    await deleteUserTransactionally(targetId);
+  } catch (error) {
+    req.log.error({ err: error, targetId }, "Admin user deletion failed");
+    res.status(500).json({
+      error: "User could not be deleted. No data was removed.",
+      code: "USER_DELETE_FAILED",
+    });
+    return;
   }
-
-  try { await db.delete(notifications).where(eq(notifications.userId, targetId)); } catch { /* table may not exist */ }
-  try { await db.delete(favorites).where(eq(favorites.userId, targetId)); } catch { /* table may not exist */ }
-  await db.delete(bookings).where(eq(bookings.userId, targetId));
-  await db.delete(subscriptions).where(eq(subscriptions.userId, targetId));
-  await db.delete(users).where(eq(users.id, targetId));
 
   res.json({ success: true });
 });
