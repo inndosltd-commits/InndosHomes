@@ -262,6 +262,7 @@ export default function BrowseScreen() {
   const [rentModalVisible, setRentModalVisible] = useState(false);
   const [buyModalVisible, setBuyModalVisible] = useState(false);
   const [mapBounds, setMapBounds] = useState<MapBBox | null>(null);
+  const [locationFilterBounds, setLocationFilterBounds] = useState<MapBBox | null>(null);
   const [mapFocusRegion, setMapFocusRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [placeResults, setPlaceResults] = useState<Array<{ placeId: string; description: string; secondaryText: string }>>([]);
@@ -345,6 +346,7 @@ export default function BrowseScreen() {
     let arr = [...properties];
     arr = arr.filter((property) => matchesSubCategory(property, activeSubCategory));
     arr = arr.filter((property) => matchesPropertySearch(property, debouncedSearch));
+    arr = arr.filter((property) => isWithinMapBounds(property, locationFilterBounds));
     const maxP = priceMax ? Number(priceMax.replace(/,/g, "")) : NaN;
     if (!isNaN(maxP) && maxP > 0) arr = arr.filter((p) => p.price <= maxP);
     if (sortBy === "price-asc") arr.sort((a, b) => a.price - b.price);
@@ -364,7 +366,7 @@ export default function BrowseScreen() {
       });
     }
     return arr;
-  }, [properties, sortBy, userLocation, priceMax, activeSubCategory, debouncedSearch]);
+  }, [properties, sortBy, userLocation, priceMax, activeSubCategory, debouncedSearch, locationFilterBounds]);
 
   // Categorised sections (when no active type filter)
   const bnbHotelProperties = useMemo(
@@ -390,6 +392,8 @@ export default function BrowseScreen() {
 
   const handleSearch = (text: string) => {
     setSearch(text);
+    setLocationFilterBounds(null);
+    setMapBounds(null);
     clearTimeout((handleSearch as { _t?: ReturnType<typeof setTimeout> })._t);
     (handleSearch as { _t?: ReturnType<typeof setTimeout> })._t = setTimeout(() => setDebouncedSearch(text), 400);
     const requestId = ++placeRequestRef.current;
@@ -426,17 +430,19 @@ export default function BrowseScreen() {
       const payload = await response.json() as { place?: { latitude: number; longitude: number }; error?: string };
       if (!response.ok || !payload.place) throw new Error(payload.error ?? "Place unavailable");
       const region = { latitude: payload.place.latitude, longitude: payload.place.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 };
+      const bounds = {
+        minLat: region.latitude - region.latitudeDelta / 2,
+        maxLat: region.latitude + region.latitudeDelta / 2,
+        minLng: region.longitude - region.longitudeDelta / 2,
+        maxLng: region.longitude + region.longitudeDelta / 2,
+      };
       setSearch(place.description);
       setDebouncedSearch("");
       setPlaceResults([]);
       setPlaceFocused(false);
       setMapFocusRegion(region);
-      setMapBounds({
-        minLat: region.latitude - region.latitudeDelta / 2,
-        maxLat: region.latitude + region.latitudeDelta / 2,
-        minLng: region.longitude - region.longitudeDelta / 2,
-        maxLng: region.longitude + region.longitudeDelta / 2,
-      });
+      setMapBounds(bounds);
+      setLocationFilterBounds(bounds);
     } catch (error) {
       setLocationNotice(error instanceof Error ? error.message : "That place could not be loaded. Please choose another suggestion.");
     } finally {
@@ -449,6 +455,11 @@ export default function BrowseScreen() {
     await Promise.all([refetch(), refetchFeatured()]);
     setRefreshing(false);
   };
+
+  const handleMapSearchArea = React.useCallback((bounds: MapBBox, source: "focus" | "user") => {
+    setMapBounds(bounds);
+    if (source === "user") setLocationFilterBounds(bounds);
+  }, []);
 
   const handleFilterChipPress = (item: FilterItem) => {
     if (item.hasDropdown) {
@@ -622,7 +633,7 @@ export default function BrowseScreen() {
         ) : (
           <>
             <View style={styles.mapWrapper}>
-              <PropertyMapView properties={mapProperties} onSearchArea={setMapBounds} focusRegion={mapFocusRegion} />
+              <PropertyMapView properties={mapProperties} onSearchArea={handleMapSearchArea} focusRegion={mapFocusRegion} />
             </View>
 
             {filteredProperties.length === 0 ? (

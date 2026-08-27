@@ -26,7 +26,7 @@ export interface MapBBox {
 
 interface PropertyMapViewProps {
   properties: Property[];
-  onSearchArea?: (bbox: MapBBox) => void;
+  onSearchArea?: (bbox: MapBBox, source: "focus" | "user") => void;
   focusRegion?: Region | null;
 }
 
@@ -111,7 +111,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
     mapRef.current?.animateToRegion(focusRegion, 700);
     setRegion(focusRegion);
     committedRegionRef.current = focusRegion;
-    onSearchArea?.(regionToMapBBox(focusRegion));
+    onSearchArea?.(regionToMapBBox(focusRegion), "focus");
   }, [focusRegion, onSearchArea]);
 
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
@@ -133,7 +133,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
   const handleSearchArea = useCallback(() => {
     setShowSearchButton(false);
     committedRegionRef.current = region;
-    onSearchArea?.(regionToMapBBox(region));
+    onSearchArea?.(regionToMapBBox(region), "user");
   }, [region, onSearchArea]);
 
   const selectedProperty = mappableProperties.find((p) => p.id === selectedId);

@@ -253,6 +253,11 @@ export default function Home() {
   const rentalProperties = allProperties.filter((p) => p.type === "rent");
   const saleProperties = allProperties.filter((p) => p.type === "sale");
   const bnbHotelProperties = allProperties.filter((p) => p.type === "bnb" || p.type === "hotel");
+  const filteredPropertyIds = new Set(filteredProperties.map((property) => property.id));
+  const visibleFeaturedProperties = featuredProperties.filter((property) => filteredPropertyIds.has(property.id));
+  const visibleRentalProperties = rentalProperties.filter((property) => filteredPropertyIds.has(property.id));
+  const visibleSaleProperties = saleProperties.filter((property) => filteredPropertyIds.has(property.id));
+  const visibleBnbHotelProperties = bnbHotelProperties.filter((property) => filteredPropertyIds.has(property.id));
 
   const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0 || listerResults.length > 0);
 
@@ -435,7 +440,7 @@ export default function Home() {
       </section>
 
       {/* Featured listings are intentionally shown before B&B & Hotels. */}
-      {featuredProperties.length > 0 && (
+      {visibleFeaturedProperties.length > 0 && (
         <section className="py-16 bg-white border-t">
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-2 mb-8">
@@ -446,7 +451,7 @@ export default function Home() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProperties.slice(0, 12).map((property) => <PropertyCard key={property.id} property={property} />)}
+              {visibleFeaturedProperties.slice(0, 12).map((property) => <PropertyCard key={property.id} property={property} />)}
             </div>
           </div>
         </section>
@@ -473,7 +478,7 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bnbHotelProperties.slice(0, 12).map((property) => (
+            {visibleBnbHotelProperties.slice(0, 12).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </div>
@@ -500,7 +505,7 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {rentalProperties.slice(0, 4).map((property) => (
+          {visibleRentalProperties.slice(0, 4).map((property) => (
             <PropertyCard key={property.id} property={property} />
           ))}
         </div>
@@ -519,7 +524,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {saleProperties.slice(0, 4).map((property) => (
+            {visibleSaleProperties.slice(0, 4).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </div>

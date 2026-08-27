@@ -13,7 +13,7 @@ export interface MapBBox {
 
 interface PropertyMapViewProps {
   properties: Property[];
-  onSearchArea?: (bbox: MapBBox) => void;
+  onSearchArea?: (bbox: MapBBox, source: "focus" | "user") => void;
   focusRegion?: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null;
 }
 
@@ -26,7 +26,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
       maxLat: focusRegion.latitude + focusRegion.latitudeDelta / 2,
       minLng: focusRegion.longitude - focusRegion.longitudeDelta / 2,
       maxLng: focusRegion.longitude + focusRegion.longitudeDelta / 2,
-    });
+    }, "focus");
   }, [focusRegion, onSearchArea]);
   return (
     <View style={[styles.container, { backgroundColor: colors.muted }]}>
