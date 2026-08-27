@@ -22,6 +22,8 @@ tags:
     description: Wishlist / favorites
   - name: Storage
     description: Object storage upload and serving endpoints.
+  - name: admin
+    description: Administrator operations
 
 paths:
   /healthz:
@@ -707,6 +709,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/SubscriptionPayment"
 
+  /admin/users/{id}/profile:
+    get:
+      operationId: getAdminUserProfile
+      tags: [admin]
+      summary: Get an administrator's selected user profile details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User subscription profile details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserProfile"
+        "404":
+          description: User not found
+
 components:
   securitySchemes:
     bearerAuth:
@@ -721,6 +746,39 @@ components:
         status:
           type: string
       required:
+        - status
+
+    AdminUserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+        subscription:
+          $ref: "#/components/schemas/AdminUserSubscription"
+      required:
+        - userId
+        - subscription
+
+    AdminUserSubscription:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, basic, pro, enterprise]
+        status:
+          type: string
+          enum: [active, expired, cancelled]
+        billingCycle:
+          type: [string, "null"]
+          enum: [monthly, yearly, custom, null]
+        billingMonths:
+          type: [integer, "null"]
+        startDate:
+          type: [string, "null"]
+        endDate:
+          type: [string, "null"]
+      required:
+        - plan
         - status
 
     SignupInput:

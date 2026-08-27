@@ -313,6 +313,54 @@ router.get("/users", async (req, res) => {
   res.json(rows);
 });
 
+router.get("/users/:id/profile", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+
+  const [target] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, req.params.id));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [latestSubscription] = await db
+    .select({
+      plan: subscriptions.plan,
+      status: subscriptions.status,
+      billingCycle: subscriptions.billingCycle,
+      billingMonths: subscriptions.billingMonths,
+      startDate: subscriptions.startDate,
+      endDate: subscriptions.endDate,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, target.id))
+    .orderBy(desc(subscriptions.createdAt))
+    .limit(1);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const hasActiveSubscription = latestSubscription?.status === "active"
+    && latestSubscription.endDate >= today;
+
+  res.json({
+    userId: target.id,
+    subscription: {
+      plan: hasActiveSubscription ? latestSubscription.plan : "free",
+      status: latestSubscription
+        ? latestSubscription.status === "active" && latestSubscription.endDate < today
+          ? "expired"
+          : latestSubscription.status
+        : "active",
+      billingCycle: latestSubscription?.billingCycle ?? null,
+      billingMonths: latestSubscription?.billingMonths ?? null,
+      startDate: latestSubscription?.startDate ?? null,
+      endDate: latestSubscription?.endDate ?? null,
+    },
+  });
+});
+
 router.patch("/users/:id/status", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;

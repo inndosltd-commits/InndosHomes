@@ -116,6 +116,7 @@ function ActionButton({
   tone = "outline",
   icon,
   disabled,
+  testID,
 }: {
   label: string;
   onPress: () => void;
@@ -123,6 +124,7 @@ function ActionButton({
   tone?: "outline" | "primary" | "danger";
   icon?: React.ComponentProps<typeof Feather>["name"];
   disabled?: boolean;
+  testID?: string;
 }) {
   const backgroundColor = tone === "primary" ? colors.primary : tone === "danger" ? colors.destructive : "transparent";
   const foreground = tone === "primary" ? colors.primaryForeground : tone === "danger" ? colors.destructiveForeground : colors.foreground;
@@ -131,6 +133,7 @@ function ActionButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       style={[styles.actionButton, { backgroundColor, borderColor, opacity: disabled ? 0.55 : 1 }]}
     >
       {icon ? <Feather name={icon} size={14} color={foreground} /> : null}
@@ -261,6 +264,10 @@ export function AdminOperations() {
   const [propertyStatusFilter, setPropertyStatusFilter] = useState("all");
   const [form, setForm] = useState<FormConfig | null>(null);
   const [marketerDetail, setMarketerDetail] = useState<{ details: RecordData; referrals: RecordData[] } | null>(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<RecordData | null>(null);
+  const [userProfileSubscription, setUserProfileSubscription] = useState<RecordData | null>(null);
+  const [loadingUserProfileSubscription, setLoadingUserProfileSubscription] = useState(false);
+  const [userProfileSubscriptionError, setUserProfileSubscriptionError] = useState<string | null>(null);
 
   const request = useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -396,6 +403,22 @@ export function AdminOperations() {
       setMarketerDetail({ details, referrals: wrappedRecords(referralResult) });
     } catch (cause) {
       Alert.alert("Could not load marketer", cause instanceof Error ? cause.message : "Please try again.");
+    }
+  };
+  const openUserProfile = async (member: RecordData) => {
+    const id = value(member, "id", "");
+    setSelectedUserProfile(member);
+    setUserProfileSubscription(null);
+    setUserProfileSubscriptionError(null);
+    setLoadingUserProfileSubscription(true);
+    try {
+      const profile = await request<RecordData>(`/api/admin/users/${id}/profile`);
+      const subscription = profile.subscription;
+      setUserProfileSubscription(subscription && typeof subscription === "object" ? subscription as RecordData : null);
+    } catch (cause) {
+      setUserProfileSubscriptionError(cause instanceof Error ? cause.message : "Could not load subscription details.");
+    } finally {
+      setLoadingUserProfileSubscription(false);
     }
   };
   const activeData = (data[section] ?? {}) as RecordData;
@@ -603,6 +626,7 @@ export function AdminOperations() {
               {member.isRegisteredFirm === true ? <Text style={[styles.minorText, { color: colors.mutedForeground }]}>Registered firm · {value(member, "businessName")}</Text> : null}
               <Text style={[styles.minorText, { color: colors.mutedForeground }]} numberOfLines={1}>User ID: {id}</Text>
               <View style={styles.actions}>
+                <ActionButton label="View profile" onPress={() => openUserProfile(member)} colors={colors} icon="user" testID={`admin-view-user-profile-${id}`} />
                 <ActionButton label="Copy ID" onPress={() => Clipboard.setStringAsync(id).then(() => Alert.alert("Copied", "User ID copied to the clipboard."))} colors={colors} icon="copy" />
                 <ActionButton label="Plan" onPress={() => openForm({
                   title: `Manage plan for ${value(member, "name")}`,
@@ -1069,6 +1093,79 @@ export function AdminOperations() {
         </ScrollView>
       )}
       <AdminFormSheet form={form} onClose={() => setForm(null)} colors={colors} />
+      <Modal
+        visible={!!selectedUserProfile}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedUserProfile(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>User profile</Text>
+                <Text style={[styles.minorText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  {value(selectedUserProfile ?? {}, "name")}
+                </Text>
+              </View>
+              <Pressable onPress={() => setSelectedUserProfile(null)} hitSlop={8} accessibilityLabel="Close user profile">
+                <Feather name="x" size={22} color={colors.foreground} />
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.formContent}>
+              <View style={[styles.profileSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.rowTitle, { color: colors.foreground }]}>{value(selectedUserProfile ?? {}, "name")}</Text>
+                <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(selectedUserProfile ?? {}, "email")}</Text>
+                <Text style={[styles.minorText, { color: colors.mutedForeground }]}>
+                  {statusLabel(value(selectedUserProfile ?? {}, "role"))} · {statusLabel(value(selectedUserProfile ?? {}, "status"))}
+                </Text>
+              </View>
+              <View style={[styles.profileSection, { borderTopColor: colors.border }]}>
+                <View style={styles.profileSectionTitle}>
+                  <Feather name="credit-card" size={16} color={colors.mutedForeground} />
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Subscription</Text>
+                </View>
+                {loadingUserProfileSubscription ? (
+                  <View style={styles.profileLoading}>
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Loading plan…</Text>
+                  </View>
+                ) : userProfileSubscriptionError ? (
+                  <View style={[styles.profileNotice, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Subscription information unavailable right now.</Text>
+                    <ActionButton label="Close" onPress={() => setSelectedUserProfile(null)} colors={colors} />
+                  </View>
+                ) : (
+                  <View style={[styles.profileSubscription, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={styles.keyValue}>
+                      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Current plan</Text>
+                      <Text style={[styles.strong, { color: colors.foreground }]}>{statusLabel(value(userProfileSubscription ?? {}, "plan", "free"))} plan</Text>
+                    </View>
+                    <View style={styles.keyValue}>
+                      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Status</Text>
+                      <Text style={[styles.strong, { color: colors.foreground }]}>{statusLabel(value(userProfileSubscription ?? {}, "status", "active"))}</Text>
+                    </View>
+                    <View style={styles.keyValue}>
+                      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Billing period</Text>
+                      <Text style={[styles.strong, { color: colors.foreground }]}>
+                        {userProfileSubscription?.billingCycle
+                          ? `${statusLabel(userProfileSubscription.billingCycle)}${userProfileSubscription.billingMonths ? ` · ${value(userProfileSubscription, "billingMonths")} month${Number(userProfileSubscription.billingMonths) === 1 ? "" : "s"}` : ""}`
+                          : "Not applicable"}
+                      </Text>
+                    </View>
+                    <View style={styles.keyValue}>
+                      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Ends</Text>
+                      <Text style={[styles.strong, { color: colors.foreground }]}>{shortDate(userProfileSubscription?.endDate)}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+              <ActionButton label="Done" onPress={() => setSelectedUserProfile(null)} colors={colors} tone="primary" icon="check" />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1116,6 +1213,12 @@ const styles = StyleSheet.create({
   modalHeader: { paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   modalTitle: { fontFamily: "Outfit_700Bold", fontSize: 18, flex: 1, paddingRight: 12 },
   formContent: { paddingHorizontal: 20, paddingBottom: 28, gap: 14 },
+  profileSummary: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 4 },
+  profileSection: { borderTopWidth: 1, paddingTop: 14, gap: 10 },
+  profileSectionTitle: { flexDirection: "row", alignItems: "center", gap: 7 },
+  profileLoading: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 14 },
+  profileNotice: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 10 },
+  profileSubscription: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 9 },
   field: { gap: 6 },
   fieldLabel: { fontFamily: "Outfit_600SemiBold", fontSize: 13 },
   input: { borderWidth: 1, borderRadius: 10, fontFamily: "Outfit_400Regular", fontSize: 15, paddingHorizontal: 12, paddingVertical: 11, minHeight: 44 },
