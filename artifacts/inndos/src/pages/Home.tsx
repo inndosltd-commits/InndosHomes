@@ -13,12 +13,25 @@ import { useJsApiLoader } from "@react-google-maps/api";
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 import { GOOGLE_MAPS_LIBRARIES as MAPS_LIBRARIES } from "@/lib/maps";
 import { propertyCategorySearchValues } from "@workspace/property-categories";
+import {
+  getListFeaturedPropertiesQueryKey,
+  getListPropertiesQueryKey,
+  useListFeaturedProperties,
+  useListProperties,
+} from "@workspace/api-client-react";
 
 interface PlacePrediction {
   placeId: string;
   mainText: string;
   secondaryText: string;
 }
+
+const sortLatestFirst = (properties: ApiProperty[]) =>
+  [...properties].sort(
+    (a, b) =>
+      new Date(b.approvedAt || b.createdAt || 0).getTime() -
+      new Date(a.approvedAt || a.createdAt || 0).getTime()
+  );
 
 export default function Home() {
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
@@ -34,6 +47,22 @@ export default function Home() {
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const predictionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useLanguage();
+  const { data: propertiesData } = useListProperties(undefined, {
+    query: {
+      queryKey: getListPropertiesQueryKey(),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const { data: featuredData } = useListFeaturedProperties({
+    query: {
+      queryKey: getListFeaturedPropertiesQueryKey(),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  });
 
   const { isLoaded: mapsLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_API_KEY,
@@ -47,16 +76,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/properties", { cache: "no-store" }).then((r) => r.json()),
-      fetch("/api/properties/featured", { cache: "no-store" }).then((r) => r.ok ? r.json() : []),
-    ]).then(([data, featured]) => {
-      const props = Array.isArray(data) ? data : [];
-      setAllProperties(props);
-      setFilteredProperties(props);
-      setFeaturedProperties(Array.isArray(featured) ? featured : []);
-    }).catch(() => {});
-  }, []);
+    if (!propertiesData) return;
+    const properties = sortLatestFirst(propertiesData as ApiProperty[]);
+    setAllProperties(properties);
+    setFilteredProperties(properties);
+  }, [propertiesData]);
+
+  useEffect(() => {
+    if (!featuredData) return;
+    setFeaturedProperties(sortLatestFirst(featuredData as ApiProperty[]));
+  }, [featuredData]);
 
   // Auto-request geolocation once Maps is ready
   useEffect(() => {
@@ -190,7 +219,7 @@ export default function Home() {
         // every Nairobi listing when this place happens to have no matches.
         const northEast = viewport?.getNorthEast();
         const southWest = viewport?.getSouthWest();
-        const nearby = allProperties.filter((property) => {
+        const nearby = sortLatestFirst(allProperties.filter((property) => {
           const lat = Number(property.lat);
           const lng = Number(property.lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
@@ -199,7 +228,7 @@ export default function Home() {
               lng >= southWest.lng() && lng <= northEast.lng();
           }
           return Math.abs(lat - loc.lat) <= 0.08 && Math.abs(lng - loc.lng) <= 0.08;
-        });
+        }));
         setFilteredProperties(nearby);
       }
     });
@@ -213,13 +242,17 @@ export default function Home() {
     ? allProperties.filter(
         (p) =>
           p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.address.toLowerCase().includes(searchQuery.toLowerCase())
+          p.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.ownerName ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (p.ownerBusinessName ?? "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          propertyCategorySearchValues(p.type, p.subtype)
+            .some((value) => value.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : [];
 
   const rentalProperties = allProperties.filter((p) => p.type === "rent");
   const saleProperties = allProperties.filter((p) => p.type === "sale");
-  const bnbProperties = allProperties.filter((p) => p.type === "bnb");
+  const bnbHotelProperties = allProperties.filter((p) => p.type === "bnb" || p.type === "hotel");
 
   const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0 || listerResults.length > 0);
 
@@ -440,7 +473,7 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...bnbProperties, ...allProperties.filter((p) => p.type === "hotel")].slice(0, 12).map((property) => (
+            {bnbHotelProperties.slice(0, 12).map((property) => (
               <PropertyCard key={property.id} property={property} />
             ))}
           </div>

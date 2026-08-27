@@ -34,6 +34,44 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+type Coordinate = { lat: number; lng: number };
+
+/** Minimum distance to a route's line segments, rather than its sparse turn points. */
+function distanceToRouteKm(point: Coordinate, path: Coordinate[]): number {
+  if (path.length === 0) return Infinity;
+  if (path.length === 1) return haversineKm(point.lat, point.lng, path[0].lat, path[0].lng);
+
+  // Equirectangular projection is accurate at navigation-scale distances and
+  // lets us project onto the middle of each segment, not merely its endpoints.
+  const radians = Math.PI / 180;
+  const cosLatitude = Math.cos(point.lat * radians);
+  const toLocalKm = (coordinate: Coordinate) => ({
+    x: (coordinate.lng - point.lng) * radians * 6371 * cosLatitude,
+    y: (coordinate.lat - point.lat) * radians * 6371,
+  });
+
+  let closest = Infinity;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const start = toLocalKm(path[index]);
+    const end = toLocalKm(path[index + 1]);
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const progress = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, -(start.x * dx + start.y * dy) / lengthSquared));
+    closest = Math.min(closest, Math.hypot(start.x + progress * dx, start.y + progress * dy));
+  }
+  return closest;
+}
+
+// Deterministic regression guard: a point in the middle of a long route
+// segment is on-route even when it is far from both segment endpoints.
+if (import.meta.env.DEV) {
+  console.assert(
+    distanceToRouteKm({ lat: 0, lng: 0.5 }, [{ lat: 0, lng: 0 }, { lat: 0, lng: 1 }]) < 0.001,
+    "A point on the middle of a route segment must not be off-route"
+  );
+}
+
 const MANEUVER_ICONS: Record<string, string> = {
   "turn-left": "↰", "turn-right": "↱",
   "turn-sharp-left": "↰", "turn-sharp-right": "↱",
@@ -53,16 +91,20 @@ function NavigationOverlay({
   destLat,
   destLng,
   propertyTitle,
+  propertyAddress,
   onExit,
 }: {
   destLat: number;
   destLng: number;
   propertyTitle: string;
+  propertyAddress: string;
   onExit: () => void;
 }) {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   const mapRef    = useRef<google.maps.Map | null>(null);
   const watchRef  = useRef<number | null>(null);
+  const lastRouteRequestRef = useRef(0);
+  const directionsRef = useRef<google.maps.DirectionsResult | null>(null);
 
   const [userPos,      setUserPos]      = useState<google.maps.LatLngLiteral | null>(null);
   const [directions,   setDirections]   = useState<google.maps.DirectionsResult | null>(null);
@@ -71,18 +113,24 @@ function NavigationOverlay({
   const [travelMode,   setTravelMode]   = useState<google.maps.TravelMode | null>(null);
   const [routeInfo,    setRouteInfo]    = useState<{ distance: string; duration: string; eta: string } | null>(null);
   const [loadingRoute, setLoadingRoute] = useState(true);
+  const [routeError, setRouteError] = useState("");
+  const [routeLabels, setRouteLabels] = useState<{ start: string; end: string } | null>(null);
 
   const fetchRoute = useCallback(
-    (origin: google.maps.LatLngLiteral, mode: google.maps.TravelMode) => {
+    (origin: google.maps.LatLngLiteral, mode: google.maps.TravelMode, resetStep = true) => {
+      if (!window.google) return;
       setLoadingRoute(true);
+      setRouteError("");
+      lastRouteRequestRef.current = Date.now();
       new window.google.maps.DirectionsService().route(
         { origin, destination: { lat: destLat, lng: destLng }, travelMode: mode },
         (result, status) => {
           setLoadingRoute(false);
           if (status === window.google.maps.DirectionsStatus.OK && result) {
             setDirections(result);
-            setStepIndex(0);
+            directionsRef.current = result;
             const leg = result.routes[0].legs[0];
+            setStepIndex(current => resetStep ? 0 : Math.min(current, Math.max(0, leg.steps.length - 1)));
             const secs = leg.duration?.value ?? 0;
             const etaTime = new Date(Date.now() + secs * 1000);
             setRouteInfo({
@@ -90,12 +138,22 @@ function NavigationOverlay({
               duration: leg.duration?.text ?? "",
               eta: etaTime.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" }),
             });
+            setRouteLabels({
+              start: leg.start_address || "Your location",
+              end: [propertyTitle, propertyAddress].filter(Boolean).join(" · ") || leg.end_address || "Destination",
+            });
             mapRef.current?.fitBounds(result.routes[0].bounds);
+          } else {
+            setDirections(null);
+            directionsRef.current = null;
+            setRouteInfo(null);
+            setRouteLabels(null);
+            setRouteError("We couldn't calculate an in-app route. You can continue in Google Maps.");
           }
         }
       );
     },
-    [destLat, destLng]
+    [destLat, destLng, propertyAddress, propertyTitle]
   );
 
   /* First load: get position → fetch route */
@@ -126,15 +184,22 @@ function NavigationOverlay({
           setArrived(true);
           return;
         }
+        const activeDirections = directionsRef.current;
         setStepIndex((prev) => {
-          if (!directions) return prev;
-          const steps = directions.routes[0].legs[0].steps;
+          if (!activeDirections) return prev;
+          const steps = activeDirections.routes[0].legs[0].steps;
           if (prev >= steps.length - 1) return prev;
           const end = steps[prev].end_location;
           return haversineKm(p.lat, p.lng, end.lat(), end.lng()) < 0.03
             ? prev + 1
             : prev;
         });
+        const route = directionsRef.current;
+        const routePath = route?.routes[0].overview_path.map(point => ({ lat: point.lat(), lng: point.lng() })) ?? [];
+        const offRoute = routePath.length > 1 && distanceToRouteKm(p, routePath) > 0.12;
+        if (offRoute && travelMode && Date.now() - lastRouteRequestRef.current > 20_000) {
+          fetchRoute(p, travelMode, false);
+        }
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 3000 }
@@ -142,7 +207,7 @@ function NavigationOverlay({
     return () => {
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     };
-  }, [isLoaded, directions, destLat, destLng]);
+  }, [isLoaded, destLat, destLng, fetchRoute, travelMode]);
 
   const switchMode = (mode: google.maps.TravelMode) => {
     if (!userPos) return;
@@ -217,8 +282,11 @@ function NavigationOverlay({
         onLoad={(m) => { mapRef.current = m; }}
         options={{
           mapId: "c7cd60c6a53a720a14502d1b",
-          disableDefaultUI: true,
-          zoomControl: false,
+          disableDefaultUI: false,
+          zoomControl: true,
+          streetViewControl: false,
+          fullscreenControl: false,
+          gestureHandling: "greedy",
         }}
       >
         {directions && (
@@ -230,11 +298,30 @@ function NavigationOverlay({
             }}
           />
         )}
-        {userPos && <AdvancedMarker position={userPos} title="You are here" />}
+        {userPos && <AdvancedMarker position={userPos} />}
       </GoogleMap>
 
       {/* ── Bottom panel ── */}
       <div className="absolute bottom-0 left-0 right-0 z-10 bg-white px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] rounded-t-3xl shadow-2xl">
+        {routeLabels && (
+          <div className="mb-3 text-xs text-gray-600">
+            <p className="truncate"><span className="font-semibold">From:</span> {routeLabels.start}</p>
+            <p className="truncate"><span className="font-semibold">To:</span> {propertyTitle || propertyAddress}</p>
+          </div>
+        )}
+        {routeError && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p>{routeError}</p>
+            <a
+              className="mt-1 inline-block font-semibold underline"
+              href={`https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Google Maps
+            </a>
+          </div>
+        )}
         {!arrived && routeInfo && (
           <div className="flex items-end gap-3 mb-4">
             <div>
@@ -276,6 +363,22 @@ function NavigationOverlay({
           <div className="text-center mb-4">
             <p className="text-xl font-bold text-green-600">You have arrived at your destination</p>
             <p className="text-sm text-gray-500 mt-1">{propertyTitle}</p>
+          </div>
+        )}
+        {steps.length > 0 && (
+          <div className="mb-3 max-h-40 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100">
+            {steps.map((step, index) => (
+              <button
+                type="button"
+                key={`${index}-${step.instructions}`}
+                onClick={() => setStepIndex(index)}
+                className={`w-full px-3 py-2 text-left text-sm flex gap-2 ${index === stepIndex ? "bg-blue-50 text-blue-900" : "text-gray-700"}`}
+              >
+                <span className="font-semibold">{MANEUVER_ICONS[step.maneuver ?? "straight"] ?? "↑"}</span>
+                <span className="flex-1" dangerouslySetInnerHTML={{ __html: step.instructions }} />
+                <span className="text-xs text-gray-400 whitespace-nowrap">{step.distance?.text}</span>
+              </button>
+            ))}
           </div>
         )}
         <button
@@ -711,8 +814,9 @@ export default function PropertyDetails() {
   const isLand = property.subtype === "land" || Boolean(property.details?.land);
   const beds = !isLand ? (property.beds ?? property.specs?.beds) : undefined;
   const baths = !isLand ? (property.baths ?? property.specs?.baths) : undefined;
-  const sqftWasEntered = !isLand || Boolean(property.details?.land?.plotSizeFt);
-  const sqft = sqftWasEntered ? (property.sqft ?? property.specs?.sqft) : undefined;
+  const plotSizeFt = property.details?.land?.plotSizeFt?.trim();
+  const acres = property.details?.land?.acres;
+  const sqft = !isLand ? (property.sqft ?? property.specs?.sqft) : undefined;
   const visibleSpecs = [
     beds != null && beds > 0
       ? { label: t("prop.bedrooms"), value: beds, icon: BedDouble }
@@ -723,9 +827,13 @@ export default function PropertyDetails() {
     sqft != null && sqft > 0
       ? { label: t("prop.sqft"), value: sqft, icon: Square }
       : null,
-  ].filter(
-    (spec): spec is { label: string; value: number; icon: typeof BedDouble } => spec !== null
-  );
+    isLand && plotSizeFt
+      ? { label: "Plot size", value: plotSizeFt, icon: Square }
+      : null,
+    isLand && acres != null && acres > 0
+      ? { label: "Acres", value: acres, icon: Square }
+      : null,
+  ].filter(Boolean) as { label: string; value: string | number; icon: typeof BedDouble }[];
   const lat = property.lat != null ? parseFloat(property.lat) : -1.2921;
   const lng = property.lng != null ? parseFloat(property.lng) : 36.8219;
 
@@ -1470,6 +1578,7 @@ export default function PropertyDetails() {
           destLat={parseFloat(String(property.lat ?? -1.2921))}
           destLng={parseFloat(String(property.lng ?? 36.8219))}
           propertyTitle={property.title}
+          propertyAddress={property.address}
           onExit={() => setIsNavigating(false)}
         />
       )}

@@ -5,6 +5,28 @@
  * INNDOS API specification
  * OpenAPI spec version: 0.2.0
  */
+export interface Coordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface DirectionsStep {
+  instruction: string;
+  distance: string;
+  duration: string;
+  end: null | Coordinate;
+}
+
+export interface DirectionsRoute {
+  /** Google encoded overview polyline. */
+  polyline: string;
+  distance: string;
+  duration: string;
+  startAddress: string;
+  endAddress: string;
+  steps: DirectionsStep[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -161,6 +183,7 @@ export interface Property {
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
+  approvedAt?: string | null;
   description?: string | null;
   subtype?: string | null;
   hourlyRate?: number | null;
@@ -214,6 +237,45 @@ export interface CreatePropertyInput {
   priceUnit?: string;
   /** @minimum 1 */
   totalUnits?: number;
+}
+
+export type ProcessPropertyVideoInputCropAspect =
+  (typeof ProcessPropertyVideoInputCropAspect)[keyof typeof ProcessPropertyVideoInputCropAspect];
+
+export const ProcessPropertyVideoInputCropAspect = {
+  original: "original",
+  "16:9": "16:9",
+  "4:3": "4:3",
+  "1:1": "1:1",
+  "9:16": "9:16",
+} as const;
+
+export type ProcessPropertyVideoInputCaptionPosition =
+  (typeof ProcessPropertyVideoInputCaptionPosition)[keyof typeof ProcessPropertyVideoInputCaptionPosition];
+
+export const ProcessPropertyVideoInputCaptionPosition = {
+  top: "top",
+  center: "center",
+  bottom: "bottom",
+} as const;
+
+export interface ProcessPropertyVideoInput {
+  /** Account-owned source object path. Sources may be up to five minutes. */
+  sourcePath: string;
+  /** @minimum 0 */
+  trimStart: number;
+  /** @exclusiveMinimum 0 */
+  trimEnd: number;
+  cropAspect?: ProcessPropertyVideoInputCropAspect;
+  /** @maxLength 160 */
+  caption?: string;
+  captionPosition?: ProcessPropertyVideoInputCaptionPosition;
+}
+
+export interface ProcessPropertyVideoResponse {
+  objectPath: string;
+  /** Final ffprobe-verified duration in seconds, greater than zero and at most 60. */
+  duration: number;
 }
 
 export type PropertyStatusActionInputAction =
@@ -401,6 +463,26 @@ export interface SubscriptionPayment {
   amount: number;
   updatedAt?: string;
 }
+
+export type GetDirectionsParams = {
+  /**
+   * Comma-separated latitude and longitude for the route origin.
+   */
+  origin: string;
+  /**
+   * Comma-separated latitude and longitude for the route destination.
+   */
+  destination: string;
+  mode?: GetDirectionsMode;
+};
+
+export type GetDirectionsMode =
+  (typeof GetDirectionsMode)[keyof typeof GetDirectionsMode];
+
+export const GetDirectionsMode = {
+  driving: "driving",
+  walking: "walking",
+} as const;
 
 export type ListPropertiesParams = {
   /**

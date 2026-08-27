@@ -40,6 +40,20 @@ function getPriceLabel(property: Property): string {
   return price;
 }
 
+function getLandMeasurements(property: Property): { acres?: string; plotSize?: string } {
+  const details = property.details;
+  const land = details && typeof details === "object" && !Array.isArray(details)
+    ? (details as { land?: unknown }).land
+    : undefined;
+  if (!land || typeof land !== "object" || Array.isArray(land)) return {};
+  const values = land as { acres?: unknown; plotSizeFt?: unknown };
+  const acres = values.acres === null || values.acres === undefined || String(values.acres).trim() === ""
+    ? undefined : String(values.acres);
+  const plotSize = values.plotSizeFt === null || values.plotSizeFt === undefined || String(values.plotSizeFt).trim() === ""
+    ? undefined : String(values.plotSizeFt);
+  return { acres, plotSize };
+}
+
 export function PropertyCard({ property }: PropertyCardProps) {
   const colors = useColors();
   const router = useRouter();
@@ -155,10 +169,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
 
         {(() => {
           const isLand = property.subtype === "land" || Boolean(property.details?.land);
+          const landMeasurements = getLandMeasurements(property);
           const specs = [
             !isLand && property.beds > 0 ? { icon: "grid" as const, value: `${property.beds} bed` } : null,
             !isLand && property.baths > 0 ? { icon: "droplet" as const, value: `${property.baths} bath` } : null,
-            (!isLand || Boolean(property.details?.land && typeof property.details.land === "object" && "plotSizeFt" in property.details.land && property.details.land.plotSizeFt)) && property.sqft > 0
+            isLand && landMeasurements.acres ? { icon: "maximize-2" as const, value: `${landMeasurements.acres} acres` } : null,
+            isLand && landMeasurements.plotSize ? { icon: "maximize-2" as const, value: landMeasurements.plotSize } : null,
+            !isLand && property.sqft > 0
               ? { icon: "maximize-2" as const, value: `${property.sqft} sqft` }
               : null,
           ].filter((spec): spec is { icon: "grid" | "droplet" | "maximize-2"; value: string } => spec !== null);

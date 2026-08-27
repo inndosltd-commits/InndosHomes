@@ -214,7 +214,7 @@ router.patch("/properties/:id/verify", async (req, res) => {
 
   const [prop] = await db
     .update(properties)
-    .set({ isVerified: true, propertyStatus: "approved", adminComment: null })
+    .set({ isVerified: true, propertyStatus: "approved", adminComment: null, approvedAt: new Date() })
     .where(and(
       eq(properties.id, req.params.id),
       eq(properties.isVerified, false),

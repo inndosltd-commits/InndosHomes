@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Linking,
   Pressable,
   Share,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,6 +22,7 @@ interface PropertyLocationMapProps {
   lat: string;
   lng: string;
   title: string;
+  address?: string;
 }
 
 interface RouteStep {
@@ -34,6 +36,8 @@ interface RouteInfo {
   polyline: string;
   distance: string;
   duration: string;
+  startAddress: string;
+  endAddress: string;
   steps: RouteStep[];
 }
 
@@ -78,10 +82,34 @@ function distanceInMeters(
   return 2 * earthRadius * Math.asin(Math.sqrt(a));
 }
 
+function distanceToRouteInMeters(
+  point: { latitude: number; longitude: number },
+  route: { latitude: number; longitude: number }[]
+): number {
+  if (route.length === 0) return Infinity;
+  if (route.length === 1) return distanceInMeters(point, route[0]);
+  // Project short local segments onto a plane so sparse polyline vertices do
+  // not make a user travelling correctly along a long segment appear off-route.
+  const metresPerDegree = 111_320;
+  const longitudeScale = Math.cos((point.latitude * Math.PI) / 180) * metresPerDegree;
+  return route.slice(1).reduce((closest, end, index) => {
+    const start = route[index];
+    const ax = (start.longitude - point.longitude) * longitudeScale;
+    const ay = (start.latitude - point.latitude) * metresPerDegree;
+    const bx = (end.longitude - point.longitude) * longitudeScale;
+    const by = (end.latitude - point.latitude) * metresPerDegree;
+    const denominator = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = denominator === 0 ? 0 : Math.max(0, Math.min(1, -(ax * (bx - ax) + ay * (by - ay)) / denominator));
+    return Math.min(closest, Math.hypot(ax + t * (bx - ax), ay + t * (by - ay)));
+  }, Infinity);
+}
+
 /** Arrival threshold in metres */
 const ARRIVAL_THRESHOLD = 50;
+const OFF_ROUTE_THRESHOLD = 80;
+const REROUTE_THROTTLE_MS = 15_000;
 
-export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProps) {
+export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocationMapProps) {
   const colors = useColors();
   const { token } = useAuth();
   const [sharing, setSharing] = useState(false);
@@ -94,8 +122,15 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
   const [mapRetryKey, setMapRetryKey] = useState(0);
+  const [travelMode, setTravelMode] = useState<"driving" | "walking">("driving");
   const mapRef = useRef<MapView>(null);
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const routeRef = useRef<RouteInfo | null>(null);
+  const lastRerouteAtRef = useRef(0);
+  const reroutingRef = useRef(false);
+  const travelModeRef = useRef<"driving" | "walking">("driving");
+  const mapIsBeingExploredRef = useRef(false);
+  const mapGestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -116,7 +151,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
   }, [googleMapsConfigured, mapReady]);
 
   const destination = { latitude, longitude };
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address ? `${title}, ${address}` : `${latitude},${longitude}`)}&travelmode=${travelMode}`;
 
   const handleOpenMaps = async () => {
     try {
@@ -134,7 +169,16 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
 
   useEffect(() => () => {
     subscriptionRef.current?.remove();
+    if (mapGestureTimeoutRef.current) clearTimeout(mapGestureTimeoutRef.current);
   }, []);
+
+  const handleMapPan = () => {
+    mapIsBeingExploredRef.current = true;
+    if (mapGestureTimeoutRef.current) clearTimeout(mapGestureTimeoutRef.current);
+    mapGestureTimeoutRef.current = setTimeout(() => {
+      mapIsBeingExploredRef.current = false;
+    }, 5_000);
+  };
 
   const stopNavigation = () => {
     subscriptionRef.current?.remove();
@@ -142,9 +186,42 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     setIsNavigating(false);
     setArrived(false);
     setRoute(null);
+    routeRef.current = null;
     setCurrentLocation(null);
     setActiveStep(0);
+    reroutingRef.current = false;
   };
+
+  const fetchRoute = useCallback(async (
+    origin: { latitude: number; longitude: number },
+    mode: "driving" | "walking",
+    fitMap = false,
+    preserveActiveStep = false
+  ) => {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/maps/directions?origin=${encodeURIComponent(`${origin.latitude},${origin.longitude}`)}&destination=${encodeURIComponent(`${latitude},${longitude}`)}&mode=${mode}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const json = await response.json() as RouteInfo & { error?: string };
+    if (!response.ok || !json.polyline) throw new Error(json.error ?? `No ${mode} route is available`);
+    const coordinates = decodePolyline(json.polyline);
+    if (coordinates.length < 2) throw new Error(`No ${mode} route is available`);
+
+    routeRef.current = json;
+    lastRerouteAtRef.current = Date.now();
+    setRoute(json);
+    if (preserveActiveStep) {
+      setActiveStep((currentStep) => Math.min(currentStep, Math.max(0, json.steps.length - 1)));
+    } else {
+      setActiveStep(0);
+    }
+    if (fitMap) {
+      mapRef.current?.fitToCoordinates([...coordinates, origin], {
+        edgePadding: { top: 80, right: 36, bottom: 145, left: 36 },
+        animated: true,
+      });
+    }
+  }, [latitude, longitude, token]);
 
   const handleDirections = async () => {
     if (isNavigating || arrived) {
@@ -178,33 +255,21 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const origin = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-      const response = await fetch(
-        `${getApiBaseUrl()}/api/maps/directions?origin=${origin.latitude},${origin.longitude}&destination=${latitude},${longitude}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const json = await response.json() as RouteInfo & { error?: string };
-      if (!response.ok || !json.polyline) throw new Error(json.error ?? "No driving route is available");
-      const coordinates = decodePolyline(json.polyline);
-      if (coordinates.length < 2) throw new Error("No driving route is available");
-
-      setRoute(json);
+      await fetchRoute(origin, travelMode, true);
       setCurrentLocation(origin);
       setIsNavigating(true);
       setArrived(false);
-      setActiveStep(0);
-      mapRef.current?.fitToCoordinates([...coordinates, origin], {
-        edgePadding: { top: 56, right: 36, bottom: 110, left: 36 },
-        animated: true,
-      });
       subscriptionRef.current = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, distanceInterval: 10, timeInterval: 5000 },
         (nextPosition) => {
           const next = { latitude: nextPosition.coords.latitude, longitude: nextPosition.coords.longitude };
           setCurrentLocation(next);
-          mapRef.current?.animateCamera(
-            { center: next, zoom: 16 },
-            { duration: 600 }
-          );
+          if (!mapIsBeingExploredRef.current) {
+            mapRef.current?.animateCamera(
+              { center: next, zoom: 16 },
+              { duration: 600 }
+            );
+          }
 
           // Check arrival at destination
           const distToDest = distanceInMeters(next, destination);
@@ -215,12 +280,32 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             return;
           }
 
+          const latestRoute = routeRef.current;
           setActiveStep((stepIndex) => {
-            const stepEnd = json.steps?.[stepIndex]?.end;
+            const stepEnd = latestRoute?.steps?.[stepIndex]?.end;
             return stepEnd && distanceInMeters(next, stepEnd) < 45
-              ? Math.min(stepIndex + 1, Math.max(0, json.steps.length - 1))
+              ? Math.min(stepIndex + 1, Math.max(0, (latestRoute?.steps.length ?? 1) - 1))
               : stepIndex;
           });
+
+          const routeCoordinates = latestRoute ? decodePolyline(latestRoute.polyline) : [];
+          const distanceFromRoute = distanceToRouteInMeters(next, routeCoordinates);
+          if (
+            !reroutingRef.current
+            && Date.now() - lastRerouteAtRef.current >= REROUTE_THROTTLE_MS
+            && distanceFromRoute > OFF_ROUTE_THRESHOLD
+          ) {
+            reroutingRef.current = true;
+            setLoadingRoute(true);
+            fetchRoute(next, travelModeRef.current, false, true)
+              .catch(() => {
+                // Keep the current route visible if a background refresh fails.
+              })
+              .finally(() => {
+                reroutingRef.current = false;
+                setLoadingRoute(false);
+              });
+          }
         }
       );
     } catch (error) {
@@ -252,6 +337,21 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
     }
   };
 
+  const handleTravelModeChange = (mode: "driving" | "walking") => {
+    if (mode === travelMode) return;
+    travelModeRef.current = mode;
+    setTravelMode(mode);
+    if (isNavigating && currentLocation) {
+      setLoadingRoute(true);
+      fetchRoute(currentLocation, mode)
+        .catch((error) => Alert.alert(
+          "Directions unavailable",
+          error instanceof Error ? error.message : "Please try again."
+        ))
+        .finally(() => setLoadingRoute(false));
+    }
+  };
+
   if (!validLocation) {
     return (
       <View style={[styles.invalidLocation, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -278,11 +378,12 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
             provider={PROVIDER_GOOGLE}
             style={styles.map}
             initialRegion={region}
-            scrollEnabled={false}
-            zoomEnabled={false}
+            scrollEnabled
+            zoomEnabled
             rotateEnabled={false}
             pitchEnabled={false}
-            pointerEvents="none"
+            moveOnMarkerPress={false}
+            onPanDrag={handleMapPan}
             onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
           >
             <Marker coordinate={{ latitude, longitude }} title={title} />
@@ -374,8 +475,51 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
                 {currentStep.distance} · turn {activeStep + 1} of {stepCount}
               </Text>
             ) : null}
+            <View style={[styles.routePlaces, { borderTopColor: colors.border }]}>
+              <Text style={[styles.routePlace, { color: colors.mutedForeground }]} numberOfLines={1}>
+                From: {route.startAddress || "Your current location"}
+              </Text>
+              <Text style={[styles.routePlace, { color: colors.foreground }]} numberOfLines={1}>
+                To: {title}{address ? ` · ${address}` : route.endAddress ? ` · ${route.endAddress}` : ""}
+              </Text>
+            </View>
+            <ScrollView
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              style={[styles.turnList, { borderTopColor: colors.border }]}
+              contentContainerStyle={styles.turnListContent}
+            >
+              {route.steps.map((step, index) => (
+                <View key={`${index}-${step.instruction}`} style={styles.turnRow}>
+                  <Text style={[styles.turnNumber, { backgroundColor: index === activeStep ? colors.primary : colors.muted, color: index === activeStep ? colors.primaryForeground : colors.mutedForeground }]}>
+                    {index + 1}
+                  </Text>
+                  <View style={styles.turnText}>
+                    <Text style={[styles.turnInstruction, { color: colors.foreground }]}>{step.instruction || "Continue"}</Text>
+                    <Text style={[styles.turnMeta, { color: colors.mutedForeground }]}>{[step.distance, step.duration].filter(Boolean).join(" · ")}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
+
+        <View style={[styles.modePicker, { backgroundColor: colors.card }]}>
+          {(["driving", "walking"] as const).map((mode) => (
+            <Pressable
+              key={mode}
+              onPress={() => handleTravelModeChange(mode)}
+              style={[styles.modeButton, travelMode === mode && { backgroundColor: colors.primary }]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: travelMode === mode }}
+            >
+              <Feather name={mode === "driving" ? "truck" : "navigation-2"} size={12} color={travelMode === mode ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[styles.modeText, { color: travelMode === mode ? colors.primaryForeground : colors.mutedForeground }]}>
+                {mode === "driving" ? "Drive" : "Walk"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* Button row */}
         <View style={styles.buttonsRow}>
@@ -445,7 +589,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   mapContainer: {
-    height: 280,
+    height: 340,
     overflow: "hidden",
   },
   invalidLocation: {
@@ -546,6 +690,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 3,
+    maxHeight: 225,
   },
   navigationTop: { flexDirection: "row", alignItems: "center", gap: 6 },
   navigationTitle: { fontSize: 12, fontFamily: "Outfit_700Bold" },
@@ -562,6 +707,55 @@ const styles = StyleSheet.create({
   },
   instruction: { fontSize: 14, fontFamily: "Outfit_600SemiBold", lineHeight: 19 },
   stepDistance: { fontSize: 11, fontFamily: "Outfit_400Regular", marginTop: 2 },
+  routePlaces: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 7,
+    paddingTop: 6,
+    gap: 2,
+  },
+  routePlace: { fontSize: 10, fontFamily: "Outfit_400Regular" },
+  turnList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 7,
+    maxHeight: 82,
+  },
+  turnListContent: { paddingTop: 6, gap: 7 },
+  turnRow: { flexDirection: "row", gap: 7, alignItems: "flex-start" },
+  turnNumber: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    overflow: "hidden",
+    textAlign: "center",
+    fontSize: 10,
+    lineHeight: 18,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  turnText: { flex: 1, gap: 1 },
+  turnInstruction: { fontSize: 11, fontFamily: "Outfit_500Medium", lineHeight: 15 },
+  turnMeta: { fontSize: 10, fontFamily: "Outfit_400Regular" },
+  modePicker: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    padding: 3,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  modeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  modeText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
   userDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 3 },
   arrivedCard: {
     position: "absolute",

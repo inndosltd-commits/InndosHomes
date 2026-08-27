@@ -27,7 +27,84 @@ const execFileAsync = promisify(execFile);
 const MAX_LISTING_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_LISTING_VIDEO_BYTES = 250 * 1024 * 1024;
 const MAX_LISTING_VIDEO_SECONDS = 300;
+const MAX_FINAL_LISTING_VIDEO_SECONDS = 60;
 const MEDIA_READY_RETRY_DELAYS_MS = [0, 500, 1_500, 3_000, 5_000, 10_000];
+// Transcoding is deliberately expensive. The PostgreSQL lease is keyed solely
+// by user (not source path), so repeatedly feeding a previous output back into
+// the endpoint cannot create parallel ffmpeg work or evade the edit budget.
+const VIDEO_PROCESSING_WINDOW_MS = 10 * 60 * 1000;
+const VIDEO_PROCESSING_MAX_REQUESTS_PER_WINDOW = 4;
+const VIDEO_PROCESSING_BUSY_RETRY_AFTER_SECONDS = 60;
+const VIDEO_PROCESSING_LEASE_SECONDS = 10 * 60;
+
+async function acquireVideoProcessingSlot(userId: string, token: string): Promise<
+  | { allowed: true }
+  | { allowed: false; retryAfterSeconds: number; reason: "busy" | "rate_limited" }
+> {
+  // This transaction is intentionally short: it serializes just admission
+  // decisions. ffprobe/ffmpeg run only after it has committed.
+  return db.transaction(async (tx) => {
+    await tx.execute(drizzleSql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
+    // Opportunistic bounded cleanup; it retains enough history to calculate
+    // the rolling window while keeping this durable budget table small.
+    await tx.execute(drizzleSql`
+      DELETE FROM video_processing_events
+      WHERE created_at < now() - interval '1 hour'
+    `);
+
+    const leaseResult = await tx.execute(drizzleSql`
+      SELECT lease_until FROM video_processing_leases WHERE user_id = ${userId}
+    `);
+    const leaseRows = (leaseResult as { rows?: Array<{ lease_until: Date | string }> }).rows ?? leaseResult as unknown as Array<{ lease_until: Date | string }>;
+    const currentLeaseUntil = leaseRows[0]?.lease_until ? new Date(leaseRows[0].lease_until).getTime() : 0;
+    if (currentLeaseUntil > Date.now()) {
+      return { allowed: false as const, retryAfterSeconds: VIDEO_PROCESSING_BUSY_RETRY_AFTER_SECONDS, reason: "busy" as const };
+    }
+
+    const budgetResult = await tx.execute(drizzleSql`
+      SELECT COUNT(*)::int AS count, MIN(created_at) AS oldest
+      FROM video_processing_events
+      WHERE user_id = ${userId} AND created_at >= now() - interval '10 minutes'
+    `);
+    const budgetRows = (budgetResult as { rows?: Array<{ count: number | string; oldest: Date | string | null }> }).rows ?? budgetResult as unknown as Array<{ count: number | string; oldest: Date | string | null }>;
+    const budget = budgetRows[0];
+    if (Number(budget?.count ?? 0) >= VIDEO_PROCESSING_MAX_REQUESTS_PER_WINDOW) {
+      const oldest = budget?.oldest ? new Date(budget.oldest).getTime() : Date.now();
+      return {
+        allowed: false as const,
+        retryAfterSeconds: Math.max(1, Math.ceil((oldest + VIDEO_PROCESSING_WINDOW_MS - Date.now()) / 1000)),
+        reason: "rate_limited" as const,
+      };
+    }
+
+    // The conflict update remains expiry-conditional even under the advisory
+    // lock, preserving the lease invariant if another writer is introduced.
+    const acquired = await tx.execute(drizzleSql`
+      INSERT INTO video_processing_leases (user_id, token, lease_until, updated_at)
+      VALUES (${userId}, ${token}, now() + interval '10 minutes', now())
+      ON CONFLICT (user_id) DO UPDATE
+      SET token = EXCLUDED.token, lease_until = EXCLUDED.lease_until, updated_at = now()
+      WHERE video_processing_leases.lease_until <= now()
+      RETURNING user_id
+    `);
+    const acquiredRows = (acquired as { rows?: Array<{ user_id: string }> }).rows ?? acquired as unknown as Array<{ user_id: string }>;
+    if (!acquiredRows.length) {
+      return { allowed: false as const, retryAfterSeconds: VIDEO_PROCESSING_BUSY_RETRY_AFTER_SECONDS, reason: "busy" as const };
+    }
+    await tx.execute(drizzleSql`
+      INSERT INTO video_processing_events (user_id, created_at) VALUES (${userId}, now())
+    `);
+    return { allowed: true as const };
+  });
+}
+
+async function releaseVideoProcessingSlot(userId: string, token: string) {
+  // Token scoping prevents an old timed-out worker from deleting a newer
+  // replica's lease after crash recovery/expiry.
+  await db.execute(drizzleSql`
+    DELETE FROM video_processing_leases WHERE user_id = ${userId} AND token = ${token}
+  `);
+}
 
 class MediaObjectSizeError extends Error {
   constructor(
@@ -87,6 +164,30 @@ async function downloadObjectEntityWhenReady(path: string, maxBytes: number): Pr
   throw lastReadinessError;
 }
 
+async function probeVideoDuration(inputPath: string): Promise<number> {
+  const { stdout } = await execFileAsync(
+    "ffprobe",
+    [
+      "-v", "error",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=codec_type,duration:format=duration",
+      "-of", "json",
+      inputPath,
+    ],
+    { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 },
+  );
+  const probe = JSON.parse(stdout) as {
+    streams?: Array<{ codec_type?: string; duration?: string }>;
+    format?: { duration?: string };
+  };
+  if (!probe.streams?.some((stream) => stream.codec_type === "video")) return 0;
+  const durations = [
+    Number(probe.format?.duration),
+    ...probe.streams.map((stream) => Number(stream.duration)),
+  ].filter((duration) => Number.isFinite(duration) && duration > 0);
+  return durations.length ? Math.max(...durations) : 0;
+}
+
 function normalizeSubtype(value: string | null | undefined): string {
   return normalizePropertySubtype(value) ?? "";
 }
@@ -108,6 +209,27 @@ function getListingCompletenessErrors(body: Record<string, unknown>, imageList: 
   }
   if (["rent", "bnb", "hotel", "hostel"].includes(type) && !priceUnit) {
     errors.priceUnit = ["A price period is required."];
+  }
+  if (type === "sale" && subtype === "land") {
+    const details = body.details && typeof body.details === "object" && !Array.isArray(body.details)
+      ? body.details as Record<string, unknown>
+      : {};
+    const land = details.land && typeof details.land === "object" && !Array.isArray(details.land)
+      ? details.land as Record<string, unknown>
+      : {};
+    const acresText = String(land.acres ?? "").trim();
+    const plotSizeText = String(land.plotSizeFt ?? "").trim();
+    const acres = Number(acresText);
+    const hasPositiveAcres = acresText !== "" && Number.isFinite(acres) && acres > 0;
+
+    if (acresText !== "" && !hasPositiveAcres) {
+      errors.acres = ["Acres must be greater than 0."];
+    }
+    if (!hasPositiveAcres && plotSizeText === "") {
+      const message = "Enter acres, plot size, or both.";
+      errors.acres = [message];
+      errors.plotSizeFt = [message];
+    }
   }
 
   const hasLat = body.lat !== undefined && body.lat !== null && String(body.lat).trim() !== "";
@@ -157,6 +279,12 @@ async function validateNewListingMedia({
     if (!allowedOwnerPrefixes.some((prefix) => path.startsWith(prefix))) {
       return `A ${expectedKind} is not owned by this account. Please upload it again.`;
     }
+    // A newly-attached listing video must be the result of the explicit
+    // /videos/process operation. Raw uploads live under /objects/uploads;
+    // processed MP4s are written under /objects/listing-videos.
+    if (expectedKind === "video" && !path.startsWith(`/objects/listing-videos/${userId}/`)) {
+      return "Trim and apply this video before adding it to the listing.";
+    }
 
     try {
       if (expectedKind === "image") {
@@ -190,32 +318,12 @@ async function validateNewListingMedia({
           await mkdir(workDir, { recursive: true });
           const inputPath = join(workDir, "source-video");
           await writeFile(inputPath, videoBytes);
-          const { stdout } = await execFileAsync(
-            "ffprobe",
-            [
-              "-v", "error",
-              "-select_streams", "v:0",
-              "-show_entries", "stream=codec_type,duration:format=format_name,duration",
-              "-of", "json",
-              inputPath,
-            ],
-            { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 }
-          );
-          const probe = JSON.parse(stdout) as {
-            streams?: Array<{ codec_type?: string; duration?: string }>;
-            format?: { format_name?: string; duration?: string };
-          };
-          const hasVideoStream = probe.streams?.some((stream) => stream.codec_type === "video") ?? false;
-          const durationCandidates = [
-            Number(probe.format?.duration),
-            ...(probe.streams ?? []).map((stream) => Number(stream.duration)),
-          ].filter((value) => Number.isFinite(value) && value > 0);
-          const duration = durationCandidates.length > 0 ? Math.max(...durationCandidates) : 0;
-          if (!hasVideoStream || duration <= 0) {
+          const duration = await probeVideoDuration(inputPath);
+          if (duration <= 0) {
             return "This video could not be decoded. Please choose a valid video file.";
           }
-          if (duration > MAX_LISTING_VIDEO_SECONDS + 0.05) {
-            return "Listing videos must be five minutes or shorter.";
+          if (duration > MAX_FINAL_LISTING_VIDEO_SECONDS + 0.05) {
+            return "Final listing videos must be 60 seconds or shorter. Trim and apply the video first.";
           }
         } finally {
           await rm(workDir, { recursive: true, force: true });
@@ -430,6 +538,7 @@ const PROPERTY_COLUMNS = {
   lat: properties.lat,
   lng: properties.lng,
   createdAt: properties.createdAt,
+  approvedAt: properties.approvedAt,
   ownerName: users.name,
   ownerAvatar: users.avatar,
   ownerBusinessName: users.businessName,
@@ -534,9 +643,10 @@ router.get("/", async (req, res) => {
     conditions.push(...PUBLIC_PROPERTY_CONDITIONS);
   }
 
+  const latestFirst = desc(drizzleSql`COALESCE(${properties.approvedAt}, ${properties.createdAt})`);
   const rows = conditions.length > 0
-    ? await baseQuery.where(and(...conditions))
-    : await baseQuery;
+    ? await baseQuery.where(and(...conditions)).orderBy(latestFirst)
+    : await baseQuery.orderBy(latestFirst);
 
   res.json(rows);
 });
@@ -639,6 +749,24 @@ router.post("/videos/process", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
 
+  const processingLeaseToken = randomUUID();
+  const admission = await acquireVideoProcessingSlot(userId, processingLeaseToken);
+  if (!admission.allowed) {
+    res.set("Retry-After", String(admission.retryAfterSeconds));
+    res.status(429).json({
+      error: admission.reason === "busy"
+        ? "A video edit is already processing for this account. Please try again shortly."
+        : "Too many video edit requests. Please try again after the requested delay.",
+      code: admission.reason === "busy" ? "VIDEO_PROCESSING_BUSY" : "VIDEO_PROCESSING_RATE_LIMIT",
+      retryAfterSeconds: admission.retryAfterSeconds,
+    });
+    return;
+  }
+
+  // This outer finally covers authorization, validation, storage, ffprobe and
+  // ffmpeg failures/returns alike. A rejected validation request therefore
+  // never leaves the account permanently locked.
+  try {
   const [caller] = await db
     .select({ role: users.role, status: users.status })
     .from(users)
@@ -666,7 +794,7 @@ router.post("/videos/process", async (req, res) => {
 
   const {
     sourcePath,
-    trimStart = 0,
+    trimStart,
     trimEnd,
     cropAspect = "original",
     caption = "",
@@ -696,6 +824,11 @@ router.post("/videos/process", async (req, res) => {
     res.status(400).json({ error: "Captions must be 160 characters or fewer." });
     return;
   }
+  if (!Object.prototype.hasOwnProperty.call(req.body, "trimStart") ||
+      !Object.prototype.hasOwnProperty.call(req.body, "trimEnd")) {
+    res.status(400).json({ error: "Choose both a trim start and trim end before applying this video." });
+    return;
+  }
 
   const workDir = join(tmpdir(), `inndos-video-edit-${randomUUID()}`);
   const inputPath = join(workDir, "source");
@@ -715,13 +848,8 @@ router.post("/videos/process", async (req, res) => {
     await writeFile(inputPath, videoBytes);
     await writeFile(captionPath, caption.trim());
 
-    const { stdout } = await execFileAsync(
-      "ffprobe",
-      ["-v", "error", "-show_entries", "format=duration", "-of", "default=nokey=1:noprint_wrappers=1", inputPath],
-      { timeout: 30_000, maxBuffer: 1024 * 1024 },
-    );
-    const sourceDuration = Number(stdout.trim());
-    if (!Number.isFinite(sourceDuration) || sourceDuration <= 0) {
+    const sourceDuration = await probeVideoDuration(inputPath);
+    if (sourceDuration <= 0) {
       res.status(400).json({ error: "This video could not be decoded. Please upload an MP4, MOV, or WebM file." });
       return;
     }
@@ -730,14 +858,15 @@ router.post("/videos/process", async (req, res) => {
       return;
     }
     const start = Number(trimStart);
-    const requestedEnd = trimEnd === undefined ? Math.min(sourceDuration, start + 60) : Number(trimEnd);
+    const requestedEnd = Number(trimEnd);
     if (!Number.isFinite(start) || !Number.isFinite(requestedEnd) ||
-      start < 0 || requestedEnd <= start || requestedEnd > sourceDuration + 0.05 || requestedEnd - start > 60.05) {
+      start < 0 || requestedEnd <= start || requestedEnd > sourceDuration + 0.05 ||
+      requestedEnd - start > MAX_FINAL_LISTING_VIDEO_SECONDS + 0.05) {
       res.status(400).json({ error: "Choose a valid clip between 1 second and 1 minute long." });
       return;
     }
 
-    const duration = Math.min(60, requestedEnd - start);
+    const duration = requestedEnd - start;
     await execFileAsync(
       "ffmpeg",
       [
@@ -749,14 +878,29 @@ router.post("/videos/process", async (req, res) => {
       { timeout: 180_000, maxBuffer: 2 * 1024 * 1024 },
     );
 
+    const outputStats = await stat(outputPath);
+    if (outputStats.size < 1 || outputStats.size > MAX_LISTING_VIDEO_BYTES) {
+      res.status(400).json({ error: "The processed video is invalid or exceeds the 250 MB limit." });
+      return;
+    }
+    // ffmpeg can emit a slightly longer clip than requested due to timestamps;
+    // probe the final bytes rather than trusting the requested range.
+    const finalDuration = await probeVideoDuration(outputPath);
+    if (finalDuration <= 0 || finalDuration > MAX_FINAL_LISTING_VIDEO_SECONDS + 0.05) {
+      res.status(400).json({ error: "The processed clip must be longer than 0 and no more than 60 seconds." });
+      return;
+    }
     const editedPath = `/objects/listing-videos/${userId}/${randomUUID()}.mp4`;
     await objectStorageService.saveObjectEntity(editedPath, await readFile(outputPath), "video/mp4");
-    res.status(201).json({ objectPath: editedPath, duration });
+    res.status(201).json({ objectPath: editedPath, duration: finalDuration });
   } catch (error) {
     req.log.error({ err: error }, "Video edit failed");
     res.status(500).json({ error: "We could not process this video. Please try again." });
   } finally {
     await rm(workDir, { recursive: true, force: true });
+  }
+  } finally {
+    await releaseVideoProcessingSlot(userId, processingLeaseToken);
   }
 });
 
@@ -1226,21 +1370,9 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  let normalizedVideoList: string[];
-  try {
-    normalizedVideoList = await normalizeNewListingVideos(
-      videoList,
-      new Set(),
-      userId,
-    );
-  } catch (error) {
-    req.log?.error({ err: error }, "Listing video normalization failed");
-    res.status(400).json({
-      error: "This video could not be converted for playback. Please choose a valid video file.",
-      code: "INVALID_MEDIA",
-    });
-    return;
-  }
+  // Videos are already transcoded to MP4 by /videos/process. Do not perform a
+  // second implicit edit here: the user-selected trim is the final clip.
+  const normalizedVideoList = videoList;
 
   let videoPosters: string[] = [];
   try {
@@ -1431,23 +1563,9 @@ router.patch("/:id", async (req, res) => {
     return;
   }
 
-  let normalizedVideoList = videoList;
-  if (videoList !== undefined) {
-    try {
-      normalizedVideoList = await normalizeNewListingVideos(
-        videoList,
-        new Set(prop.videos ?? []),
-        userId,
-      );
-    } catch (error) {
-      req.log?.error({ err: error }, "Listing video normalization failed");
-      res.status(400).json({
-        error: "This video could not be converted for playback. Please choose a valid video file.",
-        code: "INVALID_MEDIA",
-      });
-      return;
-    }
-  }
+  // Newly supplied videos were validated as explicitly processed clips above;
+  // preserve existing paths untouched when an owner edits another field.
+  const normalizedVideoList = videoList;
 
   let videoPosters = prop.videoPosters ?? [];
   if (normalizedVideoList !== undefined) {
@@ -1549,7 +1667,7 @@ router.post("/:id/resubmit", async (req, res) => {
 
   const [updated] = await db
     .update(properties)
-    .set({ propertyStatus: "pending", adminComment: null, isVerified: false })
+    .set({ propertyStatus: "pending", adminComment: null, isVerified: false, approvedAt: null })
     .where(eq(properties.id, req.params.id))
     .returning();
 

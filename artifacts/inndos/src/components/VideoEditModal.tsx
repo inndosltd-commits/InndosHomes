@@ -1,7 +1,7 @@
 /**
- * VideoEditModal — in-browser video editor
+ * VideoEditModal — server-backed video editor
  * Features: Trim (start/end), Crop (aspect ratio), Caption overlay
- * Processing: canvas + MediaRecorder (no external libraries needed)
+ * Processing: the API produces the final MP4 so every platform gets the same output.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -20,13 +20,16 @@ const ASPECT_RATIOS: Record<CropAspect, number | null> = {
 };
 
 export interface VideoEditResult {
-  file: File;
-  previewUrl: string;
+  trimStart: number;
+  trimEnd: number;
+  cropAspect: CropAspect;
+  caption: string;
+  captionPosition: CaptionPos;
 }
 
 interface Props {
   videoSrc: string;        // playable URL of the original video
-  onSave: (result: VideoEditResult) => void;
+  onSave: (result: VideoEditResult) => Promise<void>;
   onClose: () => void;
 }
 
@@ -40,8 +43,6 @@ const fmt = (s: number) => {
 // ── Component ──────────────────────────────────────────────────────────────────
 export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
   const videoRef  = useRef<HTMLVideoElement>(null);
-  const rafRef    = useRef<number | null>(null);
-  const stoppedRef = useRef(false);
 
   // metadata
   const [duration,    setDuration]    = useState(0);
@@ -69,7 +70,9 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
     if (!vid) return;
     const onMeta = () => {
       setDuration(vid.duration);
-      setTrimEnd(Math.min(vid.duration, 300));
+      // This is only an initial editable range. Nothing is saved until the
+      // owner presses Apply trim below, including for clips already <=60s.
+      setTrimEnd(Math.min(vid.duration, 60));
       setVideoW(vid.videoWidth);
       setVideoH(vid.videoHeight);
     };
@@ -150,126 +153,22 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
     ctx.restore();
   }, [caption, captionPos]);
 
-  // ── Process video ────────────────────────────────────────────────────────────
+  // ── Process video on the server ──────────────────────────────────────────────
   const handleProcess = async () => {
-    const vid = videoRef.current;
-    if (!vid) return;
-
-    if (!("captureStream" in HTMLCanvasElement.prototype)) {
-      setError("Your browser doesn't support video processing. Please use Chrome or Edge.");
-      return;
-    }
-
-    const mimeTypes = [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-    ];
-    const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m));
-    if (!mimeType) {
-      setError("Video recording is not supported in this browser. Please use Chrome or Edge.");
-      return;
-    }
-
     setIsProcessing(true);
     setError("");
-    setProgress(0);
-    stoppedRef.current = false;
-
-    const { x, y, w, h } = getCropRect();
-    const outW = Math.round(w || videoW);
-    const outH = Math.round(h || videoH);
-
-    const canvas = document.createElement("canvas");
-    canvas.width  = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext("2d", { alpha: false })!;
-
-    const trimDuration = Math.max(0.5, trimEnd - trimStart);
-
     try {
-      // Capture canvas stream (video)
-      const canvasStream = (canvas as any).captureStream(30) as MediaStream;
-
-      // Try to add audio from the video element
-      try {
-        const vidStream = (vid as any).captureStream() as MediaStream;
-        vidStream.getAudioTracks().forEach((t: MediaStreamTrack) => canvasStream.addTrack(t));
-      } catch { /* audio capture not available — proceed without it */ }
-
-      const recorder = new MediaRecorder(canvasStream, {
-        mimeType,
-        videoBitsPerSecond: 3_500_000,
-      });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-
-      await new Promise<void>((resolve, reject) => {
-        recorder.onerror = () => reject(new Error("MediaRecorder error"));
-        recorder.onstop  = () => resolve();
-
-        const drawFrame = () => {
-          if (stoppedRef.current) { if (recorder.state === "recording") recorder.stop(); return; }
-
-          const t = vid.currentTime;
-          const elapsed = Math.max(0, t - trimStart);
-          setProgress(Math.min(99, (elapsed / trimDuration) * 100));
-
-          if (t >= trimEnd - 0.05 || vid.ended) {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            if (recorder.state === "recording") recorder.stop();
-            return;
-          }
-
-          ctx.drawImage(vid, x, y, w || videoW, h || videoH, 0, 0, outW, outH);
-          drawCaption(ctx, outW, outH);
-          rafRef.current = requestAnimationFrame(drawFrame);
-        };
-
-        vid.pause();
-        vid.currentTime = trimStart;
-
-        const onSeeked = () => {
-          vid.removeEventListener("seeked", onSeeked);
-          recorder.start(100);
-          vid.play().catch(reject);
-          rafRef.current = requestAnimationFrame(drawFrame);
-        };
-        vid.addEventListener("seeked", onSeeked);
-      });
-
-      setProgress(100);
-      const ext = mimeType.includes("webm") ? "webm" : "mp4";
-      const blob = new Blob(chunks, { type: mimeType });
-      const file = new File([blob], `video_${Date.now()}.${ext}`, { type: mimeType });
-      const previewUrl = URL.createObjectURL(blob);
-
-      vid.pause();
-      vid.currentTime = trimStart;
-      setIsPlaying(false);
-
-      onSave({ file, previewUrl });
-
+      await onSave({ trimStart, trimEnd, cropAspect, caption, captionPosition: captionPos });
     } catch (err: any) {
       setError(err?.message ?? "Processing failed. Please try again.");
     } finally {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      stoppedRef.current = true;
       setIsProcessing(false);
     }
   };
 
-  const handleStop = () => {
-    stoppedRef.current = true;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    videoRef.current?.pause();
-    setIsProcessing(false);
-    setProgress(0);
-  };
-
   // ── Derived ──────────────────────────────────────────────────────────────────
-  const isModified = trimStart > 0 || (trimEnd < duration && trimEnd < 300) || cropAspect !== "original" || caption.trim() !== "";
-  const tooLong    = trimEnd - trimStart > 60; // final clip must be ≤ 1 minute
+  const isModified = duration > 0;
+  const tooLong    = trimEnd - trimStart > 60;
 
   // Crop overlay (as % of displayed video size)
   const { x: cx, y: cy, w: cw, h: ch } = getCropRect();
@@ -349,7 +248,6 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-blue-700 font-medium">Processing video… {Math.round(progress)}%</span>
-                <button type="button" onClick={handleStop} className="text-gray-500 hover:text-gray-800 text-[11px] underline">Cancel</button>
               </div>
               <div className="h-1.5 bg-blue-200 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 transition-all rounded-full" style={{ width: `${progress}%` }} />
@@ -448,7 +346,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
               <div>
                 <p className="text-[11px] text-gray-400 mb-2">Quick presets — keep from start:</p>
                 <div className="flex gap-2 flex-wrap">
-                  {[60, 90, 120, 180, 240, 300].filter(s => s <= Math.min(duration, 300)).map(s => (
+                  {[15, 30, 45, 60].filter(s => s <= Math.min(duration, 300)).map(s => (
                     <button type="button" key={s} disabled={isProcessing}
                       onClick={() => { setTrimStart(0); setTrimEnd(s); }}
                       className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
@@ -456,7 +354,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
                     </button>
                   ))}
                   <button type="button" disabled={isProcessing}
-                    onClick={() => { setTrimStart(0); setTrimEnd(Math.min(duration, 300)); }}
+                    onClick={() => { setTrimStart(0); setTrimEnd(Math.min(duration, 60)); }}
                     className="px-2.5 py-1 text-xs rounded-full border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors disabled:opacity-50">
                     Full
                   </button>
@@ -537,9 +435,7 @@ export function VideoEditModal({ videoSrc, onSave, onClose }: Props) {
           <div className="text-xs">
             {tooLong && isModified
               ? <span className="text-red-600 font-medium">Clip must be at most 1 minute to save</span>
-              : isModified
-                ? <span className="text-amber-600 font-medium">Changes ready · processing plays video in real-time</span>
-                : <span className="text-gray-400">No changes yet</span>}
+              : <span className="text-amber-600 font-medium">Choose this trim and apply it to create the final MP4</span>}
           </div>
           <div className="flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={onClose} disabled={isProcessing} className="text-xs h-8">

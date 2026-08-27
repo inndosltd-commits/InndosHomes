@@ -484,6 +484,9 @@ export default function AddListing() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
+  // Only newly selected raw uploads are pending. Videos loaded while editing a
+  // listing were already accepted and must remain editable without re-trimming.
+  const [pendingVideoPaths, setPendingVideoPaths] = useState<Set<string>>(() => new Set());
   const [videoLimit, setVideoLimit] = useState(0);
   const [imageLimit, setImageLimit] = useState(0);
   const [uploadingVideoCount, setUploadingVideoCount] = useState(0);
@@ -523,6 +526,7 @@ export default function AddListing() {
     setSearchQuery(displayAddress);
     setIsLocationPinned(true);
     setLocationSearchError("");
+    setFieldErrors(prev => ({ ...prev, location: [] }));
     mapRef.current?.panTo(pos);
     mapRef.current?.setZoom(16);
   }, []);
@@ -712,6 +716,9 @@ export default function AddListing() {
     setPricePerUnit(d.pricePerUnit ?? "");
     setImages(d.images ?? []);
     setVideos(d.videos ?? []);
+    // A saved draft can contain raw upload paths; retain the mandatory trim
+    // state across restore instead of allowing a raw source to be submitted.
+    setPendingVideoPaths(new Set((d.videos ?? []).filter(path => path.startsWith("/objects/uploads/"))));
     if (d.pinPosition) {
       setPinPosition(d.pinPosition);
       setIsLocationPinned(true);
@@ -862,7 +869,10 @@ export default function AddListing() {
         } else if (prop.image) {
           setImages([prop.image]);
         }
-        if (prop.videos && prop.videos.length > 0) setVideos(prop.videos);
+        if (prop.videos && prop.videos.length > 0) {
+          setVideos(prop.videos);
+          setPendingVideoPaths(new Set());
+        }
         if (prop.tags) setSelectedAmenities(prop.tags);
         if (prop.subtype) setSubtype(prop.subtype);
         if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
@@ -969,7 +979,15 @@ export default function AddListing() {
   };
 
   const removeVideo = (index: number) => {
-    setVideos(prev => prev.filter((_, i) => i !== index));
+    const removed = videos[index];
+    if (removed) setPendingVideoPaths(pending => {
+      const next = new Set(pending);
+      next.delete(removed);
+      return next;
+    });
+    setVideos(prev => {
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const openVideoEditor = (index: number) => {
@@ -979,28 +997,38 @@ export default function AddListing() {
     setEditingVideoSrc(resolved);
   };
 
-  const handleVideoEditSave = async ({ file, previewUrl }: { file: File; previewUrl: string }) => {
+  const handleVideoEditSave = async ({
+    trimStart, trimEnd, cropAspect, caption, captionPosition,
+  }: {
+    trimStart: number; trimEnd: number; cropAspect: "original" | "16:9" | "4:3" | "1:1" | "9:16";
+    caption: string; captionPosition: "top" | "center" | "bottom";
+  }) => {
     if (editingVideoIdx === null) return;
-    // Close editor first (show optimistic preview)
     const idx = editingVideoIdx;
-    setEditingVideoIdx(null);
-    setEditingVideoSrc("");
-    // Upload the processed file
+    const sourcePath = videos[idx];
+    if (!sourcePath) throw new Error("The selected video is no longer available.");
     setUploadingVideoCount(prev => prev + 1);
     try {
-      const result = await uploadFile(file);
-      const path = result && typeof result === "object" && "objectPath" in result ? result.objectPath as string : null;
-      if (path) {
-        setVideos(prev => prev.map((v, i) => i === idx ? path : v));
-        toast({ title: "Video updated", description: "Your edited video has been saved." });
-      } else {
-        toast({ title: "Upload failed", description: "Could not save the edited video.", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Upload failed", description: "Could not save the edited video.", variant: "destructive" });
+      const response = await fetch("/api/properties/videos/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ sourcePath, trimStart, trimEnd, cropAspect, caption, captionPosition }),
+      });
+      const data = await response.json().catch(() => ({})) as { objectPath?: string; error?: string };
+      if (!response.ok || !data.objectPath) throw new Error(data.error ?? "Could not process the video.");
+      setVideos(prev => prev.map((video, i) => i === idx ? data.objectPath! : video));
+      setPendingVideoPaths(pending => {
+        const next = new Set(pending);
+        next.delete(sourcePath);
+        return next;
+      });
+      setEditingVideoIdx(null);
+      setEditingVideoSrc("");
+      toast({ title: "Trim applied", description: "Your final MP4 has been saved." });
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("Could not process the video.");
     } finally {
       setUploadingVideoCount(prev => prev - 1);
-      URL.revokeObjectURL(previewUrl);
     }
   };
 
@@ -1048,6 +1076,14 @@ export default function AddListing() {
     }
     if (uploaded.length > 0) {
       setVideos(prev => [...prev, ...uploaded]);
+      setPendingVideoPaths(prev => new Set([...prev, ...uploaded]));
+      // Open the trim UI for the first newly uploaded source. Additional
+      // sources visibly remain marked "Trim required" until applied.
+      const firstNewIndex = videos.length;
+      const firstSource = uploaded[0];
+      setEditingVideoIdx(firstNewIndex);
+      setEditingVideoSrc(`/api/storage${firstSource}`);
+      toast({ title: "Trim required", description: "Choose a start and end, then apply the trim before submitting." });
     }
     setUploadingVideoCount(prev => prev - validFiles.length);
   }, [uploadFile, toast, videoLimit, videos.length]);
@@ -1090,19 +1126,18 @@ export default function AddListing() {
       toast({ title: "Sign in required", description: "Please sign in to add a listing.", variant: "destructive" });
       return;
     }
-    if (!listingType) {
-      toast({ title: "Missing field", description: "Please select a listing type.", variant: "destructive" });
-      return;
-    }
     if (uploadingCount > 0) {
       toast({ title: "Upload in progress", description: "Please wait for all photos to finish uploading.", variant: "destructive" });
       return;
     }
-    if (images.length === 0) {
-      toast({ title: "Photo required", description: "Please upload at least one photo of the property before submitting.", variant: "destructive" });
+    if (uploadingVideoCount > 0 || pendingVideoPaths.size > 0) {
+      const message = uploadingVideoCount > 0
+        ? "Wait for video processing to finish."
+        : "Trim and apply every newly selected video before submitting.";
+      setFieldErrors(prev => ({ ...prev, videos: [message] }));
+      toast({ title: "Video editing required", description: message, variant: "destructive" });
       return;
     }
-
     const parsedPrice = parseInt(price, 10);
     const parsedBeds = parseInt(beds, 10);
     const parsedBaths = parseInt(baths, 10);
@@ -1112,9 +1147,14 @@ export default function AddListing() {
     const effectiveSubtype = toApiSubtype(listingType, subtype);
 
     const clientErrors: Record<string, string[]> = {};
+    if (!listingType) clientErrors.type = ["Please select a listing type"];
     if (!title.trim()) clientErrors.title = ["Title is required"];
     if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
     if (!address.trim()) clientErrors.address = ["Address is required"];
+    if (!pinPosition) clientErrors.location = ["Please set an exact location pin"];
+    if (!description.trim()) clientErrors.description = ["Description is required"];
+    if (images.length === 0) clientErrors.images = ["Upload at least one photo"];
+    if (pendingVideoPaths.size > 0) clientErrors.videos = ["Trim and apply every newly selected video before submitting."];
     if ((listingType === "rent" || listingType === "bnb") && !effectiveSubtype) {
       clientErrors.subtype = ["Please select a property category"];
     }
@@ -1125,6 +1165,15 @@ export default function AddListing() {
     }
     if (specsAreApplicable && (isNaN(parsedBeds) || parsedBeds < 0)) clientErrors.beds = ["Enter the number of bedrooms"];
     if (specsAreApplicable && (isNaN(parsedBaths) || parsedBaths < 0)) clientErrors.baths = ["Enter the number of bathrooms"];
+    if (isLand) {
+      const parsedAcres = Number(acres);
+      if (acres.trim() && (!Number.isFinite(parsedAcres) || parsedAcres <= 0)) {
+        clientErrors.acres = ["Acres must be greater than 0"];
+      }
+      if (!acres.trim() && !plotSizeFt.trim()) {
+        clientErrors.plotSizeFt = ["Enter a positive acreage or a plot size"];
+      }
+    }
 
     if (Object.keys(clientErrors).length > 0) {
       setFieldErrors(clientErrors);
@@ -1142,19 +1191,13 @@ export default function AddListing() {
     try {
       const parsedTotalUnits = parseInt(totalUnits, 10);
 
-      // ── Compute land plot sqft ────────────────────────────────────────────────
-      const computeLandSqft = () => {
-        const dimMatch = plotSizeFt.match(/^(\d+\.?\d*)X(\d+\.?\d*)$/i);
-        if (dimMatch) return Math.round(parseFloat(dimMatch[1]) * parseFloat(dimMatch[2]));
-        return parseInt(plotSizeFt, 10) || 0;
-      };
-
       // ── For land listings, build a structured details object ─────────────────
       // Description stays as-is (pure human text); all structured data goes into details.
       const landDetails = isLand ? {
         land: {
           acres: parseFloat(acres) || null,
-          plotSizeFt: plotSizeFt || null,
+          // Keep the owner's human-readable dimensions exactly as entered.
+          plotSizeFt: plotSizeFt === "" ? null : plotSizeFt,
           soilType: soilType || null,
           surveyMaps: surveyMaps || null,
           titleDeed: titleDeed || null,
@@ -1175,7 +1218,8 @@ export default function AddListing() {
         address: address || searchQuery,
         beds: isLand ? 0 : (isNaN(parsedBeds) ? 0 : parsedBeds),
         baths: isLand ? 0 : (isNaN(parsedBaths) ? 0 : parsedBaths),
-        sqft: isLand ? computeLandSqft() : (isNaN(parsedSqft) ? 0 : parsedSqft),
+        // Plot dimensions are descriptive text, not calculated floor area.
+        sqft: isLand ? 0 : (isNaN(parsedSqft) ? 0 : parsedSqft),
         totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
         description: description || null,
         details: landDetails,
@@ -1312,11 +1356,11 @@ export default function AddListing() {
                           setListingType(value);
                           setSubtype("");
                           setPriceUnit("");
-                          setFieldErrors(prev => ({ ...prev, subtype: [], priceUnit: [] }));
+                          setFieldErrors(prev => ({ ...prev, type: [], subtype: [], priceUnit: [] }));
                         }}
                         required
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="type" className={fieldErrors.type?.length ? "border-red-500" : ""}>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1333,6 +1377,7 @@ export default function AddListing() {
                           <SelectItem value="hostel">Hostel (Student Rentals)</SelectItem>
                         </SelectContent>
                       </Select>
+                      {fieldErrors.type?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                     </div>
                     {listingType !== 'bnb' && (
                     <div className="space-y-2">
@@ -1538,11 +1583,11 @@ export default function AddListing() {
                     {fieldErrors.address?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                   </div>
 
-                  <div className="space-y-2">
+                  <div id="location" tabIndex={-1} className="space-y-2">
                     <Label>Map Location (Pin)</Label>
                     <div className="text-sm text-gray-500 mb-2">Set the exact location of your property on the map. This helps guests find your property easily.</div>
                     <div 
-                      className={`bg-gray-100 rounded-lg h-[200px] border flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer transition-colors ${isLocationPinned ? 'border-green-500' : 'border-gray-200'}`}
+                      className={`bg-gray-100 rounded-lg h-[200px] border flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer transition-colors ${fieldErrors.location?.length ? "border-red-500 ring-1 ring-red-200" : isLocationPinned ? 'border-green-500' : 'border-gray-200'}`}
                       onClick={() => setIsMapModalOpen(true)}
                     >
                       <img src="/images/modern_apartment_exterior.png" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" />
@@ -1559,6 +1604,7 @@ export default function AddListing() {
                           </>
                         )}
                       </div>
+                      {fieldErrors.location?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                       <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     </div>
                   </div>
@@ -1602,7 +1648,8 @@ export default function AddListing() {
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div className="space-y-1">
                           <Label htmlFor="acres" className="text-xs text-muted-foreground">Acres</Label>
-                          <Input id="acres" type="number" min="0" step="0.01" placeholder="e.g. 0.5" value={acres} onChange={e => setAcres(e.target.value)} />
+                          <Input id="acres" type="number" min="0" step="0.01" placeholder="e.g. 0.5" value={acres} onChange={e => { setAcres(e.target.value); setFieldErrors(prev => ({ ...prev, acres: [], plotSizeFt: [] })); }} className={fieldErrors.acres?.length ? "border-red-500" : ""} />
+                          {fieldErrors.acres?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="plotSizeFt" className="text-xs text-muted-foreground">Plot size (feet)</Label>
@@ -1610,14 +1657,15 @@ export default function AddListing() {
                             id="plotSizeFt"
                             type="text"
                             inputMode="text"
-                            placeholder="e.g. 50X100 or 20X60"
+                            placeholder="e.g. 50 by 60, 60*80, or 60x70"
                             value={plotSizeFt}
                             onChange={e => {
-                              // Allow digits, X/x separator, and decimal point only
-                              const val = e.target.value.replace(/[^0-9Xx.]/g, "").toUpperCase();
-                              setPlotSizeFt(val);
+                              setPlotSizeFt(e.target.value);
+                              setFieldErrors(prev => ({ ...prev, plotSizeFt: [], acres: [] }));
                             }}
+                            className={fieldErrors.plotSizeFt?.length ? "border-red-500" : ""}
                           />
+                          {fieldErrors.plotSizeFt?.map(err => <p key={err} className="text-xs text-red-500">{err}</p>)}
                         </div>
                       </div>
                     </div>
@@ -1792,9 +1840,9 @@ export default function AddListing() {
                     <Textarea 
                       id="description" 
                       placeholder="Describe the property features, neighborhood, etc." 
-                      className="min-h-[150px]"
+                      className={`min-h-[150px] ${fieldErrors.description?.length ? "border-red-500" : ""}`}
                       value={description}
-                      onChange={e => setDescription(e.target.value)}
+                      onChange={e => { setDescription(e.target.value); setFieldErrors(prev => ({ ...prev, description: [] })); }}
                       required 
                     />
                   </div>
@@ -1802,7 +1850,7 @@ export default function AddListing() {
               </Card>
 
               {/* Photos */}
-              <Card>
+              <Card id="images" tabIndex={-1} className={fieldErrors.images?.length ? "border-red-500 ring-1 ring-red-200" : ""}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">Photos <span className="text-red-500 text-base">*</span></CardTitle>
                   <CardDescription>
@@ -1815,6 +1863,7 @@ export default function AddListing() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {fieldErrors.images?.map(err => <p key={err} className="mb-3 text-xs text-red-500">{err}</p>)}
                   <div className="flex gap-4 mb-4">
                     <div
                       className="relative flex-1 border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2"
@@ -1951,6 +2000,9 @@ export default function AddListing() {
                           ? "Video upload is included with Pro (1 video) and Enterprise (5 videos)"
                           : `Upload up to ${videoLimit} video${videoLimit === 1 ? "" : "s"}, max 5 minutes each`}
                       </CardDescription>
+                      {pendingVideoPaths.size > 0 && (
+                        <p className="mt-1 text-xs font-medium text-amber-700">Each newly selected video must be trimmed and applied before submission.</p>
+                      )}
                     </div>
                     {videoLimit === 0 && (
                       <a href="/#/pricing" className="text-xs text-primary underline underline-offset-2 shrink-0 mt-1">Upgrade plan</a>
@@ -2014,6 +2066,9 @@ export default function AddListing() {
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">Video {i + 1}</span>
+                               {pendingVideoPaths.has(url) && (
+                                 <span className="absolute bottom-2 right-2 bg-amber-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">Trim required</span>
+                               )}
                             </div>
                           ))}
                           {Array.from({ length: uploadingVideoCount }).map((_, i) => (
@@ -2026,6 +2081,7 @@ export default function AddListing() {
                       )}
                     </>
                   )}
+                  {fieldErrors.videos?.map(error => <p key={error} className="mt-3 text-sm text-destructive">{error}</p>)}
                 </CardContent>
               </Card>
 
@@ -2049,7 +2105,7 @@ export default function AddListing() {
                 <Button variant="outline" type="button" onClick={() => setLocation("/dashboard")}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-primary" disabled={isSubmitting || uploadingCount > 0 || uploadingVideoCount > 0}>
+                <Button type="submit" className="bg-primary" disabled={isSubmitting || uploadingCount > 0 || uploadingVideoCount > 0 || pendingVideoPaths.size > 0}>
                   {uploadingCount > 0 || uploadingVideoCount > 0 ? (
                     <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Uploading media…</span>
                   ) : isSubmitting ? (

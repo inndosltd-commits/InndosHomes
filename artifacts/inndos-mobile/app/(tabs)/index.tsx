@@ -1,6 +1,11 @@
-import { useListProperties, useListFeaturedProperties } from "@workspace/api-client-react";
+import {
+  getListFeaturedPropertiesQueryKey,
+  getListPropertiesQueryKey,
+  useListProperties,
+  useListFeaturedProperties,
+} from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -93,6 +98,30 @@ function matchesSubCategory(property: Property, category: string | null): boolea
     case "Lands": return is("land");
     default: return true;
   }
+}
+
+function matchesPropertySearch(property: Property, search: string): boolean {
+  const query = search.trim().toLowerCase();
+  if (!query) return true;
+  return [
+    property.title,
+    property.ownerName,
+    property.ownerBusinessName,
+    property.address,
+  ].some((value) => value?.toLowerCase().includes(query));
+}
+
+function isWithinMapBounds(property: Property, bounds: MapBBox | null): boolean {
+  if (!bounds) return true;
+  const latitude = Number(property.lat);
+  const longitude = Number(property.lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  return (
+    latitude >= bounds.minLat &&
+    latitude <= bounds.maxLat &&
+    longitude >= bounds.minLng &&
+    longitude <= bounds.maxLng
+  );
 }
 
 // ── Section Block ────────────────────────────────────────────────────────────
@@ -259,12 +288,31 @@ export default function BrowseScreen() {
       activeSubCategory === "Stalls" ? "stall" :
       activeSubCategory === "Shops" ? "shop" :
       undefined,
-    search: debouncedSearch || undefined,
-    ...(mapBounds ?? {}),
   };
 
-  const { data: properties, isLoading, error, refetch } = useListProperties(listParams);
-  const { data: featuredProperties, refetch: refetchFeatured } = useListFeaturedProperties();
+  const { data: properties, isLoading, error, refetch } = useListProperties(listParams, {
+    query: {
+      queryKey: getListPropertiesQueryKey(listParams),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const { data: featuredProperties, refetch: refetchFeatured } = useListFeaturedProperties({
+    query: {
+      queryKey: getListFeaturedPropertiesQueryKey(),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refetch();
+      void refetchFeatured();
+    }, [refetch, refetchFeatured])
+  );
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -296,6 +344,7 @@ export default function BrowseScreen() {
     if (!properties) return [];
     let arr = [...properties];
     arr = arr.filter((property) => matchesSubCategory(property, activeSubCategory));
+    arr = arr.filter((property) => matchesPropertySearch(property, debouncedSearch));
     const maxP = priceMax ? Number(priceMax.replace(/,/g, "")) : NaN;
     if (!isNaN(maxP) && maxP > 0) arr = arr.filter((p) => p.price <= maxP);
     if (sortBy === "price-asc") arr.sort((a, b) => a.price - b.price);
@@ -309,13 +358,13 @@ export default function BrowseScreen() {
       });
     } else {
       arr.sort((a, b) => {
-        const aT = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bT = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const aT = new Date(a.approvedAt ?? a.createdAt ?? 0).getTime();
+        const bT = new Date(b.approvedAt ?? b.createdAt ?? 0).getTime();
         return bT - aT;
       });
     }
     return arr;
-  }, [properties, sortBy, userLocation, priceMax, activeSubCategory]);
+  }, [properties, sortBy, userLocation, priceMax, activeSubCategory, debouncedSearch]);
 
   // Categorised sections (when no active type filter)
   const bnbHotelProperties = useMemo(
@@ -329,6 +378,14 @@ export default function BrowseScreen() {
   const saleProperties = useMemo(
     () => filteredProperties.filter((p) => p.type === "sale"),
     [filteredProperties]
+  );
+  const visibleFeaturedProperties = useMemo(() => {
+    const featuredIds = new Set((featuredProperties ?? []).map((property) => property.id));
+    return filteredProperties.filter((property) => featuredIds.has(property.id));
+  }, [featuredProperties, filteredProperties]);
+  const mapProperties = useMemo(
+    () => filteredProperties.filter((property) => isWithinMapBounds(property, mapBounds)),
+    [filteredProperties, mapBounds]
   );
 
   const handleSearch = (text: string) => {
@@ -565,7 +622,7 @@ export default function BrowseScreen() {
         ) : (
           <>
             <View style={styles.mapWrapper}>
-              <PropertyMapView properties={filteredProperties} onSearchArea={setMapBounds} focusRegion={mapFocusRegion} />
+              <PropertyMapView properties={mapProperties} onSearchArea={setMapBounds} focusRegion={mapFocusRegion} />
             </View>
 
             {filteredProperties.length === 0 ? (
@@ -582,11 +639,11 @@ export default function BrowseScreen() {
               />
             ) : hasAnySections ? (
               <>
-                {!!featuredProperties?.length && (
+                {visibleFeaturedProperties.length > 0 && (
                   <SectionBlock
                     title="Featured Listings"
-                    properties={featuredProperties.slice(0, 10)}
-                    total={featuredProperties.length}
+                    properties={visibleFeaturedProperties.slice(0, 10)}
+                    total={visibleFeaturedProperties.length}
                     colors={colors}
                   />
                 )}

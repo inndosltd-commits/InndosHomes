@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { getImageUrl } from "@/utils/imageUrl";
+import { getApiBaseUrl } from "@/utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
@@ -40,9 +41,10 @@ export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [bookingActionId, setBookingActionId] = useState<string | null>(null);
   const isWeb = Platform.OS === "web";
   const isLister = user?.role === "owner" || user?.role === "host";
 
@@ -92,12 +94,72 @@ export default function BookingsScreen() {
     );
   };
 
+  const handleBookingStatusUpdate = async (
+    id: string,
+    status: Extract<BookingStatus, "confirmed" | "cancelled">,
+  ) => {
+    if (!token) {
+      Alert.alert("Sign in required", "Please sign in again to update this Link-Up.");
+      return;
+    }
+
+    setBookingActionId(id);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/bookings/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not update this Link-Up.");
+      }
+
+      // Update visible received records first, then refetch both views so the
+      // status is current everywhere the booking can appear.
+      queryClient.setQueryData(
+        getListReceivedBookingsQueryKey(),
+        (current: typeof receivedBookings) =>
+          current?.map((booking) => booking.id === id ? { ...booking, status } : booking),
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getListReceivedBookingsQueryKey() }),
+      ]);
+      await Promise.all([refetch(), refetchReceived()]);
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        status === "confirmed" ? "Link-Up confirmed" : "Link-Up declined",
+        status === "confirmed"
+          ? "The guest has been notified that their Link-Up is confirmed."
+          : "The guest has been notified that their Link-Up was declined.",
+      );
+    } catch (actionError) {
+      Alert.alert(
+        "Action failed",
+        actionError instanceof Error ? actionError.message : "Could not update this Link-Up.",
+      );
+    } finally {
+      setBookingActionId(null);
+    }
+  };
+
   const topPadding = isWeb ? 67 : insets.top;
   const styles = getStyles(colors);
   const receivedIds = new Set((receivedBookings ?? []).map((item) => item.id));
-  const visibleBookings = isLister
+  const visibleBookings = (isLister
     ? [...(receivedBookings ?? []), ...(bookings ?? []).filter((item) => !receivedIds.has(item.id))]
-    : bookings;
+    : bookings ?? []
+  ).sort((a, b) => {
+    const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+    return bTime - aTime;
+  });
   const visibleLoading = isLister ? (receivedLoading || isLoading) : isLoading;
   const visibleError = isLister ? (receivedError || error) : error;
 
@@ -149,7 +211,7 @@ export default function BookingsScreen() {
         </View>
       ) : (
         <FlatList
-          data={visibleBookings ?? []}
+          data={visibleBookings}
           keyExtractor={(item) => item.id}
           scrollEnabled={!!visibleBookings && visibleBookings.length > 0}
           refreshControl={
@@ -181,6 +243,11 @@ export default function BookingsScreen() {
           renderItem={({ item }) => {
             const status = item.status as BookingStatus;
             const isReceived = isLister && receivedIds.has(item.id);
+            const canManageReceived =
+              isReceived && item.ownerId === user.id && status === "pending";
+            const canCancelOutgoing =
+              !isReceived && item.userId === user.id && status !== "cancelled";
+            const actionLoading = bookingActionId === item.id;
 
             const coverImage = (item.propertyImages && item.propertyImages.length > 0)
               ? item.propertyImages[0]
@@ -260,6 +327,11 @@ export default function BookingsScreen() {
                     <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
                       {isReceived ? (item.guestEmail || "No email provided") : (item.ownerEmail || "No email provided")}
                     </Text>
+                    {isReceived && (
+                      <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
+                        Requested: {item.startDate} — {item.endDate}
+                      </Text>
+                    )}
                     <Text style={[styles.linkedDate, { color: colors.mutedForeground }]}>
                       Linked {item.createdAt ? new Date(item.createdAt).toLocaleString() : "recently"}
                     </Text>
@@ -290,7 +362,44 @@ export default function BookingsScreen() {
                   ) : null}
                 </View>
 
-                {!isReceived && status !== "cancelled" && (
+                {canManageReceived && (
+                  <View style={styles.decisionActions}>
+                    <Pressable
+                      style={[
+                        styles.confirmBtn,
+                        { backgroundColor: STATUS_COLORS.confirmed },
+                        actionLoading && styles.disabledAction,
+                      ]}
+                      onPress={(event) => {
+                        event.stopPropagation?.();
+                        void handleBookingStatusUpdate(item.id, "confirmed");
+                      }}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <>
+                          <Feather name="check" size={15} color="#fff" />
+                          <Text style={styles.confirmText}>Confirm</Text>
+                        </>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={[styles.declineBtn, { borderColor: STATUS_COLORS.cancelled }, actionLoading && styles.disabledAction]}
+                      onPress={(event) => {
+                        event.stopPropagation?.();
+                        void handleBookingStatusUpdate(item.id, "cancelled");
+                      }}
+                      disabled={actionLoading}
+                    >
+                      <Feather name="x" size={15} color={STATUS_COLORS.cancelled} />
+                      <Text style={[styles.declineText, { color: STATUS_COLORS.cancelled }]}>Decline</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {canCancelOutgoing && (
                   <Pressable
                     style={[styles.cancelBtn, { borderColor: colors.border }]}
                     onPress={(e) => {
@@ -496,6 +605,44 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     cancelText: {
       fontSize: 13,
       fontFamily: "Outfit_500Medium",
+    },
+    decisionActions: {
+      flexDirection: "row",
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 16,
+    },
+    confirmBtn: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+    },
+    confirmText: {
+      color: "#fff",
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    declineBtn: {
+      flex: 1,
+      minHeight: 42,
+      borderWidth: 1,
+      borderRadius: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+    },
+    declineText: {
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    disabledAction: {
+      opacity: 0.6,
     },
     errorText: {
       fontSize: 15,

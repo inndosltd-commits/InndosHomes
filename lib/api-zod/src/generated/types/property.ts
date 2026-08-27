@@ -30,6 +30,7 @@ export interface Property {
   lat?: string | null;
   lng?: string | null;
   createdAt?: string;
+  approvedAt?: string | null;
   description?: string | null;
   subtype?: string | null;
   hourlyRate?: number | null;

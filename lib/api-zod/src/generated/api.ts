@@ -8,6 +8,45 @@
 import * as zod from "zod";
 
 /**
+ * @summary Get driving or walking directions between coordinates
+ */
+export const getDirectionsQueryModeDefault = `driving`;
+
+export const GetDirectionsQueryParams = zod.object({
+  origin: zod.coerce
+    .string()
+    .describe("Comma-separated latitude and longitude for the route origin."),
+  destination: zod.coerce
+    .string()
+    .describe(
+      "Comma-separated latitude and longitude for the route destination.",
+    ),
+  mode: zod.enum(["driving", "walking"]).default(getDirectionsQueryModeDefault),
+});
+
+export const GetDirectionsResponse = zod.object({
+  polyline: zod.string().describe("Google encoded overview polyline."),
+  distance: zod.string(),
+  duration: zod.string(),
+  startAddress: zod.string(),
+  endAddress: zod.string(),
+  steps: zod.array(
+    zod.object({
+      instruction: zod.string(),
+      distance: zod.string(),
+      duration: zod.string(),
+      end: zod.union([
+        zod.null(),
+        zod.object({
+          latitude: zod.number(),
+          longitude: zod.number(),
+        }),
+      ]),
+    }),
+  ),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -143,6 +182,7 @@ export const ListPropertiesResponseItem = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),
@@ -191,6 +231,36 @@ export const CreatePropertyBody = zod.object({
 });
 
 /**
+ * Produces the final MP4 for a source video. One edit may run per user at a time, with at most four edit starts per ten-minute window.
+ * @summary Apply an explicit trim and optional presentation edits to a property video
+ */
+export const processPropertyVideoBodyTrimStartMin = 0;
+
+export const processPropertyVideoBodyTrimEndExclusiveMin = 0;
+
+export const processPropertyVideoBodyCropAspectDefault = `original`;
+export const processPropertyVideoBodyCaptionMax = 160;
+
+export const processPropertyVideoBodyCaptionPositionDefault = `bottom`;
+
+export const ProcessPropertyVideoBody = zod.object({
+  sourcePath: zod
+    .string()
+    .describe(
+      "Account-owned source object path. Sources may be up to five minutes.",
+    ),
+  trimStart: zod.number().min(processPropertyVideoBodyTrimStartMin),
+  trimEnd: zod.number().gt(processPropertyVideoBodyTrimEndExclusiveMin),
+  cropAspect: zod
+    .enum(["original", "16:9", "4:3", "1:1", "9:16"])
+    .default(processPropertyVideoBodyCropAspectDefault),
+  caption: zod.string().max(processPropertyVideoBodyCaptionMax).optional(),
+  captionPosition: zod
+    .enum(["top", "center", "bottom"])
+    .default(processPropertyVideoBodyCaptionPositionDefault),
+});
+
+/**
  * @summary List active featured properties
  */
 
@@ -215,6 +285,7 @@ export const ListFeaturedPropertiesResponseItem = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),
@@ -292,6 +363,7 @@ export const GetListerProfileResponse = zod.object({
       lat: zod.string().nullish(),
       lng: zod.string().nullish(),
       createdAt: zod.string().optional(),
+      approvedAt: zod.string().nullish(),
       description: zod.string().nullish(),
       subtype: zod.string().nullish(),
       hourlyRate: zod.number().nullish(),
@@ -355,6 +427,7 @@ export const GetPropertyResponse = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),
@@ -425,6 +498,7 @@ export const UpdatePropertyResponse = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),
@@ -499,6 +573,7 @@ export const UpdatePropertyStatusResponse = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),
@@ -547,6 +622,7 @@ export const GetPropertyManagementCalendarResponse = zod.object({
     lat: zod.string().nullish(),
     lng: zod.string().nullish(),
     createdAt: zod.string().optional(),
+    approvedAt: zod.string().nullish(),
     description: zod.string().nullish(),
     subtype: zod.string().nullish(),
     hourlyRate: zod.number().nullish(),
@@ -685,6 +761,7 @@ export const ListFavoritesResponseItem = zod.object({
   lat: zod.string().nullish(),
   lng: zod.string().nullish(),
   createdAt: zod.string().optional(),
+  approvedAt: zod.string().nullish(),
   description: zod.string().nullish(),
   subtype: zod.string().nullish(),
   hourlyRate: zod.number().nullish(),

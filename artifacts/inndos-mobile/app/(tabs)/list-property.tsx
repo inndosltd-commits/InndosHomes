@@ -19,6 +19,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -465,6 +466,7 @@ interface MediaItem {
   mimeType: string;
   fileName: string;
   durationSeconds?: number;
+  requiresTrim?: boolean;
 }
 
 const VIDEO_MAX_DURATION_MS = 300000; // 5 minutes
@@ -525,6 +527,7 @@ interface FormState {
   paymentPlan: string;
   pricePerUnit: string;
 }
+type ErrorField = keyof FormState | "imageUrl" | "location";
 
 const EMPTY_FORM: FormState = {
   title:"", listingType:"rent", subtype:"", price:"", priceUnit:"", hourlyRate:"",
@@ -690,6 +693,7 @@ function fromServerDraft(
         isVideo,
         mimeType,
         fileName,
+        requiresTrim: isVideo && p.startsWith("/objects/uploads/"),
       };
     });
 
@@ -709,9 +713,9 @@ const secS = StyleSheet.create({
   label:{fontSize:11, fontFamily:"Outfit_600SemiBold", letterSpacing:0.8, textTransform:"uppercase", marginBottom:2, marginTop:4},
 });
 
-function Field({label, error, colors, hint, children}: {label:string; error?:string; colors:ReturnType<typeof useColors>; hint?:string; children:React.ReactNode}) {
+function Field({label, error, colors, hint, children, onLayout}: {label:string; error?:string; colors:ReturnType<typeof useColors>; hint?:string; children:React.ReactNode; onLayout?:(event:LayoutChangeEvent)=>void}) {
   return (
-    <View style={fieldS.wrapper}>
+    <View style={fieldS.wrapper} onLayout={onLayout}>
       <Text style={[fieldS.label,{color:colors.foreground}]}>{label}</Text>
       {children}
       {hint ? <Text style={[fieldS.hint,{color:colors.mutedForeground}]}>{hint}</Text> : null}
@@ -726,15 +730,16 @@ const fieldS = StyleSheet.create({
   error:{fontSize:12, fontFamily:"Outfit_400Regular"},
 });
 
-function ChipSelector({options, value, onChange, colors, small}: {
+function ChipSelector({options, value, onChange, colors, small, error}: {
   options:{label:string;value:string}[];
   value:string;
   onChange:(v:string)=>void;
   colors:ReturnType<typeof useColors>;
   small?:boolean;
+  error?: string;
 }) {
   return (
-    <View style={{flexDirection:"row", flexWrap:"wrap", gap:small?6:8}}>
+    <View style={{flexDirection:"row", flexWrap:"wrap", gap:small?6:8, borderWidth:1, borderColor:error?colors.destructive:"transparent", borderRadius:8, padding:error?6:0}}>
       {options.map(o=>(
         <Pressable
           key={o.value}
@@ -797,7 +802,7 @@ export default function ListPropertyScreen() {
   const isWeb = Platform.OS === "web";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState|"imageUrl",string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<ErrorField,string>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
@@ -812,6 +817,27 @@ export default function ListPropertyScreen() {
   // "server" = draft is saved on account, "local" = device-only, null = none
   const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
   const pickerAddressRef = useRef<string|null>(null);
+  const formScrollRef = useRef<ScrollView>(null);
+  const fieldPositions = useRef<Partial<Record<ErrorField, number>>>({});
+
+  const registerFieldPosition = (field: ErrorField) =>
+    (event: LayoutChangeEvent) => {
+      fieldPositions.current[field] = event.nativeEvent.layout.y;
+    };
+
+  const registerFieldsPosition = (...fields: ErrorField[]) => (event: LayoutChangeEvent) => {
+    fields.forEach((field) => { fieldPositions.current[field] = event.nativeEvent.layout.y; });
+  };
+
+  const scrollToFirstError = useCallback((fieldErrors: Partial<Record<ErrorField, string>>) => {
+    const firstField = (Object.keys(fieldErrors) as ErrorField[])[0];
+    if (!firstField) return;
+    const target = firstField === "lat" || firstField === "lng" ? "location" : firstField;
+    const y = fieldPositions.current[target];
+    if (y !== undefined) {
+      requestAnimationFrame(() => formScrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }));
+    }
+  }, []);
 
   const {
     data: propertyToEdit,
@@ -891,6 +917,7 @@ export default function ListPropertyScreen() {
         isVideo: true,
         mimeType: "video/mp4",
         fileName: path.split("/").pop() ?? "video.mp4",
+        requiresTrim: false,
       })),
     ]);
     setEditFormLoaded(true);
@@ -1057,14 +1084,21 @@ export default function ListPropertyScreen() {
         ? (errorData as { details?: { fieldErrors?: Record<string, string[]> } }).details?.fieldErrors
         : undefined;
     if (fieldErrors && Object.keys(fieldErrors).length > 0) {
-      const mappedErrors: Partial<Record<keyof FormState | "imageUrl", string>> = {};
+      const mappedErrors: Partial<Record<ErrorField, string>> = {};
       Object.entries(fieldErrors).forEach(([field, messages]) => {
-        const target = field === "image" || field === "images" ? "imageUrl" : field;
-        if (target in EMPTY_FORM || target === "imageUrl") {
-          mappedErrors[target as keyof FormState | "imageUrl"] = messages[0] ?? "Please correct this field";
+        const target =
+          field === "image" || field === "images" || field === "photos" ? "imageUrl" :
+          field === "type" ? "listingType" :
+          field === "location" || field === "latitude" || field === "longitude" ? "location" :
+          field === "plotSize" || field === "details.land.plotSizeFt" ? "plotSizeFt" :
+          field === "details.land.acres" ? "acres" :
+          field;
+        if (target in EMPTY_FORM || target === "imageUrl" || target === "location") {
+          mappedErrors[target as ErrorField] = messages[0] ?? "Please correct this field";
         }
       });
       setErrors(mappedErrors);
+      scrollToFirstError(mappedErrors);
     }
     const message =
       typeof responseError === "string"
@@ -1076,7 +1110,7 @@ export default function ListPropertyScreen() {
       fieldErrors && Object.keys(fieldErrors).length > 0 ? "Please fix the highlighted fields" : "Could not save listing",
       fieldErrors && Object.keys(fieldErrors).length > 0 ? "Review the errors in the form, then submit again." : message,
     );
-  }, []);
+  }, [scrollToFirstError]);
 
   const handleCreateSuccess = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1243,7 +1277,7 @@ export default function ListPropertyScreen() {
 
   function handleLocationChange(lat:string, lng:string) {
     setForm(prev=>({...prev,lat,lng}));
-    setErrors(prev=>({...prev,lat:undefined,lng:undefined}));
+    setErrors(prev=>({...prev,lat:undefined,lng:undefined,location:undefined}));
   }
 
   function handleAddressResolved(resolved:string, options?:{replace?:boolean}) {
@@ -1364,6 +1398,7 @@ export default function ListPropertyScreen() {
       mimeType,
       fileName: a.fileName ?? (a.uri.split("/").pop() || `asset.${ext}`),
       durationSeconds: isVideo && typeof a.duration === "number" ? a.duration / 1000 : undefined,
+      requiresTrim: isVideo,
     };
   };
 
@@ -1395,6 +1430,13 @@ export default function ListPropertyScreen() {
       );
     }
     setIsUploading(false);
+    if (isVideo && results.some((path) => path !== null)) {
+      // Raw uploads are intentionally unusable until the owner opens this
+      // editor and applies a server-backed trim.
+      const firstNewIndex = media.length;
+      setEditingVideoIndex(firstNewIndex);
+      Alert.alert("Trim required", "Choose a start and end, then save the edit before submitting this listing.");
+    }
   };
 
   const pickPhotosFromLibrary = async ()=>{
@@ -1498,6 +1540,7 @@ export default function ListPropertyScreen() {
             mimeType: "video/mp4",
             fileName: entry.fileName.replace(/\.[^.]+$/, "") + "-edited.mp4",
             durationSeconds: data.duration ?? entry.durationSeconds,
+            requiresTrim: false,
           }
         : entry,
       ));
@@ -1522,17 +1565,27 @@ export default function ListPropertyScreen() {
   };
 
   function validate(): boolean {
-    const newErrors: Partial<Record<keyof FormState|"imageUrl",string>>={};
+    const newErrors: Partial<Record<ErrorField,string>>={};
     if(!form.title.trim()) newErrors.title="Title is required";
     if(!form.address.trim()) newErrors.address="Address is required";
+    if(!form.description.trim()) newErrors.description="Description is required";
     if(!form.listingType) newErrors.listingType="Select a listing type";
     if((SUBTYPES[form.listingType] ?? []).length>0 && !form.subtype.trim()) newErrors.subtype="Select a property category";
     if((PRICE_UNITS_BY_TYPE[form.listingType] ?? []).length>0 && !form.priceUnit.trim()) newErrors.priceUnit="Select a price period";
     const photos=media.filter(m=>!m.isVideo);
     if(photos.length===0) newErrors.imageUrl="At least one photo is required";
     else if(media.some(m=>m.uploaded===null)) newErrors.imageUrl="Wait for media to finish uploading";
+    else if(media.some(m=>m.isVideo&&m.requiresTrim)) newErrors.imageUrl="Trim and apply every newly selected video before submitting";
     const price=parseFloat(form.price);
     if(!form.price.trim()||isNaN(price)||price<=0) newErrors.price="Enter a valid price";
+    if(isLandType(form.listingType)){
+      const acres = Number(form.acres);
+      if(form.acres.trim() && (isNaN(acres) || acres <= 0)) newErrors.acres="Acres must be a positive number";
+      if(!form.acres.trim() && !form.plotSizeFt.trim()) {
+        newErrors.acres="Enter positive acres or a plot size";
+        newErrors.plotSizeFt="Enter positive acres or a plot size";
+      }
+    }
     if(!hideBedsBaths(form.listingType)){
       if(!form.beds.trim()||isNaN(parseInt(form.beds))||parseInt(form.beds)<0) newErrors.beds="Enter the number of bedrooms";
       if(!form.baths.trim()||isNaN(parseInt(form.baths))||parseInt(form.baths)<0) newErrors.baths="Enter the number of bathrooms";
@@ -1546,16 +1599,21 @@ export default function ListPropertyScreen() {
       const lngVal=parseFloat(form.lng);
       if(isNaN(lngVal)||lngVal<-180||lngVal>180) newErrors.lng="Longitude must be -180 to 180";
     }
-    if(Boolean(form.lat.trim())!==Boolean(form.lng.trim())){
-      newErrors.lat="Enter both latitude and longitude, or leave both blank";
-      newErrors.lng="Enter both latitude and longitude, or leave both blank";
+    if(!form.lat.trim() || !form.lng.trim()){
+      newErrors.location="Please set an exact location pin";
     }
     setErrors(newErrors);
+    scrollToFirstError(newErrors);
     return Object.keys(newErrors).length===0;
   }
 
   function handleSubmit() {
     if(isUploading){Alert.alert("Please wait","Media is still uploading.");return;}
+    if(isProcessingVideo){Alert.alert("Video processing","Wait for the video trim to finish.");return;}
+    if(media.some(m=>m.isVideo&&m.requiresTrim)){
+      Alert.alert("Trim required","Open each newly selected video and save its trim before submitting.");
+      return;
+    }
     if(!validate()){Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);return;}
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -1565,12 +1623,8 @@ export default function ListPropertyScreen() {
     const parsedBeds = !hideBedsBaths(form.listingType)&&form.beds ? parseInt(form.beds) : isLand ? 0 : undefined;
     const parsedBaths = !hideBedsBaths(form.listingType)&&form.baths ? parseInt(form.baths) : isLand ? 0 : undefined;
 
-    // For land: compute sqft from plotSizeFt
     let parsedSqft: number|undefined = undefined;
-    if(isLand&&form.plotSizeFt){
-      const dimMatch = form.plotSizeFt.match(/^(\d+\.?\d*)X(\d+\.?\d*)$/i);
-      parsedSqft = dimMatch ? Math.round(parseFloat(dimMatch[1])*parseFloat(dimMatch[2])) : parseInt(form.plotSizeFt)||undefined;
-    } else if(!hideBedsBaths(form.listingType)&&form.sqft){
+    if(!hideBedsBaths(form.listingType)&&form.sqft){
       parsedSqft = parseInt(form.sqft)||undefined;
     }
 
@@ -1696,6 +1750,7 @@ export default function ListPropertyScreen() {
 
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==="ios"?"padding":undefined}>
         <ScrollView
+          ref={formScrollRef}
           contentContainerStyle={[styles.content,{paddingBottom:isWeb?34+84:insets.bottom+100}]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -1703,7 +1758,7 @@ export default function ListPropertyScreen() {
           {/* ── Basic Info ── */}
           <SectionLabel text="Basic Info" colors={colors}/>
 
-          <Field label="Property Title *" error={errors.title} colors={colors}>
+          <Field label="Property Title *" error={errors.title} colors={colors} onLayout={registerFieldPosition("title")}>
             <TextInput
               style={[styles.input,{color:colors.foreground,borderColor:errors.title?colors.destructive:colors.border,backgroundColor:colors.card}]}
               placeholder="e.g. Modern 2BR Apartment in Westlands"
@@ -1714,19 +1769,21 @@ export default function ListPropertyScreen() {
             />
           </Field>
 
-          <Field label="Listing Type *" error={errors.listingType} colors={colors}>
+          <Field label="Listing Type *" error={errors.listingType} colors={colors} onLayout={registerFieldPosition("listingType")}>
             <ChipSelector
               options={LISTING_TYPES.map(t=>({label:t.label,value:t.value}))}
               value={lt}
               onChange={v=>{setField("listingType",v as ListingType);setField("subtype","");setField("priceUnit","");}}
               colors={colors}
               small
+              error={errors.listingType}
             />
           </Field>
 
           {/* Sub-type */}
           {subtypeOptions.length>0 && (
-            <Field label={lt==="rent"?"Apartment Type":lt==="bnb"?"B&B Property Type":"Sub-type"} colors={colors}
+            <Field label={lt==="rent"?"Apartment Type":lt==="bnb"?"B&B Property Type":"Sub-type"} error={errors.subtype} colors={colors}
+              onLayout={registerFieldPosition("subtype")}
               hint="Helps guests find your property in the right category.">
               <ChipSelector
                 options={subtypeOptions}
@@ -1734,12 +1791,13 @@ export default function ListPropertyScreen() {
                 onChange={v=>setField("subtype",v===form.subtype?"":v)}
                 colors={colors}
                 small
+                error={errors.subtype}
               />
             </Field>
           )}
 
           {/* Price */}
-          <View style={{flexDirection:"row",gap:10}}>
+          <View style={{flexDirection:"row",gap:10}} onLayout={registerFieldsPosition("price", "priceUnit")}>
             <View style={{flex:1}}>
               <Field label="Price (KES) *" error={errors.price} colors={colors}>
                 <TextInput
@@ -1755,13 +1813,14 @@ export default function ListPropertyScreen() {
             </View>
             {priceUnitOptions.length>0 && (
               <View style={{flex:1}}>
-                <Field label="Price Per" colors={colors}>
+                <Field label="Price Per" error={errors.priceUnit} colors={colors}>
                   <ChipSelector
                     options={priceUnitOptions}
                     value={form.priceUnit}
                     onChange={v=>setField("priceUnit",form.priceUnit===v?"":v)}
                     colors={colors}
                     small
+                    error={errors.priceUnit}
                   />
                 </Field>
               </View>
@@ -1783,7 +1842,7 @@ export default function ListPropertyScreen() {
             </Field>
           )}
 
-          <Field label="Address * (auto-filled when you pin a location)" error={errors.address} colors={colors}>
+          <Field label="Address * (auto-filled when you pin a location)" error={errors.address} colors={colors} onLayout={registerFieldPosition("address")}>
             <TextInput
               style={[styles.input,{color:colors.foreground,borderColor:errors.address?colors.destructive:colors.border,backgroundColor:colors.card}]}
               placeholder="e.g. 14 Lenana Road, Nairobi"
@@ -1799,7 +1858,7 @@ export default function ListPropertyScreen() {
 
           {/* Beds / Baths / Sqft (hidden for land + commercial) */}
           {showBedsBaths && (
-            <View style={styles.row}>
+            <View style={styles.row} onLayout={registerFieldsPosition("beds", "baths", "sqft")}>
               <View style={{flex:1}}>
                 <Field label={lt==="hostel"?"Beds/Units":"Bedrooms"} error={errors.beds} colors={colors}>
                   <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.beds?colors.destructive:colors.border,backgroundColor:colors.card}]}
@@ -1828,21 +1887,21 @@ export default function ListPropertyScreen() {
           {isLand && (
             <View style={[styles.landBox,{backgroundColor:colors.muted,borderColor:colors.border}]}>
               <Text style={[styles.landSectionTitle,{color:colors.foreground}]}>Size of Land</Text>
-              <View style={styles.row}>
+              <View style={styles.row} onLayout={registerFieldsPosition("acres", "plotSizeFt")}>
                 <View style={{flex:1}}>
-                  <Field label="Acres" colors={colors}>
-                    <TextInput style={[styles.input,{color:colors.foreground,borderColor:colors.border,backgroundColor:colors.card}]}
+                  <Field label="Acres (or enter plot size) *" error={errors.acres} colors={colors}>
+                    <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.acres?colors.destructive:colors.border,backgroundColor:colors.card}]}
                       placeholder="e.g. 0.5" placeholderTextColor={colors.mutedForeground}
                       value={form.acres} onChangeText={v=>setField("acres",v)} keyboardType="decimal-pad" returnKeyType="next"/>
                   </Field>
                 </View>
                 <View style={{flex:1}}>
-                  <Field label="Plot size (feet)" colors={colors}>
-                    <TextInput style={[styles.input,{color:colors.foreground,borderColor:colors.border,backgroundColor:colors.card}]}
-                      placeholder="e.g. 50X100" placeholderTextColor={colors.mutedForeground}
+                  <Field label="Plot size (feet, or enter acres) *" error={errors.plotSizeFt} colors={colors}>
+                    <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.plotSizeFt?colors.destructive:colors.border,backgroundColor:colors.card}]}
+                      placeholder="e.g. 50 by 60, 60*80, 60x70" placeholderTextColor={colors.mutedForeground}
                       value={form.plotSizeFt}
-                      onChangeText={v=>setField("plotSizeFt",v.replace(/[^0-9Xx.]/g,"").toUpperCase())}
-                      autoCapitalize="characters" returnKeyType="next"/>
+                      onChangeText={v=>setField("plotSizeFt",v)}
+                      returnKeyType="next"/>
                   </Field>
                 </View>
               </View>
@@ -1962,9 +2021,9 @@ export default function ListPropertyScreen() {
             </View>
           )}
 
-          <Field label="Description" colors={colors}>
+          <Field label="Description *" error={errors.description} colors={colors} onLayout={registerFieldPosition("description")}>
             <TextInput
-              style={[styles.input,styles.textarea,{color:colors.foreground,borderColor:colors.border,backgroundColor:colors.card}]}
+              style={[styles.input,styles.textarea,{color:colors.foreground,borderColor:errors.description?colors.destructive:colors.border,backgroundColor:colors.card}]}
               placeholder="Describe your property — amenities, location, rules…"
               placeholderTextColor={colors.mutedForeground}
               value={form.description}
@@ -1976,6 +2035,7 @@ export default function ListPropertyScreen() {
           </Field>
 
           {/* ── Photos ── */}
+          <View onLayout={registerFieldPosition("imageUrl")}>
           <SectionLabel text={`Photos * (${photos.length}/${imageLimit})`} colors={colors}/>
           <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>
             {mediaLimitsLoaded
@@ -1983,12 +2043,12 @@ export default function ListPropertyScreen() {
               : "Checking your photo upload allowance…"}
           </Text>
           <View style={{flexDirection:"row",gap:8}}>
-            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
+            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:errors.imageUrl?colors.destructive:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
               onPress={pickPhotosFromLibrary} disabled={isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit}>
               <Feather name="image" size={18} color={colors.foreground}/>
               <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Gallery</Text>
             </Pressable>
-            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
+            <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:errors.imageUrl?colors.destructive:colors.border,opacity:isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit?0.5:1}]}
               onPress={pickPhotoFromCamera} disabled={isUploading||!mediaLimitsLoaded||currentPhotoCount>=imageLimit}>
               <Feather name="camera" size={18} color={colors.foreground}/>
               <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Camera</Text>
@@ -2001,6 +2061,7 @@ export default function ListPropertyScreen() {
               <Text style={{fontSize:13,fontFamily:"Outfit_400Regular",color:colors.mutedForeground}}>Uploading...</Text>
             </View>
           )}
+          {errors.imageUrl ? <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.destructive}}>{errors.imageUrl}</Text> : null}
 
           {photos.length>0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
@@ -2047,7 +2108,7 @@ export default function ListPropertyScreen() {
               })}
             </ScrollView>
           )}
-          {errors.imageUrl ? <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.destructive}}>{errors.imageUrl}</Text> : null}
+          </View>
 
           {/* ── Videos ── */}
           <SectionLabel text={`Videos (${videoMedia.length}/${videoLimit})`} colors={colors}/>
@@ -2067,7 +2128,7 @@ export default function ListPropertyScreen() {
             </View>
           ) : (
             <>
-              <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>Max 5 minutes per video · {videoMedia.length}/{videoLimit} used</Text>
+              <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>Max 5 minutes per source · apply an explicit trim (max 1 minute) · {videoMedia.length}/{videoLimit} used</Text>
               <View style={{flexDirection:"row",gap:8}}>
                 <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:currentVideoCount>=videoLimit||isUploading?0.5:1}]}
                   onPress={pickVideoFromLibrary} disabled={isUploading||currentVideoCount>=videoLimit}>
@@ -2098,7 +2159,7 @@ export default function ListPropertyScreen() {
                               <Text style={{fontSize:11,color:colors.mutedForeground,fontFamily:"Outfit_400Regular"}}>Uploading…</Text>
                             )}
                             {v.uploaded!==null && (
-                              <Text style={{fontSize:11,color:"#16a34a",fontFamily:"Outfit_400Regular"}}>Uploaded</Text>
+                              <Text style={{fontSize:11,color:v.requiresTrim?"#b45309":"#16a34a",fontFamily:"Outfit_400Regular"}}>{v.requiresTrim ? "Trim required before submission" : "Trim applied"}</Text>
                             )}
                           </View>
                            <Pressable
@@ -2121,15 +2182,18 @@ export default function ListPropertyScreen() {
           )}
 
           {/* ── Location ── */}
-          <SectionLabel text="Location" colors={colors}/>
-          <LocationPicker
-            lat={form.lat}
-            lng={form.lng}
-            onLocationChange={handleLocationChange}
-            onAddressResolved={handleAddressResolved}
-            latError={errors.lat}
-            lngError={errors.lng}
-          />
+          <View onLayout={registerFieldPosition("location")} style={[errors.location || errors.lat || errors.lng ? {borderWidth:1,borderColor:colors.destructive,borderRadius:8,padding:8} : undefined]}>
+            <SectionLabel text="Location" colors={colors}/>
+            <LocationPicker
+              lat={form.lat}
+              lng={form.lng}
+              onLocationChange={handleLocationChange}
+              onAddressResolved={handleAddressResolved}
+              latError={errors.lat ?? errors.location}
+              lngError={errors.lng ?? errors.location}
+            />
+            {errors.location ? <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.destructive}}>{errors.location}</Text> : null}
+          </View>
 
           {/* ── Actions ── */}
           <View style={{flexDirection:"row",gap:10}}>
@@ -2143,9 +2207,9 @@ export default function ListPropertyScreen() {
               </Pressable>
             )}
             <Pressable
-              style={[styles.submitBtn,{backgroundColor:isSaving?colors.muted:colors.primary,flex:1}]}
+              style={[styles.submitBtn,{backgroundColor:isSaving||isUploading||isProcessingVideo||media.some(m=>m.isVideo&&m.requiresTrim)?colors.muted:colors.primary,flex:1}]}
               onPress={handleSubmit}
-              disabled={isSaving||isUploading}
+              disabled={isSaving||isUploading||isProcessingVideo||media.some(m=>m.isVideo&&m.requiresTrim)}
             >
               {isSaving ? <ActivityIndicator size="small" color={colors.mutedForeground}/> : (
                 <>

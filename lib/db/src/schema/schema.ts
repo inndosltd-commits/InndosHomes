@@ -76,6 +76,7 @@ export const properties = pgTable("properties", {
     .$type<"pending" | "approved" | "flagged" | "deactivated" | "sold">()
     .notNull()
     .default("pending"),
+  approvedAt: timestamp("approved_at"),
   lat: decimal("lat", { precision: 10, scale: 7 }),
   lng: decimal("lng", { precision: 10, scale: 7 }),
   totalUnits: integer("total_units").notNull().default(1),

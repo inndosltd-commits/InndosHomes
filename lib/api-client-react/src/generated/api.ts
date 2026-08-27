@@ -23,15 +23,19 @@ import type {
   Booking,
   CreateBookingInput,
   CreatePropertyInput,
+  DirectionsRoute,
   ErrorEnvelope,
   FavoriteInput,
   FavoriteStatus,
+  GetDirectionsParams,
   HealthStatus,
   ListPropertiesParams,
   ListerProfile,
   ListerSearchResult,
   ListingDraft,
   LoginInput,
+  ProcessPropertyVideoInput,
+  ProcessPropertyVideoResponse,
   Property,
   PropertyManagementCalendar,
   PropertyManagementCalendarEntry,
@@ -54,6 +58,100 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Get driving or walking directions between coordinates
+ */
+export const getGetDirectionsUrl = (params: GetDirectionsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/maps/directions?${stringifiedParams}`
+    : `/api/maps/directions`;
+};
+
+export const getDirections = async (
+  params: GetDirectionsParams,
+  options?: RequestInit,
+): Promise<DirectionsRoute> => {
+  return customFetch<DirectionsRoute>(getGetDirectionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDirectionsQueryKey = (params?: GetDirectionsParams) => {
+  return [`/api/maps/directions`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetDirectionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDirections>>,
+  TError = ErrorType<void | ErrorEnvelope>,
+>(
+  params: GetDirectionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDirections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDirectionsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDirections>>> = ({
+    signal,
+  }) => getDirections(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDirections>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDirectionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDirections>>
+>;
+export type GetDirectionsQueryError = ErrorType<void | ErrorEnvelope>;
+
+/**
+ * @summary Get driving or walking directions between coordinates
+ */
+
+export function useGetDirections<
+  TData = Awaited<ReturnType<typeof getDirections>>,
+  TError = ErrorType<void | ErrorEnvelope>,
+>(
+  params: GetDirectionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDirections>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDirectionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * Returns server health status
@@ -788,6 +886,97 @@ export const useCreateProperty = <
   TContext
 > => {
   return useMutation(getCreatePropertyMutationOptions(options));
+};
+
+/**
+ * Produces the final MP4 for a source video. One edit may run per user at a time, with at most four edit starts per ten-minute window.
+ * @summary Apply an explicit trim and optional presentation edits to a property video
+ */
+export const getProcessPropertyVideoUrl = () => {
+  return `/api/properties/videos/process`;
+};
+
+export const processPropertyVideo = async (
+  processPropertyVideoInput: ProcessPropertyVideoInput,
+  options?: RequestInit,
+): Promise<ProcessPropertyVideoResponse> => {
+  return customFetch<ProcessPropertyVideoResponse>(
+    getProcessPropertyVideoUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(processPropertyVideoInput),
+    },
+  );
+};
+
+export const getProcessPropertyVideoMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof processPropertyVideo>>,
+    TError,
+    { data: BodyType<ProcessPropertyVideoInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof processPropertyVideo>>,
+  TError,
+  { data: BodyType<ProcessPropertyVideoInput> },
+  TContext
+> => {
+  const mutationKey = ["processPropertyVideo"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof processPropertyVideo>>,
+    { data: BodyType<ProcessPropertyVideoInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return processPropertyVideo(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ProcessPropertyVideoMutationResult = NonNullable<
+  Awaited<ReturnType<typeof processPropertyVideo>>
+>;
+export type ProcessPropertyVideoMutationBody =
+  BodyType<ProcessPropertyVideoInput>;
+export type ProcessPropertyVideoMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Apply an explicit trim and optional presentation edits to a property video
+ */
+export const useProcessPropertyVideo = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof processPropertyVideo>>,
+    TError,
+    { data: BodyType<ProcessPropertyVideoInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof processPropertyVideo>>,
+  TError,
+  { data: BodyType<ProcessPropertyVideoInput> },
+  TContext
+> => {
+  return useMutation(getProcessPropertyVideoMutationOptions(options));
 };
 
 /**

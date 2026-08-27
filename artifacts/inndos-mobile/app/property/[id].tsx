@@ -79,14 +79,15 @@ function getPriceLabel(type: string, price: number, priceUnit?: string | null): 
   return formatted;
 }
 
-function hasLandPlotSize(details: Record<string, unknown> | undefined): boolean {
+function getLandMeasurements(details: Record<string, unknown> | undefined): { acres?: string; plotSize?: string } {
   const land = details?.land;
-  return Boolean(
-    land &&
-    typeof land === "object" &&
-    "plotSizeFt" in land &&
-    (land as { plotSizeFt?: unknown }).plotSizeFt
-  );
+  if (!land || typeof land !== "object" || Array.isArray(land)) return {};
+  const values = land as { acres?: unknown; plotSizeFt?: unknown };
+  const acres = values.acres === null || values.acres === undefined || String(values.acres).trim() === ""
+    ? undefined : String(values.acres);
+  const plotSize = values.plotSizeFt === null || values.plotSizeFt === undefined || String(values.plotSizeFt).trim() === ""
+    ? undefined : String(values.plotSizeFt);
+  return { acres, plotSize };
 }
 
 export default function PropertyDetailScreen() {
@@ -487,10 +488,12 @@ export default function PropertyDetailScreen() {
 
           {(() => {
             const isLand = property.subtype === "land" || Boolean(property.details?.land);
-            const showArea = property.sqft > 0 && (!isLand || hasLandPlotSize(property.details));
+            const landMeasurements = getLandMeasurements(property.details);
+            const showArea = !isLand && property.sqft > 0;
+            const showLandMeasurements = isLand && (landMeasurements.acres || landMeasurements.plotSize);
             const showBedsOrBaths = !isLand && (property.beds > 0 || property.baths > 0);
             const showGuests = property.guests != null && property.guests > 0;
-            return (showBedsOrBaths || showArea || showGuests) && (
+            return (showBedsOrBaths || showArea || showLandMeasurements || showGuests) && (
             <View style={[styles.specsRow, { borderColor: colors.border }]}>
             {!isLand && property.beds > 0 && (
               <View style={styles.specItem}>
@@ -511,6 +514,20 @@ export default function PropertyDetailScreen() {
                 <Feather name="maximize-2" size={20} color={colors.foreground} />
                 <Text style={[styles.specValue, { color: colors.foreground }]}>{property.sqft}</Text>
                 <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>sqft</Text>
+              </View>
+            )}
+            {isLand && landMeasurements.acres && (
+              <View style={styles.specItem}>
+                <Feather name="maximize-2" size={20} color={colors.foreground} />
+                <Text style={[styles.specValue, { color: colors.foreground }]}>{landMeasurements.acres}</Text>
+                <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>acres</Text>
+              </View>
+            )}
+            {isLand && landMeasurements.plotSize && (
+              <View style={styles.specItem}>
+                <Feather name="maximize-2" size={20} color={colors.foreground} />
+                <Text style={[styles.specValue, { color: colors.foreground }]}>{landMeasurements.plotSize}</Text>
+                <Text style={[styles.specLabel, { color: colors.mutedForeground }]}>plot size</Text>
               </View>
             )}
             {property.guests != null && property.guests > 0 && (
@@ -563,6 +580,7 @@ export default function PropertyDetailScreen() {
               lat={property.lat}
               lng={property.lng}
               title={property.title}
+              address={property.address}
             />
           )}
 

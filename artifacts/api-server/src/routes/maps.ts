@@ -5,6 +5,9 @@ const router = Router();
 const PLACE_LOOKUP_LIMIT = 40;
 const PLACE_LOOKUP_WINDOW_MS = 60_000;
 const placeLookupBuckets = new Map<string, { count: number; resetAt: number }>();
+const DIRECTIONS_LIMIT = 30;
+const DIRECTIONS_WINDOW_MS = 60_000;
+const directionsBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function enforcePlaceLookupLimit(userId: string, res: Response): boolean {
   const now = Date.now();
@@ -24,7 +27,26 @@ function enforcePlaceLookupLimit(userId: string, res: Response): boolean {
   return true;
 }
 
+function enforceDirectionsLimit(userId: string, res: Response): boolean {
+  const now = Date.now();
+  const existing = directionsBuckets.get(userId);
+  const bucket = !existing || existing.resetAt <= now
+    ? { count: 0, resetAt: now + DIRECTIONS_WINDOW_MS }
+    : existing;
+
+  if (bucket.count >= DIRECTIONS_LIMIT) {
+    res.setHeader("Retry-After", String(Math.max(1, Math.ceil((bucket.resetAt - now) / 1000))));
+    res.status(429).json({ error: "Too many directions requests. Please wait a moment and try again." });
+    return false;
+  }
+
+  bucket.count += 1;
+  directionsBuckets.set(userId, bucket);
+  return true;
+}
+
 function parseCoordinate(value: unknown, min: number, max: number): number | null {
+  if (typeof value === "string" && value.trim() === "") return null;
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue >= min && numberValue <= max
     ? numberValue
@@ -167,14 +189,22 @@ router.get("/places/:placeId", async (req, res) => {
 router.get("/directions", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (!enforceDirectionsLimit(userId, res)) return;
 
-  const [originLat, originLng] = String(req.query.origin ?? "").split(",").map(Number);
-  const [destinationLat, destinationLng] = String(req.query.destination ?? "").split(",").map(Number);
-  const originIsValid = parseCoordinate(originLat, -90, 90) !== null && parseCoordinate(originLng, -180, 180) !== null;
-  const destinationIsValid = parseCoordinate(destinationLat, -90, 90) !== null && parseCoordinate(destinationLng, -180, 180) !== null;
+  const originParts = String(req.query.origin ?? "").split(",");
+  const destinationParts = String(req.query.destination ?? "").split(",");
+  const [originLat, originLng] = originParts.map(Number);
+  const [destinationLat, destinationLng] = destinationParts.map(Number);
+  const originIsValid = parseCoordinate(originParts[0], -90, 90) !== null && parseCoordinate(originParts[1], -180, 180) !== null;
+  const destinationIsValid = parseCoordinate(destinationParts[0], -90, 90) !== null && parseCoordinate(destinationParts[1], -180, 180) !== null;
+  const mode = String(req.query.mode ?? "driving").toLowerCase();
 
-  if (!originIsValid || !destinationIsValid) {
+  if (originParts.length !== 2 || destinationParts.length !== 2 || !originIsValid || !destinationIsValid) {
     res.status(400).json({ error: "Valid origin and destination coordinates are required" });
+    return;
+  }
+  if (mode !== "driving" && mode !== "walking") {
+    res.status(400).json({ error: "mode must be either driving or walking" });
     return;
   }
 
@@ -188,7 +218,7 @@ router.get("/directions", async (req, res) => {
     const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
     url.searchParams.set("origin", `${originLat},${originLng}`);
     url.searchParams.set("destination", `${destinationLat},${destinationLng}`);
-    url.searchParams.set("mode", "driving");
+    url.searchParams.set("mode", mode);
     url.searchParams.set("key", apiKey);
 
     const response = await fetch(url);
@@ -198,6 +228,8 @@ router.get("/directions", async (req, res) => {
       routes?: Array<{
         overview_polyline?: { points?: string };
         legs?: Array<{
+          start_address?: string;
+          end_address?: string;
           distance?: { text?: string; value?: number };
           duration?: { text?: string; value?: number };
           steps?: Array<{
@@ -212,7 +244,7 @@ router.get("/directions", async (req, res) => {
     const route = payload.routes?.[0];
     const leg = route?.legs?.[0];
     if (!response.ok || payload.status !== "OK" || !route?.overview_polyline?.points || !leg) {
-      res.status(502).json({ error: payload.error_message ?? "No driving route is available for this destination" });
+      res.status(502).json({ error: payload.error_message ?? `No ${mode} route is available for this destination` });
       return;
     }
 
@@ -220,6 +252,8 @@ router.get("/directions", async (req, res) => {
       polyline: route.overview_polyline.points,
       distance: leg.distance?.text ?? "",
       duration: leg.duration?.text ?? "",
+      startAddress: leg.start_address ?? "",
+      endAddress: leg.end_address ?? "",
       steps: (leg.steps ?? []).map((step) => ({
         instruction: (step.html_instructions ?? "").replace(/<[^>]*>/g, "").trim(),
         distance: step.distance?.text ?? "",
@@ -230,7 +264,7 @@ router.get("/directions", async (req, res) => {
       })),
     });
   } catch {
-    res.status(502).json({ error: "Could not retrieve driving directions" });
+    res.status(502).json({ error: `Could not retrieve ${mode} directions` });
   }
 });
 

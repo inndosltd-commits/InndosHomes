@@ -166,6 +166,29 @@ async function runMigrations() {
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_at TIMESTAMP`);
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS featured_until TIMESTAMP`);
   await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS video_posters TEXT[] NOT NULL DEFAULT '{}'::text[]`);
+  // Cross-replica resource control for expensive property-video ffmpeg work.
+  // Leases expire after a crashed worker; event history is a durable rolling
+  // admission budget and is cleaned opportunistically by the route.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS video_processing_leases (
+      user_id VARCHAR PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      token UUID NOT NULL,
+      lease_until TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS video_processing_events (
+      id BIGSERIAL PRIMARY KEY,
+      user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS video_processing_events_user_created_at_idx
+    ON video_processing_events (user_id, created_at)
+  `);
+  await db.execute(sql`ALTER TABLE properties ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS featured_listing_uses (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

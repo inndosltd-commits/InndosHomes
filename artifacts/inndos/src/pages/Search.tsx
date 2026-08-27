@@ -17,6 +17,7 @@ interface Lister {
 import { useLanguage } from "@/lib/language";
 import PropertyMap from "@/components/ui/PropertyMap";
 import { normalizePropertySubtype, propertyCategorySearchValues } from "@workspace/property-categories";
+import { getListPropertiesQueryKey, useListProperties } from "@workspace/api-client-react";
 
 const RENT_CATEGORIES = [
   { tKey: "cat.all_rentals",    type: "rent",          filter: null },
@@ -172,20 +173,28 @@ export default function Search() {
   const maxPrice = queryType === "rent" ? 500000 : 200000000;
   const priceStep = queryType === "rent" ? 1000 : 100000;
 
-  const [properties, setProperties]           = useState<ApiProperty[]>([]);
-  const [isLoadingProps, setIsLoadingProps]   = useState(true);
   const [searchQuery, setSearchQuery]         = useState(querySearchParam);
   const [priceRange, setPriceRange]           = useState([0, maxPrice]);
   const [minDraft, setMinDraft]               = useState("0");
   const [maxDraft, setMaxDraft]               = useState(String(maxPrice));
   const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [sortBy, setSortBy]                   = useState("featured");
+  const [sortBy, setSortBy]                   = useState("newest");
   const [viewMode, setViewMode]               = useState<"list" | "map">("list");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isGeofencingActive, setIsGeofencingActive] = useState(false);
   const [userLocation, setUserLocation]       = useState<{ lat: number; lng: number } | null>(null);
   const prevType = useRef(queryType);
+  const propertyParams = undefined;
+  const { data: propertiesData, isLoading: isLoadingProps } = useListProperties(propertyParams, {
+    query: {
+      queryKey: getListPropertiesQueryKey(propertyParams),
+      staleTime: 30_000,
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const properties = (propertiesData ?? []) as ApiProperty[];
 
   // ── Lister search state ──────────────────────────────────────────────────────
   const [listerSearchMode,  setListerSearchMode]  = useState(false);
@@ -212,15 +221,6 @@ export default function Search() {
       prevType.current = queryType;
     }
   }, [queryType, maxPrice]);
-
-  useEffect(() => {
-    setIsLoadingProps(true);
-    fetch("/api/properties", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => setProperties(Array.isArray(data) ? data : []))
-      .catch(() => setProperties([]))
-      .finally(() => setIsLoadingProps(false));
-  }, []);
 
   // ── Debounced lister autocomplete ────────────────────────────────────────────
   useEffect(() => {
@@ -314,10 +314,13 @@ export default function Search() {
   };
 
   const filteredProperties = useMemo(() => {
-    // Lister mode: bypass all type/price filters — show the full portfolio
+    // Lister mode: bypass all type/price filters — show the full portfolio.
     if (selectedLister) {
-      return [...properties.filter(p => p.ownerId === selectedLister.id)]
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      let listerProperties = properties.filter(p => p.ownerId === selectedLister.id);
+      if (sortBy === "price-asc") listerProperties = [...listerProperties].sort((a, b) => (a.price || 0) - (b.price || 0));
+      else if (sortBy === "price-desc") listerProperties = [...listerProperties].sort((a, b) => (b.price || 0) - (a.price || 0));
+      else listerProperties = [...listerProperties].sort((a, b) => new Date(b.approvedAt || b.createdAt || 0).getTime() - new Date(a.approvedAt || a.createdAt || 0).getTime());
+      return listerProperties;
     }
 
     let list = properties.filter((p) => {
@@ -380,7 +383,9 @@ export default function Search() {
 
     if (sortBy === "price-asc")  list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
     if (sortBy === "price-desc") list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
-    if (sortBy === "newest")     list = [...list].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    if (sortBy !== "price-asc" && sortBy !== "price-desc") {
+      list = [...list].sort((a, b) => new Date(b.approvedAt || b.createdAt || 0).getTime() - new Date(a.approvedAt || a.createdAt || 0).getTime());
+    }
     return list;
   }, [properties, selectedLister, queryType, queryFilter, queryCategory, priceRange, selectedBedrooms, selectedAmenities, sortBy, searchQuery, isGeofencingActive, userLocation, isPriceFiltered]);
 

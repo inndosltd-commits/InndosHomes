@@ -7,13 +7,15 @@ interface PropertyLocationMapProps {
   lat: string;
   lng: string;
   title: string;
+  address?: string;
 }
 
-export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProps) {
+export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocationMapProps) {
   const colors = useColors();
   const [copied, setCopied] = useState(false);
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lat)},${encodeURIComponent(lng)}`;
+  const destination = address ? `${title}, ${address}` : title;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
 
   const handleOpenMaps = () => {
     Linking.openURL(mapsUrl);
@@ -36,7 +38,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         <View style={styles.textBlock}>
           <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
           <Text style={[styles.coords, { color: colors.mutedForeground }]}>
-            {parseFloat(lat).toFixed(5)}, {parseFloat(lng).toFixed(5)}
+            {address || `${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`}
           </Text>
         </View>
         <Pressable
@@ -53,7 +55,7 @@ export function PropertyLocationMap({ lat, lng, title }: PropertyLocationMapProp
         <Pressable
           onPress={handleOpenMaps}
           style={styles.iconBtn}
-          accessibilityLabel="Open in maps"
+            accessibilityLabel={`Open directions to ${title}`}
         >
           <Feather name="external-link" size={16} color={colors.mutedForeground} />
         </Pressable>

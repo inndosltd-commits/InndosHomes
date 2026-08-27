@@ -32,9 +32,10 @@ export interface ApiProperty {
   lng?: string | null;
   description?: string | null;
   createdAt?: string;
+  approvedAt?: string | null;
   ownerName?: string | null;
   ownerBusinessName?: string | null;
-  details?: { land?: { plotSizeFt?: string | null } };
+  details?: { land?: { acres?: number | null; plotSizeFt?: string | null } };
   // Legacy mockData compat (specs object)
   specs?: { beds: number; baths: number; sqft: number; guests?: number };
 }
@@ -86,13 +87,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const isLand = property.subtype === "land" || Boolean(property.details?.land);
   const beds = !isLand ? (property.beds ?? property.specs?.beds ?? 0) : 0;
   const baths = !isLand ? (property.baths ?? property.specs?.baths ?? 0) : 0;
-  const sqftWasEntered = !isLand || Boolean(property.details?.land?.plotSizeFt);
-  const sqft = sqftWasEntered ? (property.sqft ?? property.specs?.sqft ?? 0) : 0;
+  const plotSizeFt = property.details?.land?.plotSizeFt?.trim();
+  const acres = property.details?.land?.acres;
+  const sqft = !isLand ? (property.sqft ?? property.specs?.sqft ?? 0) : 0;
   const visibleSpecs = [
     beds > 0 ? { icon: BedDouble, value: beds, label: "Beds" } : null,
     baths > 0 ? { icon: Bath, value: baths, label: "Baths" } : null,
     sqft > 0 ? { icon: Square, value: sqft, label: "sqft" } : null,
-  ].filter((spec): spec is { icon: typeof BedDouble; value: number; label: string } => spec !== null);
+    isLand && plotSizeFt ? { icon: Square, value: plotSizeFt, label: "Plot" } : null,
+    isLand && acres != null && acres > 0 ? { icon: Square, value: acres, label: "Acres" } : null,
+  ].filter(Boolean) as { icon: typeof BedDouble; value: string | number; label: string }[];
   const previewImage = property.images?.length
     ? property.image
     : property.videoPosters?.[0] ?? property.image;

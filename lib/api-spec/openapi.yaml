@@ -24,8 +24,73 @@ tags:
     description: Object storage upload and serving endpoints.
   - name: admin
     description: Administrator operations
+  - name: maps
+    description: Authenticated map and directions operations
 
 paths:
+  /maps/directions:
+    get:
+      operationId: getDirections
+      tags: [maps]
+      summary: Get driving or walking directions between coordinates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          description: Comma-separated latitude and longitude for the route origin.
+          schema:
+            type: string
+            example: "-1.2921,36.8219"
+        - name: destination
+          in: query
+          required: true
+          description: Comma-separated latitude and longitude for the route destination.
+          schema:
+            type: string
+            example: "-1.2864,36.8172"
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [driving, walking]
+            default: driving
+      responses:
+        "200":
+          description: Route and turn-by-turn directions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectionsRoute"
+        "400":
+          description: Invalid coordinates or travel mode
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Too many directions requests. Retry after the `Retry-After` response header.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "503":
+          description: Directions are not configured for this environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Directions provider unavailable or no route found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -213,6 +278,52 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Property"
+
+  /properties/videos/process:
+    post:
+      operationId: processPropertyVideo
+      tags: [properties]
+      summary: Apply an explicit trim and optional presentation edits to a property video
+      description: Produces the final MP4 for a source video. One edit may run per user at a time, with at most four edit starts per ten-minute window.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProcessPropertyVideoInput"
+      responses:
+        "201":
+          description: Processed final MP4
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProcessPropertyVideoResponse"
+        "400":
+          description: Invalid trim or source video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Source is not owned or the account plan cannot process videos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: A video edit is already running or the per-user edit rate limit was exceeded. Retry after the integer seconds in the `Retry-After` response header.
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying.
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /properties/featured:
     get:
@@ -775,6 +886,48 @@ components:
       bearerFormat: JWT
 
   schemas:
+    DirectionsRoute:
+      type: object
+      properties:
+        polyline:
+          type: string
+          description: Google encoded overview polyline.
+        distance:
+          type: string
+        duration:
+          type: string
+        startAddress:
+          type: string
+        endAddress:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectionsStep"
+      required: [polyline, distance, duration, startAddress, endAddress, steps]
+    DirectionsStep:
+      type: object
+      properties:
+        instruction:
+          type: string
+        distance:
+          type: string
+        duration:
+          type: string
+        end:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/Coordinate"
+      required: [instruction, distance, duration, end]
+    Coordinate:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+      required: [latitude, longitude]
+
     HealthStatus:
       type: object
       properties:
@@ -939,6 +1092,9 @@ components:
           nullable: true
         createdAt:
           type: string
+        approvedAt:
+          type: string
+          nullable: true
         description:
           type: string
           nullable: true
@@ -1060,6 +1216,40 @@ components:
         - type
         - price
         - address
+
+    ProcessPropertyVideoInput:
+      type: object
+      required: [sourcePath, trimStart, trimEnd]
+      properties:
+        sourcePath:
+          type: string
+          description: Account-owned source object path. Sources may be up to five minutes.
+        trimStart:
+          type: number
+          minimum: 0
+        trimEnd:
+          type: number
+          exclusiveMinimum: 0
+        cropAspect:
+          type: string
+          enum: [original, "16:9", "4:3", "1:1", "9:16"]
+          default: original
+        caption:
+          type: string
+          maxLength: 160
+        captionPosition:
+          type: string
+          enum: [top, center, bottom]
+          default: bottom
+    ProcessPropertyVideoResponse:
+      type: object
+      required: [objectPath, duration]
+      properties:
+        objectPath:
+          type: string
+        duration:
+          type: number
+          description: Final ffprobe-verified duration in seconds, greater than zero and at most 60.
 
     PropertyStatusActionInput:
       type: object
