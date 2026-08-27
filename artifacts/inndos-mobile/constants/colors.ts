@@ -19,6 +19,7 @@ const colors = {
     border: "#e5e5e5",
     input: "#e5e5e5",
     verified: "#000000",
+    routeLine: "#2563eb",
   },
   dark: {
     text: "#ffffff",
@@ -40,6 +41,7 @@ const colors = {
     border: "#333333",
     input: "#333333",
     verified: "#ffffff",
+    routeLine: "#60a5fa",
   },
   radius: 0,
 };

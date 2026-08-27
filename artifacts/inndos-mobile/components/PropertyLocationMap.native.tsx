@@ -431,7 +431,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
               </View>
             </Marker>
             {routeCoordinates.length > 1 && (
-              <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />
+              <Polyline coordinates={routeCoordinates} strokeColor={colors.routeLine} strokeWidth={5} />
             )}
             {currentLocation && (
               <Marker coordinate={currentLocation} pinColor={colors.primary} />

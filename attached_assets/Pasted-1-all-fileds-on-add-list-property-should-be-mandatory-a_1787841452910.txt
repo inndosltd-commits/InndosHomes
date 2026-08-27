@@ -1,0 +1,46 @@
+1. all fileds on add/list property should be mandatory accept add/upload video where client can add or not.
+2. once you verify otp on my account .. the verified otp remains showing even after successfully verifying. confirm as well if creating account does the same -- all this on ios
+3. display of features on ios and androind on properties comes with things like undescrore... it should be plain text-check attached screenshots
+4. any property with video on website, when you view it on ios and andoid you cant see the video. it sould be seen well just the way it works on website and web app vesrions.  the restrictions on number of videos , size of video and number of photos to upload on ios
+
+5. we should have an option to save listing as draft or save to finish later ... insteady of starting the process a fresh again all over 
+
+6 .make sure the subcritipns are like below. features should appliy accountly for any users under any of category. you should uplaod photos, video or listing number on your profile , or for your property to be on featured section (add a section just above "B&B & Hotels" section on homepage) if no user has subscribed let featured section disappear. (explaination:Profile search by brand name(somebody can search and see all your listing at glance)-this faeture enables any user who has subscribed for paid packages to be searchable by his/her name ,brand/business name, and once searched, customer can click him/her and see all his/her listing at glance)
+
+Plans 
+1. Free 
+-Up to 3 listing
+-5 photos per listing
+-No video
+-zero featured listings per month
+-No Search boost
+-No dedicated phone support
+
+2. Basic
+Ksh 399/month
+-Upto to 7 listings
+-10 photos per listing
+-No video
+-1 featured listing per month
+-Profile search by brand name(somebody can search and see all your listing at glance)
+-No dedicated phone support
+
+3. Pro
+ksh 599/month
+-upto 15 listing
+-20 photos per listing
+-1 video per listing
+-3 featured listings per month
+-Profile search by brand name(somebody can search and see all your listing at glance)
+
+4. Enterprise
+Custom pricing
+-unlimited listing
+-unlimited photos per listing
+-5 video per listing
+-Negotiable featured listings per month
+-24/7 phone support
+-Dedicated account manager
+-Profile search by brand name(somebody can search and see all your listing at glance)
+
+7- subscriptions and reservations navigations on ios are not there

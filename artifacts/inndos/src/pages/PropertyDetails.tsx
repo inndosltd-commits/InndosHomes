@@ -20,6 +20,7 @@ import { propertySubtypeLabel } from "@workspace/property-categories";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
+const NAVIGATION_ROUTE_COLOR = "#2563eb";
 
 /* ── Haversine distance (km) ── */
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -308,7 +309,7 @@ function NavigationOverlay({
                 // Google’s default A/B markers hide the actual property identity.
                 // The explicit markers below use INNDOS data and the saved pin.
                 suppressMarkers: true,
-                polylineOptions: { strokeColor: "#4285F4", strokeWeight: 9, strokeOpacity: 0.9 },
+                polylineOptions: { strokeColor: NAVIGATION_ROUTE_COLOR, strokeWeight: 9, strokeOpacity: 0.9 },
               }}
             />
           )}
@@ -394,11 +395,11 @@ function NavigationOverlay({
                 type="button"
                 key={`${index}-${step.instructions}`}
                 onClick={() => setStepIndex(index)}
-                className={`w-full px-3 py-2 text-left text-sm flex gap-2 ${index === stepIndex ? "bg-blue-50 text-blue-900" : "text-gray-700"}`}
+                className={`w-full px-3 py-2 text-left text-sm flex gap-2 ${index === stepIndex ? "bg-blue-50 text-blue-950" : "text-gray-900"}`}
               >
                 <span className="font-semibold">{MANEUVER_ICONS[step.maneuver ?? "straight"] ?? "↑"}</span>
                 <span className="flex-1" dangerouslySetInnerHTML={{ __html: step.instructions }} />
-                <span className="text-xs text-gray-400 whitespace-nowrap">{step.distance?.text}</span>
+                <span className="text-xs text-gray-600 whitespace-nowrap">{step.distance?.text}</span>
               </button>
             ))}
           </div>
