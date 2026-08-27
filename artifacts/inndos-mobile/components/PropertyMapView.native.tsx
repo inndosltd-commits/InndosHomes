@@ -59,6 +59,17 @@ function isValidCoordinate(lat: unknown, lng: unknown): lat is string {
   return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
 }
 
+function isValidRegion(region: Region): boolean {
+  return Number.isFinite(region.latitude)
+    && Number.isFinite(region.longitude)
+    && Number.isFinite(region.latitudeDelta)
+    && Number.isFinite(region.longitudeDelta)
+    && Math.abs(region.latitude) <= 90
+    && Math.abs(region.longitude) <= 180
+    && region.latitudeDelta > 0
+    && region.longitudeDelta > 0;
+}
+
 function regionToMapBBox(region: Region): MapBBox {
   return {
     minLat: region.latitude - region.latitudeDelta / 2,
@@ -107,12 +118,12 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
   );
 
   useEffect(() => {
-    if (!focusRegion) return;
+    if (!focusRegion || !mapReady || !isValidRegion(focusRegion)) return;
     mapRef.current?.animateToRegion(focusRegion, 700);
     setRegion(focusRegion);
     committedRegionRef.current = focusRegion;
     onSearchArea?.(regionToMapBBox(focusRegion), "focus");
-  }, [focusRegion, onSearchArea]);
+  }, [focusRegion, mapReady, onSearchArea]);
 
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const [showSearchButton, setShowSearchButton] = useState(false);
@@ -138,9 +149,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
 
   const selectedProperty = mappableProperties.find((p) => p.id === selectedId);
   const selectedPreview = selectedProperty
-    ? (selectedProperty.images?.length
-      ? selectedProperty.image
-      : selectedProperty.videoPosters?.[0] ?? selectedProperty.image)
+    ? (selectedProperty.images?.[0] ?? selectedProperty.videoPosters?.[0] ?? selectedProperty.image)
     : null;
 
   const handleRetryMap = useCallback(() => {
@@ -174,17 +183,12 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
             <Marker
               key={property.id}
               coordinate={coordinate}
+              image={PROPERTY_PIN_ICON}
               onPress={(event) => {
                 event.stopPropagation();
                 setSelectedId(property.id);
               }}
-            >
-              <Image
-                source={PROPERTY_PIN_ICON}
-                style={styles.propertyPin}
-                resizeMode="contain"
-              />
-            </Marker>
+            />
           );
         })}
         </MapView>

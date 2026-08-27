@@ -66,10 +66,8 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const { mutate: addFavorite, isPending: isAdding } = useAddFavorite();
   const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
   const isFavoriteLoading = isAdding || isRemoving;
-  const previewImage =
-    property.images?.length
-      ? property.image
-      : property.videoPosters?.[0] ?? property.image;
+  const previewImage = property.images?.[0] ?? property.videoPosters?.[0] ?? property.image;
+  const previewImageUrl = getImageUrl(previewImage);
 
   const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
     if (!user) {
@@ -109,11 +107,17 @@ export function PropertyCard({ property }: PropertyCardProps) {
       onPress={() => router.push({ pathname: "/property/[id]", params: { id: property.id } })}
     >
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: getImageUrl(previewImage) }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        {previewImageUrl ? (
+          <Image
+            source={{ uri: previewImageUrl }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.image, { alignItems: "center", justifyContent: "center", backgroundColor: colors.muted }]}>
+            <Feather name="home" size={30} color={colors.mutedForeground} />
+          </View>
+        )}
         <View style={styles.imageOverlay} />
         <View style={styles.badgeRow}>
           <View style={[styles.typeBadge, { backgroundColor: colors.primary }]}>

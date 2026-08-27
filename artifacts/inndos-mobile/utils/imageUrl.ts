@@ -5,13 +5,16 @@ export function setImageBaseUrl(url: string | null): void {
 }
 
 export function getImageUrl(imagePath: string | null | undefined): string {
-  if (!imagePath) return "";
-  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-    return imagePath;
+  const cleanPath = imagePath?.trim();
+  if (!cleanPath || /[\u0000-\u001F\u007F]/.test(cleanPath)) return "";
+  if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
+    return cleanPath;
   }
-  const resolved = imagePath.startsWith("/objects/")
-    ? `/api/storage${imagePath}`
-    : imagePath;
+  const resolved = cleanPath.startsWith("/objects/")
+    ? `/api/storage${cleanPath}`
+    : cleanPath.startsWith("/")
+      ? cleanPath
+      : `/${cleanPath}`;
   if (_baseUrl && resolved.startsWith("/")) {
     return `${_baseUrl}${resolved}`;
   }

@@ -1,0 +1,11 @@
+ 1. list type , for sale-land while posting, the field plot size, you should be able to use words like 50 by 60 , 60*80 or 60x70. and when this is displaying in front it shoud not calculate the total. let it dispaly just the same way  50 by 60 , 60*80 or 60x70 not sum of this.  for now you cant use "*" or by or multiplay sign.  still impliment that you can eitheir fill in on(Features & Amenities
+Size of Land
+Acres, 
+Plot size ) either acres or plotsize ... or both of them.  this should be effective on website, ios, android.
+2. when listing, and you fail to fill in any field it says fix the highlighted.... but it doesnt highlight it with red so that you know what you havent. field this should be effective on  ios, too
+
+3. on listed property, the map pin cant be zoomed or unzoomed, as well navigation button when clicked, it should work well, allow scrolling, show routing well, as you move , walk or drive, it moves with you telling you turn left, right etc while you move and be scrollable . this should be effective on  ios,   naviagation should not say point point A to B. it should say the current place name you are in and the location name of property you are going to. map should not ke you to google map ...you should use it for navigation while on same app.
+
+4. new posted proprties cant be seen on andoid and ios, as well when linkedup by filtering or home page, it should arrange from latest to oldest any any fitleting by menu, such by name or loaction, or by pricing. on website, ios and android. after any property is linked up, on website you can see the confirm button and the other deatils but on ios a cant see those confirm button and rest as it is on website version, fix it to be same on android and ios.
+
+5.  when you are listing property, and upload video if your subscription plan allows, now it cuts video automatically. the lister should cut by himself, max upload video is 5 minutes then you can cut it to size you want but at most 1 minute while submiting ...not more more than 1 minute ios too

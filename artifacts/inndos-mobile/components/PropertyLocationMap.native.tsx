@@ -109,6 +109,14 @@ const ARRIVAL_THRESHOLD = 50;
 const OFF_ROUTE_THRESHOLD = 80;
 const REROUTE_THROTTLE_MS = 15_000;
 
+function isValidCoordinate(value: { latitude: number; longitude: number } | null | undefined): value is { latitude: number; longitude: number } {
+  return Boolean(value)
+    && Number.isFinite(value!.latitude)
+    && Number.isFinite(value!.longitude)
+    && Math.abs(value!.latitude) <= 90
+    && Math.abs(value!.longitude) <= 180;
+}
+
 export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocationMapProps) {
   const colors = useColors();
   const { token } = useAuth();
@@ -131,6 +139,8 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
   const travelModeRef = useRef<"driving" | "walking">("driving");
   const mapIsBeingExploredRef = useRef(false);
   const mapGestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+  const navigationGenerationRef = useRef(0);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -168,7 +178,10 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
   };
 
   useEffect(() => () => {
+    mountedRef.current = false;
+    navigationGenerationRef.current += 1;
     subscriptionRef.current?.remove();
+    subscriptionRef.current = null;
     if (mapGestureTimeoutRef.current) clearTimeout(mapGestureTimeoutRef.current);
   }, []);
 
@@ -205,7 +218,11 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
     const json = await response.json() as RouteInfo & { error?: string };
     if (!response.ok || !json.polyline) throw new Error(json.error ?? `No ${mode} route is available`);
     const coordinates = decodePolyline(json.polyline);
-    if (coordinates.length < 2) throw new Error(`No ${mode} route is available`);
+    const validCoordinates = coordinates.filter(isValidCoordinate);
+    if (validCoordinates.length < 2 || validCoordinates.length !== coordinates.length) {
+      throw new Error(`No ${mode} route is available`);
+    }
+    if (!mountedRef.current) return;
 
     routeRef.current = json;
     lastRerouteAtRef.current = Date.now();
@@ -215,13 +232,13 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
     } else {
       setActiveStep(0);
     }
-    if (fitMap) {
-      mapRef.current?.fitToCoordinates([...coordinates, origin], {
+    if (fitMap && mapReady && isValidCoordinate(origin)) {
+      mapRef.current?.fitToCoordinates([...validCoordinates, origin], {
         edgePadding: { top: 80, right: 36, bottom: 145, left: 36 },
         animated: true,
       });
     }
-  }, [latitude, longitude, token]);
+  }, [latitude, longitude, mapReady, token]);
 
   const handleDirections = async () => {
     if (isNavigating || arrived) {
@@ -239,6 +256,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
       );
       return;
     }
+    const generation = ++navigationGenerationRef.current;
     setLoadingRoute(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -255,7 +273,9 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const origin = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      if (!isValidCoordinate(origin)) throw new Error("Your current location is unavailable. Please try again.");
       await fetchRoute(origin, travelMode, true);
+      if (!mountedRef.current || navigationGenerationRef.current !== generation) return;
       setCurrentLocation(origin);
       setIsNavigating(true);
       setArrived(false);
@@ -263,8 +283,9 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
         { accuracy: Location.Accuracy.Balanced, distanceInterval: 10, timeInterval: 5000 },
         (nextPosition) => {
           const next = { latitude: nextPosition.coords.latitude, longitude: nextPosition.coords.longitude };
+          if (!mountedRef.current || navigationGenerationRef.current !== generation || !isValidCoordinate(next)) return;
           setCurrentLocation(next);
-          if (!mapIsBeingExploredRef.current) {
+          if (mapReady && !mapIsBeingExploredRef.current) {
             mapRef.current?.animateCamera(
               { center: next, zoom: 16 },
               { duration: 600 }
@@ -302,12 +323,17 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
                 // Keep the current route visible if a background refresh fails.
               })
               .finally(() => {
+                if (!mountedRef.current || navigationGenerationRef.current !== generation) return;
                 reroutingRef.current = false;
                 setLoadingRoute(false);
               });
           }
         }
       );
+      if (!mountedRef.current || navigationGenerationRef.current !== generation) {
+        subscriptionRef.current?.remove();
+        subscriptionRef.current = null;
+      }
     } catch (error) {
       Alert.alert(
         "Directions unavailable",
@@ -318,7 +344,9 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
         ]
       );
     } finally {
-      setLoadingRoute(false);
+      if (mountedRef.current && navigationGenerationRef.current === generation) {
+        setLoadingRoute(false);
+      }
     }
   };
 
@@ -391,6 +419,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
               title={title}
               description={address}
               anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
             >
               <View pointerEvents="none" style={styles.destinationMarker}>
                 <View style={[styles.destinationLabel, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -405,9 +434,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
               <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />
             )}
             {currentLocation && (
-              <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
-                <View style={[styles.userDot, { borderColor: colors.card, backgroundColor: colors.primary }]} />
-              </Marker>
+              <Marker coordinate={currentLocation} pinColor={colors.primary} />
             )}
           </MapView>
         )}

@@ -12,9 +12,9 @@ import {
 import { getListBookingsQueryKey } from "@workspace/api-client-react";
 import { getImageUrl } from "@/utils/imageUrl";
 import { resolveAmenityLabel } from "@/utils/amenities";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -50,6 +50,14 @@ function PropertyVideo({ source }: { source: string }) {
     videoPlayer.loop = false;
   });
 
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        player.pause();
+      };
+    }, [player]),
+  );
+
   return (
     <VideoView
       player={player}
@@ -58,7 +66,6 @@ function PropertyVideo({ source }: { source: string }) {
       allowsFullscreen
       allowsPictureInPicture
       contentFit="cover"
-      surfaceType="textureView"
     />
   );
 }
@@ -102,6 +109,7 @@ export default function PropertyDetailScreen() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const lightboxRef = useRef<FlatList>(null);
 
@@ -245,10 +253,16 @@ export default function PropertyDetailScreen() {
   };
 
   const openLightbox = (index: number) => {
-    setLightboxIndex(index);
+    const safeIndex = Math.max(0, Math.min(index, allPhotos.length - 1));
+    if (!allPhotos[safeIndex]) return;
+    setLightboxIndex(safeIndex);
     setLightboxVisible(true);
     setTimeout(() => {
-      lightboxRef.current?.scrollToIndex({ index, animated: false });
+      try {
+        lightboxRef.current?.scrollToIndex({ index: safeIndex, animated: false });
+      } catch {
+        lightboxRef.current?.scrollToOffset({ offset: safeIndex * SCREEN_WIDTH, animated: false });
+      }
     }, 50);
   };
 
@@ -277,15 +291,21 @@ export default function PropertyDetailScreen() {
 
   const showBooking = true;
 
-  const allPhotos = (property.images && property.images.length > 0)
+  const photoCandidates = (property.images && property.images.length > 0)
     ? property.images
     : Array.isArray((property as { videoPosters?: string[] }).videoPosters) &&
         (property as { videoPosters?: string[] }).videoPosters!.length > 0
       ? (property as { videoPosters: string[] }).videoPosters
     : [property.image];
+  const allPhotos = photoCandidates
+    .map((photo) => getImageUrl(photo))
+    .filter((photo): photo is string => photo.length > 0);
   const propertyVideos = Array.isArray((property as { videos?: string[] }).videos)
-    ? (property as { videos: string[] }).videos.filter(Boolean)
+    ? (property as { videos: string[] }).videos
+        .map((video) => getImageUrl(video))
+        .filter((video): video is string => video.length > 0)
     : [];
+  const safeVideoIndex = Math.min(activeVideoIndex, Math.max(0, propertyVideos.length - 1));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -309,6 +329,9 @@ export default function PropertyDetailScreen() {
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={lightboxIndex}
             getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+            onScrollToIndexFailed={({ index }) => {
+              lightboxRef.current?.scrollToOffset({ offset: index * SCREEN_WIDTH, animated: false });
+            }}
             onMomentumScrollEnd={(e) => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
               setLightboxIndex(idx);
@@ -336,7 +359,11 @@ export default function PropertyDetailScreen() {
                   key={idx}
                   onPress={() => {
                     setLightboxIndex(idx);
-                    lightboxRef.current?.scrollToIndex({ index: idx, animated: true });
+                    try {
+                      lightboxRef.current?.scrollToIndex({ index: idx, animated: true });
+                    } catch {
+                      lightboxRef.current?.scrollToOffset({ offset: idx * SCREEN_WIDTH, animated: true });
+                    }
                   }}
                   style={[
                     styles.lightboxThumb,
@@ -361,28 +388,34 @@ export default function PropertyDetailScreen() {
       >
         {/* Photo Carousel */}
         <View style={styles.heroContainer}>
-          <FlatList
-            ref={carouselRef}
-            data={allPhotos}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleCarouselScroll}
-            keyExtractor={(_, i) => String(i)}
-            renderItem={({ item, index }) => (
-              <Pressable
-                style={{ width: SCREEN_WIDTH, height: 320 }}
-                onPress={() => openLightbox(index)}
-              >
-                <Image
-                  source={{ uri: getImageUrl(item) }}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="cover"
-                />
-                <View style={styles.heroOverlay} />
-              </Pressable>
-            )}
-          />
+          {allPhotos.length > 0 ? (
+            <FlatList
+              ref={carouselRef}
+              data={allPhotos}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleCarouselScroll}
+              keyExtractor={(_, i) => String(i)}
+              renderItem={({ item, index }) => (
+                <Pressable
+                  style={{ width: SCREEN_WIDTH, height: 320 }}
+                  onPress={() => openLightbox(index)}
+                >
+                  <Image
+                    source={{ uri: item }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.heroOverlay} />
+                </Pressable>
+              )}
+            />
+          ) : (
+            <View style={{ width: SCREEN_WIDTH, height: 320, alignItems: "center", justifyContent: "center", backgroundColor: colors.muted }}>
+              <Feather name="home" size={42} color={colors.mutedForeground} />
+            </View>
+          )}
 
           {/* Nav buttons */}
           <View style={[styles.heroBackBtn, { top: isWeb ? 67 + 12 : insets.top + 12 }]}>
@@ -466,11 +499,30 @@ export default function PropertyDetailScreen() {
                 Video tour{propertyVideos.length === 1 ? "" : "s"}
               </Text>
             </View>
-            {propertyVideos.map((video, index) => (
-              <View key={`${video}-${index}`} style={styles.videoCard}>
-                <PropertyVideo source={getImageUrl(video)} />
+            <View key={propertyVideos[safeVideoIndex]} style={styles.videoCard}>
+              <PropertyVideo source={propertyVideos[safeVideoIndex]} />
+            </View>
+            {propertyVideos.length > 1 && (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14 }}>
+                <Pressable
+                  onPress={() => setActiveVideoIndex((index) => Math.max(0, index - 1))}
+                  disabled={safeVideoIndex === 0}
+                  style={{ padding: 8, opacity: safeVideoIndex === 0 ? 0.35 : 1 }}
+                >
+                  <Feather name="chevron-left" size={22} color={colors.foreground} />
+                </Pressable>
+                <Text style={{ color: colors.mutedForeground }}>
+                  {safeVideoIndex + 1} / {propertyVideos.length}
+                </Text>
+                <Pressable
+                  onPress={() => setActiveVideoIndex((index) => Math.min(propertyVideos.length - 1, index + 1))}
+                  disabled={safeVideoIndex === propertyVideos.length - 1}
+                  style={{ padding: 8, opacity: safeVideoIndex === propertyVideos.length - 1 ? 0.35 : 1 }}
+                >
+                  <Feather name="chevron-right" size={22} color={colors.foreground} />
+                </Pressable>
               </View>
-            ))}
+            )}
           </View>
         )}
 

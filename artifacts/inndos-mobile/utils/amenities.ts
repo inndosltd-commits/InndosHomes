@@ -28,7 +28,7 @@ export function resolveAmenityLabel(id: string): string {
   if (EXACT_LABELS[cleanId.toLowerCase()]) return EXACT_LABELS[cleanId.toLowerCase()];
 
   const words = cleanId
-    .split("_")
+    .split(/[_-]+/)
     .filter((word) => !["apt", "home", "com", "land", "prem", "surr", "biz", "godown"].includes(word))
     .map((word) => {
       const special = SPECIAL_WORDS[word.toLowerCase()];

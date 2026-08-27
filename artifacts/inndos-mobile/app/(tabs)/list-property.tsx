@@ -714,9 +714,17 @@ const secS = StyleSheet.create({
 });
 
 function Field({label, error, colors, hint, children, onLayout}: {label:string; error?:string; colors:ReturnType<typeof useColors>; hint?:string; children:React.ReactNode; onLayout?:(event:LayoutChangeEvent)=>void}) {
+  const highlightIosError = Platform.OS === "ios" && Boolean(error);
   return (
-    <View style={fieldS.wrapper} onLayout={onLayout}>
-      <Text style={[fieldS.label,{color:colors.foreground}]}>{label}</Text>
+    <View
+      style={[
+        fieldS.wrapper,
+        highlightIosError ? fieldS.iosErrorWrapper : undefined,
+        highlightIosError ? {borderColor:colors.destructive} : undefined,
+      ]}
+      onLayout={onLayout}
+    >
+      <Text style={[fieldS.label,{color:highlightIosError?colors.destructive:colors.foreground}]}>{label}</Text>
       {children}
       {hint ? <Text style={[fieldS.hint,{color:colors.mutedForeground}]}>{hint}</Text> : null}
       {error ? <Text style={[fieldS.error,{color:colors.destructive}]}>{error}</Text> : null}
@@ -725,6 +733,7 @@ function Field({label, error, colors, hint, children, onLayout}: {label:string; 
 }
 const fieldS = StyleSheet.create({
   wrapper:{gap:6},
+  iosErrorWrapper:{borderWidth:2,borderRadius:10,padding:8},
   label:{fontSize:13, fontFamily:"Outfit_500Medium"},
   hint:{fontSize:11, fontFamily:"Outfit_400Regular"},
   error:{fontSize:12, fontFamily:"Outfit_400Regular"},
@@ -1614,7 +1623,16 @@ export default function ListPropertyScreen() {
       Alert.alert("Trim required","Open each newly selected video and save its trim before submitting.");
       return;
     }
-    if(!validate()){Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);return;}
+    if(!validate()){
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      if(Platform.OS==="ios"){
+        Alert.alert(
+          "Please fix the highlighted fields",
+          "Missing or invalid fields are outlined in red. Correct them, then submit again.",
+        );
+      }
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const isLand=isLandType(form.listingType);
@@ -1644,7 +1662,9 @@ export default function ListPropertyScreen() {
       propertyDetails = {
         land: {
           acres:             parseFloat(form.acres) || null,
-          plotSizeFt:        form.plotSizeFt        || null,
+          // Plot dimensions are intentionally stored as display text. Do not
+          // multiply values such as "50 by 60", "60*80", or "60x70".
+          plotSizeFt:        form.plotSizeFt.trim() || null,
           soilType:          form.soilType          || null,
           surveyMaps:        form.surveyMaps        || null,
           titleDeed:         form.titleDeed         || null,
@@ -1889,18 +1909,26 @@ export default function ListPropertyScreen() {
               <Text style={[styles.landSectionTitle,{color:colors.foreground}]}>Size of Land</Text>
               <View style={styles.row} onLayout={registerFieldsPosition("acres", "plotSizeFt")}>
                 <View style={{flex:1}}>
-                  <Field label="Acres (or enter plot size) *" error={errors.acres} colors={colors}>
+                  <Field label="Acres (optional if plot size is entered)" error={errors.acres} colors={colors}>
                     <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.acres?colors.destructive:colors.border,backgroundColor:colors.card}]}
                       placeholder="e.g. 0.5" placeholderTextColor={colors.mutedForeground}
                       value={form.acres} onChangeText={v=>setField("acres",v)} keyboardType="decimal-pad" returnKeyType="next"/>
                   </Field>
                 </View>
                 <View style={{flex:1}}>
-                  <Field label="Plot size (feet, or enter acres) *" error={errors.plotSizeFt} colors={colors}>
+                  <Field
+                    label="Plot size (optional if acres is entered)"
+                    error={errors.plotSizeFt}
+                    colors={colors}
+                    hint="Enter 50 by 60, 60*80, or 60x70. It will display exactly as entered."
+                  >
                     <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.plotSizeFt?colors.destructive:colors.border,backgroundColor:colors.card}]}
                       placeholder="e.g. 50 by 60, 60*80, 60x70" placeholderTextColor={colors.mutedForeground}
                       value={form.plotSizeFt}
                       onChangeText={v=>setField("plotSizeFt",v)}
+                      keyboardType={Platform.OS==="ios"?"default":undefined}
+                      autoCapitalize="none"
+                      autoCorrect={false}
                       returnKeyType="next"/>
                   </Field>
                 </View>
