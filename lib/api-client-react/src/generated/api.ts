@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminUserProfile,
   AuthResponse,
   BookedRange,
   Booking,
@@ -2852,6 +2853,93 @@ export function useGetSubscriptionPayment<
     paymentId,
     options,
   );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get an administrator's selected user profile details
+ */
+export const getGetAdminUserProfileUrl = (id: string) => {
+  return `/api/admin/users/${id}/profile`;
+};
+
+export const getAdminUserProfile = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AdminUserProfile> => {
+  return customFetch<AdminUserProfile>(getGetAdminUserProfileUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminUserProfileQueryKey = (id: string) => {
+  return [`/api/admin/users/${id}/profile`] as const;
+};
+
+export const getGetAdminUserProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminUserProfile>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUserProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminUserProfileQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminUserProfile>>
+  > = ({ signal }) => getAdminUserProfile(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminUserProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminUserProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminUserProfile>>
+>;
+export type GetAdminUserProfileQueryError = ErrorType<void>;
+
+/**
+ * @summary Get an administrator's selected user profile details
+ */
+
+export function useGetAdminUserProfile<
+  TData = Awaited<ReturnType<typeof getAdminUserProfile>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminUserProfile>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminUserProfileQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

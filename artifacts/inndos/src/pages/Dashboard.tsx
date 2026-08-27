@@ -800,6 +800,14 @@ function isSaleListing(property: any): boolean {
     || String(property.listingType ?? "").toLowerCase().startsWith("sale-");
 }
 
+function formatProfileSubscriptionDate(value: unknown): string {
+  if (!value) return "—";
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user, token, isLoading, logout, refreshUser } = useAuth();
@@ -823,6 +831,10 @@ export default function Dashboard() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
   const [profileUserProperties, setProfileUserProperties] = useState<any[]>([]);
   const [loadingProfileUserProperties, setLoadingProfileUserProperties] = useState(false);
+  const [profileUserSubscription, setProfileUserSubscription] = useState<any | null>(null);
+  const [loadingProfileUserSubscription, setLoadingProfileUserSubscription] = useState(false);
+  const [profileUserSubscriptionError, setProfileUserSubscriptionError] = useState<string | null>(null);
+  const [profileUserSubscriptionRetry, setProfileUserSubscriptionRetry] = useState(0);
   const [userActionLoading, setUserActionLoading] = useState<Record<string, boolean>>({});
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [resetPasswordDialog, setResetPasswordDialog] = useState<{ userId: string; userName: string } | null>(null);
@@ -1029,6 +1041,42 @@ export default function Dashboard() {
       .catch(() => setProfileUserProperties([]))
       .finally(() => setLoadingProfileUserProperties(false));
   }, [selectedProfileUser?.id, token]);
+
+  useEffect(() => {
+    if (!selectedProfileUser || !token) {
+      setProfileUserSubscription(null);
+      setProfileUserSubscriptionError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingProfileUserSubscription(true);
+    setProfileUserSubscriptionError(null);
+    fetch(`/api/admin/users/${selectedProfileUser.id}/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body?.error || "Could not load subscription details.");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!cancelled) setProfileUserSubscription(data?.subscription ?? null);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setProfileUserSubscription(null);
+          setProfileUserSubscriptionError(error instanceof Error ? error.message : "Could not load subscription details.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProfileUserSubscription(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedProfileUser?.id, profileUserSubscriptionRetry, token]);
 
   const fetchAdminUsers = useCallback(async () => {
     if (!user || !token || user.role !== 'admin') return;
@@ -3650,6 +3698,68 @@ export default function Dashboard() {
                           )}
                         </div>
 
+                         {/* Subscription */}
+                         <div className="space-y-2 pt-1 border-t mt-2">
+                           <p className="text-sm font-semibold flex items-center gap-1.5 pt-2">
+                             <CreditCard className="h-4 w-4 text-gray-500" /> Subscription
+                           </p>
+                           {loadingProfileUserSubscription ? (
+                             <div className="flex items-center justify-center py-5">
+                               <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                               <span className="text-sm text-muted-foreground ml-2">Loading plan…</span>
+                             </div>
+                           ) : profileUserSubscriptionError ? (
+                             <div className="flex items-center justify-between gap-3 p-3 border border-amber-200 bg-amber-50 rounded-lg">
+                               <p className="text-sm text-amber-800">Subscription information unavailable right now.</p>
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 onClick={() => setProfileUserSubscriptionRetry((retry) => retry + 1)}
+                               >
+                                 Retry
+                               </Button>
+                             </div>
+                           ) : (() => {
+                             const plan = String(profileUserSubscription?.plan ?? "free");
+                             const subscriptionStatus = String(profileUserSubscription?.status ?? "active");
+                             const statusClass =
+                               subscriptionStatus === "active" ? "bg-green-50 text-green-700 border-green-200" :
+                               subscriptionStatus === "expired" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                               "bg-gray-50 text-gray-600 border-gray-200";
+                             return (
+                               <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
+                                 <div className="flex items-center justify-between gap-3">
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Current plan</p>
+                                     <p className="font-semibold capitalize">{plan} plan</p>
+                                   </div>
+                                   <span className={`text-xs font-medium capitalize border rounded-full px-2 py-1 ${statusClass}`}>
+                                     {subscriptionStatus}
+                                   </span>
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-3 text-sm">
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Billing period</p>
+                                     <p className="font-medium capitalize">
+                                       {profileUserSubscription?.billingCycle
+                                         ? `${String(profileUserSubscription.billingCycle)}${profileUserSubscription.billingMonths ? ` · ${profileUserSubscription.billingMonths} month${profileUserSubscription.billingMonths === 1 ? "" : "s"}` : ""}`
+                                         : "Not applicable"}
+                                     </p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Started</p>
+                                     <p className="font-medium">{formatProfileSubscriptionDate(profileUserSubscription?.startDate)}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Ends</p>
+                                     <p className="font-medium">{formatProfileSubscriptionDate(profileUserSubscription?.endDate)}</p>
+                                   </div>
+                                 </div>
+                               </div>
+                             );
+                           })()}
+                         </div>
+
                         {/* Verification Documents — firm or individual */}
                         {puIsRegisteredFirm ? (
                           <div className="space-y-4">
@@ -6154,6 +6264,9 @@ export default function Dashboard() {
                   });
                   if (r.ok) {
                     await Promise.all([fetchAdminSubscriptions(), fetchAdminPayments()]);
+                     if (selectedProfileUser?.id === assignSubDialog.userId) {
+                       setProfileUserSubscriptionRetry((retry) => retry + 1);
+                     }
                     setAssignSubDialog(null);
                     setAssignSubForm({ plan: "free", billingMonths: "1", amount: "", reference: "", paymentMethod: "mobile_money", featuredLimitOverride: "", note: "" });
                     toast({

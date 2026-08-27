@@ -380,6 +380,9 @@ export function AdminOperations() {
       await request(path, { method, body: body ? JSON.stringify(body) : undefined });
       Alert.alert("Updated", message);
       await loadSection(section);
+      if (selectedUserProfile && body?.userId === value(selectedUserProfile, "id")) {
+        await openUserProfile(selectedUserProfile);
+      }
     } catch (cause) {
       Alert.alert("Could not update", cause instanceof Error ? cause.message : "Please try again.");
       throw cause;
@@ -1134,7 +1137,10 @@ export function AdminOperations() {
                 ) : userProfileSubscriptionError ? (
                   <View style={[styles.profileNotice, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Subscription information unavailable right now.</Text>
-                    <ActionButton label="Close" onPress={() => setSelectedUserProfile(null)} colors={colors} />
+                    <View style={styles.actions}>
+                      <ActionButton label="Retry" onPress={() => selectedUserProfile && openUserProfile(selectedUserProfile)} colors={colors} icon="refresh-cw" />
+                      <ActionButton label="Close" onPress={() => setSelectedUserProfile(null)} colors={colors} />
+                    </View>
                   </View>
                 ) : (
                   <View style={[styles.profileSubscription, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1153,6 +1159,10 @@ export function AdminOperations() {
                           ? `${statusLabel(userProfileSubscription.billingCycle)}${userProfileSubscription.billingMonths ? ` · ${value(userProfileSubscription, "billingMonths")} month${Number(userProfileSubscription.billingMonths) === 1 ? "" : "s"}` : ""}`
                           : "Not applicable"}
                       </Text>
+                    </View>
+                    <View style={styles.keyValue}>
+                      <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Started</Text>
+                      <Text style={[styles.strong, { color: colors.foreground }]}>{shortDate(userProfileSubscription?.startDate)}</Text>
                     </View>
                     <View style={styles.keyValue}>
                       <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>Ends</Text>

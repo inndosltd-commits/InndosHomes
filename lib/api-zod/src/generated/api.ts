@@ -761,3 +761,29 @@ export const GetSubscriptionPaymentResponse = zod.object({
   amount: zod.number(),
   updatedAt: zod.coerce.date().optional(),
 });
+
+/**
+ * @summary Get an administrator's selected user profile details
+ */
+export const GetAdminUserProfileParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetAdminUserProfileResponse = zod.object({
+  userId: zod.string(),
+  subscription: zod.object({
+    plan: zod.enum(["free", "basic", "pro", "enterprise"]),
+    status: zod.enum(["active", "expired", "cancelled"]),
+    billingCycle: zod
+      .union([
+        zod.literal("monthly"),
+        zod.literal("yearly"),
+        zod.literal("custom"),
+        zod.literal(null),
+      ])
+      .nullish(),
+    billingMonths: zod.number().nullish(),
+    startDate: zod.string().nullish(),
+    endDate: zod.string().nullish(),
+  }),
+});

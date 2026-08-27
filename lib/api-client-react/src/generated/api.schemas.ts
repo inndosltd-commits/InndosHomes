@@ -9,6 +9,56 @@ export interface HealthStatus {
   status: string;
 }
 
+export type AdminUserSubscriptionPlan =
+  (typeof AdminUserSubscriptionPlan)[keyof typeof AdminUserSubscriptionPlan];
+
+export const AdminUserSubscriptionPlan = {
+  free: "free",
+  basic: "basic",
+  pro: "pro",
+  enterprise: "enterprise",
+} as const;
+
+export type AdminUserSubscriptionStatus =
+  (typeof AdminUserSubscriptionStatus)[keyof typeof AdminUserSubscriptionStatus];
+
+export const AdminUserSubscriptionStatus = {
+  active: "active",
+  expired: "expired",
+  cancelled: "cancelled",
+} as const;
+
+/**
+ * @nullable
+ */
+export type AdminUserSubscriptionBillingCycle =
+  | (typeof AdminUserSubscriptionBillingCycle)[keyof typeof AdminUserSubscriptionBillingCycle]
+  | null;
+
+export const AdminUserSubscriptionBillingCycle = {
+  monthly: "monthly",
+  yearly: "yearly",
+  custom: "custom",
+} as const;
+
+export interface AdminUserSubscription {
+  plan: AdminUserSubscriptionPlan;
+  status: AdminUserSubscriptionStatus;
+  /** @nullable */
+  billingCycle?: AdminUserSubscriptionBillingCycle;
+  /** @nullable */
+  billingMonths?: number | null;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  endDate?: string | null;
+}
+
+export interface AdminUserProfile {
+  userId: string;
+  subscription: AdminUserSubscription;
+}
+
 export type SignupInputRole =
   (typeof SignupInputRole)[keyof typeof SignupInputRole];
 
