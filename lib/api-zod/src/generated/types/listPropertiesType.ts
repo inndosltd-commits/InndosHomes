@@ -15,4 +15,11 @@ export const ListPropertiesType = {
   bnb: "bnb",
   hotel: "hotel",
   hostel: "hostel",
+  "rent-business": "rent-business",
+  "rent-godown": "rent-godown",
+  "rent-stall": "rent-stall",
+  "rent-shop": "rent-shop",
+  "sale-apartment": "sale-apartment",
+  "sale-home": "sale-home",
+  "sale-land": "sale-land",
 } as const;

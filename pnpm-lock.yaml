@@ -93,6 +93,9 @@ importers:
       '@workspace/integrations-openai-ai-server':
         specifier: workspace:*
         version: link:../../lib/integrations-openai-ai-server
+      '@workspace/property-categories':
+        specifier: workspace:*
+        version: link:../../lib/property-categories
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -311,6 +314,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/property-categories':
+        specifier: workspace:*
+        version: link:../../lib/property-categories
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -450,6 +456,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/property-categories':
+        specifier: workspace:*
+        version: link:../../lib/property-categories
       babel-plugin-react-compiler:
         specifier: ^19.0.0-beta-e993439-20250117
         version: 19.0.0-beta-ebf51a3-20250411
@@ -809,6 +818,8 @@ importers:
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
+
+  lib/property-categories: {}
 
   scripts:
     dependencies:

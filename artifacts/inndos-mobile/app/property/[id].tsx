@@ -41,6 +41,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { PropertyLocationMap } from "@/components/PropertyLocationMap";
+import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -60,17 +61,6 @@ function PropertyVideo({ source }: { source: string }) {
       surfaceType="textureView"
     />
   );
-}
-
-function getTypeLabel(type: string): string {
-  switch (type) {
-    case "rent": return "For Rent";
-    case "sale": return "For Sale";
-    case "bnb": return "BnB";
-    case "hotel": return "Hotel";
-    case "hostel": return "Hostel";
-    default: return type;
-  }
 }
 
 function getPriceLabel(type: string, price: number, priceUnit?: string | null): string {
@@ -431,9 +421,16 @@ export default function PropertyDetailScreen() {
             <Text style={styles.heroPriceText}>{getPriceLabel(property.type, property.price, property.priceUnit)}</Text>
             <View style={[styles.typeChip, { backgroundColor: colors.primary }]}>
               <Text style={[styles.typeChipText, { color: colors.primaryForeground }]}>
-                {getTypeLabel(property.type)}
+                {propertyTypeLabel(property.type)}
               </Text>
             </View>
+            {propertySubtypeLabel(property.subtype) && (
+              <View style={[styles.typeChip, { backgroundColor: colors.card }]}>
+                <Text style={[styles.typeChipText, { color: colors.foreground }]}>
+                  {propertySubtypeLabel(property.subtype)}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Dot indicators */}

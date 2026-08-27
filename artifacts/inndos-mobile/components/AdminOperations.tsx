@@ -23,6 +23,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/utils/api";
 import { getImageUrl } from "@/utils/imageUrl";
+import { normalizePropertySubtype, propertyCategoryLabel } from "@workspace/property-categories";
 
 type Section =
   | "overview"
@@ -515,7 +516,7 @@ export function AdminOperations() {
     const pending = records(activeData.moderation);
     const normalized = query.trim().toLowerCase();
     const filtered = allProperties.filter((item) => {
-      const matchesSearch = [value(item, "title", ""), value(item, "address", ""), value(item, "type", "")]
+      const matchesSearch = [value(item, "title", ""), value(item, "address", ""), value(item, "type", ""), value(item, "subtype", ""), value(item, "ownerName", ""), value(item, "ownerBusinessName", "")]
         .some((part) => part.toLowerCase().includes(normalized));
       if (!matchesSearch) return false;
       if (propertyStatusFilter === "all") return true;
@@ -548,11 +549,11 @@ export function AdminOperations() {
           const isSold = propertyStatus === "sold";
           const canMarkSold =
             value(property, "type", "").toLowerCase() === "sale" &&
-            ["apartment", "home", "land"].includes(value(property, "subtype", "").toLowerCase());
+            ["apartment", "home", "land"].includes(normalizePropertySubtype(value(property, "subtype", "")) ?? "");
           return (
             <Card key={id} colors={colors}>
               <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>{value(property, "title")}</Text>
-              <Text style={[styles.bodyText, { color: colors.mutedForeground }]} numberOfLines={1}>{value(property, "address")} · {statusLabel(property.propertyStatus)} · {formatKES(property.price)}</Text>
+              <Text style={[styles.bodyText, { color: colors.mutedForeground }]} numberOfLines={1}>{propertyCategoryLabel(value(property, "type"), value(property, "subtype"))} · {value(property, "address")} · {statusLabel(property.propertyStatus)} · {formatKES(property.price)}</Text>
               <View style={styles.actions}>
                 <ActionButton label="View" onPress={() => router.push(`/property/${id}` as never)} colors={colors} icon="eye" />
                 {!verified && propertyStatus === "pending" ? <ActionButton label="Activate" onPress={() => mutate(`/api/admin/properties/${id}/verify`, "PATCH", {}, "Listing activated and published.")} colors={colors} tone="primary" icon="check" /> : null}

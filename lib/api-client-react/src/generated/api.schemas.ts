@@ -403,7 +403,14 @@ export interface SubscriptionPayment {
 }
 
 export type ListPropertiesParams = {
+  /**
+   * Main category or a composite category such as rent-business or sale-land.
+   */
   type?: ListPropertiesType;
+  /**
+   * Normalized subcategory; legacy spaces and underscores are accepted.
+   */
+  subtype?: string;
   search?: string;
   ownerId?: string;
   minLat?: number;
@@ -421,6 +428,13 @@ export const ListPropertiesType = {
   bnb: "bnb",
   hotel: "hotel",
   hostel: "hostel",
+  "rent-business": "rent-business",
+  "rent-godown": "rent-godown",
+  "rent-stall": "rent-stall",
+  "rent-shop": "rent-shop",
+  "sale-apartment": "sale-apartment",
+  "sale-home": "sale-home",
+  "sale-land": "sale-land",
 } as const;
 
 export type SearchListersParams = {

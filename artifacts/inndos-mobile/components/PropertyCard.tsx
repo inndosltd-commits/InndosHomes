@@ -24,6 +24,7 @@ import { resolveAmenityLabel } from "@/utils/amenities";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
 
 interface PropertyCardProps {
   property: Property;
@@ -31,17 +32,6 @@ interface PropertyCardProps {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
-
-function getTypeLabel(type: string): string {
-  switch (type) {
-    case "rent": return "For Rent";
-    case "sale": return "For Sale";
-    case "bnb": return "BnB";
-    case "hotel": return "Hotel";
-    case "hostel": return "Hostel";
-    default: return type;
-  }
-}
 
 function getPriceLabel(property: Property): string {
   const price = `KES ${property.price.toLocaleString()}`;
@@ -114,9 +104,16 @@ export function PropertyCard({ property }: PropertyCardProps) {
         <View style={styles.badgeRow}>
           <View style={[styles.typeBadge, { backgroundColor: colors.primary }]}>
             <Text style={[styles.typeBadgeText, { color: colors.primaryForeground }]}>
-              {getTypeLabel(property.type)}
+              {propertyTypeLabel(property.type)}
             </Text>
           </View>
+          {propertySubtypeLabel(property.subtype) && (
+            <View style={[styles.typeBadge, { backgroundColor: colors.card }]}>
+              <Text style={[styles.typeBadgeText, { color: colors.foreground }]}>
+                {propertySubtypeLabel(property.subtype)}
+              </Text>
+            </View>
+          )}
           {property.isVerified && (
             <View style={[styles.verifiedBadge, { backgroundColor: "rgba(255,255,255,0.9)" }]}>
               <Feather name="check-circle" size={11} color={colors.primary === "#000000" ? "#000" : "#fff"} />

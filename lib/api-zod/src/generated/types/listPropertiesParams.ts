@@ -8,7 +8,14 @@
 import type { ListPropertiesType } from "./listPropertiesType";
 
 export type ListPropertiesParams = {
+  /**
+   * Main category or a composite category such as rent-business or sale-land.
+   */
   type?: ListPropertiesType;
+  /**
+   * Normalized subcategory; legacy spaces and underscores are accepted.
+   */
+  subtype?: string;
   search?: string;
   ownerId?: string;
   minLat?: number;

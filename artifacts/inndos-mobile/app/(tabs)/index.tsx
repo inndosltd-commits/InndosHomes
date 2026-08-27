@@ -26,6 +26,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
 import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
+import { normalizePropertySubtype } from "@workspace/property-categories";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const MAP_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
@@ -74,7 +75,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
 
 function matchesSubCategory(property: Property, category: string | null): boolean {
   if (!category) return true;
-  const subtype = (property.subtype ?? "").toLowerCase().replace(/[_\s]+/g, "-");
+  const subtype = normalizePropertySubtype(property.subtype) ?? "";
   const is = (...values: string[]) => values.includes(subtype);
 
   switch (category) {
@@ -87,9 +88,9 @@ function matchesSubCategory(property: Property, category: string | null): boolea
     case "Godowns": return is("godown");
     case "Stalls": return is("stall");
     case "Shops": return is("shop");
-    case "Apartments": return is("apartment", "flat", "condominium", "condo");
-    case "Homes": return is("home", "house", "bungalow", "villa", "maisonette", "townhouse");
-    case "Lands": return is("land", "plot");
+    case "Apartments": return is("apartment", "condominium", "condo");
+    case "Homes": return is("home", "bungalow", "villa", "maisonette", "townhouse");
+    case "Lands": return is("land");
     default: return true;
   }
 }
@@ -252,6 +253,12 @@ export default function BrowseScreen() {
 
   const listParams: ListPropertiesParams = {
     type: activeType,
+    subtype:
+      activeSubCategory === "Office Space" ? "business" :
+      activeSubCategory === "Godowns" ? "godown" :
+      activeSubCategory === "Stalls" ? "stall" :
+      activeSubCategory === "Shops" ? "shop" :
+      undefined,
     search: debouncedSearch || undefined,
     ...(mapBounds ?? {}),
   };

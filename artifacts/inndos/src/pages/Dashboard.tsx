@@ -25,6 +25,7 @@ import { PropertyLikesPanel } from "@/components/dashboard/PropertyLikesPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/lib/language";
 import { BrandWordmark } from "@/components/layout/BrandWordmark";
+import { normalizePropertySubtype, propertySubtypeLabel, propertyTypeLabel, propertyCategorySearchValues } from "@workspace/property-categories";
 
 function IdSideUpload({
   label, hint, currentPath, isUploading, isVerifying, inputRef, onChange
@@ -3419,7 +3420,14 @@ export default function Dashboard() {
                     <div className="text-center py-10 text-muted-foreground">No properties found on the platform.</div>
                   ) : (() => {
                     const filteredProps = adminProperties.filter(p => {
-                      if (propSearch) { const q = propSearch.toLowerCase(); if (!(p.title || "").toLowerCase().includes(q) && !(p.id || "").toLowerCase().includes(q)) return false; }
+                      if (propSearch) {
+                        const q = propSearch.toLowerCase();
+                        const searchable = [
+                          p.title, p.id, p.address, p.location, p.ownerName, p.ownerBusinessName,
+                          ...propertyCategorySearchValues(p.type, p.subtype),
+                        ].filter(Boolean).map((value) => String(value).toLowerCase());
+                        if (!searchable.some((value) => value.includes(q))) return false;
+                      }
                       if (propLocationSearch) { const q = propLocationSearch.toLowerCase(); if (!(p.address || "").toLowerCase().includes(q) && !(p.location || "").toLowerCase().includes(q)) return false; }
                        const isDeactivated = p.propertyStatus === "deactivated" || p.status === "inactive";
                        if (propStatusFilter === "active" && (!p.isVerified || isDeactivated || p.propertyStatus === "sold")) return false;
@@ -3460,7 +3468,8 @@ export default function Dashboard() {
                               <Badge variant="outline" className={isDeactivated || isSold || isFlagged || !p.isVerified ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-green-50 text-gray-700 border-green-200"}>
                                 {isSold ? 'Sold' : isDeactivated ? 'Deactivated' : isFlagged ? 'Flagged' : !p.isVerified ? 'Pending' : 'Active'}
                               </Badge>
-                              <Badge variant="secondary">{p.type}</Badge>
+                              <Badge variant="secondary">{propertyTypeLabel(p.type)}</Badge>
+                              {propertySubtypeLabel(p.subtype) && <Badge variant="outline">{propertySubtypeLabel(p.subtype)}</Badge>}
                               <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
                             </div>
                             
@@ -3483,6 +3492,10 @@ export default function Dashboard() {
                                       <div>
                                         <h3 className="font-bold text-xl">{p.title}</h3>
                                         <p className="text-muted-foreground">{p.address || "Location not specified"}</p>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                          {propertyTypeLabel(p.type)}
+                                          {propertySubtypeLabel(p.subtype) ? ` · ${propertySubtypeLabel(p.subtype)}` : ""}
+                                        </p>
                                       </div>
                                       <div className="flex gap-2">
                                         <Badge>{p.type}</Badge>

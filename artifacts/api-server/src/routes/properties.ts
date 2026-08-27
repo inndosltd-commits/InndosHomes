@@ -14,6 +14,12 @@ import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deletePropertyTransactionally } from "../lib/propertyDeletion";
+import {
+  normalizePropertyCategory,
+  normalizePropertySubtype,
+  normalizePropertyType,
+  propertyCategorySearchValues,
+} from "@workspace/property-categories";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -22,8 +28,6 @@ const MAX_LISTING_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_LISTING_VIDEO_BYTES = 250 * 1024 * 1024;
 const MAX_LISTING_VIDEO_SECONDS = 300;
 const MEDIA_READY_RETRY_DELAYS_MS = [0, 500, 1_500, 3_000, 5_000, 10_000];
-
-type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
 
 class MediaObjectSizeError extends Error {
   constructor(
@@ -84,11 +88,7 @@ async function downloadObjectEntityWhenReady(path: string, maxBytes: number): Pr
 }
 
 function normalizeSubtype(value: string | null | undefined): string {
-  return (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, "-")
-    .replace(/-+/g, "-");
+  return normalizePropertySubtype(value) ?? "";
 }
 
 /**
@@ -446,15 +446,10 @@ const PROPERTY_DETAIL_COLUMNS = {
   ownerEmail: users.email,
 } as const;
 
-const VALID_TYPES: PropertyType[] = ["rent", "sale", "bnb", "hotel", "hostel"];
 const PUBLIC_PROPERTY_CONDITIONS = [
   eq(properties.isVerified, true),
   eq(properties.propertyStatus, "approved"),
 ] as const;
-
-function isValidType(t: string): t is PropertyType {
-  return VALID_TYPES.includes(t as PropertyType);
-}
 
 async function getCallerInfo(req: Parameters<typeof requireAuth>[0]): Promise<{ userId: string | null; role: string | null }> {
   const authHeader = req.headers.authorization;
@@ -475,20 +470,42 @@ router.get("/", async (req, res) => {
     .leftJoin(users, eq(properties.ownerId, users.id));
 
   const conditions = [];
-  if (type && isValidType(type)) conditions.push(eq(properties.type, type));
-  if (subtype) {
+  const category = type ? normalizePropertyCategory(type, subtype) : null;
+  if (type && !category) {
+    // Invalid category filters must return no rows, never silently all rows.
+    conditions.push(eq(properties.id, "__invalid_property_category__"));
+  } else if (category) {
+    conditions.push(eq(properties.type, category.type));
+  }
+  const requestedSubtype = category?.subtype ?? (!type ? normalizePropertySubtype(subtype) : null);
+  if (requestedSubtype) {
     // Stored values are canonical kebab-case, but normalize older underscore
     // values too so all clients get the same category results.
     conditions.push(
-      drizzleSql`LOWER(REPLACE(REPLACE(COALESCE(${properties.subtype}, ''), '_', '-'), ' ', '-')) = ${normalizeSubtype(subtype)}`
+      drizzleSql`LOWER(REPLACE(REPLACE(COALESCE(${properties.subtype}, ''), '_', '-'), ' ', '-')) = ${requestedSubtype}`
     );
   }
   if (ownerId) conditions.push(eq(properties.ownerId, ownerId));
-  if (search) {
+  if (search?.trim()) {
+    const searchText = search.trim();
+    const searchCategory = normalizePropertyCategory(searchText);
+    const categoryValues = searchCategory
+      ? propertyCategorySearchValues(searchCategory.type, searchCategory.subtype ?? undefined)
+      : [];
     conditions.push(
       or(
-        ilike(properties.title, `%${search}%`),
-        ilike(properties.address, `%${search}%`)
+        ilike(properties.title, `%${searchText}%`),
+        ilike(properties.address, `%${searchText}%`),
+        ilike(properties.type, `%${searchText}%`),
+        ilike(properties.subtype, `%${searchText}%`),
+        ilike(users.name, `%${searchText}%`),
+        ilike(users.businessName, `%${searchText}%`),
+        ...categoryValues.map((value) =>
+          or(
+            drizzleSql`LOWER(${properties.type}) = ${value.toLowerCase()}`,
+            drizzleSql`LOWER(REPLACE(REPLACE(COALESCE(${properties.subtype}, ''), '_', '-'), ' ', '-')) = ${value.toLowerCase().replace(/\s+/g, "-")}`
+          )!
+        ),
       )!
     );
   }

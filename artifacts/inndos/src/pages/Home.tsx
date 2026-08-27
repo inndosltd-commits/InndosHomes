@@ -12,6 +12,7 @@ import { useJsApiLoader } from "@react-google-maps/api";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 import { GOOGLE_MAPS_LIBRARIES as MAPS_LIBRARIES } from "@/lib/maps";
+import { propertyCategorySearchValues } from "@workspace/property-categories";
 
 interface PlacePrediction {
   placeId: string;
@@ -84,7 +85,10 @@ export default function Home() {
           (p) =>
             p.title.toLowerCase().includes(query) ||
             p.address.toLowerCase().includes(query) ||
-            p.type.toLowerCase().includes(query)
+            propertyCategorySearchValues(p.type, p.subtype)
+              .some((value) => value.toLowerCase().includes(query)) ||
+            (p.ownerName ?? "").toLowerCase().includes(query) ||
+            (p.ownerBusinessName ?? "").toLowerCase().includes(query)
         )
       );
       if (query.length >= 2) {

@@ -16,6 +16,7 @@ import type { ApiProperty } from "@/components/property/PropertyCard";
 import { resolveAmenityLabel } from "@/lib/amenities";
 import { GoogleMap, useJsApiLoader, DirectionsRenderer } from "@react-google-maps/api";
 import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
+import { propertySubtypeLabel } from "@workspace/property-categories";
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
 import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
@@ -1102,6 +1103,9 @@ export default function PropertyDetails() {
               <div className="w-full lg:w-auto">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge className="bg-primary">{getTypeBadgeLabel()}</Badge>
+                  {propertySubtypeLabel(property.subtype) && (
+                    <Badge variant="outline">{propertySubtypeLabel(property.subtype)}</Badge>
+                  )}
                   {property.propertyStatus === 'sold' && (
                     <Badge className="bg-gray-700 text-white">Sold</Badge>
                   )}

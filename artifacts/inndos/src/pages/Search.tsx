@@ -16,6 +16,7 @@ interface Lister {
 }
 import { useLanguage } from "@/lib/language";
 import PropertyMap from "@/components/ui/PropertyMap";
+import { normalizePropertySubtype, propertyCategorySearchValues } from "@workspace/property-categories";
 
 const RENT_CATEGORIES = [
   { tKey: "cat.all_rentals",    type: "rent",          filter: null },
@@ -286,7 +287,7 @@ export default function Search() {
 
   const matchesRentFilter = (p: ApiProperty, filter: string | null): boolean => {
     if (!filter) return true;
-    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
+    const sub = normalizePropertySubtype(p.subtype) ?? "";
     const beds  = p.beds || 0;
     if (filter === "studio")       return sub === "studio" || sub === "bedsitter";
     if (filter === "bedrooms")     return beds >= 1;
@@ -298,17 +299,17 @@ export default function Search() {
 
   const matchesSaleCategory = (p: ApiProperty, category: string | null): boolean => {
     if (!category) return true;
-    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
-    if (category === "apartments") return ["apartment", "flat", "condominium", "condo"].includes(sub);
-    if (category === "homes")      return ["home", "house", "bungalow", "villa", "maisonette", "townhouse"].includes(sub);
-    if (category === "lands")      return ["land", "plot"].includes(sub);
+    const sub = normalizePropertySubtype(p.subtype) ?? "";
+    if (category === "apartments") return ["apartment", "condominium", "condo"].includes(sub);
+    if (category === "homes")      return ["home", "bungalow", "villa", "maisonette", "townhouse"].includes(sub);
+    if (category === "lands")      return ["land"].includes(sub);
     return true;
   };
 
   // Commercial rent listings are stored with type="rent" and subtype="godown"/"business"/"stall"/"shop"
   const matchesCommercialSubtype = (p: ApiProperty, commercialKey: string): boolean => {
     if (p.type !== "rent") return false;
-    const sub = (p.subtype || "").toLowerCase().replace(/[_\s]+/g, "-");
+    const sub = normalizePropertySubtype(p.subtype) ?? "";
     return sub === commercialKey;
   };
 
@@ -355,7 +356,11 @@ export default function Search() {
         const q = searchQuery.toLowerCase();
         return (
           (p.title || "").toLowerCase().includes(q) ||
-          (p.address || "").toLowerCase().includes(q)
+          (p.address || "").toLowerCase().includes(q) ||
+          (p.ownerName || "").toLowerCase().includes(q) ||
+          (p.ownerBusinessName || "").toLowerCase().includes(q) ||
+          propertyCategorySearchValues(p.type, p.subtype)
+            .some((value) => value.toLowerCase().includes(q))
         );
       }
       if (isGeofencingActive && userLocation) {

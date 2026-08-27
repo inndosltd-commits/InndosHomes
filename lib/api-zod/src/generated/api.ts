@@ -89,7 +89,31 @@ export const SaveCurrentListingDraftResponse = zod.object({
  * @summary List properties
  */
 export const ListPropertiesQueryParams = zod.object({
-  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]).optional(),
+  type: zod
+    .enum([
+      "rent",
+      "sale",
+      "bnb",
+      "hotel",
+      "hostel",
+      "rent-business",
+      "rent-godown",
+      "rent-stall",
+      "rent-shop",
+      "sale-apartment",
+      "sale-home",
+      "sale-land",
+    ])
+    .optional()
+    .describe(
+      "Main category or a composite category such as rent-business or sale-land.",
+    ),
+  subtype: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Normalized subcategory; legacy spaces and underscores are accepted.",
+    ),
   search: zod.coerce.string().optional(),
   ownerId: zod.coerce.string().optional(),
   minLat: zod.coerce.number().optional(),

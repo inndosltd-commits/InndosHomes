@@ -6,6 +6,7 @@ import { useCurrency } from "@/lib/currency";
 import { resolveAmenityLabel } from "@/lib/amenities";
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
+import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
 
 export interface ApiProperty {
   id: string;
@@ -96,17 +97,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
     ? property.image
     : property.videoPosters?.[0] ?? property.image;
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "rent": return "For Rent";
-      case "sale": return "For Sale";
-      case "bnb": return "B&B";
-      case "hotel": return "Hotel";
-      case "hostel": return "Hostel";
-      default: return type;
-    }
-  };
-
   const PRICE_UNIT_LABELS: Record<string, string> = {
     night: "/night",
     month: "/mo",
@@ -142,8 +132,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
             />
             <div className="absolute top-3 left-3 flex gap-2">
               <Badge className="bg-primary text-white hover:bg-opacity-90">
-                {getTypeLabel(property.type)}
+                {propertyTypeLabel(property.type)}
               </Badge>
+              {propertySubtypeLabel(property.subtype) && (
+                <Badge variant="outline" className="bg-white/90 text-primary backdrop-blur-sm">
+                  {propertySubtypeLabel(property.subtype)}
+                </Badge>
+              )}
               {property.isVerified && (
                 <Badge variant="secondary" className="bg-white/90 text-primary backdrop-blur-sm">
                   Verified
