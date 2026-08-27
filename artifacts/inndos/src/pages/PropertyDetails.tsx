@@ -84,6 +84,17 @@ const MANEUVER_ICONS: Record<string, string> = {
   "uturn-left": "↩", "uturn-right": "↪",
 };
 
+function PropertyMapMarker({ label, origin = false }: { label: string; origin?: boolean }) {
+  return (
+    <div className="pointer-events-none flex -translate-y-1/2 flex-col items-center gap-1">
+      <div className="max-w-[220px] truncate rounded-md bg-white px-2 py-1 text-xs font-semibold text-gray-900 shadow-md ring-1 ring-black/10">
+        {label}
+      </div>
+      <div className={`h-4 w-4 rounded-full border-2 border-white shadow-md ${origin ? "bg-blue-600" : "bg-red-600"}`} />
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════
    In-app turn-by-turn navigation overlay
    ══════════════════════════════════════════════════ */
@@ -294,12 +305,21 @@ function NavigationOverlay({
             <DirectionsRenderer
               directions={directions}
               options={{
-                suppressMarkers: false,
+                // Google’s default A/B markers hide the actual property identity.
+                // The explicit markers below use INNDOS data and the saved pin.
+                suppressMarkers: true,
                 polylineOptions: { strokeColor: "#4285F4", strokeWeight: 9, strokeOpacity: 0.9 },
               }}
             />
           )}
-          {userPos && <AdvancedMarker position={userPos} />}
+          <AdvancedMarker position={{ lat: destLat, lng: destLng }}>
+            <PropertyMapMarker label={propertyTitle || "Property"} />
+          </AdvancedMarker>
+          {userPos && (
+            <AdvancedMarker position={userPos}>
+              <PropertyMapMarker label="Your location" origin />
+            </AdvancedMarker>
+          )}
         </GoogleMap>
       </div>
 
@@ -394,7 +414,7 @@ function NavigationOverlay({
   );
 }
 
-function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
+function PropertyLocationMap({ lat, lng, title }: { lat: number; lng: number; title: string }) {
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
   if (!isLoaded) {
     return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">Loading map…</div>;
@@ -412,7 +432,9 @@ function PropertyLocationMap({ lat, lng }: { lat: number; lng: number }) {
         zoomControl: true,
       }}
     >
-      <AdvancedMarker position={{ lat, lng }} />
+      <AdvancedMarker position={{ lat, lng }}>
+        <PropertyMapMarker label={title || "Property"} />
+      </AdvancedMarker>
     </GoogleMap>
   );
 }
@@ -1366,7 +1388,7 @@ export default function PropertyDetails() {
                 <h2 className="text-lg font-bold mb-2">{t("prop.location")}</h2>
                 <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
                   <div className="relative h-52">
-                    <PropertyLocationMap lat={lat} lng={lng} />
+                    <PropertyLocationMap lat={lat} lng={lng} title={property.title} />
                   </div>
                   <div className="bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 border-t border-gray-100">
                     <div className="flex items-center gap-2 flex-1 min-w-0">

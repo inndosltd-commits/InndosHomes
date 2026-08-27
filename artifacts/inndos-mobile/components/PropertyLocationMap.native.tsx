@@ -386,7 +386,21 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
             onPanDrag={handleMapPan}
             onMapReady={() => { setMapReady(true); setMapTimedOut(false); }}
           >
-            <Marker coordinate={{ latitude, longitude }} title={title} />
+            <Marker
+              coordinate={{ latitude, longitude }}
+              title={title}
+              description={address}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View pointerEvents="none" style={styles.destinationMarker}>
+                <View style={[styles.destinationLabel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.destinationLabelText, { color: colors.foreground }]} numberOfLines={1}>
+                    {title}
+                  </Text>
+                </View>
+                <View style={[styles.destinationPin, { backgroundColor: colors.primary, borderColor: colors.card }]} />
+              </View>
+            </Marker>
             {routeCoordinates.length > 1 && (
               <Polyline coordinates={routeCoordinates} strokeColor={colors.primary} strokeWidth={5} />
             )}
@@ -605,6 +619,32 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: "100%",
+  },
+  destinationMarker: {
+    alignItems: "center",
+    gap: 4,
+  },
+  destinationLabel: {
+    maxWidth: 180,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.16,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  destinationLabelText: {
+    fontSize: 11,
+    fontFamily: "Outfit_600SemiBold",
+  },
+  destinationPin: {
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    borderWidth: 3,
   },
   mapState: {
     ...StyleSheet.absoluteFillObject,
