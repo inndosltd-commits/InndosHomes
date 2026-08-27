@@ -11,3 +11,4 @@
 - [Link-Up participant contacts](linkup-participant-contacts.md) — after creation, both participants see reciprocal contacts; visibility follows participation, not account role.
 - [Personal saved properties](personal-saved-properties.md) — personal favorites belong to every signed-in role and are distinct from likes received on owned listings.
 - [Mobile map bounds](mobile-map-bounds.md) — automatic focus is map-only; explicit place or area searches filter both pins and every home-page listing section.
+- [Navigation map visibility](navigation-map-visibility.md) — route instructions and turn lists must occupy reserved space, never obscure the primary map.

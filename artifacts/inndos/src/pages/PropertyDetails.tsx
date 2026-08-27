@@ -233,9 +233,9 @@ function NavigationOverlay({
   const nextIcon    = MANEUVER_ICONS[nextStep?.maneuver ?? "straight"] ?? "↑";
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#1a1a2e]">
       {/* ── Top instruction banner ── */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-[#1a73e8] text-white px-4 pt-[env(safe-area-inset-top,16px)] pb-4 shadow-xl flex flex-col gap-2">
+      <div className="shrink-0 bg-[#1a73e8] text-white px-4 pt-[env(safe-area-inset-top,16px)] pb-4 shadow-xl flex flex-col gap-2">
         {arrived ? (
           <div className="py-3 text-center">
             <p className="text-2xl font-bold">🏁 You have arrived!</p>
@@ -275,34 +275,36 @@ function NavigationOverlay({
       </div>
 
       {/* ── Map ── */}
-      <GoogleMap
-        mapContainerClassName="w-full h-full"
-        center={userPos ?? { lat: destLat, lng: destLng }}
-        zoom={17}
-        onLoad={(m) => { mapRef.current = m; }}
-        options={{
-          mapId: "c7cd60c6a53a720a14502d1b",
-          disableDefaultUI: false,
-          zoomControl: true,
-          streetViewControl: false,
-          fullscreenControl: false,
-          gestureHandling: "greedy",
-        }}
-      >
-        {directions && (
-          <DirectionsRenderer
-            directions={directions}
-            options={{
-              suppressMarkers: false,
-              polylineOptions: { strokeColor: "#4285F4", strokeWeight: 9, strokeOpacity: 0.9 },
-            }}
-          />
-        )}
-        {userPos && <AdvancedMarker position={userPos} />}
-      </GoogleMap>
+      <div className="relative min-h-[180px] flex-1">
+        <GoogleMap
+          mapContainerClassName="w-full h-full"
+          center={userPos ?? { lat: destLat, lng: destLng }}
+          zoom={17}
+          onLoad={(m) => { mapRef.current = m; }}
+          options={{
+            mapId: "c7cd60c6a53a720a14502d1b",
+            disableDefaultUI: false,
+            zoomControl: true,
+            streetViewControl: false,
+            fullscreenControl: false,
+            gestureHandling: "greedy",
+          }}
+        >
+          {directions && (
+            <DirectionsRenderer
+              directions={directions}
+              options={{
+                suppressMarkers: false,
+                polylineOptions: { strokeColor: "#4285F4", strokeWeight: 9, strokeOpacity: 0.9 },
+              }}
+            />
+          )}
+          {userPos && <AdvancedMarker position={userPos} />}
+        </GoogleMap>
+      </div>
 
       {/* ── Bottom panel ── */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-white px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] rounded-t-3xl shadow-2xl">
+      <div className="shrink-0 max-h-[46vh] overflow-y-auto bg-white px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] rounded-t-3xl shadow-2xl">
         {routeLabels && (
           <div className="mb-3 text-xs text-gray-600">
             <p className="truncate"><span className="font-semibold">From:</span> {routeLabels.start}</p>

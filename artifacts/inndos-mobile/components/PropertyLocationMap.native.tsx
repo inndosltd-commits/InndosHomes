@@ -445,65 +445,6 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
           </View>
         )}
 
-        {/* Live navigation card */}
-        {isNavigating && !arrived && route && (
-          <View style={[styles.navigationCard, { backgroundColor: colors.card }]}>
-            <View style={styles.navigationTop}>
-              <Feather name="navigation" size={14} color={colors.primary} />
-              <Text style={[styles.navigationTitle, { color: colors.foreground }]}>Live directions</Text>
-              <Text style={[styles.navigationStats, { color: colors.mutedForeground }]}>
-                {route.distance} · {route.duration}
-              </Text>
-            </View>
-
-            {/* Progress bar */}
-            <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { backgroundColor: colors.primary, width: `${Math.round(progressFraction * 100)}%` },
-                ]}
-              />
-            </View>
-
-            {/* Current instruction */}
-            <Text style={[styles.instruction, { color: colors.foreground }]} numberOfLines={2}>
-              {currentStep?.instruction || "Continue to your destination"}
-            </Text>
-            {currentStep?.distance ? (
-              <Text style={[styles.stepDistance, { color: colors.mutedForeground }]}>
-                {currentStep.distance} · turn {activeStep + 1} of {stepCount}
-              </Text>
-            ) : null}
-            <View style={[styles.routePlaces, { borderTopColor: colors.border }]}>
-              <Text style={[styles.routePlace, { color: colors.mutedForeground }]} numberOfLines={1}>
-                From: {route.startAddress || "Your current location"}
-              </Text>
-              <Text style={[styles.routePlace, { color: colors.foreground }]} numberOfLines={1}>
-                To: {title}{address ? ` · ${address}` : route.endAddress ? ` · ${route.endAddress}` : ""}
-              </Text>
-            </View>
-            <ScrollView
-              nestedScrollEnabled
-              showsVerticalScrollIndicator
-              style={[styles.turnList, { borderTopColor: colors.border }]}
-              contentContainerStyle={styles.turnListContent}
-            >
-              {route.steps.map((step, index) => (
-                <View key={`${index}-${step.instruction}`} style={styles.turnRow}>
-                  <Text style={[styles.turnNumber, { backgroundColor: index === activeStep ? colors.primary : colors.muted, color: index === activeStep ? colors.primaryForeground : colors.mutedForeground }]}>
-                    {index + 1}
-                  </Text>
-                  <View style={styles.turnText}>
-                    <Text style={[styles.turnInstruction, { color: colors.foreground }]}>{step.instruction || "Continue"}</Text>
-                    <Text style={[styles.turnMeta, { color: colors.mutedForeground }]}>{[step.distance, step.duration].filter(Boolean).join(" · ")}</Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         <View style={[styles.modePicker, { backgroundColor: colors.card }]}>
           {(["driving", "walking"] as const).map((mode) => (
             <Pressable
@@ -575,6 +516,62 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
           </Pressable>
         </View>
       </View>
+      {/* Live navigation card stays below the map so turn details never cover it. */}
+      {isNavigating && !arrived && route && (
+        <View style={[styles.navigationCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.navigationTop}>
+            <Feather name="navigation" size={14} color={colors.primary} />
+            <Text style={[styles.navigationTitle, { color: colors.foreground }]}>Live directions</Text>
+            <Text style={[styles.navigationStats, { color: colors.mutedForeground }]}>
+              {route.distance} · {route.duration}
+            </Text>
+          </View>
+
+          <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { backgroundColor: colors.primary, width: `${Math.round(progressFraction * 100)}%` },
+              ]}
+            />
+          </View>
+
+          <Text style={[styles.instruction, { color: colors.foreground }]} numberOfLines={3}>
+            {currentStep?.instruction || "Continue to your destination"}
+          </Text>
+          {currentStep?.distance ? (
+            <Text style={[styles.stepDistance, { color: colors.mutedForeground }]}>
+              {currentStep.distance} · turn {activeStep + 1} of {stepCount}
+            </Text>
+          ) : null}
+          <View style={[styles.routePlaces, { borderTopColor: colors.border }]}>
+            <Text style={[styles.routePlace, { color: colors.mutedForeground }]} numberOfLines={2}>
+              From: {route.startAddress || "Your current location"}
+            </Text>
+            <Text style={[styles.routePlace, { color: colors.foreground }]} numberOfLines={2}>
+              To: {title}{address ? ` · ${address}` : route.endAddress ? ` · ${route.endAddress}` : ""}
+            </Text>
+          </View>
+          <ScrollView
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
+            style={[styles.turnList, { borderTopColor: colors.border }]}
+            contentContainerStyle={styles.turnListContent}
+          >
+            {route.steps.map((step, index) => (
+              <View key={`${index}-${step.instruction}`} style={styles.turnRow}>
+                <Text style={[styles.turnNumber, { backgroundColor: index === activeStep ? colors.primary : colors.muted, color: index === activeStep ? colors.primaryForeground : colors.mutedForeground }]}>
+                  {index + 1}
+                </Text>
+                <View style={styles.turnText}>
+                  <Text style={[styles.turnInstruction, { color: colors.foreground }]}>{step.instruction || "Continue"}</Text>
+                  <Text style={[styles.turnMeta, { color: colors.mutedForeground }]}>{[step.distance, step.duration].filter(Boolean).join(" · ")}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
@@ -679,18 +676,14 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_600SemiBold",
   },
   navigationCard: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    top: 10,
     borderRadius: 10,
     padding: 10,
+    borderWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 3,
-    maxHeight: 225,
   },
   navigationTop: { flexDirection: "row", alignItems: "center", gap: 6 },
   navigationTitle: { fontSize: 12, fontFamily: "Outfit_700Bold" },
