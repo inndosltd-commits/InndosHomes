@@ -59,6 +59,7 @@ function ListingCard({
   colors,
   savesCount,
   onStatus,
+  onEdit,
   onDelete,
   isMutating,
 }: {
@@ -67,6 +68,7 @@ function ListingCard({
   /** null = saves data not yet loaded or failed; badge is hidden */
   savesCount: number | null;
   onStatus: (property: Property, action: "deactivate" | "reactivate" | "sold") => void;
+  onEdit: (property: Property) => void;
   onDelete: (property: Property) => void;
   isMutating: boolean;
 }) {
@@ -198,6 +200,14 @@ function ListingCard({
           </View>
         )}
         <View style={[styles.actions, { borderTopColor: colors.border }]}>
+          <Pressable
+            style={[styles.actionButton, { borderColor: colors.border }]}
+            disabled={isMutating}
+            onPress={() => onEdit(property)}
+          >
+            <Feather name="edit-2" size={15} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.foreground }]}>Edit</Text>
+          </Pressable>
           {property.type !== "sale" && (
             <Pressable
               style={[styles.actionButton, { borderColor: colors.border }]}
@@ -355,6 +365,13 @@ export default function MyListingsScreen() {
       }]
     );
   }, [fetchSaves, refetch, request]);
+
+  const handleEdit = useCallback((property: Property) => {
+    router.push({
+      pathname: "/(tabs)/list-property",
+      params: { editId: property.id },
+    } as never);
+  }, [router]);
 
   if (!user) {
     return (
@@ -526,6 +543,7 @@ export default function MyListingsScreen() {
                 colors={colors}
                 savesCount={savesMap !== null ? (savesMap[property.id] ?? 0) : null}
                 onStatus={handleStatus}
+                onEdit={handleEdit}
                 onDelete={handleDelete}
                 isMutating={mutatingId === property.id}
               />

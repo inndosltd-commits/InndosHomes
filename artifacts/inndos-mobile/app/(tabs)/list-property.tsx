@@ -1,11 +1,14 @@
 import {
   getGetCurrentListingDraftQueryKey,
+  getGetPropertyQueryKey,
   useCreateProperty,
   useDeleteCurrentListingDraft,
   useGetCurrentListingDraft,
+  useGetProperty,
   useSaveCurrentListingDraft,
+  useUpdateProperty,
 } from "@workspace/api-client-react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -29,6 +32,7 @@ import { Feather } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { LocationPicker } from "@/components/LocationPicker";
 import { ListingVideoEditor, type ListingVideoEdit } from "@/components/ListingVideoEditor";
 import { getApiBaseUrl } from "@/utils/api";
@@ -70,6 +74,33 @@ function toApiSubtype(raw: string, subtype: string): string | undefined {
   if (isSaleVariant(raw)) return raw.replace("sale-", "");
   if (raw === "hotel" || raw === "hostel") return subtype.trim() || raw;
   return subtype.trim() || undefined;
+}
+
+function normalizeSubtype(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase().replace(/[_\s]+/g, "-").replace(/-+/g, "-");
+}
+
+function toFormListingType(type: string, subtype: string): ListingType {
+  const normalized = normalizeSubtype(subtype);
+  if (type === "sale") {
+    if (normalized === "apartment") return "sale-apartment";
+    if (normalized === "land" || normalized === "plot") return "sale-land";
+    return "sale-home";
+  }
+  if (type === "rent" && isCommercial(normalized ? `rent-${normalized}` : "")) {
+    return `rent-${normalized}` as ListingType;
+  }
+  return (["rent", "bnb", "hotel", "hostel"].includes(type) ? type : "rent") as ListingType;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function valueAsText(value: unknown): string {
+  return value === null || value === undefined ? "" : String(value);
 }
 
 // ── Sub-types per listing type ────────────────────────────────────────────────
@@ -758,7 +789,11 @@ export default function ListPropertyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const {user, token} = useAuth();
+  const params = useLocalSearchParams<{editId?: string | string[]}>();
+  const editId = Array.isArray(params.editId) ? params.editId[0] : params.editId;
+  const isEditing = Boolean(editId);
   const isWeb = Platform.OS === "web";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -773,9 +808,93 @@ export default function ListPropertyScreen() {
   const [videoLimit, setVideoLimit] = useState(0);
   const [mediaLimitsLoaded, setMediaLimitsLoaded] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [editFormLoaded, setEditFormLoaded] = useState(false);
   // "server" = draft is saved on account, "local" = device-only, null = none
   const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
   const pickerAddressRef = useRef<string|null>(null);
+
+  const {
+    data: propertyToEdit,
+    isLoading: isLoadingProperty,
+    error: editPropertyError,
+  } = useGetProperty(editId ?? "", {
+    query: {
+      enabled: Boolean(user && editId),
+      queryKey: [...getGetPropertyQueryKey(editId ?? ""), user?.id ?? "signed-out"],
+    },
+  });
+
+  useEffect(() => {
+    if (!isEditing || !propertyToEdit || editFormLoaded) return;
+    const subtype = normalizeSubtype(propertyToEdit.subtype);
+    const listingType = toFormListingType(propertyToEdit.type, subtype);
+    const land = asRecord(asRecord(propertyToEdit.details).land);
+    const landAmenities = [
+      ...(Array.isArray(land.utilities) ? land.utilities : []),
+      ...(Array.isArray(land.surrounding) ? land.surrounding : []),
+      ...(Array.isArray(land.zoning) ? land.zoning : []),
+    ].filter((item): item is string => typeof item === "string");
+    const imagePaths = (propertyToEdit.images?.length
+      ? propertyToEdit.images
+      : propertyToEdit.image?.startsWith("/objects/")
+        ? [propertyToEdit.image]
+        : []
+    ).filter((path): path is string => typeof path === "string" && path.length > 0);
+    const videoPaths = (propertyToEdit.videos ?? []).filter(
+      (path): path is string => typeof path === "string" && path.length > 0,
+    );
+    const base = getApiBaseUrl();
+
+    setForm({
+      ...EMPTY_FORM,
+      listingType,
+      title: valueAsText(propertyToEdit.title),
+      subtype: subtype,
+      price: valueAsText(propertyToEdit.price),
+      priceUnit: valueAsText(propertyToEdit.priceUnit),
+      hourlyRate: valueAsText(propertyToEdit.hourlyRate),
+      address: valueAsText(propertyToEdit.address),
+      beds: valueAsText(propertyToEdit.beds),
+      baths: valueAsText(propertyToEdit.baths),
+      sqft: valueAsText(propertyToEdit.sqft),
+      guests: valueAsText(propertyToEdit.guests),
+      totalUnits: valueAsText(propertyToEdit.totalUnits || 1),
+      description: valueAsText(propertyToEdit.description),
+      lat: valueAsText(propertyToEdit.lat),
+      lng: valueAsText(propertyToEdit.lng),
+      acres: valueAsText(land.acres),
+      plotSizeFt: valueAsText(land.plotSizeFt),
+      soilType: valueAsText(land.soilType),
+      surveyMaps: valueAsText(land.surveyMaps),
+      titleDeed: valueAsText(land.titleDeed),
+      legalRates: valueAsText(land.legalRates),
+      legalEncumbrances: valueAsText(land.legalEncumbrances),
+      paymentPlan: valueAsText(land.paymentPlan),
+      pricePerUnit: valueAsText(land.pricePerUnit),
+    });
+    setSelectedAmenities(Array.from(new Set([...(propertyToEdit.tags ?? []), ...landAmenities])));
+    setMedia([
+      ...imagePaths.map((path) => ({
+        uri: path.startsWith("http") ? path : path.startsWith("/objects/")
+          ? `${base}/api/storage${path}`
+          : path,
+        uploaded: path,
+        isVideo: false,
+        mimeType: "image/jpeg",
+        fileName: path.split("/").pop() ?? "image.jpg",
+      })),
+      ...videoPaths.map((path) => ({
+        uri: path.startsWith("http") ? path : path.startsWith("/objects/")
+          ? `${base}/api/storage${path}`
+          : path,
+        uploaded: path,
+        isVideo: true,
+        mimeType: "video/mp4",
+        fileName: path.split("/").pop() ?? "video.mp4",
+      })),
+    ]);
+    setEditFormLoaded(true);
+  }, [editFormLoaded, isEditing, propertyToEdit]);
 
   // Load plan limits
   useEffect(()=>{
@@ -811,7 +930,7 @@ export default function ListPropertyScreen() {
 
   // ── On mount: check server draft first, fall back to local ────────────────
   useEffect(()=>{
-    if(!user) return;
+    if(!user || isEditing) return;
     let cancelled = false;
     (async()=>{
       // 1. Try server draft
@@ -829,7 +948,7 @@ export default function ListPropertyScreen() {
       } catch{ /* ignore */ }
     })();
     return ()=>{ cancelled=true; };
-  },[user]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[user, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Save draft: local first (offline safety), then server ────────────────
   const saveDraft = useCallback(async ()=>{
@@ -919,56 +1038,76 @@ export default function ListPropertyScreen() {
     setDraftSource(null);
   },[user, deleteServerDraft]);
 
-  const {mutate:createProperty, isPending} = useCreateProperty({
-    mutation:{
-      onSuccess:()=>{
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        clearDraftOnSuccess();
-        setSubmitted(true);
-        setForm(EMPTY_FORM);
-        setErrors({});
-        setMedia([]);
-        setSelectedAmenities([]);
-      },
-      onError:(error:unknown)=>{
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        const errorData =
-          typeof error === "object" && error !== null
-            ? (
-                (error as { response?: { data?: unknown } }).response?.data
-                ?? (error as { data?: unknown }).data
-                ?? (error as { body?: unknown }).body
-              )
-            : undefined;
-        const responseError =
-          typeof errorData === "object" && errorData !== null
-            ? (errorData as { error?: unknown }).error
-            : undefined;
-        const fieldErrors =
-          typeof errorData === "object" && errorData !== null
-            ? (errorData as { details?: { fieldErrors?: Record<string, string[]> } }).details?.fieldErrors
-            : undefined;
-        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
-          const mappedErrors: Partial<Record<keyof FormState | "imageUrl", string>> = {};
-          Object.entries(fieldErrors).forEach(([field, messages]) => {
-            const target = field === "image" || field === "images" ? "imageUrl" : field;
-            if (target in EMPTY_FORM || target === "imageUrl") {
-              mappedErrors[target as keyof FormState | "imageUrl"] = messages[0] ?? "Please correct this field";
-            }
-          });
-          setErrors(mappedErrors);
+  const handleMutationError = useCallback((error: unknown, fallback: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    const errorData =
+      typeof error === "object" && error !== null
+        ? (
+            (error as { response?: { data?: unknown } }).response?.data
+            ?? (error as { data?: unknown }).data
+            ?? (error as { body?: unknown }).body
+          )
+        : undefined;
+    const responseError =
+      typeof errorData === "object" && errorData !== null
+        ? (errorData as { error?: unknown }).error
+        : undefined;
+    const fieldErrors =
+      typeof errorData === "object" && errorData !== null
+        ? (errorData as { details?: { fieldErrors?: Record<string, string[]> } }).details?.fieldErrors
+        : undefined;
+    if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+      const mappedErrors: Partial<Record<keyof FormState | "imageUrl", string>> = {};
+      Object.entries(fieldErrors).forEach(([field, messages]) => {
+        const target = field === "image" || field === "images" ? "imageUrl" : field;
+        if (target in EMPTY_FORM || target === "imageUrl") {
+          mappedErrors[target as keyof FormState | "imageUrl"] = messages[0] ?? "Please correct this field";
         }
-        const message =
-          typeof responseError === "string"
-            ? responseError
-            : error instanceof Error && error.message
-              ? error.message
-              : "Failed to submit your listing. Please try again.";
-        Alert.alert(
-          fieldErrors && Object.keys(fieldErrors).length > 0 ? "Please fix the highlighted fields" : "Could not submit listing",
-          fieldErrors && Object.keys(fieldErrors).length > 0 ? "Review the errors in the form, then submit again." : message,
-        );
-      },
+      });
+      setErrors(mappedErrors);
+    }
+    const message =
+      typeof responseError === "string"
+        ? responseError
+        : error instanceof Error && error.message
+          ? error.message
+          : fallback;
+    Alert.alert(
+      fieldErrors && Object.keys(fieldErrors).length > 0 ? "Please fix the highlighted fields" : "Could not save listing",
+      fieldErrors && Object.keys(fieldErrors).length > 0 ? "Review the errors in the form, then submit again." : message,
+    );
+  }, []);
+
+  const handleCreateSuccess = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    clearDraftOnSuccess();
+    setSubmitted(true);
+    setForm(EMPTY_FORM);
+    setErrors({});
+    setMedia([]);
+    setSelectedAmenities([]);
+  }, [clearDraftOnSuccess]);
+
+  const handleUpdateSuccess = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+    Alert.alert(
+      "Listing updated",
+      "Your changes have been saved.",
+      [{ text: "OK", onPress: () => router.replace("/(tabs)/my-listings" as never) }],
+    );
+  }, [queryClient, router]);
+
+  const {mutate:createProperty, isPending: isCreating} = useCreateProperty({
+    mutation:{
+      onSuccess: handleCreateSuccess,
+      onError: (error: unknown) => handleMutationError(error, "Failed to submit your listing. Please try again."),
+    },
+  });
+  const {mutate:updateProperty, isPending: isUpdating} = useUpdateProperty({
+    mutation: {
+      onSuccess: handleUpdateSuccess,
+      onError: (error: unknown) => handleMutationError(error, "Failed to update your listing. Please try again."),
     },
   });
 
@@ -1038,7 +1177,46 @@ export default function ListPropertyScreen() {
     );
   }
 
-  if(submitted) {
+  if (isEditing && (isLoadingProperty || !editFormLoaded)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
+          <Text style={[styles.title, { color: colors.foreground }]}>Edit Listing</Text>
+        </View>
+        <View style={styles.guestContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
+            Loading your listing…
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (isEditing && editPropertyError) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
+          <Text style={[styles.title, { color: colors.foreground }]}>Edit Listing</Text>
+        </View>
+        <View style={styles.guestContainer}>
+          <Feather name="alert-circle" size={40} color={colors.destructive} />
+          <Text style={[styles.guestTitle, { color: colors.foreground }]}>Listing unavailable</Text>
+          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
+            We could not load this listing. Please return to My Listings and try again.
+          </Text>
+          <Pressable
+            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.replace("/(tabs)/my-listings" as never)}
+          >
+            <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Back to My Listings</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if(submitted && !isEditing) {
     return (
       <View style={[styles.container,{backgroundColor:colors.background}]}>
         <View style={[styles.header,{paddingTop:topPadding+16}]}>
@@ -1434,36 +1612,47 @@ export default function ListPropertyScreen() {
       if(form.legalEncumbrances)extras.push(`Encumbrances or disputes: ${form.legalEncumbrances}`);
       if(form.paymentPlan)      extras.push(`Payment plan: ${form.paymentPlan}`);
       if(form.pricePerUnit)     extras.push(`Price per unit: ${form.pricePerUnit}`);
-      if(extras.length>0) finalDesc=[finalDesc,extras.join("\n")].filter(Boolean).join("\n\n");
+      if(!isEditing && extras.length>0) {
+        finalDesc=[finalDesc,extras.join("\n")].filter(Boolean).join("\n\n");
+      }
     }
 
-    createProperty({
-      data:{
-        title:form.title.trim(),
-        type:toApiType(form.listingType),
-        price:parseFloat(form.price),
-        address:form.address.trim(),
-        ...(parsedBeds!=null?{beds:parsedBeds}:{}),
-        ...(parsedBaths!=null?{baths:parsedBaths}:{}),
-        ...(parsedSqft!=null?{sqft:parsedSqft}:{}),
-        ...(guests?{guests}:{}),
-        ...(hourlyRate?{hourlyRate}:{}),
-        ...((form.listingType==="bnb" ? "night" : form.priceUnit.trim())
-          ? {priceUnit:form.listingType==="bnb" ? "night" : form.priceUnit.trim()}
-          : {}),
-        subtype:toApiSubtype(form.listingType,form.subtype),
-        totalUnits,
-        ...(finalDesc?{description:finalDesc}:{}),
-        image:photos[0]||"",
-        images:photos,
-        ...(videos.length>0?{videos}:{}),
-        tags:selectedAmenities,
-        ...(propertyDetails?{details:propertyDetails}:{}),
-        ...(form.lat.trim()&&form.lng.trim()?{lat:form.lat.trim(),lng:form.lng.trim()}:{}),
-      },
-    });
+    const data = {
+      title: form.title.trim(),
+      type: toApiType(form.listingType),
+      price: parseFloat(form.price),
+      address: form.address.trim(),
+      ...(parsedBeds != null ? { beds: parsedBeds } : {}),
+      ...(parsedBaths != null ? { baths: parsedBaths } : {}),
+      ...(parsedSqft != null ? { sqft: parsedSqft } : {}),
+      ...(guests ? { guests } : {}),
+      ...(hourlyRate ? { hourlyRate } : {}),
+      ...((form.listingType === "bnb" ? "night" : form.priceUnit.trim())
+        ? { priceUnit: form.listingType === "bnb" ? "night" : form.priceUnit.trim() }
+        : {}),
+      subtype: toApiSubtype(form.listingType, form.subtype),
+      totalUnits,
+      ...(finalDesc ? { description: finalDesc } : { description: "" }),
+      image: photos[0] || "",
+      images: photos,
+      ...(isEditing ? { videos } : videos.length > 0 ? { videos } : {}),
+      tags: selectedAmenities,
+      ...(isEditing
+        ? { details: propertyDetails ?? {} }
+        : propertyDetails ? { details: propertyDetails } : {}),
+      ...(form.lat.trim() && form.lng.trim()
+        ? { lat: form.lat.trim(), lng: form.lng.trim() }
+        : {}),
+    };
+
+    if (isEditing && editId) {
+      updateProperty({ id: editId, data });
+    } else {
+      createProperty({ data });
+    }
   }
 
+  const isSaving = isCreating || isUpdating;
   const lt = form.listingType;
   const subtypeOptions = SUBTYPES[lt] ?? [];
   const priceUnitOptions = PRICE_UNITS_BY_TYPE[lt] ?? [];
@@ -1479,8 +1668,10 @@ export default function ListPropertyScreen() {
   return (
     <View style={[styles.container,{backgroundColor:colors.background}]}>
       <View style={[styles.header,{paddingTop:topPadding+16}]}>
-        <Text style={[styles.title,{color:colors.foreground}]}>List a Property</Text>
-        <Text style={[styles.subtitle,{color:colors.mutedForeground}]}>Fill in the details. Your listing goes to admin review before publishing.</Text>
+        <Text style={[styles.title,{color:colors.foreground}]}>{isEditing ? "Edit Listing" : "List a Property"}</Text>
+        <Text style={[styles.subtitle,{color:colors.mutedForeground}]}>
+          {isEditing ? "Update your listing details and save your changes." : "Fill in the details. Your listing goes to admin review before publishing."}
+        </Text>
       </View>
 
       {/* Draft controls */}
@@ -1942,22 +2133,26 @@ export default function ListPropertyScreen() {
 
           {/* ── Actions ── */}
           <View style={{flexDirection:"row",gap:10}}>
+            {!isEditing && (
+              <Pressable
+                style={[styles.saveDraftBtn,{borderColor:colors.border,backgroundColor:colors.card}]}
+                onPress={saveDraft}
+              >
+                <Feather name="save" size={16} color={colors.foreground}/>
+                <Text style={[styles.saveDraftText,{color:colors.foreground}]}>Save Draft</Text>
+              </Pressable>
+            )}
             <Pressable
-              style={[styles.saveDraftBtn,{borderColor:colors.border,backgroundColor:colors.card}]}
-              onPress={saveDraft}
-            >
-              <Feather name="save" size={16} color={colors.foreground}/>
-              <Text style={[styles.saveDraftText,{color:colors.foreground}]}>Save Draft</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.submitBtn,{backgroundColor:isPending?colors.muted:colors.primary,flex:1}]}
+              style={[styles.submitBtn,{backgroundColor:isSaving?colors.muted:colors.primary,flex:1}]}
               onPress={handleSubmit}
-              disabled={isPending||isUploading}
+              disabled={isSaving||isUploading}
             >
-              {isPending ? <ActivityIndicator size="small" color={colors.mutedForeground}/> : (
+              {isSaving ? <ActivityIndicator size="small" color={colors.mutedForeground}/> : (
                 <>
-                  <Feather name="upload" size={18} color={colors.primaryForeground}/>
-                  <Text style={[styles.submitBtnText,{color:colors.primaryForeground}]}>Submit Listing</Text>
+                  <Feather name={isEditing ? "save" : "upload"} size={18} color={colors.primaryForeground}/>
+                  <Text style={[styles.submitBtnText,{color:colors.primaryForeground}]}>
+                    {isEditing ? "Save Changes" : "Submit Listing"}
+                  </Text>
                 </>
               )}
             </Pressable>
