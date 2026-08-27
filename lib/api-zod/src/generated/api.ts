@@ -351,6 +351,76 @@ export const GetPropertyResponse = zod.object({
 });
 
 /**
+ * @summary Update a property listing
+ */
+export const UpdatePropertyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdatePropertyBody = zod.object({
+  title: zod.string(),
+  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  price: zod.number(),
+  address: zod.string(),
+  beds: zod.number().optional(),
+  baths: zod.number().optional(),
+  sqft: zod.number().optional(),
+  guests: zod.number().optional(),
+  image: zod.string().optional(),
+  images: zod.array(zod.string()).optional(),
+  videos: zod.array(zod.string()).optional(),
+  details: zod.record(zod.string(), zod.unknown()).optional(),
+  tags: zod.array(zod.string()).optional(),
+  description: zod.string().nullish(),
+  lat: zod.string().optional(),
+  lng: zod.string().optional(),
+  subtype: zod.string().optional(),
+  hourlyRate: zod.number().optional(),
+  priceUnit: zod.string().optional(),
+  totalUnits: zod.number().min(1).optional(),
+});
+
+export const UpdatePropertyResponse = zod.object({
+  id: zod.string(),
+  ownerId: zod.string(),
+  title: zod.string(),
+  type: zod.enum(["rent", "sale", "bnb", "hotel", "hostel"]),
+  price: zod.number(),
+  address: zod.string(),
+  beds: zod.number(),
+  baths: zod.number(),
+  sqft: zod.number(),
+  guests: zod.number().nullish(),
+  image: zod.string(),
+  images: zod.array(zod.string()),
+  videos: zod.array(zod.string()),
+  videoPosters: zod.array(zod.string()),
+  details: zod.record(zod.string(), zod.unknown()),
+  isVerified: zod.boolean(),
+  tags: zod.array(zod.string()),
+  lat: zod.string().nullish(),
+  lng: zod.string().nullish(),
+  createdAt: zod.string().optional(),
+  description: zod.string().nullish(),
+  subtype: zod.string().nullish(),
+  hourlyRate: zod.number().nullish(),
+  priceUnit: zod.string().nullish(),
+  totalUnits: zod.number().min(1),
+  propertyStatus: zod
+    .enum(["pending", "approved", "flagged", "sold", "deactivated"])
+    .optional(),
+  activeBookingsCount: zod.number().optional(),
+  ownerPhone: zod.string().nullish(),
+  ownerEmail: zod.string().nullish(),
+  ownerAvatar: zod.string().nullish(),
+  ownerBusinessName: zod.string().nullish(),
+  savedAt: zod.string().nullish(),
+  ownerName: zod.string().nullish(),
+  isFeatured: zod.boolean().optional(),
+  featuredUntil: zod.coerce.date().nullish(),
+});
+
+/**
  * @summary Delete a property
  */
 export const DeletePropertyParams = zod.object({

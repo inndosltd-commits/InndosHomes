@@ -1303,6 +1303,93 @@ export function useGetProperty<
 }
 
 /**
+ * @summary Update a property listing
+ */
+export const getUpdatePropertyUrl = (id: string) => {
+  return `/api/properties/${id}`;
+};
+
+export const updateProperty = async (
+  id: string,
+  createPropertyInput: CreatePropertyInput,
+  options?: RequestInit,
+): Promise<Property> => {
+  return customFetch<Property>(getUpdatePropertyUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createPropertyInput),
+  });
+};
+
+export const getUpdatePropertyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProperty>>,
+    TError,
+    { id: string; data: BodyType<CreatePropertyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProperty>>,
+  TError,
+  { id: string; data: BodyType<CreatePropertyInput> },
+  TContext
+> => {
+  const mutationKey = ["updateProperty"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProperty>>,
+    { id: string; data: BodyType<CreatePropertyInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateProperty(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePropertyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProperty>>
+>;
+export type UpdatePropertyMutationBody = BodyType<CreatePropertyInput>;
+export type UpdatePropertyMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a property listing
+ */
+export const useUpdateProperty = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProperty>>,
+    TError,
+    { id: string; data: BodyType<CreatePropertyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProperty>>,
+  TError,
+  { id: string; data: BodyType<CreatePropertyInput> },
+  TContext
+> => {
+  return useMutation(getUpdatePropertyMutationOptions(options));
+};
+
+/**
  * @summary Delete a property
  */
 export const getDeletePropertyUrl = (id: string) => {

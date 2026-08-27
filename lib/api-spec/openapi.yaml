@@ -310,6 +310,35 @@ paths:
                 $ref: "#/components/schemas/Property"
         "404":
           description: Not found
+    patch:
+      operationId: updateProperty
+      tags: [properties]
+      summary: Update a property listing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePropertyInput"
+      responses:
+        "200":
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "403":
+          description: Not the property owner
+        "404":
+          description: Not found
     delete:
       operationId: deleteProperty
       tags: [properties]
