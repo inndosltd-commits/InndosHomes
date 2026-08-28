@@ -343,8 +343,9 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   propertyPin: {
-    width: 38,
-    height: 48,
+    // Match the web map-pin dimensions (20x27) on both iOS and Android.
+    width: 20,
+    height: 27,
   },
   searchButtonContainer: {
     position: "absolute",
