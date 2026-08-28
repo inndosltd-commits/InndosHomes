@@ -906,7 +906,9 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     },
     photoCountBadge: {
       position: "absolute",
-      bottom: 16,
+      // Keep the media counter above the price/type row so it cannot cover
+      // the subtype chip on native screens.
+      bottom: 56,
       right: 16,
       backgroundColor: "rgba(0,0,0,0.55)",
       flexDirection: "row",
