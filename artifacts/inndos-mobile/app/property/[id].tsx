@@ -14,7 +14,7 @@ import { getImageUrl } from "@/utils/imageUrl";
 import { resolveAmenityLabel } from "@/utils/amenities";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -45,7 +45,7 @@ import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-cat
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-function PropertyVideo({ source }: { source: string }) {
+function PropertyVideo({ source, expanded = false }: { source: string; expanded?: boolean }) {
   const player = useVideoPlayer(source, (videoPlayer) => {
     videoPlayer.loop = false;
   });
@@ -61,7 +61,11 @@ function PropertyVideo({ source }: { source: string }) {
   return (
     <VideoView
       player={player}
-      style={{ width: "100%", height: 220, backgroundColor: "#000000" }}
+      style={{
+        width: "100%",
+        height: expanded ? Math.min(Dimensions.get("window").height * 0.72, 680) : 220,
+        backgroundColor: "#000000",
+      }}
       nativeControls
       allowsFullscreen
       allowsPictureInPicture
@@ -109,9 +113,10 @@ export default function PropertyDetailScreen() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const [videoModalSource, setVideoModalSource] = useState<string | null>(null);
   const carouselRef = useRef<FlatList>(null);
   const lightboxRef = useRef<FlatList>(null);
+  const lightboxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isLinkedUp, setIsLinkedUp] = useState(false);
 
@@ -252,12 +257,17 @@ export default function PropertyDetailScreen() {
     setActivePhotoIndex(idx);
   };
 
+  useEffect(() => () => {
+    if (lightboxTimerRef.current) clearTimeout(lightboxTimerRef.current);
+  }, []);
+
   const openLightbox = (index: number) => {
     const safeIndex = Math.max(0, Math.min(index, allPhotos.length - 1));
     if (!allPhotos[safeIndex]) return;
     setLightboxIndex(safeIndex);
     setLightboxVisible(true);
-    setTimeout(() => {
+    if (lightboxTimerRef.current) clearTimeout(lightboxTimerRef.current);
+    lightboxTimerRef.current = setTimeout(() => {
       try {
         lightboxRef.current?.scrollToIndex({ index: safeIndex, animated: false });
       } catch {
@@ -291,25 +301,63 @@ export default function PropertyDetailScreen() {
 
   const showBooking = true;
 
+  const rawPropertyVideos = Array.isArray((property as { videos?: string[] }).videos)
+    ? (property as { videos: string[] }).videos
+    : [];
+  const propertyVideos = rawPropertyVideos
+    .map((video) => getImageUrl(video))
+    .filter((video): video is string => video.length > 0);
   const photoCandidates = (property.images && property.images.length > 0)
     ? property.images
-    : Array.isArray((property as { videoPosters?: string[] }).videoPosters) &&
-        (property as { videoPosters?: string[] }).videoPosters!.length > 0
-      ? (property as { videoPosters: string[] }).videoPosters
-    : [property.image];
+    : propertyVideos.length === 0
+      ? [property.image]
+      : [];
   const allPhotos = photoCandidates
     .map((photo) => getImageUrl(photo))
     .filter((photo): photo is string => photo.length > 0);
-  const propertyVideos = Array.isArray((property as { videos?: string[] }).videos)
-    ? (property as { videos: string[] }).videos
-        .map((video) => getImageUrl(video))
-        .filter((video): video is string => video.length > 0)
+  const videoPosters = Array.isArray((property as { videoPosters?: string[] }).videoPosters)
+    ? (property as { videoPosters: string[] }).videoPosters.map((poster) => getImageUrl(poster))
     : [];
-  const safeVideoIndex = Math.min(activeVideoIndex, Math.max(0, propertyVideos.length - 1));
+  const mediaItems = [
+    ...allPhotos.map((uri, photoIndex) => ({ type: "photo" as const, uri, photoIndex })),
+    ...propertyVideos.map((uri, videoIndex) => ({
+      type: "video" as const,
+      uri,
+      videoIndex,
+      poster: videoPosters[videoIndex] || videoPosters[0] || "",
+    })),
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Lightbox Modal */}
+      <Modal
+        visible={Boolean(videoModalSource)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVideoModalSource(null)}
+      >
+        <View style={styles.videoModalBackdrop}>
+          <View style={styles.videoModalHeader}>
+            <Text style={styles.videoModalTitle} numberOfLines={1}>{property.title}</Text>
+            <Pressable
+              style={styles.videoModalClose}
+              onPress={() => setVideoModalSource(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Close video"
+            >
+              <Feather name="x" size={24} color="#fff" />
+            </Pressable>
+          </View>
+          {videoModalSource ? (
+            <View key={videoModalSource} style={styles.videoModalPlayer}>
+              <PropertyVideo source={videoModalSource} expanded />
+            </View>
+          ) : null}
+          <Text style={styles.videoModalHint}>Use the player controls to enlarge, pause, or seek.</Text>
+        </View>
+      </Modal>
+
       <Modal
         visible={lightboxVisible}
         transparent
@@ -388,25 +436,47 @@ export default function PropertyDetailScreen() {
       >
         {/* Photo Carousel */}
         <View style={styles.heroContainer}>
-          {allPhotos.length > 0 ? (
+          {mediaItems.length > 0 ? (
             <FlatList
               ref={carouselRef}
-              data={allPhotos}
+              data={mediaItems}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={handleCarouselScroll}
               keyExtractor={(_, i) => String(i)}
-              renderItem={({ item, index }) => (
+              renderItem={({ item }) => (
                 <Pressable
                   style={{ width: SCREEN_WIDTH, height: 320 }}
-                  onPress={() => openLightbox(index)}
+                  onPress={() => item.type === "photo" ? openLightbox(item.photoIndex) : setVideoModalSource(item.uri)}
                 >
-                  <Image
-                    source={{ uri: item }}
-                    style={{ width: "100%", height: "100%" }}
-                    resizeMode="cover"
-                  />
+                  {item.type === "photo" ? (
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : item.poster ? (
+                    <Image
+                      source={{ uri: item.poster }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.videoHeroFallback}>
+                      <Feather name="video" size={48} color="#fff" />
+                    </View>
+                  )}
+                  {item.type === "video" && (
+                    <>
+                      <View style={styles.videoHeroBadge}>
+                        <Text style={styles.videoHeroBadgeText}>VIDEO</Text>
+                      </View>
+                      <View style={styles.videoHeroPlay}>
+                        <Feather name="play" size={28} color="#000" />
+                      </View>
+                    </>
+                  )}
                   <View style={styles.heroOverlay} />
                 </Pressable>
               )}
@@ -468,9 +538,9 @@ export default function PropertyDetailScreen() {
           </View>
 
           {/* Dot indicators */}
-          {allPhotos.length > 1 && (
+          {mediaItems.length > 1 && (
             <View style={styles.dotsRow}>
-              {allPhotos.map((_, idx) => (
+              {mediaItems.map((_, idx) => (
                 <View
                   key={idx}
                   style={[
@@ -483,47 +553,48 @@ export default function PropertyDetailScreen() {
           )}
 
           {/* Photo count badge */}
-          {allPhotos.length > 1 && (
+          {mediaItems.length > 1 && (
             <View style={styles.photoCountBadge}>
-              <Feather name="image" size={12} color="#fff" />
-              <Text style={styles.photoCountText}>{activePhotoIndex + 1}/{allPhotos.length}</Text>
+              <Feather name={mediaItems[activePhotoIndex]?.type === "video" ? "video" : "image"} size={12} color="#fff" />
+              <Text style={styles.photoCountText}>{activePhotoIndex + 1}/{mediaItems.length}</Text>
             </View>
           )}
         </View>
 
-        {propertyVideos.length > 0 && (
-          <View style={styles.videoSection}>
-            <View style={styles.videoSectionHeader}>
-              <Feather name="video" size={17} color={colors.foreground} />
-              <Text style={[styles.videoSectionTitle, { color: colors.foreground }]}>
-                Video tour{propertyVideos.length === 1 ? "" : "s"}
-              </Text>
-            </View>
-            <View key={propertyVideos[safeVideoIndex]} style={styles.videoCard}>
-              <PropertyVideo source={propertyVideos[safeVideoIndex]} />
-            </View>
-            {propertyVideos.length > 1 && (
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14 }}>
-                <Pressable
-                  onPress={() => setActiveVideoIndex((index) => Math.max(0, index - 1))}
-                  disabled={safeVideoIndex === 0}
-                  style={{ padding: 8, opacity: safeVideoIndex === 0 ? 0.35 : 1 }}
-                >
-                  <Feather name="chevron-left" size={22} color={colors.foreground} />
-                </Pressable>
-                <Text style={{ color: colors.mutedForeground }}>
-                  {safeVideoIndex + 1} / {propertyVideos.length}
-                </Text>
-                <Pressable
-                  onPress={() => setActiveVideoIndex((index) => Math.min(propertyVideos.length - 1, index + 1))}
-                  disabled={safeVideoIndex === propertyVideos.length - 1}
-                  style={{ padding: 8, opacity: safeVideoIndex === propertyVideos.length - 1 ? 0.35 : 1 }}
-                >
-                  <Feather name="chevron-right" size={22} color={colors.foreground} />
-                </Pressable>
-              </View>
-            )}
-          </View>
+        {mediaItems.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.mediaThumbStrip}
+          >
+            {mediaItems.map((item, index) => (
+              <Pressable
+                key={`${item.type}-${item.uri}-${index}`}
+                style={[
+                  styles.mediaThumb,
+                  {
+                    borderColor: activePhotoIndex === index ? colors.primary : colors.border,
+                    backgroundColor: colors.muted,
+                  },
+                ]}
+                onPress={() => {
+                  setActivePhotoIndex(index);
+                  carouselRef.current?.scrollToIndex({ index, animated: true });
+                }}
+              >
+                {item.type === "photo" || item.poster ? (
+                  <Image source={{ uri: item.type === "photo" ? item.uri : item.poster }} style={styles.mediaThumbImage} resizeMode="cover" />
+                ) : (
+                  <Feather name="video" size={20} color={colors.mutedForeground} />
+                )}
+                {item.type === "video" && (
+                  <View style={styles.mediaThumbPlay}>
+                    <Feather name="play" size={12} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
         )}
 
         <View style={styles.detailsSection}>
@@ -805,6 +876,113 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       borderRadius: 8,
       overflow: "hidden",
       borderWidth: 2,
+    },
+    videoModalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.97)",
+      justifyContent: "center",
+    },
+    videoModalHeader: {
+      position: "absolute",
+      top: 48,
+      left: 18,
+      right: 18,
+      zIndex: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    videoModalTitle: {
+      flex: 1,
+      color: "#fff",
+      fontSize: 15,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    videoModalClose: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    videoModalPlayer: {
+      width: "100%",
+      backgroundColor: "#000000",
+    },
+    videoModalHint: {
+      color: "rgba(255,255,255,0.7)",
+      textAlign: "center",
+      marginTop: 16,
+      fontSize: 12,
+      fontFamily: "Outfit_400Regular",
+    },
+    videoHeroFallback: {
+      width: "100%",
+      height: "100%",
+      backgroundColor: "#111111",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    videoHeroBadge: {
+      position: "absolute",
+      left: 18,
+      top: 76,
+      zIndex: 2,
+      backgroundColor: "rgba(0,0,0,0.72)",
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    videoHeroBadgeText: {
+      color: "#fff",
+      fontSize: 10,
+      fontFamily: "Outfit_700Bold",
+      letterSpacing: 0.5,
+    },
+    videoHeroPlay: {
+      position: "absolute",
+      left: "50%",
+      top: "50%",
+      zIndex: 2,
+      width: 58,
+      height: 58,
+      marginLeft: -29,
+      marginTop: -29,
+      borderRadius: 29,
+      backgroundColor: "rgba(255,255,255,0.94)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingLeft: 3,
+    },
+    mediaThumbStrip: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      gap: 8,
+    },
+    mediaThumb: {
+      width: 70,
+      height: 54,
+      borderRadius: 8,
+      borderWidth: 2,
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    mediaThumbImage: {
+      width: "100%",
+      height: "100%",
+    },
+    mediaThumbPlay: {
+      position: "absolute",
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: "rgba(0,0,0,0.68)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingLeft: 2,
     },
     heroBackBtn: {
       position: "absolute",

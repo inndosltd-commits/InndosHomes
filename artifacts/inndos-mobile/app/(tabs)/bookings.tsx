@@ -5,9 +5,9 @@ import {
   useListReceivedBookings,
   getListReceivedBookingsQueryKey,
 } from "@workspace/api-client-react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 
 type BookingStatus = "pending" | "confirmed" | "cancelled";
+type BookingView = "received" | "sent" | "all";
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
   pending: "#f59e0b",
@@ -41,12 +42,22 @@ export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ view?: string }>();
   const { user, token } = useAuth();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [bookingActionId, setBookingActionId] = useState<string | null>(null);
+  const [bookingView, setBookingView] = useState<BookingView>(
+    params.view === "received" || params.view === "sent" ? params.view : "all",
+  );
   const isWeb = Platform.OS === "web";
   const isLister = user?.role === "owner" || user?.role === "host";
+
+  useEffect(() => {
+    setBookingView(
+      params.view === "received" || params.view === "sent" ? params.view : "all",
+    );
+  }, [params.view]);
 
   const { data: bookings, isLoading, error, refetch } = useListBookings({
     query: { queryKey: getListBookingsQueryKey(), enabled: !!user },
@@ -152,10 +163,15 @@ export default function BookingsScreen() {
   const topPadding = isWeb ? 67 : insets.top;
   const styles = getStyles(colors);
   const receivedIds = new Set((receivedBookings ?? []).map((item) => item.id));
-  const visibleBookings = (isLister
-    ? [...(receivedBookings ?? []), ...(bookings ?? []).filter((item) => !receivedIds.has(item.id))]
-    : bookings ?? []
-  ).sort((a, b) => {
+  const sentBookings = (bookings ?? []).filter((item) => !receivedIds.has(item.id));
+  const unSortedBookings = isLister
+    ? bookingView === "received"
+      ? receivedBookings ?? []
+      : bookingView === "sent"
+        ? sentBookings
+        : [...(receivedBookings ?? []), ...sentBookings]
+    : bookings ?? [];
+  const visibleBookings = [...unSortedBookings].sort((a, b) => {
     const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
     const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
     return bTime - aTime;
@@ -189,8 +205,33 @@ export default function BookingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Link-Ups</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          {isLister && bookingView === "received" ? "Reservations" : "Link-Ups"}
+        </Text>
       </View>
+
+      {isLister && (
+        <View style={[styles.viewTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {([
+            ["received", "Reservations"],
+            ["sent", "Sent"],
+            ["all", "All"],
+          ] as const).map(([value, label]) => {
+            const active = bookingView === value;
+            return (
+              <Pressable
+                key={value}
+                style={[styles.viewTab, active && { backgroundColor: colors.primary }]}
+                onPress={() => setBookingView(value)}
+              >
+                <Text style={[styles.viewTabText, { color: active ? colors.primaryForeground : colors.foreground }]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       {visibleLoading ? (
         <View style={styles.center}>
@@ -230,7 +271,9 @@ export default function BookingsScreen() {
               <Feather name="calendar" size={40} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No link-ups yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                {isLister ? "Received and sent Link-Ups will appear here" : "Browse properties to make your first link-up"}
+                {isLister && bookingView === "received"
+                  ? "New customer reservations will appear here"
+                  : isLister ? "Received and sent Link-Ups will appear here" : "Browse properties to make your first link-up"}
               </Text>
               <Pressable
                 style={[styles.browseBtn, { borderColor: colors.primary }]}
@@ -430,6 +473,25 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     title: {
       fontSize: 24,
       fontFamily: "Outfit_700Bold",
+    },
+    viewTabs: {
+      marginHorizontal: 20,
+      marginBottom: 10,
+      padding: 4,
+      borderWidth: 1,
+      borderRadius: 10,
+      flexDirection: "row",
+    },
+    viewTab: {
+      flex: 1,
+      minHeight: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 7,
+    },
+    viewTabText: {
+      fontSize: 12,
+      fontFamily: "Outfit_600SemiBold",
     },
     center: {
       flex: 1,

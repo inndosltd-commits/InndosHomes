@@ -183,12 +183,15 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
             <Marker
               key={property.id}
               coordinate={coordinate}
-              image={PROPERTY_PIN_ICON}
+              anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
               onPress={(event) => {
                 event.stopPropagation();
                 setSelectedId(property.id);
               }}
-            />
+            >
+              <Image source={PROPERTY_PIN_ICON} style={styles.propertyPin} resizeMode="contain" />
+            </Marker>
           );
         })}
         </MapView>
@@ -314,6 +317,10 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: "100%",
   },
+  propertyPin: {
+    width: 38,
+    height: 48,
+  },
   searchButtonContainer: {
     position: "absolute",
     top: 16,
@@ -337,10 +344,6 @@ const styles = StyleSheet.create({
   searchButtonText: {
     fontSize: 14,
     fontFamily: "Outfit_600SemiBold",
-  },
-  propertyPin: {
-    width: 25,
-    height: 31,
   },
   emptyOverlay: {
     position: "absolute",

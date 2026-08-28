@@ -10,6 +10,8 @@ export function getImageUrl(imagePath: string | null | undefined): string {
   if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
     return cleanPath;
   }
+  // Never pass arbitrary native URI schemes into Image or AVPlayer.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(cleanPath)) return "";
   const resolved = cleanPath.startsWith("/objects/")
     ? `/api/storage${cleanPath}`
     : cleanPath.startsWith("/")

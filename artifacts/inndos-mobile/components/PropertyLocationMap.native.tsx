@@ -69,6 +69,26 @@ function decodePolyline(encoded: string): { latitude: number; longitude: number 
   return points;
 }
 
+function safeDecodePolyline(encoded: unknown): { latitude: number; longitude: number }[] {
+  if (typeof encoded !== "string" || encoded.length === 0 || encoded.length > 1_000_000) return [];
+  try {
+    return decodePolyline(encoded).filter(isValidCoordinate);
+  } catch {
+    return [];
+  }
+}
+
+function normalizeRouteStep(value: unknown): RouteStep | null {
+  if (!value || typeof value !== "object") return null;
+  const step = value as Partial<RouteStep>;
+  return {
+    instruction: typeof step.instruction === "string" ? step.instruction : "Continue",
+    distance: typeof step.distance === "string" ? step.distance : "",
+    duration: typeof step.duration === "string" ? step.duration : "",
+    end: isValidCoordinate(step.end) ? step.end : null,
+  };
+}
+
 function distanceInMeters(
   from: { latitude: number; longitude: number },
   to: { latitude: number; longitude: number }
@@ -141,6 +161,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
   const mapGestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   const navigationGenerationRef = useRef(0);
+  const routeRequestRef = useRef(0);
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -194,6 +215,8 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
   };
 
   const stopNavigation = () => {
+    navigationGenerationRef.current += 1;
+    routeRequestRef.current += 1;
     subscriptionRef.current?.remove();
     subscriptionRef.current = null;
     setIsNavigating(false);
@@ -211,24 +234,35 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
     fitMap = false,
     preserveActiveStep = false
   ) => {
+    const requestId = ++routeRequestRef.current;
     const response = await fetch(
       `${getApiBaseUrl()}/api/maps/directions?origin=${encodeURIComponent(`${origin.latitude},${origin.longitude}`)}&destination=${encodeURIComponent(`${latitude},${longitude}`)}&mode=${mode}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    const json = await response.json() as RouteInfo & { error?: string };
-    if (!response.ok || !json.polyline) throw new Error(json.error ?? `No ${mode} route is available`);
-    const coordinates = decodePolyline(json.polyline);
-    const validCoordinates = coordinates.filter(isValidCoordinate);
-    if (validCoordinates.length < 2 || validCoordinates.length !== coordinates.length) {
+    const json = await response.json() as Partial<RouteInfo> & { error?: string };
+    if (!response.ok || typeof json.polyline !== "string") throw new Error(json.error ?? `No ${mode} route is available`);
+    const validCoordinates = safeDecodePolyline(json.polyline);
+    if (validCoordinates.length < 2) {
       throw new Error(`No ${mode} route is available`);
     }
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || requestId !== routeRequestRef.current) return;
 
-    routeRef.current = json;
+    const normalizedRoute: RouteInfo = {
+      polyline: json.polyline,
+      distance: typeof json.distance === "string" ? json.distance : "",
+      duration: typeof json.duration === "string" ? json.duration : "",
+      startAddress: typeof json.startAddress === "string" ? json.startAddress : "",
+      endAddress: typeof json.endAddress === "string" ? json.endAddress : "",
+      steps: Array.isArray(json.steps)
+        ? json.steps.map(normalizeRouteStep).filter((step): step is RouteStep => step !== null)
+        : [],
+    };
+
+    routeRef.current = normalizedRoute;
     lastRerouteAtRef.current = Date.now();
-    setRoute(json);
+    setRoute(normalizedRoute);
     if (preserveActiveStep) {
-      setActiveStep((currentStep) => Math.min(currentStep, Math.max(0, json.steps.length - 1)));
+      setActiveStep((currentStep) => Math.min(currentStep, Math.max(0, normalizedRoute.steps.length - 1)));
     } else {
       setActiveStep(0);
     }
@@ -309,7 +343,7 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
               : stepIndex;
           });
 
-          const routeCoordinates = latestRoute ? decodePolyline(latestRoute.polyline) : [];
+           const routeCoordinates = latestRoute ? safeDecodePolyline(latestRoute.polyline) : [];
           const distanceFromRoute = distanceToRouteInMeters(next, routeCoordinates);
           if (
             !reroutingRef.current
@@ -389,8 +423,8 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
     );
   }
 
-  const routeCoordinates = route ? decodePolyline(route.polyline) : [];
-  const currentStep = route?.steps[activeStep];
+  const routeCoordinates = route ? safeDecodePolyline(route.polyline) : [];
+  const currentStep = route?.steps?.[activeStep];
   // Progress: fraction of steps completed
   const stepCount = route?.steps.length ?? 0;
   const progressFraction = stepCount > 0 ? activeStep / stepCount : 0;

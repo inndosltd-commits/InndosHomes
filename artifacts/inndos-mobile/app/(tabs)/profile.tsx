@@ -251,6 +251,7 @@ export default function ProfileScreen() {
         <SectionTitle label="MY ACTIVITY" colors={colors} />
         <View style={[styles.menuGroup, { borderColor: colors.border }]}>
           <MenuItem icon="link" label="My Link-Ups" onPress={() => router.push("/(tabs)/bookings")} colors={colors} />
+          {isOwnerOrHost && <MenuItem icon="calendar" label="Reservations" onPress={() => router.push("/(tabs)/bookings?view=received" as never)} colors={colors} />}
           <MenuItem icon="heart" label="Saved Properties" onPress={() => router.push("/(tabs)/saved")} colors={colors} />
           <MenuItem icon="credit-card" label="Transactions" onPress={() => router.push("/(tabs)/transactions" as never)} colors={colors} />
         </View>

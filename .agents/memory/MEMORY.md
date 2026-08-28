@@ -13,3 +13,4 @@
 - [Mobile map bounds](mobile-map-bounds.md) — automatic focus is map-only; explicit place or area searches filter both pins and every home-page listing section.
 - [Navigation map visibility](navigation-map-visibility.md) — route instructions and turn lists must occupy reserved space, never obscure the primary map.
 - [Navigation route contrast](navigation-route-contrast.md) — map routes need a dedicated high-contrast color, not the theme primary token that can become white in dark mode.
+- [Native map marker sizing](native-map-marker-sizing.md) — iOS may render Marker image assets at intrinsic size; use a fixed-size child image instead.

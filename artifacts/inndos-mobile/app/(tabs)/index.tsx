@@ -261,7 +261,6 @@ export default function BrowseScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [rentModalVisible, setRentModalVisible] = useState(false);
   const [buyModalVisible, setBuyModalVisible] = useState(false);
-  const [mapBounds, setMapBounds] = useState<MapBBox | null>(null);
   const [locationFilterBounds, setLocationFilterBounds] = useState<MapBBox | null>(null);
   const [mapFocusRegion, setMapFocusRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
@@ -270,6 +269,8 @@ export default function BrowseScreen() {
   const [placeFocused, setPlaceFocused] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const placeRequestRef = useRef(0);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleListPropertyPress = () => {
     if (!user) {
@@ -327,6 +328,20 @@ export default function BrowseScreen() {
           setLocationNotice("Location is off. You can still search a place or browse the default map area.");
           return;
         }
+        const lastKnown = await Location.getLastKnownPositionAsync({
+          maxAge: 5 * 60 * 1000,
+          requiredAccuracy: 2_000,
+        });
+        if (active && lastKnown) {
+          const lastRegion = {
+            latitude: lastKnown.coords.latitude,
+            longitude: lastKnown.coords.longitude,
+            latitudeDelta: 0.08,
+            longitudeDelta: 0.08,
+          };
+          setUserLocation({ lat: lastRegion.latitude, lng: lastRegion.longitude });
+          setMapFocusRegion(lastRegion);
+        }
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         if (!active) return;
         const region = { latitude: position.coords.latitude, longitude: position.coords.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 };
@@ -339,6 +354,12 @@ export default function BrowseScreen() {
       }
     })();
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (placeDebounceRef.current) clearTimeout(placeDebounceRef.current);
+    placeRequestRef.current += 1;
   }, []);
 
   const filteredProperties = useMemo<Property[]>(() => {
@@ -385,25 +406,25 @@ export default function BrowseScreen() {
     const featuredIds = new Set((featuredProperties ?? []).map((property) => property.id));
     return filteredProperties.filter((property) => featuredIds.has(property.id));
   }, [featuredProperties, filteredProperties]);
-  const mapProperties = useMemo(
-    () => filteredProperties.filter((property) => isWithinMapBounds(property, mapBounds)),
-    [filteredProperties, mapBounds]
-  );
+  // Pins must consume the exact same filtered collection as the listing
+  // sections. Automatic map focus is visual only; only an explicit place or
+  // "Search this area" action adds locationFilterBounds upstream.
+  const mapProperties = filteredProperties;
 
   const handleSearch = (text: string) => {
     setSearch(text);
     setLocationFilterBounds(null);
-    setMapBounds(null);
-    clearTimeout((handleSearch as { _t?: ReturnType<typeof setTimeout> })._t);
-    (handleSearch as { _t?: ReturnType<typeof setTimeout> })._t = setTimeout(() => setDebouncedSearch(text), 400);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(text), 400);
     const requestId = ++placeRequestRef.current;
+    if (placeDebounceRef.current) clearTimeout(placeDebounceRef.current);
     if (!token || text.trim().length < 2) {
       setPlaceResults([]);
       setPlaceLoading(false);
       return;
     }
     setPlaceLoading(true);
-    setTimeout(async () => {
+    placeDebounceRef.current = setTimeout(async () => {
       try {
         const response = await fetch(
           `${getApiBaseUrl()}/api/maps/places?query=${encodeURIComponent(text.trim())}&sessiontoken=browse-${Date.now()}`,
@@ -441,7 +462,6 @@ export default function BrowseScreen() {
       setPlaceResults([]);
       setPlaceFocused(false);
       setMapFocusRegion(region);
-      setMapBounds(bounds);
       setLocationFilterBounds(bounds);
     } catch (error) {
       setLocationNotice(error instanceof Error ? error.message : "That place could not be loaded. Please choose another suggestion.");
@@ -457,7 +477,6 @@ export default function BrowseScreen() {
   };
 
   const handleMapSearchArea = React.useCallback((bounds: MapBBox, source: "focus" | "user") => {
-    setMapBounds(bounds);
     if (source === "user") setLocationFilterBounds(bounds);
   }, []);
 
@@ -599,7 +618,7 @@ export default function BrowseScreen() {
               onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
               returnKeyType="search"
             />
-            {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
+            {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); setLocationFilterBounds(null); setPlaceResults([]); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
           </View>
         </View>
         {placeFocused && search.trim().length >= 2 && (
