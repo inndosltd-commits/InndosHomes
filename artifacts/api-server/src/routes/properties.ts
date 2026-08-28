@@ -275,7 +275,11 @@ async function validateNewListingMedia({
     expectedKind === "image" ? MAX_LISTING_IMAGE_BYTES : MAX_LISTING_VIDEO_BYTES;
 
   for (const path of paths) {
-    if (existingPaths.has(path)) continue;
+    // Existing images have already passed attachment validation. Final listing
+    // videos are different: every submitted video must be probed because legacy
+    // clips may predate the 60-second limit and clients do not have authoritative
+    // duration metadata for stored objects.
+    if (expectedKind === "image" && existingPaths.has(path)) continue;
     if (!allowedOwnerPrefixes.some((prefix) => path.startsWith(prefix))) {
       return `A ${expectedKind} is not owned by this account. Please upload it again.`;
     }
@@ -1556,15 +1560,14 @@ router.patch("/:id", async (req, res) => {
     paths: videoList ?? [],
     expectedKind: "video",
     userId,
-    existingPaths: existingMediaPaths,
   });
   if (videoValidationError) {
     res.status(400).json({ error: videoValidationError, code: "INVALID_MEDIA" });
     return;
   }
 
-  // Newly supplied videos were validated as explicitly processed clips above;
-  // preserve existing paths untouched when an owner edits another field.
+  // Every supplied final video, including a previously attached path, has been
+  // validated from its stored bytes against the one-minute submission limit.
   const normalizedVideoList = videoList;
 
   let videoPosters = prop.videoPosters ?? [];

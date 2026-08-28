@@ -1,12 +1,16 @@
 import {
   useListBookings,
+  useListReceivedBookings,
   useGetProperty,
   getListBookingsQueryKey,
+  getListReceivedBookingsQueryKey,
   getGetPropertyQueryKey,
 } from "@workspace/api-client-react";
 import { getImageUrl } from "@/utils/imageUrl";
+import { getApiBaseUrl } from "@/utils/api";
+import { useAuth } from "@/context/AuthContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -20,15 +24,34 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { Feather } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type BookingStatus = "pending" | "confirmed" | "cancelled";
+type ConfirmationChoice = "confirmed" | "outside_inndos" | "not_completed";
+
+interface Transaction {
+  id: string;
+  bookingId: string | null;
+  ownerId: string;
+  tenantId: string;
+  transactionType: "rental" | "sale";
+  ownerConfirmation: string;
+  tenantConfirmation: string;
+  status: string;
+}
+
+interface ReviewCheck {
+  hasReviewed: boolean;
+  review: { rating: number; comment: string | null } | null;
+}
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
   pending: "#f59e0b",
@@ -58,16 +81,29 @@ export default function BookingDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, token } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<ConfirmationChoice | null>(null);
+  const [reviewCheck, setReviewCheck] = useState<ReviewCheck | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const { data: bookings, isLoading: bookingsLoading } = useListBookings({
     query: { queryKey: getListBookingsQueryKey() },
   });
+  const { data: receivedBookings, isLoading: receivedBookingsLoading } = useListReceivedBookings({
+    query: { queryKey: getListReceivedBookingsQueryKey(), enabled: !!user && (user.role === "owner" || user.role === "host") },
+  });
 
-  const booking = bookings?.find((b) => b.id === id);
+  const booking = [...(bookings ?? []), ...(receivedBookings ?? [])].find((b) => b.id === id);
 
   const { data: property, isLoading: propertyLoading } = useGetProperty(
     booking?.propertyId ?? "",
@@ -79,7 +115,98 @@ export default function BookingDetailScreen() {
     }
   );
 
-  const isLoading = bookingsLoading || (!!booking?.propertyId && propertyLoading);
+  const isLoading = bookingsLoading || receivedBookingsLoading || (!!booking?.propertyId && propertyLoading);
+
+  useEffect(() => {
+    if (!booking || booking.status !== "confirmed" || !token) {
+      setTransaction(null);
+      setTransactionError(null);
+      return;
+    }
+    let active = true;
+    void fetch(`${getApiBaseUrl()}/api/transactions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as Transaction[] | { error?: string } | null;
+        if (!response.ok) {
+          throw new Error(!Array.isArray(data) && data && "error" in data ? data.error : "Could not load confirmation.");
+        }
+        if (!Array.isArray(data)) throw new Error("Could not load confirmation.");
+        if (active) setTransaction(data.find((item) => item.bookingId === booking.id) ?? null);
+      })
+      .catch((error: unknown) => {
+        if (active) setTransactionError(error instanceof Error ? error.message : "Could not load confirmation.");
+      });
+    return () => { active = false; };
+  }, [booking?.id, booking?.status, token]);
+
+  const isGuest = !!booking && booking.userId === user?.id;
+  useEffect(() => {
+    if (!booking || booking.status !== "confirmed" || !isGuest || !token) {
+      setReviewCheck(null);
+      setReviewError(null);
+      return;
+    }
+    let active = true;
+    void fetch(`${getApiBaseUrl()}/api/reviews/check/${booking.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as ReviewCheck | { error?: string } | null;
+        if (!response.ok) {
+          throw new Error(data && "error" in data ? data.error : "Could not load review.");
+        }
+        if (active) setReviewCheck(data as ReviewCheck);
+      })
+      .catch((error: unknown) => {
+        if (active) setReviewError(error instanceof Error ? error.message : "Could not load review.");
+      });
+    return () => { active = false; };
+  }, [booking?.id, booking?.status, isGuest, token]);
+
+  const submitConfirmation = async (choice: ConfirmationChoice) => {
+    if (!transaction || !token) return;
+    setConfirming(choice);
+    setTransactionError(null);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/transactions/${transaction.id}/confirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: choice }),
+      });
+      const data = await response.json().catch(() => null) as Transaction | { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(data && "error" in data ? data.error : "Could not confirm transaction.");
+      }
+      setTransaction(data as Transaction);
+      await queryClient.invalidateQueries({ queryKey: getListBookingsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListReceivedBookingsQueryKey() });
+    } catch (error) {
+      setTransactionError(error instanceof Error ? error.message : "Could not confirm transaction.");
+    } finally {
+      setConfirming(null);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!booking || !token || rating < 1) {
+      setReviewError("Please select a rating.");
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewError(null);
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/reviews`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: booking.id, rating, comment }),
+      });
+      const data = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(data?.error || "Could not submit review.");
+      setReviewCheck({ hasReviewed: true, review: { rating, comment: comment.trim() || null } });
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Could not submit review.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const styles = getStyles(colors);
   const topPad = isWeb ? 67 : insets.top;
@@ -257,6 +384,120 @@ export default function BookingDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {booking.status === "confirmed" && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>TRANSACTION CONFIRMATION</Text>
+                {transaction ? (() => {
+                  const isOwner = transaction.ownerId === user?.id;
+                  const myConfirmation = isOwner ? transaction.ownerConfirmation : transaction.tenantConfirmation;
+                  const canConfirm = myConfirmation === "pending";
+                  const completedLabel = transaction.transactionType === "sale"
+                    ? "Sold via inndos"
+                    : "Rented via inndos";
+                  return (
+                    <View style={[styles.confirmationCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <View style={styles.confirmationRow}>
+                        <Text style={[styles.confirmationLabel, { color: colors.mutedForeground }]}>OWNER</Text>
+                        <Text style={[styles.confirmationValue, { color: colors.foreground }]}>{transaction.ownerConfirmation.replace(/_/g, " ")}</Text>
+                      </View>
+                      <View style={styles.confirmationRow}>
+                        <Text style={[styles.confirmationLabel, { color: colors.mutedForeground }]}>TENANT</Text>
+                        <Text style={[styles.confirmationValue, { color: colors.foreground }]}>{transaction.tenantConfirmation.replace(/_/g, " ")}</Text>
+                      </View>
+                      {canConfirm ? (
+                        <View style={styles.confirmationActions}>
+                          <Text style={[styles.confirmPrompt, { color: colors.foreground }]}>Confirm your outcome</Text>
+                          {([
+                            ["confirmed", completedLabel, "check-circle"],
+                            ["outside_inndos", "Completed outside inndos", "external-link"],
+                            ["not_completed", "Transaction did not complete", "x-circle"],
+                          ] as const).map(([choice, label, icon]) => (
+                            <Pressable
+                              key={choice}
+                              style={[
+                                styles.confirmChoice,
+                                { borderColor: choice === "confirmed" ? colors.primary : colors.border },
+                                confirming && { opacity: 0.6 },
+                              ]}
+                              disabled={!!confirming}
+                              onPress={() => void submitConfirmation(choice)}
+                            >
+                              {confirming === choice
+                                ? <ActivityIndicator size="small" color={colors.primary} />
+                                : <Feather name={icon} size={15} color={choice === "confirmed" ? colors.primary : colors.mutedForeground} />}
+                              <Text style={[styles.confirmChoiceText, { color: colors.foreground }]}>{label}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={[styles.confirmWaiting, { color: colors.mutedForeground }]}>
+                          Your confirmation has been recorded. Waiting for the other party if needed.
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })() : (
+                  <Text style={[styles.compactMessage, { color: transactionError ? "#ef4444" : colors.mutedForeground }]}>
+                    {transactionError || "No transaction confirmation is available yet."}
+                  </Text>
+                )}
+                {transaction && transactionError ? (
+                  <Text style={[styles.compactMessage, { color: "#ef4444" }]}>{transactionError}</Text>
+                ) : null}
+              </View>
+            </>
+          )}
+
+          {booking.status === "confirmed" && isGuest && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>YOUR REVIEW</Text>
+                {!reviewCheck && !reviewError ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : reviewCheck?.hasReviewed ? (
+                  <View style={[styles.reviewedCard, { backgroundColor: colors.muted }]}>
+                    <Feather name="check-circle" size={16} color={colors.primary} />
+                    <Text style={[styles.reviewedText, { color: colors.foreground }]}>
+                      Reviewed {reviewCheck.review ? `(${reviewCheck.review.rating}/5)` : ""}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={styles.starsRow}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Pressable key={star} onPress={() => setRating(star)} hitSlop={6}>
+                          <Feather name="star" size={25} color={star <= rating ? colors.primary : colors.border} />
+                        </Pressable>
+                      ))}
+                    </View>
+                    <TextInput
+                      style={[styles.reviewInput, { color: colors.foreground, borderColor: colors.border }]}
+                      placeholder="Optional comment"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={comment}
+                      onChangeText={setComment}
+                      multiline
+                      maxLength={1000}
+                    />
+                    {reviewError ? <Text style={styles.reviewError}>{reviewError}</Text> : null}
+                    <Pressable
+                      style={[styles.reviewSubmit, { backgroundColor: colors.primary }, submittingReview && { opacity: 0.6 }]}
+                      disabled={submittingReview}
+                      onPress={() => void submitReview()}
+                    >
+                      {submittingReview
+                        ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                        : <Text style={[styles.reviewSubmitText, { color: colors.primaryForeground }]}>Submit review</Text>}
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            </>
+          )}
 
           {/* Specs (from property) */}
           {specs.length > 0 && (
@@ -532,6 +773,105 @@ function getStyles(colors: ReturnType<typeof useColors>) {
     priceValue: {
       fontSize: 20,
       fontFamily: "Outfit_700Bold",
+    },
+    confirmationCard: {
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 12,
+      gap: 10,
+    },
+    confirmationRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    confirmationLabel: {
+      fontSize: 11,
+      fontFamily: "Outfit_600SemiBold",
+      letterSpacing: 0.8,
+    },
+    confirmationValue: {
+      fontSize: 12,
+      fontFamily: "Outfit_500Medium",
+      textTransform: "capitalize",
+      textAlign: "right",
+    },
+    confirmationActions: {
+      gap: 8,
+      marginTop: 2,
+    },
+    confirmPrompt: {
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    confirmChoice: {
+      minHeight: 38,
+      borderWidth: 1,
+      borderRadius: 7,
+      paddingHorizontal: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    confirmChoiceText: {
+      fontSize: 12,
+      fontFamily: "Outfit_500Medium",
+      flex: 1,
+    },
+    confirmWaiting: {
+      fontSize: 12,
+      fontFamily: "Outfit_400Regular",
+      lineHeight: 17,
+    },
+    compactMessage: {
+      fontSize: 12,
+      fontFamily: "Outfit_400Regular",
+    },
+    reviewCard: {
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 12,
+      gap: 10,
+    },
+    starsRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    reviewInput: {
+      minHeight: 68,
+      borderWidth: 1,
+      borderRadius: 7,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      fontSize: 13,
+      fontFamily: "Outfit_400Regular",
+      textAlignVertical: "top",
+    },
+    reviewError: {
+      color: "#ef4444",
+      fontSize: 12,
+      fontFamily: "Outfit_400Regular",
+    },
+    reviewSubmit: {
+      minHeight: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 7,
+    },
+    reviewSubmitText: {
+      fontSize: 13,
+      fontFamily: "Outfit_600SemiBold",
+    },
+    reviewedCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      padding: 12,
+      borderRadius: 8,
+    },
+    reviewedText: {
+      fontSize: 13,
+      fontFamily: "Outfit_500Medium",
     },
     specsRow: {
       flexDirection: "row",

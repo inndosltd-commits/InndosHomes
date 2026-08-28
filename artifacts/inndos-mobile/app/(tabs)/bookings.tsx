@@ -300,7 +300,7 @@ export default function BookingsScreen() {
             return (
               <Pressable
                 style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => router.push((isReceived ? `/property/${item.propertyId}` : `/booking/${item.id}`) as never)}
+                onPress={() => router.push(`/booking/${item.id}` as never)}
               >
                 {imageUrl ? (
                   <Image

@@ -1203,7 +1203,7 @@ export default function AddListing() {
     if (!description.trim()) clientErrors.description = ["Description is required"];
     if (images.length === 0) clientErrors.images = ["Upload at least one photo"];
     if (pendingVideoPaths.size > 0) clientErrors.videos = ["Trim and apply every newly selected video before submitting."];
-    if ((listingType === "rent" || listingType === "bnb") && !effectiveSubtype) {
+    if (listingType && !effectiveSubtype) {
       clientErrors.subtype = ["Please select a property category"];
     }
     // B&B listings use the required daily rate as their default "per night"
@@ -1293,15 +1293,35 @@ export default function AddListing() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string; details?: { fieldErrors?: Record<string, string[]> } };
         if (data.details?.fieldErrors && Object.keys(data.details.fieldErrors).length > 0) {
-          setFieldErrors(data.details.fieldErrors);
-          const firstInvalidField = Object.keys(data.details.fieldErrors)[0];
+          const mappedFieldErrors = Object.entries(data.details.fieldErrors).reduce<Record<string, string[]>>(
+            (mapped, [field, messages]) => {
+              const leaf = field
+                .replace(/\[([^\]]+)\]/g, ".$1")
+                .replace(/^details\./, "")
+                .split(".")
+                .filter(Boolean)
+                .at(-1) ?? field;
+              const target =
+                leaf === "type" ? "listingType" :
+                ["image", "images", "photos", "imageUrl"].includes(leaf) ? "images" :
+                ["video", "videos"].includes(leaf) ? "videos" :
+                ["plotSize", "plotSizeFt"].includes(leaf) ? "plotSizeFt" :
+                ["latitude", "longitude", "lat", "lng"].includes(leaf) ? "location" :
+                leaf;
+              mapped[target] = messages;
+              return mapped;
+            },
+            {},
+          );
+          setFieldErrors(mappedFieldErrors);
+          const firstInvalidField = Object.keys(mappedFieldErrors)[0];
           requestAnimationFrame(() => {
             document.getElementById(firstInvalidField)?.scrollIntoView({ behavior: "smooth", block: "center" });
             document.getElementById(firstInvalidField)?.focus();
           });
           toast({
             title: isEditing ? "Update failed" : "Submission failed",
-            description: "Please fix the highlighted errors below.",
+            description: data.error || "Please fix the highlighted errors below.",
             variant: "destructive",
           });
         } else {

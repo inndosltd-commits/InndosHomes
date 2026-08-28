@@ -1612,7 +1612,7 @@ export default function ListPropertyScreen() {
     if(!form.address.trim()) newErrors.address="Address is required";
     if(!form.description.trim()) newErrors.description="Description is required";
     if(!form.listingType) newErrors.listingType="Select a listing type";
-    if((SUBTYPES[form.listingType] ?? []).length>0 && !form.subtype.trim()) newErrors.subtype="Select a property category";
+    if(form.listingType && !toApiSubtype(form.listingType, form.subtype)) newErrors.subtype="Select a property category";
     if((PRICE_UNITS_BY_TYPE[form.listingType] ?? []).length>0 && !form.priceUnit.trim()) newErrors.priceUnit="Select a price period";
     const photos=media.filter(m=>!m.isVideo);
     const videos=media.filter(m=>m.isVideo);
