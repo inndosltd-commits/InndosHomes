@@ -148,25 +148,27 @@ export default function PropertyDetailScreen() {
 
   const handleShare = async () => {
     if (!id) return;
-    const deepLink = `inndos-mobile://property/${id}`;
+    const shareUrl = `https://inndos.com/#/property/${id}`;
     const title = property?.title ?? "Check out this property";
-    const message = `${title}\n${deepLink}`;
+    const message = `${title}\n${shareUrl}`;
 
     if (isWeb) {
       try {
         if (typeof navigator !== "undefined" && navigator.clipboard) {
-          await navigator.clipboard.writeText(deepLink);
+          await navigator.clipboard.writeText(shareUrl);
           Alert.alert("Link Copied", "Property link copied to clipboard.");
         } else {
-          Alert.alert("Share Link", deepLink);
+          Alert.alert("Share Link", shareUrl);
         }
       } catch {
-        Alert.alert("Share Link", deepLink);
+        Alert.alert("Share Link", shareUrl);
       }
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       try {
-        await Share.share({ message, title, url: deepLink });
+        // Keep the URL in the message only. Passing it in both `message` and
+        // the native `url` field makes iOS and Android share it twice.
+        await Share.share({ message, title });
       } catch {
         // dismissed by user — no action needed
       }

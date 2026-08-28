@@ -391,7 +391,6 @@ export function PropertyLocationMap({ lat, lng, title, address }: PropertyLocati
       await Share.share({
         title,
         message: `${title}\n${mapsUrl}`,
-        url: mapsUrl,
       });
     } catch {
     } finally {

@@ -629,7 +629,10 @@ export default function PropertyDetails() {
   }, [user?.id, token, property?.id]);
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const propertyId = property?.id ?? params?.id;
+    if (!propertyId) return;
+    const shareUrl = `https://inndos.com/#/property/${propertyId}`;
+    navigator.clipboard.writeText(shareUrl);
     toast({ title: "Link Copied", description: "Property link copied to clipboard." });
   };
 
