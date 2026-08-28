@@ -44,19 +44,82 @@ import { PropertyLocationMap } from "@/components/PropertyLocationMap";
 import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const videoPlayerStyles = StyleSheet.create({
+  error: {
+    width: "100%",
+    height: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 24,
+    backgroundColor: "#111111",
+  },
+  errorExpanded: {
+    height: Math.min(Dimensions.get("window").height * 0.72, 680),
+  },
+  errorTitle: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontFamily: "Outfit_700Bold",
+  },
+  errorText: {
+    color: "#d1d5db",
+    fontSize: 13,
+    fontFamily: "Outfit_400Regular",
+    textAlign: "center",
+  },
+});
 
-function PropertyVideo({ source, expanded = false }: { source: string; expanded?: boolean }) {
-  const player = useVideoPlayer(source, (videoPlayer) => {
+function PropertyVideo({
+  source,
+  expanded = false,
+  onPlaybackError,
+}: {
+  source: string;
+  expanded?: boolean;
+  onPlaybackError?: (message: string) => void;
+}) {
+  const [playbackError, setPlaybackError] = useState("");
+  const player = useVideoPlayer({ uri: source, contentType: "progressive" }, (videoPlayer) => {
     videoPlayer.loop = false;
   });
+
+  useEffect(() => {
+    const subscription = player.addListener("statusChange", ({ status, error }) => {
+      if (status !== "error") return;
+      const message = error?.message || "This video could not be played.";
+      try {
+        player.pause();
+      } catch {
+        // Ignore teardown races from the native player.
+      }
+      setPlaybackError(message);
+      onPlaybackError?.(message);
+    });
+    return () => subscription.remove();
+  }, [onPlaybackError, player]);
 
   useFocusEffect(
     useCallback(() => {
       return () => {
-        player.pause();
+        try {
+          player.pause();
+        } catch {
+          // The native player may already be releasing while a modal closes.
+        }
       };
     }, [player]),
   );
+
+  if (playbackError) {
+    return (
+      <View style={[videoPlayerStyles.error, expanded && videoPlayerStyles.errorExpanded]}>
+        <Feather name="alert-circle" size={30} color="#fff" />
+        <Text style={videoPlayerStyles.errorTitle}>Video unavailable</Text>
+        <Text style={videoPlayerStyles.errorText}>Please close the player and try again.</Text>
+      </View>
+    );
+  }
 
   return (
     <VideoView
@@ -68,7 +131,7 @@ function PropertyVideo({ source, expanded = false }: { source: string; expanded?
       }}
       nativeControls
       allowsFullscreen
-      allowsPictureInPicture
+      allowsPictureInPicture={false}
       contentFit="cover"
     />
   );
@@ -114,6 +177,7 @@ export default function PropertyDetailScreen() {
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [videoModalSource, setVideoModalSource] = useState<string | null>(null);
+  const [videoPlaybackError, setVideoPlaybackError] = useState("");
   const carouselRef = useRef<FlatList>(null);
   const lightboxRef = useRef<FlatList>(null);
   const lightboxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,6 +327,11 @@ export default function PropertyDetailScreen() {
     if (lightboxTimerRef.current) clearTimeout(lightboxTimerRef.current);
   }, []);
 
+  const closeVideo = useCallback(() => {
+    setVideoModalSource(null);
+    setVideoPlaybackError("");
+  }, []);
+
   const openLightbox = (index: number) => {
     const safeIndex = Math.max(0, Math.min(index, allPhotos.length - 1));
     if (!allPhotos[safeIndex]) return;
@@ -337,14 +406,14 @@ export default function PropertyDetailScreen() {
         visible={Boolean(videoModalSource)}
         transparent
         animationType="fade"
-        onRequestClose={() => setVideoModalSource(null)}
+        onRequestClose={closeVideo}
       >
         <View style={styles.videoModalBackdrop}>
           <View style={styles.videoModalHeader}>
             <Text style={styles.videoModalTitle} numberOfLines={1}>{property.title}</Text>
             <Pressable
               style={styles.videoModalClose}
-              onPress={() => setVideoModalSource(null)}
+              onPress={closeVideo}
               accessibilityRole="button"
               accessibilityLabel="Close video"
             >
@@ -353,10 +422,16 @@ export default function PropertyDetailScreen() {
           </View>
           {videoModalSource ? (
             <View key={videoModalSource} style={styles.videoModalPlayer}>
-              <PropertyVideo source={videoModalSource} expanded />
+              <PropertyVideo
+                source={videoModalSource}
+                expanded
+                onPlaybackError={setVideoPlaybackError}
+              />
             </View>
           ) : null}
-          <Text style={styles.videoModalHint}>Use the player controls to enlarge, pause, or seek.</Text>
+          <Text style={styles.videoModalHint}>
+            {videoPlaybackError ? "Close the player and try again." : "Use the player controls to enlarge, pause, or seek."}
+          </Text>
         </View>
       </Modal>
 
@@ -450,7 +525,14 @@ export default function PropertyDetailScreen() {
               renderItem={({ item }) => (
                 <Pressable
                   style={{ width: SCREEN_WIDTH, height: 320 }}
-                  onPress={() => item.type === "photo" ? openLightbox(item.photoIndex) : setVideoModalSource(item.uri)}
+                  onPress={() => {
+                    if (item.type === "photo") {
+                      openLightbox(item.photoIndex);
+                    } else {
+                      setVideoPlaybackError("");
+                      setVideoModalSource(item.uri);
+                    }
+                  }}
                 >
                   {item.type === "photo" ? (
                     <Image

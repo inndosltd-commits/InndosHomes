@@ -480,6 +480,8 @@ export default function AddListing() {
   const { token, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProperty, setIsLoadingProperty] = useState(false);
+  const [loadedEditId, setLoadedEditId] = useState<string | null>(null);
+  const [editLoadError, setEditLoadError] = useState("");
   const [uploadingCount, setUploadingCount] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [images, setImages] = useState<string[]>([]);
@@ -830,8 +832,11 @@ export default function AddListing() {
   useEffect(() => {
     if (!editId || !token) return;
     setIsLoadingProperty(true);
+    setLoadedEditId(null);
+    setEditLoadError("");
     fetch(`/api/properties/${editId}`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
     })
       .then(res => {
         if (!res.ok) throw new Error("Property not found");
@@ -840,6 +845,7 @@ export default function AddListing() {
       .then((prop: {
         title: string; type: string; price: number; address: string;
         beds: number; baths: number; sqft: number; totalUnits?: number;
+        lat?: string | number | null; lng?: string | number | null;
         image?: string; images?: string[]; videos?: string[];
         description?: string; tags?: string[]; subtype?: string;
         hourlyRate?: number; priceUnit?: string;
@@ -851,13 +857,36 @@ export default function AddListing() {
           utilities?: string[]; surrounding?: string[]; zoning?: string[];
         } };
       }) => {
+        setImages([]);
+        setVideos([]);
+        setPendingVideoPaths(new Set());
+        setSelectedAmenities([]);
+        setBeds("");
+        setBaths("");
+        setSqft("");
+        setAcres("");
+        setPlotSizeFt("");
+        setSoilType("");
+        setSurveyMaps("");
+        setTitleDeed("");
+        setLegalRates("");
+        setLegalEncumbrances("");
+        setPaymentPlan("");
+        setPricePerUnit("");
+        setHourlyRate("");
+        setPriceUnit("");
+        setPinPosition(null);
+        setDraftPin(null);
+        setIsLocationPinned(false);
         setTitle(prop.title ?? "");
-        // Reconstruct frontend listing type from API type + subtype for sale properties
+        // Reconstruct the exact frontend category from the API type + subtype.
         let frontendType = prop.type ?? "";
         if (frontendType === "sale" && prop.subtype) {
           if (prop.subtype === "apartment") frontendType = "sale-apartment";
           else if (prop.subtype === "home") frontendType = "sale-home";
-          else if (prop.subtype === "land") frontendType = "sale-land";
+          else if (prop.subtype === "land" || prop.subtype === "plot") frontendType = "sale-land";
+        } else if (frontendType === "rent" && ["business", "office", "godown", "stall", "shop"].includes(prop.subtype ?? "")) {
+          frontendType = `rent-${prop.subtype === "office" ? "business" : prop.subtype}`;
         }
         setListingType(frontendType);
         setPrice(prop.price != null ? String(prop.price) : "");
@@ -877,6 +906,23 @@ export default function AddListing() {
         if (prop.subtype) setSubtype(prop.subtype);
         if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
         if (prop.priceUnit) setPriceUnit(prop.priceUnit);
+        const hasCoordinates =
+          prop.lat !== null && prop.lat !== undefined && String(prop.lat).trim() !== "" &&
+          prop.lng !== null && prop.lng !== undefined && String(prop.lng).trim() !== "";
+        const lat = hasCoordinates ? Number(prop.lat) : Number.NaN;
+        const lng = hasCoordinates ? Number(prop.lng) : Number.NaN;
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const position = { lat, lng };
+          setPinPosition(position);
+          setDraftPin(position);
+          setMapCenter(position);
+          setSearchQuery(prop.address ?? `${lat}, ${lng}`);
+          setDraftAddress(prop.address ?? "");
+          setIsLocationPinned(true);
+        } else {
+          setSearchQuery(prop.address ?? "");
+          setDraftAddress(prop.address ?? "");
+        }
 
         // ── Restore land fields: prefer structured details.land, fall back to legacy beds/sqft ──
         const isLandProp = (frontendType === "land" || frontendType === "sale-land");
@@ -910,8 +956,10 @@ export default function AddListing() {
           setBaths(prop.baths != null ? String(prop.baths) : "");
           setSqft(prop.sqft != null ? String(prop.sqft) : "");
         }
+        setLoadedEditId(editId);
       })
       .catch(() => {
+        setEditLoadError("The property could not be fetched for editing.");
         toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
       })
       .finally(() => setIsLoadingProperty(false));
@@ -1281,12 +1329,26 @@ export default function AddListing() {
     }
   };
 
-  if (isLoadingProperty) {
+  if (isEditing && (isLoadingProperty || (!editLoadError && loadedEditId !== editId))) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="container mx-auto px-4 py-8 flex items-center justify-center">
           <p className="text-muted-foreground">Loading property details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditing && editLoadError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center gap-4 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <p className="font-semibold">Listing unavailable</p>
+          <p className="text-sm text-muted-foreground">{editLoadError}</p>
+          <Button onClick={() => setLocation("/dashboard")}>Back to My Listings</Button>
         </div>
       </div>
     );

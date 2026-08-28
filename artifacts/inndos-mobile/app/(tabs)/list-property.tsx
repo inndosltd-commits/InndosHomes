@@ -475,7 +475,7 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
 
 function ListingVideoPreview({ source }: { source: string }) {
-  const player = useVideoPlayer(source, (videoPlayer) => {
+  const player = useVideoPlayer({ uri: source, contentType: "progressive" }, (videoPlayer) => {
     videoPlayer.loop = false;
   });
 
@@ -485,7 +485,7 @@ function ListingVideoPreview({ source }: { source: string }) {
       style={mediaPreviewS.video}
       nativeControls
       allowsFullscreen
-      allowsPictureInPicture
+      allowsPictureInPicture={false}
       contentFit="cover"
       surfaceType="textureView"
     />
@@ -823,7 +823,7 @@ export default function ListPropertyScreen() {
   const [videoLimit, setVideoLimit] = useState(0);
   const [mediaLimitsLoaded, setMediaLimitsLoaded] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [editFormLoaded, setEditFormLoaded] = useState(false);
+  const [loadedEditId, setLoadedEditId] = useState<string | null>(null);
   // "server" = draft is saved on account, "local" = device-only, null = none
   const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
   const pickerAddressRef = useRef<string|null>(null);
@@ -858,11 +858,12 @@ export default function ListPropertyScreen() {
     query: {
       enabled: Boolean(user && editId),
       queryKey: [...getGetPropertyQueryKey(editId ?? ""), user?.id ?? "signed-out"],
+      refetchOnMount: "always",
     },
   });
 
   useEffect(() => {
-    if (!isEditing || !propertyToEdit || editFormLoaded) return;
+    if (!editId || !propertyToEdit) return;
     const subtype = normalizeSubtype(propertyToEdit.subtype);
     const listingType = toFormListingType(propertyToEdit.type, subtype);
     const land = asRecord(asRecord(propertyToEdit.details).land);
@@ -873,7 +874,7 @@ export default function ListPropertyScreen() {
     ].filter((item): item is string => typeof item === "string");
     const imagePaths = (propertyToEdit.images?.length
       ? propertyToEdit.images
-      : propertyToEdit.image?.startsWith("/objects/")
+      : typeof propertyToEdit.image === "string" && propertyToEdit.image.length > 0
         ? [propertyToEdit.image]
         : []
     ).filter((path): path is string => typeof path === "string" && path.length > 0);
@@ -931,8 +932,9 @@ export default function ListPropertyScreen() {
         requiresTrim: false,
       })),
     ]);
-    setEditFormLoaded(true);
-  }, [editFormLoaded, isEditing, propertyToEdit]);
+    setErrors({});
+    setLoadedEditId(editId);
+  }, [editId, propertyToEdit]);
 
   // Load plan limits
   useEffect(()=>{
@@ -1237,22 +1239,6 @@ export default function ListPropertyScreen() {
     );
   }
 
-  if (isEditing && (isLoadingProperty || !editFormLoaded)) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Edit Listing</Text>
-        </View>
-        <View style={styles.guestContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
-            Loading your listing…
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   if (isEditing && editPropertyError) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1271,6 +1257,22 @@ export default function ListPropertyScreen() {
           >
             <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Back to My Listings</Text>
           </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (isEditing && (isLoadingProperty || loadedEditId !== editId)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { paddingTop: topPadding + 16 }]}>
+          <Text style={[styles.title, { color: colors.foreground }]}>Edit Listing</Text>
+        </View>
+        <View style={styles.guestContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.guestSubtitle, { color: colors.mutedForeground }]}>
+            Loading your listing…
+          </Text>
         </View>
       </View>
     );

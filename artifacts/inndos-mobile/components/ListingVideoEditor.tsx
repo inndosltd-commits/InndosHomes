@@ -59,7 +59,7 @@ export function ListingVideoEditor({
   const [cropAspect, setCropAspect] = useState<VideoCropAspect>("original");
   const [caption, setCaption] = useState("");
   const [captionPosition, setCaptionPosition] = useState<CaptionPosition>("bottom");
-  const player = useVideoPlayer(source, (videoPlayer) => {
+  const player = useVideoPlayer({ uri: source, contentType: "progressive" }, (videoPlayer) => {
     videoPlayer.loop = true;
   });
 
@@ -104,6 +104,7 @@ export function ListingVideoEditor({
                 style={previewStyle}
                 nativeControls
                 allowsFullscreen
+                allowsPictureInPicture={false}
                 contentFit="cover"
                 surfaceType="textureView"
               />
