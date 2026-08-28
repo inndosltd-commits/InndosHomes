@@ -192,6 +192,24 @@ function normalizeSubtype(value: string | null | undefined): string {
   return normalizePropertySubtype(value) ?? "";
 }
 
+function resolveListingSubtype(body: Record<string, unknown>): string {
+  const explicitSubtype = normalizeSubtype(
+    typeof body.subtype === "string" ? body.subtype : undefined,
+  );
+  if (explicitSubtype) return explicitSubtype;
+
+  const details = body.details && typeof body.details === "object" && !Array.isArray(body.details)
+    ? body.details as Record<string, unknown>
+    : {};
+  const hasLandDetails = details.land !== null
+    && typeof details.land === "object"
+    && !Array.isArray(details.land);
+
+  // Older native builds identify land through details.land but omit subtype.
+  // Preserve compatibility while persisting the canonical sale/land category.
+  return String(body.type ?? "") === "sale" && hasLandDetails ? "land" : "";
+}
+
 /**
  * Keep the required listing fields enforced at the write boundary. Clients
  * provide inline guidance, but direct API calls must not be able to publish
@@ -200,7 +218,7 @@ function normalizeSubtype(value: string | null | undefined): string {
 function getListingCompletenessErrors(body: Record<string, unknown>, imageList: string[]): Record<string, string[]> {
   const errors: Record<string, string[]> = {};
   const type = String(body.type ?? "");
-  const subtype = normalizeSubtype(typeof body.subtype === "string" ? body.subtype : undefined);
+  const subtype = resolveListingSubtype(body);
   const priceUnit = String(body.priceUnit ?? "").trim();
 
   if (imageList.length === 0) errors.images = ["At least one property photo is required."];
@@ -1387,9 +1405,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const normalizedSubtype = typeof body.subtype === "string"
-    ? normalizeSubtype(body.subtype)
-    : undefined;
+  const normalizedSubtype = resolveListingSubtype(body) || undefined;
   const commercialSpecs = isCommercialSubtype(normalizedSubtype);
   const result = insertPropertySchema.safeParse({
     ...body,
@@ -1588,7 +1604,7 @@ router.patch("/:id", async (req, res) => {
 
   const patchBody = {
     ...body,
-    ...(typeof body.subtype === "string" ? { subtype: normalizeSubtype(body.subtype) } : {}),
+    ...(resolveListingSubtype(body) ? { subtype: resolveListingSubtype(body) } : {}),
     ...(imageList !== undefined ? { images: imageList, image: imageList[0] || body.image || "/images/modern_apartment_exterior.png" } : {}),
     ...(normalizedVideoList !== undefined ? { videos: normalizedVideoList, videoPosters } : {}),
   };

@@ -1098,6 +1098,7 @@ export default function ListPropertyScreen() {
     const fieldErrors = asRecord(rawFieldErrors);
     const fieldErrorEntries = Object.entries(fieldErrors);
     let hasMappedErrors = false;
+    let mappedErrorsForScroll: Partial<Record<ErrorField, string>> = {};
     if (fieldErrorEntries.length > 0) {
       const mappedErrors: Partial<Record<ErrorField, string>> = {};
       fieldErrorEntries.forEach(([field, messages]) => {
@@ -1124,8 +1125,8 @@ export default function ListPropertyScreen() {
       });
       hasMappedErrors = Object.keys(mappedErrors).length > 0;
       if (hasMappedErrors) {
+        mappedErrorsForScroll = mappedErrors;
         setErrors(mappedErrors);
-        scrollToFirstError(mappedErrors);
       }
     }
     const message =
@@ -1136,7 +1137,13 @@ export default function ListPropertyScreen() {
           : fallback;
     Alert.alert(
       hasMappedErrors ? "Please fix the highlighted fields" : "Could not save listing",
-      hasMappedErrors ? "Review the red field messages, then submit again." : message,
+      hasMappedErrors ? `${message}\n\nThe affected field is outlined in red.` : message,
+      [{
+        text: "OK",
+        onPress: hasMappedErrors
+          ? () => scrollToFirstError(mappedErrorsForScroll)
+          : undefined,
+      }],
     );
   }, [scrollToFirstError]);
 
@@ -1947,17 +1954,20 @@ export default function ListPropertyScreen() {
 
           {/* Land-specific fields */}
           {isLand && (
-            <View style={[styles.landBox,{backgroundColor:colors.muted,borderColor:colors.border}]}>
+            <View
+              style={[styles.landBox,{backgroundColor:colors.muted,borderColor:colors.border}]}
+              onLayout={registerFieldsPosition("acres", "plotSizeFt")}
+            >
               <Text style={[styles.landSectionTitle,{color:colors.foreground}]}>Size of Land</Text>
               <View style={styles.row}>
-                <View style={{flex:1}} onLayout={registerFieldPosition("acres")}>
+                <View style={{flex:1}}>
                   <Field label="Acres (optional if plot size is entered)" error={errors.acres} colors={colors}>
                     <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.acres?colors.destructive:colors.border,backgroundColor:colors.card}]}
                       placeholder="e.g. 0.5" placeholderTextColor={colors.mutedForeground}
                       value={form.acres} onChangeText={v=>setField("acres",v)} keyboardType="decimal-pad" returnKeyType="next"/>
                   </Field>
                 </View>
-                <View style={{flex:1}} onLayout={registerFieldPosition("plotSizeFt")}>
+                <View style={{flex:1}}>
                   <Field
                     label="Plot size (optional if acres is entered)"
                     error={errors.plotSizeFt}
