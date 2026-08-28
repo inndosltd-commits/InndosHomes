@@ -470,6 +470,7 @@ interface MediaItem {
 }
 
 const VIDEO_MAX_DURATION_MS = 300000; // 5 minutes
+const FINAL_VIDEO_MAX_DURATION_SECONDS = 60;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
 
@@ -527,7 +528,7 @@ interface FormState {
   paymentPlan: string;
   pricePerUnit: string;
 }
-type ErrorField = keyof FormState | "imageUrl" | "location";
+type ErrorField = keyof FormState | "imageUrl" | "video" | "location";
 
 const EMPTY_FORM: FormState = {
   title:"", listingType:"rent", subtype:"", price:"", priceUnit:"", hourlyRate:"",
@@ -714,17 +715,17 @@ const secS = StyleSheet.create({
 });
 
 function Field({label, error, colors, hint, children, onLayout}: {label:string; error?:string; colors:ReturnType<typeof useColors>; hint?:string; children:React.ReactNode; onLayout?:(event:LayoutChangeEvent)=>void}) {
-  const highlightIosError = Platform.OS === "ios" && Boolean(error);
+  const highlightError = Boolean(error);
   return (
     <View
       style={[
         fieldS.wrapper,
-        highlightIosError ? fieldS.iosErrorWrapper : undefined,
-        highlightIosError ? {borderColor:colors.destructive} : undefined,
+        highlightError ? fieldS.errorWrapper : undefined,
+        highlightError ? {borderColor:colors.destructive} : undefined,
       ]}
       onLayout={onLayout}
     >
-      <Text style={[fieldS.label,{color:highlightIosError?colors.destructive:colors.foreground}]}>{label}</Text>
+      <Text style={[fieldS.label,{color:highlightError?colors.destructive:colors.foreground}]}>{label}</Text>
       {children}
       {hint ? <Text style={[fieldS.hint,{color:colors.mutedForeground}]}>{hint}</Text> : null}
       {error ? <Text style={[fieldS.error,{color:colors.destructive}]}>{error}</Text> : null}
@@ -733,7 +734,7 @@ function Field({label, error, colors, hint, children, onLayout}: {label:string; 
 }
 const fieldS = StyleSheet.create({
   wrapper:{gap:6},
-  iosErrorWrapper:{borderWidth:2,borderRadius:10,padding:8},
+  errorWrapper:{borderWidth:2,borderRadius:10,padding:8},
   label:{fontSize:13, fontFamily:"Outfit_500Medium"},
   hint:{fontSize:11, fontFamily:"Outfit_400Regular"},
   error:{fontSize:12, fontFamily:"Outfit_400Regular"},
@@ -839,9 +840,10 @@ export default function ListPropertyScreen() {
   };
 
   const scrollToFirstError = useCallback((fieldErrors: Partial<Record<ErrorField, string>>) => {
-    const firstField = (Object.keys(fieldErrors) as ErrorField[])[0];
-    if (!firstField) return;
-    const target = firstField === "lat" || firstField === "lng" ? "location" : firstField;
+    const target = (Object.keys(fieldErrors) as ErrorField[])
+      .map((field) => field === "lat" || field === "lng" ? "location" : field)
+      .find((field) => fieldPositions.current[field] !== undefined);
+    if (!target) return;
     const y = fieldPositions.current[target];
     if (y !== undefined) {
       requestAnimationFrame(() => formScrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }));
@@ -1084,30 +1086,45 @@ export default function ListPropertyScreen() {
             ?? (error as { body?: unknown }).body
           )
         : undefined;
-    const responseError =
-      typeof errorData === "object" && errorData !== null
-        ? (errorData as { error?: unknown }).error
-        : undefined;
-    const fieldErrors =
-      typeof errorData === "object" && errorData !== null
-        ? (errorData as { details?: { fieldErrors?: Record<string, string[]> } }).details?.fieldErrors
-        : undefined;
-    if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+    const errorRecord = asRecord(errorData);
+    const rootErrorRecord = asRecord(error);
+    const responseError = errorRecord.error ?? rootErrorRecord.message;
+    const rawFieldErrors =
+      asRecord(errorRecord.details).fieldErrors
+      ?? errorRecord.fieldErrors
+      ?? asRecord(rootErrorRecord.details).fieldErrors;
+    const fieldErrors = asRecord(rawFieldErrors);
+    const fieldErrorEntries = Object.entries(fieldErrors);
+    let hasMappedErrors = false;
+    if (fieldErrorEntries.length > 0) {
       const mappedErrors: Partial<Record<ErrorField, string>> = {};
-      Object.entries(fieldErrors).forEach(([field, messages]) => {
+      fieldErrorEntries.forEach(([field, messages]) => {
+        const normalizedField = field
+          .replace(/\[([^\]]+)\]/g, ".$1")
+          .replace(/^details\./, "");
+        const leafField = normalizedField.split(".").filter(Boolean).at(-1) ?? normalizedField;
         const target =
-          field === "image" || field === "images" || field === "photos" ? "imageUrl" :
-          field === "type" ? "listingType" :
-          field === "location" || field === "latitude" || field === "longitude" ? "location" :
-          field === "plotSize" || field === "details.land.plotSizeFt" ? "plotSizeFt" :
-          field === "details.land.acres" ? "acres" :
-          field;
-        if (target in EMPTY_FORM || target === "imageUrl" || target === "location") {
-          mappedErrors[target as ErrorField] = messages[0] ?? "Please correct this field";
+          ["image", "images", "photos", "imageUrl"].includes(leafField) ? "imageUrl" :
+          ["video", "videos"].includes(leafField) ? "video" :
+          leafField === "type" ? "listingType" :
+          ["location", "latitude", "longitude"].includes(leafField) ? "location" :
+          ["plotSize", "plotSizeFt"].includes(leafField) ? "plotSizeFt" :
+          leafField === "acres" ? "acres" :
+          leafField;
+        if (target in EMPTY_FORM || target === "imageUrl" || target === "video" || target === "location") {
+          const message = Array.isArray(messages)
+            ? String(messages[0] ?? "Please correct this field")
+            : typeof messages === "string"
+              ? messages
+              : "Please correct this field";
+          mappedErrors[target as ErrorField] = message;
         }
       });
-      setErrors(mappedErrors);
-      scrollToFirstError(mappedErrors);
+      hasMappedErrors = Object.keys(mappedErrors).length > 0;
+      if (hasMappedErrors) {
+        setErrors(mappedErrors);
+        scrollToFirstError(mappedErrors);
+      }
     }
     const message =
       typeof responseError === "string"
@@ -1116,8 +1133,8 @@ export default function ListPropertyScreen() {
           ? error.message
           : fallback;
     Alert.alert(
-      fieldErrors && Object.keys(fieldErrors).length > 0 ? "Please fix the highlighted fields" : "Could not save listing",
-      fieldErrors && Object.keys(fieldErrors).length > 0 ? "Review the errors in the form, then submit again." : message,
+      hasMappedErrors ? "Please fix the highlighted fields" : "Could not save listing",
+      hasMappedErrors ? "Review the red field messages, then submit again." : message,
     );
   }, [scrollToFirstError]);
 
@@ -1507,7 +1524,13 @@ export default function ListPropertyScreen() {
       mediaTypes:ImagePicker.MediaTypeOptions.Videos,
       videoMaxDuration:VIDEO_MAX_DURATION_MS/1000,
     });
-    if(!result.canceled) await addPickerAssets(result.assets,true);
+    if(result.canceled) return;
+    const tooLong = result.assets.some(a=>typeof a.duration==="number" && a.duration>VIDEO_MAX_DURATION_MS);
+    if(tooLong){
+      Alert.alert("Video too long","Videos must be 5 minutes or shorter.");
+      return;
+    }
+    await addPickerAssets(result.assets,true);
   };
 
   const removeMedia = (index:number)=>setMedia(prev=>prev.filter((_,i)=>i!==index));
@@ -1540,6 +1563,9 @@ export default function ListPropertyScreen() {
       if (!response.ok || !data.objectPath) {
         throw new Error(data.error ?? "The video edit could not be saved.");
       }
+      if (typeof data.duration === "number" && data.duration > FINAL_VIDEO_MAX_DURATION_SECONDS) {
+        throw new Error("The saved video must be 1 minute or shorter.");
+      }
       const base = getApiBaseUrl();
       setMedia((previous) => previous.map((entry, index) => index === editingVideoIndex
         ? {
@@ -1553,6 +1579,11 @@ export default function ListPropertyScreen() {
           }
         : entry,
       ));
+      setErrors((previous) => {
+        const next = {...previous};
+        delete next.video;
+        return next;
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEditingVideoIndex(null);
     } catch (error) {
@@ -1582,9 +1613,14 @@ export default function ListPropertyScreen() {
     if((SUBTYPES[form.listingType] ?? []).length>0 && !form.subtype.trim()) newErrors.subtype="Select a property category";
     if((PRICE_UNITS_BY_TYPE[form.listingType] ?? []).length>0 && !form.priceUnit.trim()) newErrors.priceUnit="Select a price period";
     const photos=media.filter(m=>!m.isVideo);
+    const videos=media.filter(m=>m.isVideo);
     if(photos.length===0) newErrors.imageUrl="At least one photo is required";
-    else if(media.some(m=>m.uploaded===null)) newErrors.imageUrl="Wait for media to finish uploading";
-    else if(media.some(m=>m.isVideo&&m.requiresTrim)) newErrors.imageUrl="Trim and apply every newly selected video before submitting";
+    else if(photos.some(m=>m.uploaded===null)) newErrors.imageUrl="Wait for photos to finish uploading";
+    else if(mediaLimitsLoaded && photos.length>imageLimit) newErrors.imageUrl=`Your plan allows up to ${imageLimit} photo(s)`;
+    if(videos.some(m=>m.uploaded===null)) newErrors.video="Wait for videos to finish uploading";
+    else if(videos.some(m=>m.requiresTrim)) newErrors.video="Trim and apply every newly selected video before submitting";
+    else if(videos.some(m=>typeof m.durationSeconds==="number" && m.durationSeconds>FINAL_VIDEO_MAX_DURATION_SECONDS)) newErrors.video="Final videos must be 1 minute or shorter";
+    else if(mediaLimitsLoaded && videos.length>videoLimit) newErrors.video=`Your plan allows up to ${videoLimit} video(s)`;
     const price=parseFloat(form.price);
     if(!form.price.trim()||isNaN(price)||price<=0) newErrors.price="Enter a valid price";
     if(isLandType(form.listingType)){
@@ -1608,9 +1644,6 @@ export default function ListPropertyScreen() {
       const lngVal=parseFloat(form.lng);
       if(isNaN(lngVal)||lngVal<-180||lngVal>180) newErrors.lng="Longitude must be -180 to 180";
     }
-    if(!form.lat.trim() || !form.lng.trim()){
-      newErrors.location="Please set an exact location pin";
-    }
     setErrors(newErrors);
     scrollToFirstError(newErrors);
     return Object.keys(newErrors).length===0;
@@ -1621,6 +1654,13 @@ export default function ListPropertyScreen() {
     if(isProcessingVideo){Alert.alert("Video processing","Wait for the video trim to finish.");return;}
     if(media.some(m=>m.isVideo&&m.requiresTrim)){
       Alert.alert("Trim required","Open each newly selected video and save its trim before submitting.");
+      return;
+    }
+    if(media.some(m=>m.isVideo&&typeof m.durationSeconds==="number"&&m.durationSeconds>FINAL_VIDEO_MAX_DURATION_SECONDS)){
+      const videoError: Partial<Record<ErrorField,string>> = {video:"Final videos must be 1 minute or shorter"};
+      setErrors(videoError);
+      scrollToFirstError(videoError);
+      Alert.alert("Video too long","Edit every video to 1 minute or shorter before submitting.");
       return;
     }
     if(!validate()){
@@ -1907,15 +1947,15 @@ export default function ListPropertyScreen() {
           {isLand && (
             <View style={[styles.landBox,{backgroundColor:colors.muted,borderColor:colors.border}]}>
               <Text style={[styles.landSectionTitle,{color:colors.foreground}]}>Size of Land</Text>
-              <View style={styles.row} onLayout={registerFieldsPosition("acres", "plotSizeFt")}>
-                <View style={{flex:1}}>
+              <View style={styles.row}>
+                <View style={{flex:1}} onLayout={registerFieldPosition("acres")}>
                   <Field label="Acres (optional if plot size is entered)" error={errors.acres} colors={colors}>
                     <TextInput style={[styles.input,{color:colors.foreground,borderColor:errors.acres?colors.destructive:colors.border,backgroundColor:colors.card}]}
                       placeholder="e.g. 0.5" placeholderTextColor={colors.mutedForeground}
                       value={form.acres} onChangeText={v=>setField("acres",v)} keyboardType="decimal-pad" returnKeyType="next"/>
                   </Field>
                 </View>
-                <View style={{flex:1}}>
+                <View style={{flex:1}} onLayout={registerFieldPosition("plotSizeFt")}>
                   <Field
                     label="Plot size (optional if acres is entered)"
                     error={errors.plotSizeFt}
@@ -2139,6 +2179,10 @@ export default function ListPropertyScreen() {
           </View>
 
           {/* ── Videos ── */}
+          <View
+            onLayout={registerFieldPosition("video")}
+            style={errors.video ? {borderWidth:2,borderColor:colors.destructive,borderRadius:10,padding:8} : undefined}
+          >
           <SectionLabel text={`Videos (${videoMedia.length}/${videoLimit})`} colors={colors}/>
           {!mediaLimitsLoaded ? (
             <View style={[{backgroundColor:colors.muted,borderColor:colors.border,borderWidth:1,borderRadius:8,padding:12,flexDirection:"row",alignItems:"center",gap:8}]}>
@@ -2158,12 +2202,12 @@ export default function ListPropertyScreen() {
             <>
               <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.mutedForeground,marginTop:-8}}>Max 5 minutes per source · apply an explicit trim (max 1 minute) · {videoMedia.length}/{videoLimit} used</Text>
               <View style={{flexDirection:"row",gap:8}}>
-                <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:currentVideoCount>=videoLimit||isUploading?0.5:1}]}
+                <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:errors.video?colors.destructive:colors.border,opacity:currentVideoCount>=videoLimit||isUploading?0.5:1}]}
                   onPress={pickVideoFromLibrary} disabled={isUploading||currentVideoCount>=videoLimit}>
                   <Feather name="video" size={18} color={colors.foreground}/>
                   <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Video Library</Text>
                 </Pressable>
-                <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:colors.border,opacity:currentVideoCount>=videoLimit||isUploading?0.5:1}]}
+                <Pressable style={[styles.mediaPickerBtn,{backgroundColor:colors.muted,borderColor:errors.video?colors.destructive:colors.border,opacity:currentVideoCount>=videoLimit||isUploading?0.5:1}]}
                   onPress={recordVideo} disabled={isUploading||currentVideoCount>=videoLimit}>
                   <Feather name="aperture" size={18} color={colors.foreground}/>
                   <Text style={[styles.mediaPickerText,{color:colors.foreground}]}>Record</Text>
@@ -2206,8 +2250,10 @@ export default function ListPropertyScreen() {
                   })}
                 </View>
               )}
+              {errors.video ? <Text style={{fontSize:12,fontFamily:"Outfit_400Regular",color:colors.destructive}}>{errors.video}</Text> : null}
             </>
           )}
+          </View>
 
           {/* ── Location ── */}
           <View onLayout={registerFieldPosition("location")} style={[errors.location || errors.lat || errors.lng ? {borderWidth:1,borderColor:colors.destructive,borderRadius:8,padding:8} : undefined]}>
