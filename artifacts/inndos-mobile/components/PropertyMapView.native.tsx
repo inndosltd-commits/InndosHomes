@@ -54,6 +54,14 @@ const DEFAULT_REGION: Region = {
 };
 
 function isValidCoordinate(lat: unknown, lng: unknown): lat is string {
+  if (
+    lat === null ||
+    lat === undefined ||
+    String(lat).trim() === "" ||
+    lng === null ||
+    lng === undefined ||
+    String(lng).trim() === ""
+  ) return false;
   const latitude = Number(lat);
   const longitude = Number(lng);
   return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;

@@ -802,12 +802,23 @@ export default function BrowseScreen() {
   useEffect(() => {
     if (!debouncedSearch.trim()) return;
     const mappable = filteredProperties
+      .filter((property) =>
+        property.lat !== null &&
+        property.lat !== undefined &&
+        String(property.lat).trim() !== "" &&
+        property.lng !== null &&
+        property.lng !== undefined &&
+        String(property.lng).trim() !== ""
+      )
       .map((property) => ({
         latitude: Number(property.lat),
         longitude: Number(property.lng),
       }))
       .filter(({ latitude, longitude }) =>
-        Number.isFinite(latitude) && Number.isFinite(longitude)
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude) &&
+        Math.abs(latitude) <= 90 &&
+        Math.abs(longitude) <= 180
       );
     if (mappable.length === 0) return;
     if (mappable.length === 1) {

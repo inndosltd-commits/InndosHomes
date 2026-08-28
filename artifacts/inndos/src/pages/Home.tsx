@@ -265,12 +265,21 @@ export default function Home() {
       (property.ownerBusinessName ?? "").toLowerCase().includes(query)
     );
     const mappable = nameMatches
-      .map((property) => ({
-        property,
-        lat: Number(property.lat),
-        lng: Number(property.lng),
-      }))
-      .filter(({ lat, lng }) => Number.isFinite(lat) && Number.isFinite(lng));
+      .filter((property) =>
+        property.lat !== null &&
+        property.lat !== undefined &&
+        String(property.lat).trim() !== "" &&
+        property.lng !== null &&
+        property.lng !== undefined &&
+        String(property.lng).trim() !== ""
+      )
+      .map((property) => ({ lat: Number(property.lat), lng: Number(property.lng) }))
+      .filter(({ lat, lng }) =>
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        Math.abs(lat) <= 90 &&
+        Math.abs(lng) <= 180
+      );
     if (mappable.length === 1) {
       map.panTo({ lat: mappable[0].lat, lng: mappable[0].lng });
       map.setZoom(15);
