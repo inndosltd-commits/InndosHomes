@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -105,6 +106,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
   const [mapReady, setMapReady] = useState(false);
   const [mapTimedOut, setMapTimedOut] = useState(false);
   const [mapRetryKey, setMapRetryKey] = useState(0);
+  const [trackMarkerChanges, setTrackMarkerChanges] = useState(Platform.OS === "android");
   const googleMapsConfigured = Constants.expoConfig?.extra?.googleMapsConfigured !== false;
 
   useEffect(() => {
@@ -126,11 +128,26 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
   );
 
   useEffect(() => {
+    if (Platform.OS !== "android" || mappableProperties.length === 0) return;
+    // Android can snapshot a custom marker before its local image is painted.
+    // Track briefly after each result-set change, then stop for map performance.
+    setTrackMarkerChanges(true);
+    const timeout = setTimeout(() => setTrackMarkerChanges(false), 1200);
+    return () => clearTimeout(timeout);
+  }, [mappableProperties]);
+
+  useEffect(() => {
     if (!focusRegion || !mapReady || !isValidRegion(focusRegion)) return;
-    mapRef.current?.animateToRegion(focusRegion, 700);
+    // Android's onMapReady can fire before the map has completed its first
+    // layout. A short delay prevents its initial camera update being dropped.
+    const timeout = setTimeout(
+      () => mapRef.current?.animateToRegion(focusRegion, 700),
+      Platform.OS === "android" ? 350 : 0,
+    );
     setRegion(focusRegion);
     committedRegionRef.current = focusRegion;
     onSearchArea?.(regionToMapBBox(focusRegion), "focus");
+    return () => clearTimeout(timeout);
   }, [focusRegion, mapReady, onSearchArea]);
 
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
@@ -192,7 +209,7 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
               key={property.id}
               coordinate={coordinate}
               anchor={{ x: 0.5, y: 1 }}
-              tracksViewChanges={false}
+              tracksViewChanges={trackMarkerChanges}
               onPress={(event) => {
                 event.stopPropagation();
                 setSelectedId(property.id);
