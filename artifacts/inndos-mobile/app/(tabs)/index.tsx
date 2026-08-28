@@ -5,7 +5,7 @@ import {
   useListFeaturedProperties,
 } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -31,6 +31,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
 import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
+import { PriceRangeSlider } from "@/components/PriceRangeSlider";
 import { normalizePropertySubtype } from "@workspace/property-categories";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -53,13 +54,138 @@ const FILTER_TYPES: FilterItem[] = [
 ];
 
 const RENT_SUBS = [
-  { section: "Apartments",  items: ["Studio / Bedsitter", "By Bedrooms", "Penthouse", "Own Compound", "Condominiums"] },
+  { section: "Apartments",  items: ["All Rentals", "Studio / Bedsitter", "By Bedrooms", "Penthouse", "Own Compound", "Condominiums"] },
   { section: "Commercial",  items: ["Office Space", "Godowns", "Stalls", "Shops"] },
 ];
 
 const BUY_SUBS = [
-  { section: null, items: ["Apartments", "Homes", "Lands"] },
+  { section: null, items: ["All For Sale", "Apartments", "Homes", "Lands"] },
 ];
+
+const BNB_SUBS = [
+  { label: "All", subtype: null },
+  { label: "Serviced Apartments", subtype: "serviced-apartment" },
+  { label: "Entire Place", subtype: "entire-place" },
+  { label: "Private Room", subtype: "private-room" },
+  { label: "Shared Room", subtype: "shared-room" },
+  { label: "Unique Stays", subtype: "unique-stays" },
+  { label: "Hotel & Boutique", subtype: "hotel-room" },
+  { label: "Vacation Homes", subtype: "vacation-home" },
+  { label: "Nature-Focused", subtype: "nature-stay" },
+  { label: "Others", subtype: "other" },
+] as const;
+
+const AMENITY_FILTER_SETS: Record<string, { id: string; label: string }[]> = {
+  rent: [
+    { id: "apt_prem_secure_parking", label: "Secure Parking" },
+    { id: "apt_prem_security_247", label: "24-Hour Security" },
+    { id: "apt_prem_cctv", label: "CCTV Surveillance" },
+    { id: "apt_prem_elevator", label: "Elevator / Lift" },
+    { id: "apt_prem_pool", label: "Swimming Pool" },
+    { id: "apt_prem_gym", label: "Gym" },
+    { id: "apt_prem_generator", label: "Backup Generator" },
+    { id: "apt_prem_borehole", label: "Borehole Water" },
+    { id: "apt_prem_playground", label: "Children's Playground" },
+    { id: "apt_prem_rooftop", label: "Rooftop Terrace" },
+    { id: "apt_balcony", label: "Private Balcony" },
+    { id: "apt_ensuite_beds", label: "En-suite Bedrooms" },
+    { id: "apt_ac_fans", label: "Air Conditioning" },
+    { id: "apt_wifi", label: "High-Speed Wi-Fi" },
+    { id: "apt_fitted_kitchen", label: "Fitted Kitchen" },
+  ],
+  sale: [
+    { id: "home_garden", label: "Garden / Landscaped Yard" },
+    { id: "home_pool", label: "Swimming Pool" },
+    { id: "home_gym", label: "Gym / Fitness Room" },
+    { id: "home_parking", label: "Parking Space" },
+    { id: "home_security_247", label: "24-Hour Security" },
+    { id: "home_cctv", label: "CCTV Surveillance" },
+    { id: "home_perimeter_wall", label: "Perimeter Wall & Gate" },
+    { id: "home_electricity_backup", label: "Electricity Backup" },
+    { id: "home_solar_water", label: "Solar Water Heating" },
+    { id: "home_prem_borehole", label: "Borehole Water" },
+    { id: "home_kids_play", label: "Children's Play Area" },
+    { id: "home_wifi", label: "High-Speed Wi-Fi" },
+    { id: "home_ac_fans", label: "Air Conditioning" },
+    { id: "home_ensuite_bath", label: "En-suite Bathrooms" },
+    { id: "home_prem_pet_friendly", label: "Pet-Friendly Compound" },
+  ],
+  hotel: [
+    { id: "hotel_breakfast", label: "Complimentary Breakfast" },
+    { id: "hotel_pool", label: "Swimming Pool" },
+    { id: "hotel_gym", label: "Gym" },
+    { id: "hotel_room_service", label: "Room Service" },
+    { id: "hotel_restaurant_bar", label: "Restaurant & Bar" },
+    { id: "hotel_conference_hall", label: "Conference Hall" },
+    { id: "hotel_valet", label: "Valet" },
+    { id: "hotel_reception_24hr", label: "24hrs Reception" },
+    { id: "hotel_ballroom", label: "Ballroom" },
+    { id: "hotel_tennis", label: "Tennis Court" },
+  ],
+  default: [
+    { id: "parking", label: "Parking" },
+    { id: "pool", label: "Swimming Pool" },
+    { id: "gym", label: "Gym" },
+    { id: "wifi", label: "WiFi" },
+    { id: "security", label: "24/7 Security" },
+    { id: "cctv", label: "CCTV" },
+    { id: "generator", label: "Backup Generator" },
+    { id: "borewater", label: "Borehole Water" },
+  ],
+};
+
+const AMENITY_LEGACY_ALIASES: Record<string, string[]> = {
+  apt_prem_secure_parking: ["parking"],
+  apt_prem_security_247: ["security"],
+  apt_prem_cctv: ["cctv"],
+  apt_prem_elevator: ["elevator"],
+  apt_prem_pool: ["pool"],
+  apt_prem_gym: ["gym"],
+  apt_prem_generator: ["generator"],
+  apt_prem_borehole: ["borewater"],
+  apt_balcony: ["balcony"],
+  apt_ac_fans: ["ac"],
+  apt_wifi: ["wifi"],
+  home_garden: ["garden"],
+  home_pool: ["pool"],
+  home_gym: ["gym"],
+  home_parking: ["parking"],
+  home_security_247: ["security"],
+  home_cctv: ["cctv"],
+  home_perimeter_wall: ["electric_fence"],
+  home_electricity_backup: ["generator"],
+  home_prem_borehole: ["borewater"],
+  home_wifi: ["wifi"],
+  home_ac_fans: ["ac"],
+  home_solar_water: ["solar"],
+  home_prem_pet_friendly: ["pet_friendly"],
+  hotel_pool: ["pool"],
+  hotel_gym: ["gym"],
+};
+
+function getAmenityFilters(type: ListPropertiesParams["type"]) {
+  if (type === "rent") return AMENITY_FILTER_SETS.rent;
+  if (type === "sale") return AMENITY_FILTER_SETS.sale;
+  if (type === "hotel") return AMENITY_FILTER_SETS.hotel;
+  return AMENITY_FILTER_SETS.default;
+}
+
+function propertyMatchesAmenity(tags: string[], amenityId: string): boolean {
+  const normalizedTags = tags.map((tag) => tag.toLowerCase());
+  return normalizedTags.includes(amenityId) ||
+    (AMENITY_LEGACY_ALIASES[amenityId] ?? []).some((alias) => normalizedTags.includes(alias));
+}
+
+function getMaxPrice(type: ListPropertiesParams["type"]): number {
+  return type === "bnb" ? 50_000 : type === "rent" ? 500_000 : 200_000_000;
+}
+
+function parseBrowseType(value: string | string[] | undefined): ListPropertiesParams["type"] {
+  const type = Array.isArray(value) ? value[0] : value;
+  return ["bnb", "rent", "hostel", "hotel", "sale"].includes(type ?? "")
+    ? type as ListPropertiesParams["type"]
+    : undefined;
+}
 
 type SortOption = "price-asc" | "price-desc" | "newest" | "distance";
 
@@ -84,6 +210,18 @@ function matchesSubCategory(property: Property, category: string | null): boolea
   const is = (...values: string[]) => values.includes(subtype);
 
   switch (category) {
+    case "Serviced Apartments":
+    case "Entire Place":
+    case "Private Room":
+    case "Shared Room":
+    case "Unique Stays":
+    case "Hotel & Boutique":
+    case "Vacation Homes":
+    case "Nature-Focused":
+    case "Others": {
+      const bnbCategory = BNB_SUBS.find((item) => item.label === category);
+      return bnbCategory?.subtype === null || normalizePropertySubtype(property.subtype) === bnbCategory?.subtype;
+    }
     case "Studio / Bedsitter": return is("studio", "bedsitter");
     case "By Bedrooms": return (property.beds ?? 0) >= 1;
     case "Penthouse": return is("penthouse");
@@ -243,18 +381,213 @@ const modalS = StyleSheet.create({
   cancelText: { fontSize: 15, fontFamily: "Outfit_600SemiBold" },
 });
 
+function FilterModal({
+  visible,
+  onClose,
+  colors,
+  type,
+  isCommercial,
+  maxPrice,
+  minDraft,
+  maxDraft,
+  onMinDraftChange,
+  onMaxDraftChange,
+  onPriceChange,
+  selectedBedrooms,
+  onBedroomChange,
+  selectedAmenities,
+  onAmenityToggle,
+  onReset,
+  resultCount,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+  type: ListPropertiesParams["type"];
+  isCommercial: boolean;
+  maxPrice: number;
+  minDraft: string;
+  maxDraft: string;
+  onMinDraftChange: (value: string) => void;
+  onMaxDraftChange: (value: string) => void;
+  onPriceChange: (low: number, high: number) => void;
+  selectedBedrooms: number | null;
+  onBedroomChange: (bedrooms: number | null) => void;
+  selectedAmenities: string[];
+  onAmenityToggle: (id: string) => void;
+  onReset: () => void;
+  resultCount: number;
+}) {
+  const amenities = getAmenityFilters(type);
+  const low = Math.max(0, Math.min(Number(minDraft) || 0, maxPrice));
+  const high = Math.max(low, Math.min(Number(maxDraft) || maxPrice, maxPrice));
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={filterS.overlay} onPress={onClose}>
+        <Pressable style={[filterS.sheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+          <View style={[filterS.handle, { backgroundColor: colors.border }]} />
+          <View style={filterS.header}>
+            <Text style={[filterS.title, { color: colors.foreground }]}>Filters</Text>
+            <Pressable onPress={onReset} hitSlop={8}>
+              <Text style={[filterS.reset, { color: colors.primary }]}>Reset all</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={filterS.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={filterS.section}>
+              <View style={filterS.sectionHeader}>
+                <Text style={[filterS.sectionTitle, { color: colors.foreground }]}>
+                  Price Range{type === "bnb" ? " (KES / night)" : " (KES)"}
+                </Text>
+                <Text style={[filterS.sectionHint, { color: colors.mutedForeground }]}>
+                  0 – {maxPrice.toLocaleString()}{maxPrice >= 200_000_000 ? "+" : ""}
+                </Text>
+              </View>
+              <PriceRangeSlider
+                key={String(maxPrice)}
+                min={0}
+                max={maxPrice}
+                low={low}
+                high={high}
+                onLowChange={(value) => onPriceChange(value, high)}
+                onHighChange={(value) => onPriceChange(low, value)}
+                onReset={() => onPriceChange(0, maxPrice)}
+              />
+              <View style={filterS.inputRow}>
+                <View style={filterS.inputGroup}>
+                  <Text style={[filterS.inputLabel, { color: colors.mutedForeground }]}>Min (KES)</Text>
+                  <TextInput
+                    style={[filterS.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                    value={minDraft}
+                    onChangeText={(value) => onMinDraftChange(value.replace(/[^\d]/g, ""))}
+                    onBlur={() => onPriceChange(low, high)}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                  />
+                </View>
+                <Text style={[filterS.dash, { color: colors.mutedForeground }]}>–</Text>
+                <View style={filterS.inputGroup}>
+                  <Text style={[filterS.inputLabel, { color: colors.mutedForeground }]}>Max (KES)</Text>
+                  <TextInput
+                    style={[filterS.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                    value={maxDraft}
+                    onChangeText={(value) => onMaxDraftChange(value.replace(/[^\d]/g, ""))}
+                    onBlur={() => onPriceChange(low, high)}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                  />
+                </View>
+              </View>
+            </View>
+
+            {!isCommercial && type !== "bnb" && (
+              <View style={filterS.section}>
+                <Text style={[filterS.sectionTitle, { color: colors.foreground }]}>Bedrooms</Text>
+                <View style={filterS.choiceRow}>
+                  {[1, 2, 3, 4, 5].map((bedrooms) => {
+                    const selected = selectedBedrooms === bedrooms;
+                    return (
+                      <Pressable
+                        key={bedrooms}
+                        style={[filterS.choice, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.background }]}
+                        onPress={() => onBedroomChange(selected ? null : bedrooms)}
+                      >
+                        <Text style={[filterS.choiceText, { color: selected ? colors.primaryForeground : colors.foreground }]}>
+                          {bedrooms}{bedrooms === 5 ? "+" : ""}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {type !== "bnb" && (
+              <View style={filterS.section}>
+                <Text style={[filterS.sectionTitle, { color: colors.foreground }]}>Amenities</Text>
+                <View style={filterS.amenities}>
+                  {amenities.map((amenity) => {
+                    const selected = selectedAmenities.includes(amenity.id);
+                    return (
+                      <Pressable
+                        key={amenity.id}
+                        style={filterS.amenityRow}
+                        onPress={() => onAmenityToggle(amenity.id)}
+                      >
+                        <View style={[filterS.checkbox, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.background }]}>
+                          {selected && <Feather name="check" size={12} color={colors.primaryForeground} />}
+                        </View>
+                        <Text style={[filterS.amenityText, { color: colors.foreground }]}>{amenity.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </ScrollView>
+          <Pressable style={[filterS.showButton, { backgroundColor: colors.primary }]} onPress={onClose}>
+            <Text style={[filterS.showButtonText, { color: colors.primaryForeground }]}>
+              Show {resultCount.toLocaleString()} {resultCount === 1 ? "property" : "properties"}
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const filterS = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "88%", paddingTop: 12 },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 14 },
+  title: { fontSize: 20, fontFamily: "Outfit_700Bold" },
+  reset: { fontSize: 13, fontFamily: "Outfit_500Medium", textDecorationLine: "underline" },
+  content: { paddingHorizontal: 20, paddingBottom: 18, gap: 24 },
+  section: { gap: 10 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionTitle: { fontSize: 16, fontFamily: "Outfit_700Bold" },
+  sectionHint: { fontSize: 11, fontFamily: "Outfit_400Regular" },
+  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  inputGroup: { flex: 1, gap: 5 },
+  inputLabel: { fontSize: 11, fontFamily: "Outfit_400Regular" },
+  input: { height: 42, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 14, fontFamily: "Outfit_400Regular" },
+  dash: { fontSize: 18, paddingBottom: 10 },
+  choiceRow: { flexDirection: "row", gap: 10 },
+  choice: { width: 42, height: 36, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  choiceText: { fontSize: 13, fontFamily: "Outfit_600SemiBold" },
+  amenities: { gap: 2 },
+  amenityRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  amenityText: { flex: 1, fontSize: 14, fontFamily: "Outfit_400Regular" },
+  showButton: { marginHorizontal: 20, marginBottom: 18, borderRadius: 10, paddingVertical: 14, alignItems: "center" },
+  showButtonText: { fontSize: 15, fontFamily: "Outfit_700Bold" },
+});
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ type?: string | string[]; filters?: string | string[] }>();
   const { user, token } = useAuth();
+  const routeFiltersOpen = (Array.isArray(params.filters) ? params.filters[0] : params.filters) === "open";
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [priceMin, setPriceMin] = useState("0");
   const [priceMax, setPriceMax] = useState("");
-  const [activeType, setActiveType] = useState<ListPropertiesParams["type"]>(undefined);
+  const [activeType, setActiveType] = useState<ListPropertiesParams["type"]>(() => parseBrowseType(params.type));
   const [activeSubCategory, setActiveSubCategory] = useState<string | null>(null);
+  const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [filtersVisible, setFiltersVisible] = useState(routeFiltersOpen && parseBrowseType(params.type) !== "bnb");
+  const [bnbFiltersVisible, setBnbFiltersVisible] = useState(routeFiltersOpen && parseBrowseType(params.type) === "bnb");
+  const [categoryViewMode, setCategoryViewMode] = useState<"list" | "map">("list");
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -271,6 +604,9 @@ export default function BrowseScreen() {
   const placeRequestRef = useRef(0);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const placeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const categoryMaxPrice = getMaxPrice(activeType);
+  const isCommercialCategory = activeType === "rent" &&
+    ["Office Space", "Godowns", "Stalls", "Shops"].includes(activeSubCategory ?? "");
 
   const handleListPropertyPress = () => {
     if (!user) {
@@ -362,14 +698,50 @@ export default function BrowseScreen() {
     placeRequestRef.current += 1;
   }, []);
 
+  useEffect(() => {
+    const max = getMaxPrice(activeType);
+    setPriceMin("0");
+    setPriceMax(activeType ? String(max) : "");
+    setSelectedBedrooms(null);
+    setSelectedAmenities([]);
+    setFiltersVisible(routeFiltersOpen && !!activeType && activeType !== "bnb");
+    setBnbFiltersVisible(routeFiltersOpen && activeType === "bnb");
+    setCategoryViewMode("list");
+    setSearch("");
+    setDebouncedSearch("");
+    setPlaceResults([]);
+    setLocationFilterBounds(null);
+  }, [activeType, routeFiltersOpen]);
+
   const filteredProperties = useMemo<Property[]>(() => {
     if (!properties) return [];
     let arr = [...properties];
     arr = arr.filter((property) => matchesSubCategory(property, activeSubCategory));
+    if (activeType === "rent" && !isCommercialCategory) {
+      arr = arr.filter((property) => {
+        const subtype = normalizePropertySubtype(property.subtype) ?? "";
+        return !["business", "office", "godown", "stall", "shop"].includes(subtype);
+      });
+    }
     arr = arr.filter((property) => matchesPropertySearch(property, debouncedSearch));
     arr = arr.filter((property) => isWithinMapBounds(property, locationFilterBounds));
+    const minP = Number(priceMin.replace(/,/g, ""));
     const maxP = priceMax ? Number(priceMax.replace(/,/g, "")) : NaN;
+    if (!isNaN(minP) && minP > 0) arr = arr.filter((p) => p.price >= minP);
     if (!isNaN(maxP) && maxP > 0) arr = arr.filter((p) => p.price <= maxP);
+    if (activeType && selectedBedrooms !== null && !isCommercialCategory) {
+      arr = arr.filter((property) =>
+        selectedBedrooms === 5
+          ? (property.beds ?? 0) >= 5
+          : (property.beds ?? 0) === selectedBedrooms
+      );
+    }
+    if (activeType && selectedAmenities.length > 0) {
+      arr = arr.filter((property) => {
+        const tags = Array.isArray(property.tags) ? property.tags : [];
+        return selectedAmenities.every((amenity) => propertyMatchesAmenity(tags, amenity));
+      });
+    }
     if (sortBy === "price-asc") arr.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-desc") arr.sort((a, b) => b.price - a.price);
     else if (sortBy === "distance" && userLocation) {
@@ -387,7 +759,20 @@ export default function BrowseScreen() {
       });
     }
     return arr;
-  }, [properties, sortBy, userLocation, priceMax, activeSubCategory, debouncedSearch, locationFilterBounds]);
+  }, [
+    properties,
+    sortBy,
+    userLocation,
+    priceMin,
+    priceMax,
+    activeType,
+    activeSubCategory,
+    selectedBedrooms,
+    selectedAmenities,
+    isCommercialCategory,
+    debouncedSearch,
+    locationFilterBounds,
+  ]);
 
   // Categorised sections (when no active type filter)
   const bnbHotelProperties = useMemo(
@@ -470,6 +855,64 @@ export default function BrowseScreen() {
     }
   };
 
+  const setPriceRange = (low: number, high: number) => {
+    const clampedLow = Math.max(0, Math.min(Math.round(low), categoryMaxPrice));
+    const clampedHigh = Math.max(clampedLow, Math.min(Math.round(high), categoryMaxPrice));
+    setPriceMin(String(clampedLow));
+    setPriceMax(String(clampedHigh));
+  };
+
+  const resetAdvancedFilters = () => {
+    setPriceRange(0, categoryMaxPrice);
+    setSelectedBedrooms(null);
+    setSelectedAmenities([]);
+  };
+
+  const toggleAmenity = (amenityId: string) => {
+    setSelectedAmenities((current) =>
+      current.includes(amenityId)
+        ? current.filter((id) => id !== amenityId)
+        : [...current, amenityId]
+    );
+  };
+
+  const handleUseLocation = async () => {
+    setLocationLoading(true);
+    try {
+      let location = userLocation;
+      if (!location) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setLocationNotice("Allow location access to show properties near you.");
+          return;
+        }
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        location = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setUserLocation(location);
+      }
+      const latitudeDelta = 0.18;
+      const longitudeDelta = latitudeDelta / Math.max(Math.cos((location.lat * Math.PI) / 180), 0.35);
+      const region = {
+        latitude: location.lat,
+        longitude: location.lng,
+        latitudeDelta,
+        longitudeDelta,
+      };
+      setMapFocusRegion(region);
+      setLocationFilterBounds({
+        minLat: location.lat - latitudeDelta / 2,
+        maxLat: location.lat + latitudeDelta / 2,
+        minLng: location.lng - longitudeDelta / 2,
+        maxLng: location.lng + longitudeDelta / 2,
+      });
+      setLocationNotice("Showing properties within about 10 km of your location.");
+    } catch {
+      setLocationNotice("Your location could not be loaded. You can still search by place.");
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetch(), refetchFeatured()]);
@@ -482,17 +925,21 @@ export default function BrowseScreen() {
 
   const handleFilterChipPress = (item: FilterItem) => {
     if (item.hasDropdown) {
+      if (activeType !== item.value) {
+        setActiveType(item.value);
+        setActiveSubCategory(null);
+      }
       if (item.value === "rent") setRentModalVisible(true);
       else if (item.value === "sale") setBuyModalVisible(true);
     } else {
       setActiveType(item.value);
-      setActiveSubCategory(null);
+      if (activeType !== item.value) setActiveSubCategory(null);
     }
   };
 
   const handleSubCategorySelect = (mainType: ListPropertiesParams["type"], sub: string) => {
     setActiveType(mainType);
-    setActiveSubCategory(sub);
+    setActiveSubCategory(sub === "All Rentals" || sub === "All For Sale" ? null : sub);
     setRentModalVisible(false);
     setBuyModalVisible(false);
   };
@@ -519,6 +966,19 @@ export default function BrowseScreen() {
   const styles = getStyles(colors, topPadding);
 
   const hasAnySections = bnbHotelProperties.length > 0 || rentProperties.length > 0 || saleProperties.length > 0;
+  const activeFilterCount = [
+    !!activeType && (Number(priceMin) > 0 || (Number(priceMax) > 0 && Number(priceMax) < categoryMaxPrice)),
+    selectedBedrooms !== null,
+    selectedAmenities.length > 0,
+    locationFilterBounds !== null,
+  ].filter(Boolean).length;
+  const categoryTitle =
+    activeType === "bnb" ? (activeSubCategory ?? "All B&B Stays") :
+    activeType === "rent" ? (activeSubCategory ?? "All Rentals") :
+    activeType === "sale" ? (activeSubCategory ?? "For Sale") :
+    activeType === "hostel" ? "Hostels" :
+    activeType === "hotel" ? "Hotels" :
+    "Properties";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -563,12 +1023,203 @@ export default function BrowseScreen() {
           })}
         </View>
 
-        {activeSubCategory && (
-          <View style={[styles.subCategoryBadge, { backgroundColor: colors.muted }]}>
-            <Text style={[styles.subCategoryText, { color: colors.mutedForeground }]}>{activeSubCategory}</Text>
-            <Pressable onPress={() => setActiveSubCategory(null)}>
-              <Feather name="x" size={12} color={colors.mutedForeground} />
-            </Pressable>
+        {activeType === "bnb" && (
+          <>
+            <View style={[styles.individualFilterBar, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.individualChips}>
+                {BNB_SUBS.map((item) => {
+                  const selected = item.subtype === null ? activeSubCategory === null : activeSubCategory === item.label;
+                  return (
+                    <Pressable
+                      key={item.label}
+                      style={[styles.individualChip, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.background }]}
+                      onPress={() => setActiveSubCategory(item.subtype === null ? null : item.label)}
+                    >
+                      <Text style={[styles.individualChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{item.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Pressable
+                style={[styles.filtersButton, { backgroundColor: bnbFiltersVisible || activeFilterCount > 0 ? colors.primary : colors.background, borderColor: colors.primary }]}
+                onPress={() => setBnbFiltersVisible((visible) => !visible)}
+              >
+                <Feather name="sliders" size={14} color={bnbFiltersVisible || activeFilterCount > 0 ? colors.primaryForeground : colors.foreground} />
+                <Text style={[styles.filtersButtonText, { color: bnbFiltersVisible || activeFilterCount > 0 ? colors.primaryForeground : colors.foreground }]}>Filters</Text>
+              </Pressable>
+            </View>
+            {bnbFiltersVisible && (
+              <View style={[styles.bnbPricePanel, { borderBottomColor: colors.border }]}>
+                <View style={styles.pricePanelHeader}>
+                  <Text style={[styles.pricePanelTitle, { color: colors.foreground }]}>Price Range (KES / night)</Text>
+                  <Pressable onPress={() => setPriceRange(0, categoryMaxPrice)}>
+                    <Text style={[styles.pricePanelReset, { color: colors.mutedForeground }]}>Reset</Text>
+                  </Pressable>
+                </View>
+                <PriceRangeSlider
+                  min={0}
+                  max={categoryMaxPrice}
+                  low={Number(priceMin) || 0}
+                  high={Number(priceMax) || categoryMaxPrice}
+                  onLowChange={(value) => setPriceRange(value, Number(priceMax) || categoryMaxPrice)}
+                  onHighChange={(value) => setPriceRange(Number(priceMin) || 0, value)}
+                  onReset={() => setPriceRange(0, categoryMaxPrice)}
+                />
+                <View style={styles.priceInputRow}>
+                  <View style={styles.priceInputGroup}>
+                    <Text style={[styles.priceInputLabel, { color: colors.mutedForeground }]}>Min (KES)</Text>
+                    <TextInput
+                      style={[styles.priceInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+                      value={priceMin}
+                      onChangeText={(value) => setPriceMin(value.replace(/[^\d]/g, ""))}
+                      onBlur={() => setPriceRange(Number(priceMin) || 0, Number(priceMax) || categoryMaxPrice)}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                  <Text style={[styles.priceDash, { color: colors.mutedForeground }]}>–</Text>
+                  <View style={styles.priceInputGroup}>
+                    <Text style={[styles.priceInputLabel, { color: colors.mutedForeground }]}>Max (KES)</Text>
+                    <TextInput
+                      style={[styles.priceInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+                      value={priceMax}
+                      onChangeText={(value) => setPriceMax(value.replace(/[^\d]/g, ""))}
+                      onBlur={() => setPriceRange(Number(priceMin) || 0, Number(priceMax) || categoryMaxPrice)}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+            <View style={styles.categorySearchArea}>
+              <View style={[styles.categorySearchInput, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Feather name="search" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.categorySearchText, { color: colors.foreground }]}
+                  placeholder="Search by name or location…"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={search}
+                  onChangeText={handleSearch}
+                  onFocus={() => setPlaceFocused(true)}
+                  onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
+                  onSubmitEditing={() => { setDebouncedSearch(search); setPlaceFocused(false); }}
+                  returnKeyType="search"
+                />
+                {search.length > 0 && (
+                  <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); setLocationFilterBounds(null); setPlaceResults([]); }}>
+                    <Feather name="x" size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </>
+        )}
+
+        {activeType && activeType !== "bnb" && (
+          <>
+            {(activeType === "rent" || activeType === "sale") && (
+              <View style={[styles.individualFilterBar, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.individualChips}>
+                  {(activeType === "rent"
+                    ? RENT_SUBS.flatMap((section) => section.items)
+                    : BUY_SUBS.flatMap((section) => section.items)
+                  ).map((item) => {
+                    const isAll = item === "All Rentals" || item === "All For Sale";
+                    const selected = isAll ? activeSubCategory === null : activeSubCategory === item;
+                    return (
+                      <Pressable
+                        key={item}
+                        style={[styles.individualChip, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.background }]}
+                        onPress={() => setActiveSubCategory(isAll ? null : item)}
+                      >
+                        <Text style={[styles.individualChipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{item}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={styles.categorySearchArea}>
+              <View style={[styles.categorySearchInput, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Feather name="search" size={16} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.categorySearchText, { color: colors.foreground }]}
+                  placeholder="Search by location, city, or property name…"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={search}
+                  onChangeText={handleSearch}
+                  onFocus={() => setPlaceFocused(true)}
+                  onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
+                  onSubmitEditing={() => { setDebouncedSearch(search); setPlaceFocused(false); }}
+                  returnKeyType="search"
+                />
+                {search.length > 0 && (
+                  <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); setLocationFilterBounds(null); setPlaceResults([]); }}>
+                    <Feather name="x" size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
+              </View>
+              <View style={styles.categoryActionRow}>
+                <Pressable
+                  style={[styles.locationButton, { backgroundColor: locationFilterBounds ? colors.primary : colors.background, borderColor: colors.primary }]}
+                  onPress={() => void handleUseLocation()}
+                  disabled={locationLoading}
+                >
+                  {locationLoading
+                    ? <ActivityIndicator size={14} color={locationFilterBounds ? colors.primaryForeground : colors.foreground} />
+                    : <Feather name="crosshair" size={15} color={locationFilterBounds ? colors.primaryForeground : colors.foreground} />}
+                  <Text style={[styles.categoryActionText, { color: locationFilterBounds ? colors.primaryForeground : colors.foreground }]}>Use Location</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.categoryActionButton, { backgroundColor: activeFilterCount > 0 ? colors.primary : colors.background, borderColor: colors.primary }]}
+                  onPress={() => setFiltersVisible(true)}
+                >
+                  <Feather name="sliders" size={15} color={activeFilterCount > 0 ? colors.primaryForeground : colors.foreground} />
+                  <Text style={[styles.categoryActionText, { color: activeFilterCount > 0 ? colors.primaryForeground : colors.foreground }]}>
+                    Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.searchButton, { backgroundColor: colors.primary }]}
+                  onPress={() => { setDebouncedSearch(search); setPlaceFocused(false); }}
+                >
+                  <Text style={[styles.searchButtonText, { color: colors.primaryForeground }]}>Search</Text>
+                </Pressable>
+              </View>
+            </View>
+          </>
+        )}
+
+        {!activeType && (
+          <View style={styles.searchRow}>
+            <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="tag" size={14} color={colors.mutedForeground} />
+              <TextInput
+                style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
+                placeholder="Max price…"
+                placeholderTextColor={colors.mutedForeground}
+                value={priceMax}
+                onChangeText={setPriceMax}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
+            </View>
+            <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="search" size={14} color={colors.mutedForeground} />
+              <TextInput
+                style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
+                placeholder="Name, area…"
+                placeholderTextColor={colors.mutedForeground}
+                value={search}
+                onChangeText={handleSearch}
+                onFocus={() => setPlaceFocused(true)}
+                onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
+                returnKeyType="search"
+              />
+              {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); setLocationFilterBounds(null); setPlaceResults([]); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
+            </View>
           </View>
         )}
 
@@ -590,36 +1241,6 @@ export default function BrowseScreen() {
               </Pressable>
             );
           })}
-        </View>
-
-        <View style={styles.searchRow}>
-          <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="tag" size={14} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
-              placeholder="Max price…"
-              placeholderTextColor={colors.mutedForeground}
-              value={priceMax}
-              onChangeText={setPriceMax}
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
-            {priceMax.length > 0 && <Pressable onPress={() => setPriceMax("")}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
-          </View>
-          <View style={[styles.searchCol, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="search" size={14} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.searchColInput, { color: colors.foreground, fontFamily: "Outfit_400Regular" }]}
-              placeholder="Name, area…"
-              placeholderTextColor={colors.mutedForeground}
-              value={search}
-              onChangeText={handleSearch}
-              onFocus={() => setPlaceFocused(true)}
-              onBlur={() => setTimeout(() => setPlaceFocused(false), 150)}
-              returnKeyType="search"
-            />
-            {search.length > 0 && <Pressable onPress={() => { setSearch(""); setDebouncedSearch(""); setLocationFilterBounds(null); setPlaceResults([]); }}><Feather name="x" size={13} color={colors.mutedForeground} /></Pressable>}
-          </View>
         </View>
         {placeFocused && search.trim().length >= 2 && (
           <View style={[styles.placeSuggestions, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -651,9 +1272,38 @@ export default function BrowseScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.mapWrapper}>
-              <PropertyMapView properties={mapProperties} onSearchArea={handleMapSearchArea} focusRegion={mapFocusRegion} />
-            </View>
+            {activeType && (
+              <View style={styles.resultsHeader}>
+                <View style={styles.resultsCopy}>
+                  <Text style={[styles.resultsCount, { color: colors.foreground }]}>
+                    {filteredProperties.length} {filteredProperties.length === 1 ? "property" : "properties"} found
+                  </Text>
+                  <Text style={[styles.resultsSubtitle, { color: colors.mutedForeground }]}>Showing {categoryTitle}</Text>
+                </View>
+                <View style={[styles.viewToggle, { borderColor: colors.border }]}>
+                  <Pressable
+                    style={[styles.viewToggleButton, categoryViewMode === "list" && { backgroundColor: colors.primary }]}
+                    onPress={() => setCategoryViewMode("list")}
+                  >
+                    <Feather name="list" size={14} color={categoryViewMode === "list" ? colors.primaryForeground : colors.foreground} />
+                    <Text style={[styles.viewToggleText, { color: categoryViewMode === "list" ? colors.primaryForeground : colors.foreground }]}>List</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.viewToggleButton, categoryViewMode === "map" && { backgroundColor: colors.primary }]}
+                    onPress={() => setCategoryViewMode("map")}
+                  >
+                    <Feather name="map" size={14} color={categoryViewMode === "map" ? colors.primaryForeground : colors.foreground} />
+                    <Text style={[styles.viewToggleText, { color: categoryViewMode === "map" ? colors.primaryForeground : colors.foreground }]}>Map</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {(!activeType || categoryViewMode === "map") && (
+              <View style={styles.mapWrapper}>
+                <PropertyMapView properties={mapProperties} onSearchArea={handleMapSearchArea} focusRegion={mapFocusRegion} />
+              </View>
+            )}
 
             {filteredProperties.length === 0 ? (
               <View style={[styles.center, styles.emptyState]}>
@@ -661,12 +1311,14 @@ export default function BrowseScreen() {
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No properties found</Text>
               </View>
             ) : activeType ? (
-              <SectionBlock
-                title={activeSubCategory ? activeSubCategory : FILTER_TYPES.find((f) => f.value === activeType)?.label ?? "Results"}
-                properties={filteredProperties}
-                total={filteredProperties.length}
-                colors={colors}
-              />
+              categoryViewMode === "list" ? (
+                <SectionBlock
+                  title={categoryTitle}
+                  properties={filteredProperties}
+                  total={filteredProperties.length}
+                  colors={colors}
+                />
+              ) : null
             ) : hasAnySections ? (
               <>
                 {visibleFeaturedProperties.length > 0 && (
@@ -707,6 +1359,25 @@ export default function BrowseScreen() {
       {/* Modals */}
       <SubCategoryModal visible={rentModalVisible} onClose={() => setRentModalVisible(false)} title="Rent a Property" sections={RENT_SUBS} activeItem={activeType === "rent" ? activeSubCategory : null} onSelect={(sub) => handleSubCategorySelect("rent", sub)} colors={colors} />
       <SubCategoryModal visible={buyModalVisible} onClose={() => setBuyModalVisible(false)} title="Buy a Property" sections={BUY_SUBS} activeItem={activeType === "sale" ? activeSubCategory : null} onSelect={(sub) => handleSubCategorySelect("sale", sub)} colors={colors} />
+      <FilterModal
+        visible={filtersVisible && !!activeType && activeType !== "bnb"}
+        onClose={() => setFiltersVisible(false)}
+        colors={colors}
+        type={activeType}
+        isCommercial={isCommercialCategory}
+        maxPrice={categoryMaxPrice}
+        minDraft={priceMin}
+        maxDraft={priceMax}
+        onMinDraftChange={setPriceMin}
+        onMaxDraftChange={setPriceMax}
+        onPriceChange={setPriceRange}
+        selectedBedrooms={selectedBedrooms}
+        onBedroomChange={setSelectedBedrooms}
+        selectedAmenities={selectedAmenities}
+        onAmenityToggle={toggleAmenity}
+        onReset={resetAdvancedFilters}
+        resultCount={filteredProperties.length}
+      />
       <AccountUpgradeModal
         visible={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
@@ -736,6 +1407,30 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     filterChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
     subCategoryBadge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginHorizontal: hPad, marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     subCategoryText: { fontSize: 11, fontFamily: "Outfit_400Regular" },
+    individualFilterBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: hPad, paddingVertical: 10, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+    individualChips: { gap: 8, paddingRight: 4 },
+    individualChip: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8 },
+    individualChipText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+    filtersButton: { height: 36, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 18, paddingHorizontal: 14 },
+    filtersButtonText: { fontSize: 12, fontFamily: "Outfit_700Bold" },
+    bnbPricePanel: { paddingHorizontal: hPad, paddingTop: 14, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+    pricePanelHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    pricePanelTitle: { fontSize: 14, fontFamily: "Outfit_700Bold" },
+    pricePanelReset: { fontSize: 12, fontFamily: "Outfit_400Regular", textDecorationLine: "underline" },
+    priceInputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+    priceInputGroup: { flex: 1, gap: 5 },
+    priceInputLabel: { fontSize: 11, fontFamily: "Outfit_400Regular" },
+    priceInput: { height: 42, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 14, fontFamily: "Outfit_400Regular" },
+    priceDash: { fontSize: 18, paddingBottom: 10 },
+    categorySearchArea: { paddingHorizontal: hPad, paddingTop: 12, gap: 10 },
+    categorySearchInput: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12 },
+    categorySearchText: { flex: 1, paddingVertical: 10, fontSize: 13, fontFamily: "Outfit_400Regular" },
+    categoryActionRow: { flexDirection: "row", gap: 8 },
+    locationButton: { flex: 1.2, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8 },
+    categoryActionButton: { flex: 1, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8 },
+    categoryActionText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
+    searchButton: { minWidth: 74, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 8, paddingHorizontal: 12 },
+    searchButtonText: { fontSize: 13, fontFamily: "Outfit_700Bold" },
     sortRow: { flexDirection: "row", paddingHorizontal: hPad, paddingTop: 8, gap: chipGap },
     sortChip: { width: sortChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 7, borderWidth: 1, borderRadius: 20 },
     sortChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
@@ -747,6 +1442,13 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     placeMain: { fontSize: 13, fontFamily: "Outfit_500Medium" },
     placeSecondary: { fontSize: 11, fontFamily: "Outfit_400Regular", marginTop: 1 },
     locationNotice: { marginHorizontal: hPad, paddingTop: 6, fontSize: 12, fontFamily: "Outfit_400Regular" },
+    resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: hPad, paddingTop: 18, paddingBottom: 8 },
+    resultsCopy: { flex: 1 },
+    resultsCount: { fontSize: 18, fontFamily: "Outfit_700Bold" },
+    resultsSubtitle: { fontSize: 12, fontFamily: "Outfit_400Regular", marginTop: 2 },
+    viewToggle: { flexDirection: "row", borderWidth: 1, borderRadius: 7, overflow: "hidden" },
+    viewToggleButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 8 },
+    viewToggleText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
     mapWrapper: { height: MAP_HEIGHT, marginTop: 4 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 40 },
     loadingState: { minHeight: MAP_HEIGHT },
