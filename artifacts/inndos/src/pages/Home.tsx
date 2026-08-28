@@ -44,6 +44,7 @@ export default function Home() {
   const [placePredictions, setPlacePredictions] = useState<PlacePrediction[]>([]);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [locating, setLocating] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const predictionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useLanguage();
@@ -236,6 +237,7 @@ export default function Home() {
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapInstanceRef.current = map;
+    setMapReady(true);
   }, []);
 
   const matchedProperties = searchQuery
@@ -249,6 +251,35 @@ export default function Home() {
             .some((value) => value.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     : [];
+
+  // A property-name search changes the result set, so also move the map to
+  // those results. Place searches use handlePlaceClick and their geocoded
+  // viewport instead; do not let address text override that flow.
+  useEffect(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const map = mapInstanceRef.current;
+    if (!query || !map) return;
+    const nameMatches = allProperties.filter((property) =>
+      property.title.toLowerCase().includes(query) ||
+      (property.ownerName ?? "").toLowerCase().includes(query) ||
+      (property.ownerBusinessName ?? "").toLowerCase().includes(query)
+    );
+    const mappable = nameMatches
+      .map((property) => ({
+        property,
+        lat: Number(property.lat),
+        lng: Number(property.lng),
+      }))
+      .filter(({ lat, lng }) => Number.isFinite(lat) && Number.isFinite(lng));
+    if (mappable.length === 1) {
+      map.panTo({ lat: mappable[0].lat, lng: mappable[0].lng });
+      map.setZoom(15);
+    } else if (mappable.length > 1) {
+      const bounds = new google.maps.LatLngBounds();
+      mappable.forEach(({ lat, lng }) => bounds.extend({ lat, lng }));
+      map.fitBounds(bounds, 72);
+    }
+  }, [allProperties, mapReady, searchQuery]);
 
   const rentalProperties = allProperties.filter((p) => p.type === "rent");
   const saleProperties = allProperties.filter((p) => p.type === "sale");

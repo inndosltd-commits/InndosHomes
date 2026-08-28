@@ -796,6 +796,43 @@ export default function BrowseScreen() {
   // "Search this area" action adds locationFilterBounds upstream.
   const mapProperties = filteredProperties;
 
+  // Name/brand searches filter the cards immediately, but the matching pins
+  // may be outside the current viewport. Focus the map on the same filtered
+  // result set; place searches still use their geocoded region below.
+  useEffect(() => {
+    if (!debouncedSearch.trim()) return;
+    const mappable = filteredProperties
+      .map((property) => ({
+        latitude: Number(property.lat),
+        longitude: Number(property.lng),
+      }))
+      .filter(({ latitude, longitude }) =>
+        Number.isFinite(latitude) && Number.isFinite(longitude)
+      );
+    if (mappable.length === 0) return;
+    if (mappable.length === 1) {
+      setMapFocusRegion({
+        latitude: mappable[0].latitude,
+        longitude: mappable[0].longitude,
+        latitudeDelta: 0.035,
+        longitudeDelta: 0.035,
+      });
+      return;
+    }
+    const latitudes = mappable.map(({ latitude }) => latitude);
+    const longitudes = mappable.map(({ longitude }) => longitude);
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+    setMapFocusRegion({
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: Math.max(0.035, (maxLat - minLat) * 1.5),
+      longitudeDelta: Math.max(0.035, (maxLng - minLng) * 1.5),
+    });
+  }, [debouncedSearch, filteredProperties]);
+
   const handleSearch = (text: string) => {
     setSearch(text);
     setLocationFilterBounds(null);
