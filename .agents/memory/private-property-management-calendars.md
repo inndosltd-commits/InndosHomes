@@ -7,4 +7,4 @@ Property management calendars belong only to the listing owner. They contain pri
 
 **Why:** The calendar is an internal lister tool, not a source of customer availability. Letting calendar data affect public listings, contact reveal, or Link-Up creation would change the product's immediate-enquiry model and could expose private owner notes.
 
-**How to apply:** Keep calendar authorization owner-only and store its entries separately from public availability or blocking data. Public visibility and new Link-Up eligibility depend on approved listing lifecycle status, never on calendar dates or notes.
+**How to apply:** Keep calendar authorization owner-only and store its entries separately from public availability or blocking data. Public visibility and new Link-Up eligibility depend on approved listing lifecycle status, never on calendar dates or notes. Never show synthetic compatibility date ranges in Link-Up UI; show the real enquiry creation time instead.

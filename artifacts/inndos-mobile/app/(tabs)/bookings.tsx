@@ -370,13 +370,16 @@ export default function BookingsScreen() {
                     <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
                       {isReceived ? (item.guestEmail || "No email provided") : (item.ownerEmail || "No email provided")}
                     </Text>
-                    {isReceived && (
-                      <Text style={[styles.contactValue, { color: colors.mutedForeground }]}>
-                        Requested: {item.startDate} — {item.endDate}
-                      </Text>
-                    )}
                     <Text style={[styles.linkedDate, { color: colors.mutedForeground }]}>
-                      Linked {item.createdAt ? new Date(item.createdAt).toLocaleString() : "recently"}
+                      Linked {item.createdAt
+                        ? new Date(item.createdAt).toLocaleString("en-KE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "recently"}
                     </Text>
                   </View>
                 </View>
