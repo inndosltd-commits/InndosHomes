@@ -87,23 +87,70 @@ export class ObjectStorageService {
     return null;
   }
 
-  async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+  async downloadObject(
+    file: File,
+    cacheTtlSec: number = 3600,
+    rangeHeader?: string,
+  ): Promise<Response> {
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
-
-    const nodeStream = file.createReadStream();
-    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+    const size = Number(metadata.size);
 
     const headers: Record<string, string> = {
       "Content-Type": (metadata.contentType as string) || "application/octet-stream",
       "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
     };
-    if (metadata.size) {
-      headers["Content-Length"] = String(metadata.size);
+    if (Number.isFinite(size) && size > 0) {
+      headers["Accept-Ranges"] = "bytes";
     }
 
-    return new Response(webStream, { headers });
+    let start: number | undefined;
+    let end: number | undefined;
+    let status = 200;
+    if (rangeHeader && Number.isFinite(size) && size > 0) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+      if (!match || (!match[1] && !match[2])) {
+        return new Response(null, {
+          status: 416,
+          headers: { ...headers, "Content-Range": `bytes */${size}` },
+        });
+      }
+
+      if (match[1]) {
+        start = Number(match[1]);
+        end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+      } else {
+        const suffixLength = Number(match[2]);
+        start = Math.max(0, size - suffixLength);
+        end = size - 1;
+      }
+
+      if (
+        !Number.isInteger(start) ||
+        !Number.isInteger(end) ||
+        start < 0 ||
+        end < start ||
+        start >= size
+      ) {
+        return new Response(null, {
+          status: 416,
+          headers: { ...headers, "Content-Range": `bytes */${size}` },
+        });
+      }
+
+      status = 206;
+      headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
+      headers["Content-Length"] = String(end - start + 1);
+    } else if (Number.isFinite(size) && size > 0) {
+      headers["Content-Length"] = String(size);
+    }
+
+    const nodeStream = file.createReadStream(
+      start !== undefined && end !== undefined ? { start, end } : undefined,
+    );
+    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+    return new Response(webStream, { status, headers });
   }
 
   async getObjectEntityUploadURL(userId?: string): Promise<string> {
