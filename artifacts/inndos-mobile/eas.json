@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 10.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -26,6 +26,7 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "environment": "production",
       "prebuildCommand": "npx expo prebuild --no-install",
       "env": {
