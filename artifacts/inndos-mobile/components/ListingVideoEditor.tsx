@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export type VideoCropAspect = "original" | "16:9" | "4:3" | "1:1" | "9:16";
@@ -53,6 +54,7 @@ export function ListingVideoEditor({
   onSave,
 }: Props) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const maxEnd = Math.max(1, Math.min(durationSeconds ?? 60, 300));
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(Math.min(maxEnd, 60));
@@ -211,7 +213,15 @@ export function ListingVideoEditor({
             </View>
           </ScrollView>
 
-          <View style={[styles.actions, { borderTopColor: colors.border }]}>
+          <View
+            style={[
+              styles.actions,
+              {
+                borderTopColor: colors.border,
+                paddingBottom: Math.max(insets.bottom, 12),
+              },
+            ]}
+          >
             <Pressable disabled={processing} onPress={onClose} style={[styles.cancel, { borderColor: colors.border }]}>
               <Text style={{ color: colors.foreground, fontFamily: "Outfit_600SemiBold" }}>Cancel</Text>
             </Pressable>
@@ -258,7 +268,7 @@ const styles = StyleSheet.create({
   options: { flexDirection: "row", gap: 7, flexWrap: "wrap" },
   option: { borderWidth: 1, minWidth: 52, minHeight: 34, borderRadius: 8, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
   captionInput: { borderWidth: 1, borderRadius: 9, minHeight: 70, paddingHorizontal: 11, paddingVertical: 10, fontFamily: "Outfit_400Regular", fontSize: 13, textAlignVertical: "top" },
-  actions: { flexDirection: "row", gap: 10, padding: 15, borderTopWidth: 1 },
-  cancel: { height: 44, paddingHorizontal: 18, borderRadius: 9, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  actions: { flexDirection: "row", gap: 10, paddingHorizontal: 15, paddingTop: 12, borderTopWidth: 1 },
+  cancel: { flex: 1, minWidth: 0, height: 44, paddingHorizontal: 12, borderRadius: 9, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   save: { flex: 1, height: 44, borderRadius: 9, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
 });
