@@ -16,3 +16,4 @@
 - [Native map marker sizing](native-map-marker-sizing.md) — iOS may render Marker image assets at intrinsic size; use a fixed-size child image instead.
 - [iOS progressive video ranges](ios-progressive-video-ranges.md) — AVPlayer needs storage proxies to honor HTTP byte-range requests for reliable MP4 playback.
 - [Legacy land listing payloads](legacy-land-listing-payloads.md) — infer sale/land from a submitted land-details block when older native clients omit subtype.
+- [Hidden listing defaults](hidden-listing-defaults.md) — fields hidden by a listing type still need API defaults when the shared database schema requires them.

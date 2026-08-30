@@ -1407,13 +1407,14 @@ router.post("/", async (req, res) => {
 
   const normalizedSubtype = resolveListingSubtype(body) || undefined;
   const commercialSpecs = isCommercialSubtype(normalizedSubtype);
+  const landSpecs = normalizedSubtype === "land";
   const result = insertPropertySchema.safeParse({
     ...body,
     subtype: normalizedSubtype,
-    // Commercial spaces deliberately do not collect residential bed/bath/sqft
-    // details. Keep the schema's numeric database contract without rejecting
-    // a valid commercial listing submitted by the native form.
-    ...(commercialSpecs ? {
+    // Commercial spaces and land deliberately do not collect residential
+    // bed/bath/sqft details. Keep the schema's numeric database contract
+    // without rejecting a valid listing submitted by the native form.
+    ...(commercialSpecs || landSpecs ? {
       beds: body.beds ?? 0,
       baths: body.baths ?? 0,
       sqft: body.sqft ?? 0,
