@@ -17,3 +17,4 @@
 - [iOS progressive video ranges](ios-progressive-video-ranges.md) — AVPlayer needs storage proxies to honor HTTP byte-range requests for reliable MP4 playback.
 - [Legacy land listing payloads](legacy-land-listing-payloads.md) — infer sale/land from a submitted land-details block when older native clients omit subtype.
 - [Hidden listing defaults](hidden-listing-defaults.md) — fields hidden by a listing type still need API defaults when the shared database schema requires them.
+- [Expo tab scroll events](expo-tab-scroll-events.md) — use Expo Router navigation with a narrow tabPress type when the mobile package lacks a direct React Navigation dependency.

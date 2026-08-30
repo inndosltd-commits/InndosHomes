@@ -5,7 +5,7 @@ import {
   useListFeaturedProperties,
 } from "@workspace/api-client-react";
 import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -573,6 +573,7 @@ export default function BrowseScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams<{ type?: string | string[]; filters?: string | string[] }>();
   const { user, token } = useAuth();
   const routeFiltersOpen = (Array.isArray(params.filters) ? params.filters[0] : params.filters) === "open";
@@ -601,9 +602,19 @@ export default function BrowseScreen() {
   const [placeLoading, setPlaceLoading] = useState(false);
   const [placeFocused, setPlaceFocused] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const browseScrollRef = useRef<ScrollView>(null);
   const placeRequestRef = useRef(0);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const placeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const tabNavigation = navigation as unknown as {
+      addListener: (eventName: "tabPress", listener: () => void) => () => void;
+    };
+    const unsubscribe = tabNavigation.addListener("tabPress", () => {
+      browseScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+    return unsubscribe;
+  }, [navigation]);
   const categoryMaxPrice = getMaxPrice(activeType);
   const isCommercialCategory = activeType === "rent" &&
     ["Office Space", "Godowns", "Stalls", "Shops"].includes(activeSubCategory ?? "");
@@ -1031,6 +1042,7 @@ export default function BrowseScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
+        ref={browseScrollRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
