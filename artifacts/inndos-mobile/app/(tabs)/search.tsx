@@ -21,7 +21,7 @@ type PropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
 const TYPES: { label: string; value: PropertyType; icon: string }[] = [
   { label: "Rent", value: "rent", icon: "key" },
   { label: "Sale", value: "sale", icon: "tag" },
-  { label: "BnB", value: "bnb", icon: "sun" },
+  { label: "B&B", value: "bnb", icon: "sun" },
   { label: "Hotel", value: "hotel", icon: "star" },
   { label: "Hostel", value: "hostel", icon: "users" },
 ];

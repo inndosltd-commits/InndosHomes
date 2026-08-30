@@ -81,7 +81,7 @@ export function propertyTypeLabel(type: unknown): string {
   switch (normalizePropertyType(type)) {
     case "rent": return "For Rent";
     case "sale": return "For Sale";
-    case "bnb": return "BnB";
+    case "bnb": return "B&B";
     case "hotel": return "Hotel";
     case "hostel": return "Hostel";
     default: return typeof type === "string" && type.trim() ? type : "Property";

@@ -69,7 +69,7 @@ function getTypeLabel(type: string): string {
   switch (type) {
     case "rent": return "For Rent";
     case "sale": return "For Sale";
-    case "bnb": return "BnB";
+    case "bnb": return "B&B";
     case "hotel": return "Hotel";
     case "hostel": return "Hostel";
     default: return type;

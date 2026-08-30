@@ -38,7 +38,7 @@ const ROLES: {
 }[] = [
   { label: "Tenant", value: "tenant", icon: "search", desc: "Looking for a place" },
   { label: "Property Owner", value: "owner", icon: "home", desc: "Selling or renting out" },
-  { label: "Host / Agency", value: "host", icon: "star", desc: "BnB, Hotel or Agency" },
+  { label: "Host / Agency", value: "host", icon: "star", desc: "B&B, Hotel or Agency" },
   { label: "Marketer", value: "guest", icon: "share-2", desc: "Referring properties" },
 ];
 

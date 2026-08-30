@@ -1513,7 +1513,7 @@ export default function AddListing() {
                   </div>
                   )}
 
-                  {/* BnB Type selector */}
+                  {/* B&B Type selector */}
                   {listingType === 'bnb' && (
                   <div className="space-y-3">
                     <Label htmlFor="bnb_subtype">B&B Property Type</Label>
@@ -1583,7 +1583,7 @@ export default function AddListing() {
                   </div>
                   )}
 
-                  {/* BnB Pricing — daily (existing price) + optional hourly rate */}
+                  {/* B&B Pricing — daily (existing price) + optional hourly rate */}
                   {listingType === 'bnb' && (
                   <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
                     <div>

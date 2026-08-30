@@ -46,7 +46,7 @@ type FilterItem = {
 
 const FILTER_TYPES: FilterItem[] = [
   { label: "All",    value: undefined,  hasDropdown: false },
-  { label: "BnB",    value: "bnb",      hasDropdown: false },
+  { label: "B&B",    value: "bnb",      hasDropdown: false },
   { label: "Rent",   value: "rent",     hasDropdown: true  },
   { label: "Hostel", value: "hostel",   hasDropdown: false },
   { label: "Hotel",  value: "hotel",    hasDropdown: false },
@@ -1390,7 +1390,7 @@ export default function BrowseScreen() {
                   />
                 )}
                 <SectionBlock
-                  title="BnB & Hotels"
+                  title="B&B & Hotels"
                   properties={bnbHotelProperties.slice(0, 10)}
                   total={bnbHotelProperties.length}
                   onExploreMore={() => { setActiveType("bnb"); setActiveSubCategory(null); }}

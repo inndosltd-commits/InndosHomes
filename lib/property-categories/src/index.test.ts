@@ -4,6 +4,7 @@ import {
   normalizePropertySubtype,
   propertyCategoryLabel,
   propertySubtypeLabelForType,
+  propertyTypeLabel,
 } from "./index";
 
 assert.deepEqual(normalizePropertyCategory("rent-business"), { type: "rent", subtype: "business" });
@@ -14,4 +15,5 @@ assert.equal(propertyCategoryLabel("sale", "land"), "For Sale · Land");
 assert.equal(propertySubtypeLabelForType("hotel", "hotel"), null);
 assert.equal(propertySubtypeLabelForType("rent", "penthouse"), "Penthouse");
 assert.equal(propertyCategoryLabel("hotel", "hotel"), "Hotel");
+assert.equal(propertyTypeLabel("bnb"), "B&B");
 console.log("property category contract checks passed");

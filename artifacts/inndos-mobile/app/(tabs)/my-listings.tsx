@@ -32,7 +32,7 @@ function getTypeLabel(type: string): string {
     case "sale":
       return "For Sale";
     case "bnb":
-      return "BnB";
+      return "B&B";
     case "hotel":
       return "Hotel";
     case "hostel":

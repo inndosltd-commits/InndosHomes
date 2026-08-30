@@ -49,7 +49,7 @@ const LISTING_TYPES = [
   { label: "Sale - Apartment",    value: "sale-apartment" },
   { label: "Sale - House",        value: "sale-home"      },
   { label: "Sale - Land",         value: "sale-land"      },
-  { label: "BnB / Short",         value: "bnb"            },
+  { label: "B&B / Short",         value: "bnb"            },
   { label: "Hotel",               value: "hotel"          },
   { label: "Hostel",              value: "hostel"         },
 ] as const;
@@ -1896,7 +1896,7 @@ export default function ListPropertyScreen() {
             )}
           </View>
 
-          {/* BnB pricing */}
+          {/* B&B pricing */}
           {showHourlyRate && (
             <Field label="Hourly Rate (KES, optional)" colors={colors} hint="Leave blank if hourly is not available.">
               <TextInput
