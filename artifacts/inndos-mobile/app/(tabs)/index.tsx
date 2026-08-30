@@ -1464,7 +1464,7 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     scrollContent: { flexGrow: 1 },
     filterRow: { flexDirection: "row", paddingHorizontal: hPad, gap: chipGap },
     filterChip: { width: filterChipW, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 8, borderWidth: 1, borderRadius: 20 },
-    filterChipText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
+    filterChipText: { fontSize: 12, fontFamily: "Outfit_600SemiBold" },
     subCategoryBadge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginHorizontal: hPad, marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     subCategoryText: { fontSize: 11, fontFamily: "Outfit_400Regular" },
     individualFilterBar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: hPad, paddingVertical: 10, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },

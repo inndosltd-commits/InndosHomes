@@ -14,6 +14,8 @@ import { getImageUrl } from "@/utils/imageUrl";
 import { resolveAmenityLabel } from "@/utils/amenities";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -37,6 +39,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { getApiBaseUrl } from "@/utils/api";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -164,6 +167,31 @@ function getLandMeasurements(details: Record<string, unknown> | undefined): { ac
   return { acres, plotSize };
 }
 
+function getWatermarkDownloadUrl(
+  mediaPath: string | null | undefined,
+  kind: "photo" | "video",
+): string | null {
+  const cleanPath = mediaPath?.trim();
+  const baseUrl = getApiBaseUrl();
+  if (!cleanPath || !baseUrl) return null;
+
+  let objectPath = cleanPath;
+  if (objectPath.startsWith(baseUrl)) {
+    objectPath = objectPath.slice(baseUrl.length);
+  }
+  const match =
+    /^\/objects\/(.+)$/.exec(objectPath) ??
+    /^\/api\/storage\/objects\/(.+)$/.exec(objectPath);
+  if (!match?.[1]) return null;
+
+  const encodedPath = match[1]
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${baseUrl}/api/storage/watermark${kind === "video" ? "-video" : ""}/${encodedPath}`;
+}
+
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -177,7 +205,9 @@ export default function PropertyDetailScreen() {
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [videoModalSource, setVideoModalSource] = useState<string | null>(null);
+  const [videoModalPath, setVideoModalPath] = useState<string | null>(null);
   const [videoPlaybackError, setVideoPlaybackError] = useState("");
+  const [isDownloadingMedia, setIsDownloadingMedia] = useState(false);
   const carouselRef = useRef<FlatList>(null);
   const lightboxRef = useRef<FlatList>(null);
   const lightboxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -238,6 +268,64 @@ export default function PropertyDetailScreen() {
       }
     }
   };
+
+  const handleDownloadMedia = useCallback(async (
+    mediaPath: string | null | undefined,
+    kind: "photo" | "video",
+  ) => {
+    if (isDownloadingMedia) return;
+    const downloadUrl = getWatermarkDownloadUrl(mediaPath, kind);
+    if (!downloadUrl) {
+      Alert.alert("Download unavailable", "This media is not available as a downloadable listing file.");
+      return;
+    }
+    if (isWeb) {
+      try {
+        await Linking.openURL(downloadUrl);
+      } catch {
+        Alert.alert("Download unavailable", "The watermarked file could not be opened.");
+      }
+      return;
+    }
+
+    setIsDownloadingMedia(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let localUri: string | null = null;
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          "Photos permission needed",
+          "Allow INNDOS to access your photo library so the watermarked file can be saved.",
+        );
+        return;
+      }
+
+      const cacheDirectory = FileSystem.cacheDirectory;
+      if (!cacheDirectory) throw new Error("Device cache is unavailable");
+      const extension = kind === "video" ? "mp4" : "jpg";
+      localUri = `${cacheDirectory}inndos-${kind}-${Date.now()}.${extension}`;
+      const result = await FileSystem.downloadAsync(downloadUrl, localUri);
+      if (result.status !== 200) throw new Error(`Download failed with status ${result.status}`);
+
+      await MediaLibrary.createAssetAsync(result.uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Downloaded",
+        `Watermarked ${kind} saved to your photo library.`,
+      );
+    } catch {
+      Alert.alert(
+        "Download failed",
+        `We could not save this watermarked ${kind}. Please try again.`,
+      );
+    } finally {
+      if (localUri) {
+        await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+      }
+      setIsDownloadingMedia(false);
+    }
+  }, [isDownloadingMedia, isWeb]);
 
   const handleFavoriteToggle = () => {
     if (!user) {
@@ -329,6 +417,7 @@ export default function PropertyDetailScreen() {
 
   const closeVideo = useCallback(() => {
     setVideoModalSource(null);
+    setVideoModalPath(null);
     setVideoPlaybackError("");
   }, []);
 
@@ -379,7 +468,9 @@ export default function PropertyDetailScreen() {
   const rawPropertyVideos = Array.isArray((property as { videos?: string[] }).videos)
     ? (property as { videos: string[] }).videos
     : [];
-  const propertyVideos = rawPropertyVideos
+  const propertyVideoPaths = rawPropertyVideos
+    .filter((video): video is string => typeof video === "string" && video.trim().length > 0);
+  const propertyVideos = propertyVideoPaths
     .map((video) => getImageUrl(video))
     .filter((video): video is string => video.length > 0);
   const photoCandidates = (property.images && property.images.length > 0)
@@ -387,7 +478,9 @@ export default function PropertyDetailScreen() {
     : propertyVideos.length === 0
       ? [property.image]
       : [];
-  const allPhotos = photoCandidates
+  const photoPaths = photoCandidates
+    .filter((photo): photo is string => typeof photo === "string" && photo.trim().length > 0);
+  const allPhotos = photoPaths
     .map((photo) => getImageUrl(photo))
     .filter((photo): photo is string => photo.length > 0);
   const videoPosters = Array.isArray((property as { videoPosters?: string[] }).videoPosters)
@@ -415,6 +508,19 @@ export default function PropertyDetailScreen() {
         <View style={styles.videoModalBackdrop}>
           <View style={styles.videoModalHeader}>
             <Text style={styles.videoModalTitle} numberOfLines={1}>{property.title}</Text>
+            <Pressable
+              style={[styles.videoModalDownload, isDownloadingMedia && styles.mediaDownloadDisabled]}
+              onPress={() => handleDownloadMedia(videoModalPath, "video")}
+              disabled={isDownloadingMedia}
+              accessibilityRole="button"
+              accessibilityLabel="Download watermarked video"
+            >
+              {isDownloadingMedia ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="download" size={20} color="#fff" />
+              )}
+            </Pressable>
             <Pressable
               style={styles.videoModalClose}
               onPress={closeVideo}
@@ -448,6 +554,19 @@ export default function PropertyDetailScreen() {
         <View style={styles.lightboxBackdrop}>
           <Pressable style={styles.lightboxClose} onPress={() => setLightboxVisible(false)}>
             <Feather name="x" size={24} color="#fff" />
+          </Pressable>
+          <Pressable
+            style={[styles.lightboxDownload, isDownloadingMedia && styles.mediaDownloadDisabled]}
+            onPress={() => handleDownloadMedia(photoPaths[lightboxIndex], "photo")}
+            disabled={isDownloadingMedia}
+            accessibilityRole="button"
+            accessibilityLabel="Download watermarked photo"
+          >
+            {isDownloadingMedia ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="download" size={20} color="#fff" />
+            )}
           </Pressable>
           <Text style={styles.lightboxCounter}>{lightboxIndex + 1} / {allPhotos.length}</Text>
           <FlatList
@@ -535,6 +654,7 @@ export default function PropertyDetailScreen() {
                     } else {
                       setVideoPlaybackError("");
                       setVideoModalSource(item.uri);
+                      setVideoModalPath(propertyVideoPaths[item.videoIndex]);
                     }
                   }}
                 >
@@ -942,6 +1062,18 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       borderRadius: 20,
       padding: 8,
     },
+    lightboxDownload: {
+      position: "absolute",
+      top: 48,
+      right: 68,
+      zIndex: 10,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      borderRadius: 20,
+      padding: 8,
+    },
+    mediaDownloadDisabled: {
+      opacity: 0.55,
+    },
     lightboxCounter: {
       position: "absolute",
       top: 54,
@@ -990,6 +1122,14 @@ function getStyles(colors: ReturnType<typeof useColors>) {
       fontFamily: "Outfit_600SemiBold",
     },
     videoModalClose: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    videoModalDownload: {
       width: 40,
       height: 40,
       borderRadius: 20,

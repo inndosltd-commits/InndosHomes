@@ -1,5 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
+import { pipeline } from "node:stream/promises";
+import { createWriteStream } from "node:fs";
+import { mkdir, readFile, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import sharp from "sharp";
 import {
   RequestUploadUrlBody,
@@ -14,6 +22,7 @@ import { getUserPlanEntitlements } from "./subscriptions";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+const execFileAsync = promisify(execFile);
 const uploadGrantWindows = new Map<string, number[]>();
 const UPLOAD_GRANT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_UPLOAD_GRANTS_PER_WINDOW = 30;
@@ -50,6 +59,55 @@ const VIDEO_FILE_EXTENSIONS = new Set([
   "wmv",
 ]);
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf"]);
+const MAX_WATERMARK_VIDEO_BYTES = 250 * 1024 * 1024;
+
+function createWatermarkSvg(width: number, height: number): Buffer {
+  const cx = width / 2;
+  const cy = height / 2;
+  const textLength = Math.round(width * 0.85);
+  const fontSize = Math.round(Math.min(width, height) * 0.10);
+
+  return Buffer.from(`
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <text
+        x="${cx}"
+        y="${cy}"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        transform="rotate(-30, ${cx}, ${cy})"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="${fontSize}"
+        font-weight="bold"
+        fill="rgba(160,160,160,0.55)"
+        textLength="${textLength}"
+        lengthAdjust="spacingAndGlyphs"
+      >inndos.com</text>
+    </svg>
+  `);
+}
+
+async function probeVideoDimensions(inputPath: string): Promise<{ width: number; height: number }> {
+  const { stdout } = await execFileAsync(
+    "ffprobe",
+    [
+      "-v", "error",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "json",
+      inputPath,
+    ],
+    { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 },
+  );
+  const probe = JSON.parse(stdout) as {
+    streams?: Array<{ width?: number; height?: number }>;
+  };
+  const width = Number(probe.streams?.[0]?.width);
+  const height = Number(probe.streams?.[0]?.height);
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2) {
+    throw new Error("Video dimensions could not be read");
+  }
+  return { width, height };
+}
 
 /**
  * POST /storage/uploads/request-url
@@ -309,35 +367,8 @@ router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
     const w = meta.width ?? 800;
     const h = meta.height ?? 600;
 
-    // Single large diagonal watermark — stock-photo style
-    // textLength pins the rendered width to 85% of the image width so the
-    // full text always fits within the frame after the -30° rotation.
-    const cx = w / 2;
-    const cy = h / 2;
-    const textLength = Math.round(w * 0.85);
-    // Font-size drives the text height; a good height is ~10% of the shorter edge
-    const fontSize = Math.round(Math.min(w, h) * 0.10);
-
-    const svgOverlay = Buffer.from(`
-      <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
-        <text
-          x="${cx}"
-          y="${cy}"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          transform="rotate(-30, ${cx}, ${cy})"
-          font-family="Arial, Helvetica, sans-serif"
-          font-size="${fontSize}"
-          font-weight="bold"
-          fill="rgba(160,160,160,0.55)"
-          textLength="${textLength}"
-          lengthAdjust="spacingAndGlyphs"
-        >inndos.com</text>
-      </svg>
-    `);
-
     const watermarked = await sharp(inputBuffer)
-      .composite([{ input: svgOverlay, blend: "over" }])
+      .composite([{ input: createWatermarkSvg(w, h), blend: "over" }])
       .jpeg({ quality: 88 })
       .toBuffer();
 
@@ -352,6 +383,85 @@ router.get("/storage/watermark/*path", async (req: Request, res: Response) => {
     }
     req.log?.error({ err: error }, "Error serving watermarked object");
     res.status(500).json({ error: "Failed to serve watermarked object" });
+  }
+});
+
+/**
+ * GET /storage/watermark-video/*
+ *
+ * Return a downloadable MP4 with the same centered, diagonal inndos.com
+ * watermark used by the photo download endpoint. Playback always uses the
+ * original listing video; this route is only for saved copies.
+ */
+router.get("/storage/watermark-video/*path", async (req: Request, res: Response) => {
+  const workDir = join(tmpdir(), `inndos-watermark-video-${randomUUID()}`);
+  const inputPath = join(workDir, "source");
+  const overlayPath = join(workDir, "watermark.png");
+  const outputPath = join(workDir, "watermarked.mp4");
+
+  try {
+    const raw = req.params.path;
+    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath = `/objects/${wildcardPath}`;
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const [metadata] = await objectFile.getMetadata();
+    const storedSize = Number(metadata.size ?? 0);
+    if (Number.isFinite(storedSize) && (storedSize < 1 || storedSize > MAX_WATERMARK_VIDEO_BYTES)) {
+      res.status(413).json({ error: "This video is too large to download." });
+      return;
+    }
+
+    await mkdir(workDir, { recursive: true });
+    await pipeline(objectFile.createReadStream(), createWriteStream(inputPath));
+    const inputStats = await stat(inputPath);
+    if (inputStats.size < 1 || inputStats.size > MAX_WATERMARK_VIDEO_BYTES) {
+      res.status(413).json({ error: "This video is too large to download." });
+      return;
+    }
+
+    const { width, height } = await probeVideoDimensions(inputPath);
+    await sharp(createWatermarkSvg(width, height)).png().toFile(overlayPath);
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y",
+        "-i", inputPath,
+        "-loop", "1",
+        "-i", overlayPath,
+        "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto",
+        "-map", "0:v:0",
+        "-map", "0:a?",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-movflags", "+faststart",
+        "-shortest",
+        outputPath,
+      ],
+      { timeout: 300_000, maxBuffer: 4 * 1024 * 1024 },
+    );
+
+    const outputStats = await stat(outputPath);
+    if (outputStats.size < 1 || outputStats.size > MAX_WATERMARK_VIDEO_BYTES) {
+      res.status(500).json({ error: "The watermarked video could not be created." });
+      return;
+    }
+
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", 'attachment; filename="inndos-video.mp4"');
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.send(await readFile(outputPath));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Object not found" });
+      return;
+    }
+    req.log?.error({ err: error }, "Error serving watermarked video");
+    res.status(500).json({ error: "Failed to create watermarked video" });
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
   }
 });
 

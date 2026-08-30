@@ -55,6 +55,13 @@
         }
       ],
       [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow INNDOS to save watermarked listing photos and videos to your photo library.",
+          "savePhotosPermission": "Allow INNDOS to save watermarked listing photos and videos to your photo library."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow INNDOS to use your location to show nearby properties."
