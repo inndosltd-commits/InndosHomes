@@ -24,7 +24,7 @@ import { resolveAmenityLabel } from "@/utils/amenities";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
+import { propertySubtypeLabelForType, propertyTypeLabel } from "@workspace/property-categories";
 
 interface PropertyCardProps {
   property: Property;
@@ -68,6 +68,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const isFavoriteLoading = isAdding || isRemoving;
   const previewImage = property.images?.[0] ?? property.videoPosters?.[0] ?? property.image;
   const previewImageUrl = getImageUrl(previewImage);
+  const displaySubtype = propertySubtypeLabelForType(
+    property.type,
+    property.subtype ?? (property.details?.land ? "land" : null),
+  );
 
   const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
     if (!user) {
@@ -125,10 +129,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
               {propertyTypeLabel(property.type)}
             </Text>
           </View>
-          {propertySubtypeLabel(property.subtype) && (
+          {displaySubtype && (
             <View style={[styles.typeBadge, { backgroundColor: colors.card }]}>
               <Text style={[styles.typeBadgeText, { color: colors.foreground }]}>
-                {propertySubtypeLabel(property.subtype)}
+                {displaySubtype}
               </Text>
             </View>
           )}

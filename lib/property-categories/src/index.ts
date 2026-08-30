@@ -94,9 +94,16 @@ export function propertySubtypeLabel(subtype: unknown): string | null {
   return normalized.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
 
+export function propertySubtypeLabelForType(type: unknown, subtype: unknown): string | null {
+  const normalizedType = normalizePropertyType(type);
+  const normalizedSubtype = normalizePropertySubtype(subtype);
+  if (!normalizedSubtype || normalizedSubtype === normalizedType) return null;
+  return propertySubtypeLabel(normalizedSubtype);
+}
+
 export function propertyCategoryLabel(type: unknown, subtype?: unknown): string {
   const main = propertyTypeLabel(type);
-  const sub = propertySubtypeLabel(subtype);
+  const sub = propertySubtypeLabelForType(type, subtype);
   return sub ? `${main} · ${sub}` : main;
 }
 

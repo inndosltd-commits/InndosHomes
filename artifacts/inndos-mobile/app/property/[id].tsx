@@ -41,7 +41,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { PropertyLocationMap } from "@/components/PropertyLocationMap";
-import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
+import { propertySubtypeLabelForType, propertyTypeLabel } from "@workspace/property-categories";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const videoPlayerStyles = StyleSheet.create({
@@ -370,6 +370,10 @@ export default function PropertyDetailScreen() {
     );
   }
 
+  const displaySubtype = propertySubtypeLabelForType(
+    property.type,
+    property.subtype ?? (property.details?.land ? "land" : null),
+  );
   const showBooking = true;
 
   const rawPropertyVideos = Array.isArray((property as { videos?: string[] }).videos)
@@ -612,10 +616,10 @@ export default function PropertyDetailScreen() {
                 {propertyTypeLabel(property.type)}
               </Text>
             </View>
-            {propertySubtypeLabel(property.subtype) && (
+            {displaySubtype && (
               <View style={[styles.typeChip, { backgroundColor: colors.card }]}>
                 <Text style={[styles.typeChipText, { color: colors.foreground }]}>
-                  {propertySubtypeLabel(property.subtype)}
+                  {displaySubtype}
                 </Text>
               </View>
             )}

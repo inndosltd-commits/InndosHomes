@@ -25,7 +25,7 @@ import { PropertyLikesPanel } from "@/components/dashboard/PropertyLikesPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/lib/language";
 import { BrandWordmark } from "@/components/layout/BrandWordmark";
-import { normalizePropertySubtype, propertySubtypeLabel, propertyTypeLabel, propertyCategorySearchValues } from "@workspace/property-categories";
+import { normalizePropertySubtype, propertySubtypeLabelForType, propertyTypeLabel, propertyCategorySearchValues } from "@workspace/property-categories";
 
 function IdSideUpload({
   label, hint, currentPath, isUploading, isVerifying, inputRef, onChange
@@ -3449,6 +3449,7 @@ export default function Dashboard() {
                       const isPendingReview = !p.isVerified && p.propertyStatus === "pending";
                       const canMarkSold = isEligibleSaleListing(p);
                       const isActioning = !!adminPropertyActionLoading[p.id];
+                      const displaySubtype = propertySubtypeLabelForType(p.type, p.subtype);
                       return (
                       <div key={p.id} className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg transition-colors group shadow-sm ${isDeactivated || isSold ? 'bg-gray-50 opacity-75' : 'hover:bg-gray-50 bg-white'}`}>
                         <img src={getImageUrl(p.image)} className={`h-20 w-20 object-cover rounded-md flex-shrink-0 ${isDeactivated || isSold ? 'grayscale' : ''}`} alt={p.title} />
@@ -3469,7 +3470,7 @@ export default function Dashboard() {
                                 {isSold ? 'Sold' : isDeactivated ? 'Deactivated' : isFlagged ? 'Flagged' : !p.isVerified ? 'Pending' : 'Active'}
                               </Badge>
                               <Badge variant="secondary">{propertyTypeLabel(p.type)}</Badge>
-                              {propertySubtypeLabel(p.subtype) && <Badge variant="outline">{propertySubtypeLabel(p.subtype)}</Badge>}
+                               {displaySubtype && <Badge variant="outline">{displaySubtype}</Badge>}
                               <span className="text-xs text-muted-foreground flex items-center ml-2 border-l pl-2">ID: {p.id.slice(0, 8)}</span>
                             </div>
                             
@@ -3494,7 +3495,7 @@ export default function Dashboard() {
                                         <p className="text-muted-foreground">{p.address || "Location not specified"}</p>
                                         <p className="text-sm text-muted-foreground mt-1">
                                           {propertyTypeLabel(p.type)}
-                                          {propertySubtypeLabel(p.subtype) ? ` · ${propertySubtypeLabel(p.subtype)}` : ""}
+                                           {displaySubtype ? ` · ${displaySubtype}` : ""}
                                         </p>
                                       </div>
                                       <div className="flex gap-2">

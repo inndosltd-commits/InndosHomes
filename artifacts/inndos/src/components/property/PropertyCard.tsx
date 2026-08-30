@@ -6,7 +6,7 @@ import { useCurrency } from "@/lib/currency";
 import { resolveAmenityLabel } from "@/lib/amenities";
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { propertySubtypeLabel, propertyTypeLabel } from "@workspace/property-categories";
+import { propertySubtypeLabelForType, propertyTypeLabel } from "@workspace/property-categories";
 
 export interface ApiProperty {
   id: string;
@@ -100,6 +100,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const previewImage = property.images?.length
     ? property.image
     : property.videoPosters?.[0] ?? property.image;
+  const displaySubtype = propertySubtypeLabelForType(
+    property.type,
+    property.subtype ?? (property.details?.land ? "land" : null),
+  );
 
   const PRICE_UNIT_LABELS: Record<string, string> = {
     night: "/night",
@@ -138,9 +142,9 @@ export function PropertyCard({ property }: PropertyCardProps) {
               <Badge className="bg-primary text-white hover:bg-opacity-90">
                 {propertyTypeLabel(property.type)}
               </Badge>
-              {propertySubtypeLabel(property.subtype) && (
+              {displaySubtype && (
                 <Badge variant="outline" className="bg-white/90 text-primary backdrop-blur-sm">
-                  {propertySubtypeLabel(property.subtype)}
+                  {displaySubtype}
                 </Badge>
               )}
               {property.isVerified && (
