@@ -24,7 +24,7 @@ import { resolveAmenityLabel } from "@/utils/amenities";
 import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { propertySubtypeLabelForType, propertyTypeLabel } from "@workspace/property-categories";
+import { propertyTypeLabel } from "@workspace/property-categories";
 
 interface PropertyCardProps {
   property: Property;
@@ -68,10 +68,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const isFavoriteLoading = isAdding || isRemoving;
   const previewImage = property.images?.[0] ?? property.videoPosters?.[0] ?? property.image;
   const previewImageUrl = getImageUrl(previewImage);
-  const displaySubtype = propertySubtypeLabelForType(
-    property.type,
-    property.subtype ?? (property.details?.land ? "land" : null),
-  );
 
   const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
     if (!user) {
@@ -129,13 +125,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
               {propertyTypeLabel(property.type)}
             </Text>
           </View>
-          {displaySubtype && (
-            <View style={[styles.typeBadge, { backgroundColor: colors.card }]}>
-              <Text style={[styles.typeBadgeText, { color: colors.foreground }]}>
-                {displaySubtype}
-              </Text>
-            </View>
-          )}
           {property.isVerified && (
             <View style={[styles.verifiedBadge, { backgroundColor: "rgba(255,255,255,0.9)" }]}>
               <Feather name="check-circle" size={11} color={colors.primary === "#000000" ? "#000" : "#fff"} />
