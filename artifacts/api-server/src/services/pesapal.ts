@@ -1,6 +1,13 @@
 import { db } from "@workspace/db";
 import { settings } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import {
+  normalizePesapalTransactionStatus,
+  type PesapalTransactionStatus,
+} from "./pesapal-status";
+
+export { normalizePesapalTransactionStatus };
+export type { PesapalTransactionStatus };
 
 const SANDBOX_URL = "https://cybqa.pesapal.com/pesapalv3";
 const LIVE_URL = "https://pay.pesapal.com/v3";
@@ -150,17 +157,7 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
   };
 }
 
-export async function getTransactionStatus(orderTrackingId: string): Promise<{
-  paymentMethod: string;
-  amount: number;
-  createdDate: string;
-  confirmedDate: string;
-  status: string;
-  description: string;
-  paymentStatusDescription: string; // Completed | Failed | Invalid | Reversed
-  merchantReference: string;
-  currency: string;
-}> {
+export async function getTransactionStatus(orderTrackingId: string): Promise<PesapalTransactionStatus> {
   const config = await getPesapalConfig();
   const base = getBaseUrl(config.mode);
   const token = await getAuthToken();
@@ -180,18 +177,7 @@ export async function getTransactionStatus(orderTrackingId: string): Promise<{
     throw new Error(`PesaPal status check failed: ${res.status} ${body}`);
   }
 
-  const data = await res.json() as Record<string, unknown>;
-  return {
-    paymentMethod: String(data.payment_method ?? data.paymentMethod ?? ""),
-    amount: Number(data.amount),
-    createdDate: String(data.created_date ?? data.createdDate ?? ""),
-    confirmedDate: String(data.confirmed_date ?? data.confirmedDate ?? ""),
-    status: String(data.status_code ?? data.status ?? ""),
-    description: String(data.description ?? ""),
-    paymentStatusDescription: String(data.payment_status_description ?? data.paymentStatusDescription ?? ""),
-    merchantReference: String(data.merchant_reference ?? data.merchantReference ?? ""),
-    currency: String(data.currency ?? ""),
-  };
+  return normalizePesapalTransactionStatus(await res.json() as Record<string, unknown>);
 }
 
 export function invalidateTokenCache() {

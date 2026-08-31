@@ -85,6 +85,14 @@ function getImageUrl(path: string | null | undefined): string {
   return path;
 }
 
+function formatPaymentDateTime(value: string | null | undefined): string {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not available"
+    : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
 function ProfileCard({ user, token, refreshUser }: { user: User; token: string | null; refreshUser: () => Promise<void> }) {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -1541,38 +1549,71 @@ export default function Dashboard() {
 
   // Handle return from PesaPal payment
   useEffect(() => {
+    if (!token) return;
     const hash = window.location.hash;
     if (!hash.includes("payment=")) return;
     const params = new URLSearchParams(hash.split("?")[1] ?? "");
-    const paymentResult = params.get("payment");
+    const paymentResult = params.get("payment") as "success" | "pending" | "failed" | "cancelled" | "error" | null;
+    const paymentId = params.get("paymentId");
     if (!paymentResult) return;
 
     // Clean up URL
-    const cleanHash = hash.replace(/[?&]payment=[^&]*/, "");
+    const cleanHash = hash.replace(/[?&](payment|paymentId)=[^&]*/g, "").replace(/[?&]$/, "");
     window.history.replaceState(null, "", window.location.pathname + cleanHash);
 
-    if (paymentResult === "success") {
-      fetchSubscription();
-      setActiveTab("subscription");
-      setFeatureSelectionOpen(true);
-      toast({
-        title: "Payment successful!",
-        description: "Your subscription has been activated. Thank you!",
-        className: "bg-gray-50 border-gray-200 text-gray-800",
-      });
-    } else if (paymentResult === "failed") {
-      toast({
-        title: "Payment failed",
-        description: "The payment was not completed. Please try again.",
-        variant: "destructive",
-      });
-    } else if (paymentResult === "cancelled") {
-      toast({ title: "Payment cancelled", description: "No charges were made." });
-    } else if (paymentResult === "error") {
-      toast({ title: "Payment error", description: "Something went wrong processing your payment.", variant: "destructive" });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const reconcileReturnedPayment = async () => {
+      let result = paymentResult;
+      if (paymentId && paymentResult !== "cancelled") {
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          try {
+            const response = await fetch(`/api/subscriptions/payments/${encodeURIComponent(paymentId)}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              const payment = await response.json() as { status?: string };
+              if (payment.status === "completed") {
+                result = "success";
+                break;
+              }
+              if (payment.status === "cancelled") {
+                result = "cancelled";
+                break;
+              }
+              result = payment.status === "failed" ? "failed" : "pending";
+            }
+          } catch {
+            // Keep the callback result; the next attempt can reconcile again.
+          }
+          if (attempt < 11) await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+
+      if (result === "success") {
+        await fetchSubscription();
+        setActiveTab("subscription");
+        setFeatureSelectionOpen(true);
+        toast({
+          title: "Payment successful!",
+          description: "Your subscription has been activated. Thank you!",
+          className: "bg-gray-50 border-gray-200 text-gray-800",
+        });
+      } else if (result === "failed") {
+        toast({
+          title: "Payment failed",
+          description: "The payment was not completed. Please try again.",
+          variant: "destructive",
+        });
+      } else if (result === "cancelled") {
+        toast({ title: "Payment cancelled", description: "No charges were made." });
+      } else if (result === "error") {
+        toast({ title: "Payment error", description: "Something went wrong processing your payment.", variant: "destructive" });
+      } else {
+        toast({ title: "Payment pending", description: "We are waiting for payment confirmation. Your plan will refresh when it is received." });
+      }
+    };
+
+    void reconcileReturnedPayment();
+  }, [fetchSubscription, token, toast]);
 
   // --- PROFILE COMPLETION REMINDER (every 3 days) ---
   useEffect(() => {
@@ -5262,7 +5303,8 @@ export default function Dashboard() {
                             <th className="px-4 py-3 text-left font-semibold text-gray-600">Amount</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-600">Method</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Initiated</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600">Completed</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-600">Ref</th>
                           </tr>
                         </thead>
@@ -5281,9 +5323,11 @@ export default function Dashboard() {
                                 <Badge className={p.status === 'completed' ? 'bg-green-100 text-green-800' : p.status === 'pending' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-700'}>
                                   {p.status}
                                 </Badge>
+                                {p.gatewayDescription && <div className="mt-1 max-w-[180px] text-[11px] text-gray-400">{p.gatewayDescription}</div>}
                               </td>
                               <td className="px-4 py-3 text-gray-500 text-xs">{p.paymentMethod ?? '—'}</td>
-                              <td className="px-4 py-3 text-gray-500 text-xs">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{formatPaymentDateTime(p.createdAt)}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{formatPaymentDateTime(p.confirmedAt)}</td>
                               <td className="px-4 py-3 text-gray-400 text-xs font-mono">{p.merchantReference?.slice(-10) ?? '—'}</td>
                             </tr>
                           ))}

@@ -1,7 +1,7 @@
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -78,6 +78,7 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [payingPlan, setPayingPlan] = useState<string | null>(null);
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
+  const paymentPollAttempts = useRef(0);
   const [ownedProperties, setOwnedProperties] = useState<OwnedProperty[]>([]);
   const [featureBusy, setFeatureBusy] = useState<Record<string, boolean>>({});
 
@@ -123,10 +124,18 @@ export default function SubscriptionScreen() {
       const paymentResult = await response.json() as { status: "pending" | "completed" | "failed" | "cancelled" };
       const nextState: PaymentState = paymentResult.status === "completed" ? "success" : paymentResult.status;
       setPaymentState(nextState);
-      if (nextState !== "pending") {
+      if (nextState === "success" || nextState === "cancelled") {
         setActivePaymentId(null);
         await AsyncStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
         await load();
+      } else if (paymentPollAttempts.current < 12) {
+        paymentPollAttempts.current += 1;
+        setActivePaymentId(paymentId);
+        await AsyncStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, paymentId);
+        await load();
+      } else {
+        setActivePaymentId(null);
+        await AsyncStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
       }
     } catch {
       // Keep the saved id. A later foreground cycle can reconcile it.
@@ -137,6 +146,7 @@ export default function SubscriptionScreen() {
     if (!token) return;
     void AsyncStorage.getItem(PENDING_PAYMENT_STORAGE_KEY).then((savedId) => {
       if (savedId) {
+        paymentPollAttempts.current = 0;
         setActivePaymentId(savedId);
         void checkPaymentStatus(savedId);
       }
@@ -147,14 +157,15 @@ export default function SubscriptionScreen() {
     const returnedState = typeof payment === "string" ? payment as PaymentState : null;
     if (returnedState) setPaymentState(returnedState);
     if (paymentIdParam) {
+      paymentPollAttempts.current = 0;
       setActivePaymentId(paymentIdParam);
       void AsyncStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, paymentIdParam);
-      if (returnedState !== "cancelled" && returnedState !== "failed") void checkPaymentStatus(paymentIdParam);
+      if (returnedState !== "cancelled") void checkPaymentStatus(paymentIdParam);
     }
   }, [checkPaymentStatus, payment, paymentIdParam]);
 
   useEffect(() => {
-    if (!activePaymentId || paymentState !== "pending") return;
+    if (!activePaymentId || (paymentState !== "pending" && paymentState !== "failed")) return;
     const interval = setInterval(() => { void checkPaymentStatus(activePaymentId); }, 5000);
     return () => clearInterval(interval);
   }, [activePaymentId, checkPaymentStatus, paymentState]);
@@ -177,6 +188,7 @@ export default function SubscriptionScreen() {
         throw new Error(checkout.error ?? "Could not start checkout");
       }
       setActivePaymentId(checkout.paymentId);
+      paymentPollAttempts.current = 0;
       await AsyncStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, checkout.paymentId);
 
       const result = await WebBrowser.openAuthSessionAsync(
@@ -188,7 +200,7 @@ export default function SubscriptionScreen() {
         ? new URL(resultUrl).searchParams.get("payment") as PaymentState
         : null;
       if (returnedState) setPaymentState(returnedState);
-      if (returnedState !== "cancelled" && returnedState !== "failed") {
+      if (returnedState !== "cancelled") {
         await checkPaymentStatus(checkout.paymentId);
       } else {
         setActivePaymentId(null);

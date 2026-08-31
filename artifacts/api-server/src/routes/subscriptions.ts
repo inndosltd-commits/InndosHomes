@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import { db } from "@workspace/db";
 import { subscriptions, users, properties, payments, settings, subscriptionPlans, featuredListingUses } from "@workspace/db";
-import { eq, and, desc, count, sql } from "drizzle-orm";
+import { eq, and, desc, count, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { sendSubscriptionRenewalConfirmationEmail } from "../lib/email";
 import { getDashboardUrl, getWebsiteUrl } from "../lib/appUrl";
@@ -11,6 +11,12 @@ import {
   getPesapalConfig,
   registerIPN,
 } from "../services/pesapal";
+import {
+  getPesapalPaymentState,
+  isCompletedPesapalPayment,
+  parsePesapalDate,
+  type PesapalTransactionStatus,
+} from "../services/pesapal-status";
 
 const router = Router();
 
@@ -143,7 +149,8 @@ function redirectAfterPayment(
     res.redirect(`inndos-mobile://subscription?payment=${state}${payment}`);
     return;
   }
-  res.redirect(getWebsiteUrl(`/#/dashboard?tab=subscription&payment=${state}`));
+  const payment = paymentId ? `&paymentId=${encodeURIComponent(paymentId)}` : "";
+  res.redirect(getWebsiteUrl(`/#/dashboard?tab=subscription&payment=${state}${payment}`));
 }
 
 export async function getPlanEntitlements(plan: string): Promise<PlanEntitlements> {
@@ -155,14 +162,9 @@ export async function getPlanEntitlements(plan: string): Promise<PlanEntitlement
 }
 
 type StoredPayment = typeof payments.$inferSelect;
-type PesapalStatus = Awaited<ReturnType<typeof getTransactionStatus>>;
+type PesapalStatus = PesapalTransactionStatus;
 
-function isCompletedPayment(status: PesapalStatus): boolean {
-  return (
-    status.paymentStatusDescription.trim().toLowerCase() === "completed" ||
-    status.status.trim().toLowerCase() === "completed"
-  );
-}
+export type PaymentReconciliationState = "completed" | "pending" | "failed" | "cancelled" | "error";
 
 function paymentMatchesGateway(
   payment: StoredPayment,
@@ -174,8 +176,20 @@ function paymentMatchesGateway(
   if (!payment.merchantReference || payment.merchantReference !== merchantReference) return false;
   if (!status.merchantReference || status.merchantReference !== payment.merchantReference) return false;
   if (!Number.isFinite(status.amount) || status.amount !== payment.amount) return false;
-  if (status.currency && status.currency.toUpperCase() !== payment.currency.toUpperCase()) return false;
+  if (!status.currency || status.currency.toUpperCase() !== payment.currency.toUpperCase()) return false;
   return true;
+}
+
+async function persistGatewayStatus(payment: StoredPayment, status: PesapalStatus) {
+  await db
+    .update(payments)
+    .set({
+      gatewayStatus: status.status || payment.gatewayStatus,
+      gatewayDescription: status.paymentStatusDescription || status.description || payment.gatewayDescription,
+      paymentMethod: status.paymentMethod || payment.paymentMethod,
+      updatedAt: new Date(),
+    })
+    .where(eq(payments.id, payment.id));
 }
 
 async function finalizePaidSubscription(
@@ -183,18 +197,22 @@ async function finalizePaidSubscription(
   trackingId: string,
   status: PesapalStatus
 ) {
+  const confirmedAt = parsePesapalDate(status.confirmedDate) ?? new Date();
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`subscription:${payment.userId}`}))`);
     const [claimedPayment] = await tx
       .update(payments)
       .set({
         status: "completed",
-        paymentMethod: status.paymentMethod,
+        paymentMethod: status.paymentMethod || payment.paymentMethod,
+        gatewayStatus: status.status || payment.gatewayStatus,
+        gatewayDescription: status.paymentStatusDescription || status.description || payment.gatewayDescription,
+        confirmedAt,
         updatedAt: new Date(),
       })
       .where(and(
         eq(payments.id, payment.id),
-        eq(payments.status, "pending"),
+        inArray(payments.status, ["pending", "failed"]),
         eq(payments.pesapalTrackingId, trackingId)
       ))
       .returning();
@@ -234,6 +252,86 @@ async function finalizePaidSubscription(
 
     return newSubscription;
   });
+}
+
+type ReconciliationResult = {
+  state: PaymentReconciliationState;
+  payment: StoredPayment;
+  subscriptionCreated: boolean;
+};
+
+async function reloadPayment(paymentId: string): Promise<StoredPayment> {
+  const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId)).limit(1);
+  if (!payment) throw new Error("Payment disappeared during reconciliation");
+  return payment;
+}
+
+async function reconcilePayment(
+  payment: StoredPayment,
+  trackingId = payment.pesapalTrackingId ?? "",
+  merchantReference = payment.merchantReference ?? "",
+): Promise<ReconciliationResult> {
+  if (!trackingId || !merchantReference) {
+    return {
+      state: payment.status === "failed" ? "failed" : "pending",
+      payment,
+      subscriptionCreated: false,
+    };
+  }
+
+  const gatewayStatus = await getTransactionStatus(trackingId);
+  if (!paymentMatchesGateway(payment, trackingId, merchantReference, gatewayStatus)) {
+    return { state: "error", payment, subscriptionCreated: false };
+  }
+
+  const gatewayState = getPesapalPaymentState(gatewayStatus);
+  if (gatewayState === "completed" && payment.status !== "cancelled") {
+    if (payment.status === "pending" || payment.status === "failed") {
+      const newSubscription = await finalizePaidSubscription(payment, trackingId, gatewayStatus);
+      const refreshedPayment = await reloadPayment(payment.id);
+      return {
+        state: "completed",
+        payment: refreshedPayment,
+        subscriptionCreated: Boolean(newSubscription),
+      };
+    }
+
+    await db
+      .update(payments)
+      .set({
+        gatewayStatus: gatewayStatus.status || payment.gatewayStatus,
+        gatewayDescription: gatewayStatus.paymentStatusDescription || gatewayStatus.description || payment.gatewayDescription,
+        paymentMethod: gatewayStatus.paymentMethod || payment.paymentMethod,
+        confirmedAt: payment.confirmedAt ?? parsePesapalDate(gatewayStatus.confirmedDate) ?? new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(payments.id, payment.id));
+    return { state: "completed", payment: await reloadPayment(payment.id), subscriptionCreated: false };
+  }
+
+  await persistGatewayStatus(payment, gatewayStatus);
+  if (
+    payment.status === "pending" &&
+    (gatewayState === "failed" || gatewayState === "cancelled")
+  ) {
+    await db
+      .update(payments)
+      .set({ status: gatewayState, updatedAt: new Date() })
+      .where(and(eq(payments.id, payment.id), eq(payments.status, "pending")));
+  }
+
+  const refreshedPayment = await reloadPayment(payment.id);
+  return {
+    state: refreshedPayment.status === "completed"
+      ? "completed"
+      : refreshedPayment.status === "cancelled"
+      ? "cancelled"
+      : refreshedPayment.status === "failed"
+        ? "failed"
+        : "pending",
+    payment: refreshedPayment,
+    subscriptionCreated: false,
+  };
 }
 
 async function calcAmount(plan: string, cycle: string, months: number): Promise<number> {
@@ -467,33 +565,13 @@ router.get("/payments/:paymentId", async (req, res) => {
 
   let payment = storedPayment;
   if (
-    payment.status === "pending" &&
+    (payment.status === "pending" || payment.status === "failed") &&
     payment.pesapalTrackingId &&
     payment.merchantReference
   ) {
     try {
-      const txStatus = await getTransactionStatus(payment.pesapalTrackingId);
-      if (
-        isCompletedPayment(txStatus) &&
-        paymentMatchesGateway(
-          payment,
-          payment.pesapalTrackingId,
-          payment.merchantReference,
-          txStatus,
-        )
-      ) {
-        await finalizePaidSubscription(payment, payment.pesapalTrackingId, txStatus);
-      } else {
-        const description = txStatus.paymentStatusDescription?.toLowerCase() ?? "";
-        if (description.includes("failed") || description.includes("invalid") || description.includes("cancel")) {
-          const nextStatus = description.includes("cancel") ? "cancelled" as const : "failed" as const;
-          await db
-            .update(payments)
-            .set({ status: nextStatus, updatedAt: new Date() })
-            .where(and(eq(payments.id, payment.id), eq(payments.status, "pending")));
-        }
-      }
-      [payment] = await db.select().from(payments).where(eq(payments.id, payment.id)).limit(1);
+      const reconciliation = await reconcilePayment(payment);
+      payment = reconciliation.payment;
     } catch (error) {
       req.log?.warn({ error, paymentId: payment.id }, "Could not reconcile pending PesaPal payment during status poll");
     }
@@ -504,6 +582,10 @@ router.get("/payments/:paymentId", async (req, res) => {
     status: payment.status,
     plan: payment.plan,
     amount: payment.amount,
+    paymentMethod: payment.paymentMethod,
+    confirmedAt: payment.confirmedAt,
+    gatewayStatus: payment.gatewayStatus,
+    gatewayDescription: payment.gatewayDescription,
     updatedAt: payment.updatedAt,
   });
 });
@@ -528,17 +610,21 @@ router.get("/callback", async (req, res) => {
       return;
     }
 
-    const txStatus = await getTransactionStatus(trackingId);
-    if (!paymentMatchesGateway(payment, trackingId, ref, txStatus)) {
+    const reconciliation = await reconcilePayment(payment, trackingId, ref);
+    if (reconciliation.state === "error") {
       req.log?.warn({ paymentId, trackingId }, "Rejected mismatched PesaPal callback");
       redirectAfterPayment(res, "error", returnTarget, paymentId);
       return;
     }
 
-    if (isCompletedPayment(txStatus)) {
-      const newSub = payment.status === "pending"
-        ? await finalizePaidSubscription(payment, trackingId, txStatus)
-        : null;
+    if (reconciliation.subscriptionCreated) {
+      const newSub = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, payment.userId))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1)
+        .then(([subscription]) => subscription);
       if (newSub) {
         const billingCycle = newSub.billingCycle ?? "monthly";
         // Send renewal confirmation email
@@ -558,22 +644,13 @@ router.get("/callback", async (req, res) => {
           }).catch(() => {});
         }
       }
-      redirectAfterPayment(res, "success", returnTarget, paymentId);
-    } else {
-      const description = txStatus.paymentStatusDescription?.toLowerCase() ?? "";
-      const state = description.includes("cancel")
-        ? "cancelled"
-        : description.includes("failed") || description.includes("invalid")
-          ? "failed"
-          : "pending";
-      if (state !== "pending") {
-        await db
-          .update(payments)
-          .set({ status: state, updatedAt: new Date() })
-          .where(and(eq(payments.id, paymentId), eq(payments.status, "pending")));
-      }
-      redirectAfterPayment(res, state, returnTarget, paymentId);
     }
+    redirectAfterPayment(
+      res,
+      reconciliation.state === "completed" ? "success" : reconciliation.state,
+      returnTarget,
+      paymentId,
+    );
   } catch (err) {
     req.log?.error({ err }, "Callback processing error");
     redirectAfterPayment(res, "error", returnTarget, paymentId);
@@ -603,25 +680,11 @@ router.get("/ipn", async (req, res) => {
       return;
     }
 
-    const txStatus = await getTransactionStatus(OrderTrackingId);
-    if (!paymentMatchesGateway(payment, OrderTrackingId, OrderMerchantReference, txStatus)) {
+    const reconciliation = await reconcilePayment(payment, OrderTrackingId, OrderMerchantReference);
+    if (reconciliation.state === "error") {
       req.log?.warn({ paymentId: payment.id, trackingId: OrderTrackingId }, "Rejected mismatched PesaPal IPN");
       res.status(400).json({ error: "Payment identifiers do not match" });
       return;
-    }
-
-    if (payment && payment.status === "pending") {
-      if (isCompletedPayment(txStatus)) {
-        await finalizePaidSubscription(payment, OrderTrackingId, txStatus);
-      } else if (
-        txStatus.paymentStatusDescription?.toLowerCase() === "failed" ||
-        txStatus.paymentStatusDescription?.toLowerCase() === "invalid"
-      ) {
-        await db
-          .update(payments)
-          .set({ status: "failed", pesapalTrackingId: OrderTrackingId, updatedAt: new Date() })
-          .where(eq(payments.id, payment.id));
-      }
     }
 
     // PesaPal expects a specific response

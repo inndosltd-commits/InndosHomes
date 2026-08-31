@@ -245,6 +245,9 @@ export const payments = pgTable("payments", {
     .notNull()
     .default("pending"),
   paymentMethod: text("payment_method"),
+  gatewayStatus: text("gateway_status"),
+  gatewayDescription: text("gateway_description"),
+  confirmedAt: timestamp("confirmed_at"),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

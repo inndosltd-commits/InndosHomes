@@ -914,10 +914,13 @@ router.get("/payments", async (req, res) => {
       billingMonths: payments.billingMonths,
       status: payments.status,
       paymentMethod: payments.paymentMethod,
+      gatewayStatus: payments.gatewayStatus,
+      gatewayDescription: payments.gatewayDescription,
       merchantReference: payments.merchantReference,
       pesapalTrackingId: payments.pesapalTrackingId,
       description: payments.description,
       createdAt: payments.createdAt,
+      confirmedAt: payments.confirmedAt,
     })
     .from(payments)
     .leftJoin(users, eq(payments.userId, users.id))
