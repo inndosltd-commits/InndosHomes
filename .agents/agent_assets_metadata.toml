@@ -65,3 +65,38 @@ uri = "file://attached_assets/generated_images/inndos_my_listings_app_store_1260
 type = "image"
 title = "INNDOS My Listings App Store Screenshot — 1260×2736"
 description = "INNDOS App Store portrait screenshot for the My Listings screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "23t2rYSCkAb1yBLuzx9iH"
+uri = "file://attached_assets/generated_images/inndos_discover_properties_black_1260x2736.png"
+type = "image"
+title = "INNDOS Discover Properties — Black Background — 1260×2736"
+description = "Black-background App Store screenshot for the INNDOS Discover Properties screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "9MnGX4uCCYxAAs8NZLfGK"
+uri = "file://attached_assets/generated_images/inndos_property_listings_black_1260x2736.png"
+type = "image"
+title = "INNDOS Property Listings — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the INNDOS property-listing screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "GwsUEzHwJRzK6CXiokK5M"
+uri = "file://attached_assets/generated_images/inndos_linkups_black_1260x2736.png"
+type = "image"
+title = "INNDOS Link-Ups — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the INNDOS Link-Ups screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "qf5q3LaFPMOcsPIucc8Dd"
+uri = "file://attached_assets/generated_images/inndos_list_property_black_1260x2736.png"
+type = "image"
+title = "INNDOS List a Property — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the INNDOS List a Property screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "4J93zR8xKT_MTeYWaGfUx"
+uri = "file://attached_assets/generated_images/inndos_my_listings_black_1260x2736.png"
+type = "image"
+title = "INNDOS My Listings — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the INNDOS My Listings screen. Exact size: 1260×2736 pixels."
