@@ -1,0 +1,83 @@
+~/.../artifacts/inndos-mobile$ cd /home/runner/workspace/artifacts/inndos-mobile
+
+env -u EXPO_TOKEN pnpm exec eas login
+env -u EXPO_TOKEN pnpm exec eas whoami
+★ eas-cli@23.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+✔ Email or username … mikekivu3
+✔ Password … **************
+Logged in
+★ eas-cli@23.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+mikekivu3
+
+Accounts:
+• mikekivu3 (Role: Owner)
+• web-expert-team (Role: Owner)
+• mikekivu3r (Role: Developer)
+~/.../artifacts/inndos-mobile$ env -u EXPO_TOKEN pnpm exec eas build --platform ios --profile production
+★ eas-cli@23.0.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+No environment variables with visibility "Plain text" and "Sensitive" found for the "production" environment on EAS.
+Environment variables loaded from the "production" build profile "env" configuration: EXPO_PUBLIC_DOMAIN.
+
+✔ Using remote iOS credentials (Expo server)
+
+If you provide your Apple account credentials we will be able to generate all necessary build credentials and fully validate them.
+This is optional, but without Apple account access you will need to provide all the missing values manually and we can only run minimal validation on them.
+✔ Do you want to log in to your Apple account? … yes
+
+› Log in to your Apple Developer account to continue
+✔ Apple ID: … fstsmng33@gmail.com
+› Restoring session /home/runner/.app-store/auth/fstsmng33@gmail.com/cookie
+› Team FORTISEC INNDOS LTD (GWTTRDAWAY)
+› Provider FORTISEC INNDOS LTD (128685774)
+✔ Logged in Local session
+✔ Bundle identifier registered com.inndos.app
+✔ Synced capabilities: No updates
+✔ Synced capability identifiers: No updates
+✔ Fetched Apple distribution certificates
+✔ Fetched Apple provisioning profiles
+
+Project Credentials Configuration
+
+Project                   @mikekivu3r/inndos-mobile
+Bundle Identifier         com.inndos.app
+                          
+App Store Configuration   
+                          
+Distribution Certificate  
+Serial Number             487E3B802DFFECCCC96DC30052E2D5C8
+Expiration Date           Wed, 21 Jul 2027 14:13:19 UTC
+Apple Team                GWTTRDAWAY (FORTISEC INNDOS LTD (Company/Organization))
+Updated                   1 month ago
+                          
+Provisioning Profile      
+Developer Portal ID       HGG4F7Q5W7
+Status                    active
+Expiration                Wed, 21 Jul 2027 14:13:19 UTC
+Apple Team                GWTTRDAWAY (FORTISEC INNDOS LTD (Company/Organization))
+Updated                   1 month ago
+                          
+All credentials are ready to build @mikekivu3r/inndos-mobile (com.inndos.app)
+
+Bumping expo.ios.buildNumber from 19 to 20
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+✔ Compressed project files 16s (207 MB)
+Your project archive is 207 MB. You can reduce its size and the time it takes to upload by excluding files that are unnecessary for the build process in .easignore file. Learn more: https://expo.fyi/eas-build-archive
+✔ Uploaded to EAS 3s
+✔ Computed project fingerprint
+This account has used its builds from the Free plan this month, which will reset in 13 hours (on Tue Sep 01 2026). Upgrade your plan for more builds with shorter wait times and longer timeouts, and to run more builds concurrently with a subscription plan. https://expo.dev/accounts/mikekivu3r/settings/billing
+    Error: build command failed.
+~/.../artifacts/inndos-mobile$ 
