@@ -181,7 +181,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
               {specs.map((spec) => (
                 <View key={spec.value} style={styles.specItem}>
                   <Feather name={spec.icon} size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.specText, { color: colors.foreground }]}>{spec.value}</Text>
+                  <Text
+                    style={[styles.specText, { color: colors.foreground }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {spec.value}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -298,17 +304,21 @@ const styles = StyleSheet.create({
   },
   specs: {
     flexDirection: "row",
-    gap: 16,
+    gap: 8,
     paddingTop: 10,
     borderTopWidth: 1,
   },
   specItem: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
   },
   specText: {
-    fontSize: 13,
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
     fontFamily: "Outfit_500Medium",
   },
   tagsRow: {
