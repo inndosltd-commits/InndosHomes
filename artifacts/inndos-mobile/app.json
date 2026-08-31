@@ -32,7 +32,7 @@
       },
       "icon": "./assets/images/icon.png",
       "package": "com.inndos.app",
-      "versionCode": 12
+      "versionCode": 13
     },
     "web": {
       "favicon": "./assets/images/icon.png"
