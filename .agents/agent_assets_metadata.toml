@@ -44,3 +44,24 @@ uri = "file://attached_assets/generated_images/inndos_property_listings_app_stor
 type = "image"
 title = "INNDOS Property Listings App Store Screenshot — 1260×2736"
 description = "App Store portrait screenshot using the supplied INNDOS property-listing screen and the current INNDOS light-theme colors. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "GqLiiFUJ8ewEvbL095bNI"
+uri = "file://attached_assets/generated_images/inndos_linkups_app_store_1260x2736.png"
+type = "image"
+title = "INNDOS Link-Ups App Store Screenshot — 1260×2736"
+description = "INNDOS App Store portrait screenshot for the Link-Ups screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "j9WD7diWUYuXBIkPDeUw1"
+uri = "file://attached_assets/generated_images/inndos_list_property_app_store_1260x2736.png"
+type = "image"
+title = "INNDOS List a Property App Store Screenshot — 1260×2736"
+description = "INNDOS App Store portrait screenshot for the List a Property screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "ot1jYw4a7Hek0qnbnYXzQ"
+uri = "file://attached_assets/generated_images/inndos_my_listings_app_store_1260x2736.png"
+type = "image"
+title = "INNDOS My Listings App Store Screenshot — 1260×2736"
+description = "INNDOS App Store portrait screenshot for the My Listings screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
