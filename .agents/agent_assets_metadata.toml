@@ -30,3 +30,10 @@ uri = "file://attached_assets/generated_images/inndos_app_store_screenshot_1260x
 type = "image"
 title = "INNDOS App Store Screenshot — 1260×2736"
 description = "Portrait App Store marketing screenshot using the supplied INNDOS property-listing screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "HpAh30kFtvbbA3EXQY3J8"
+uri = "file://attached_assets/generated_images/inndos_app_store_screenshot_1260x2736_brand.png"
+type = "image"
+title = "INNDOS App Store Screenshot — Brand Colors — 1260×2736"
+description = "Final light-theme App Store screenshot using INNDOS mobile colors: white, black, gray, and blue accents. Exact size: 1260×2736 pixels."
