@@ -100,3 +100,17 @@ uri = "file://attached_assets/generated_images/inndos_my_listings_black_1260x273
 type = "image"
 title = "INNDOS My Listings — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the INNDOS My Listings screen. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "62izgGLLw3dTZoBrlWCVX"
+uri = "file://attached_assets/generated_images/inndos_my_account_black_1260x2736.png"
+type = "image"
+title = "INNDOS My Account — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the supplied My Account screen. The visible personal email was replaced with a generic placeholder. Exact size: 1260×2736 pixels."
+
+[[outputs]]
+id = "HdwdfixK3baotcsY-UuA4"
+uri = "file://attached_assets/generated_images/inndos_property_detail_black_1260x2736.png"
+type = "image"
+title = "INNDOS Property Detail — Black Background — 1260×2736"
+description = "Black-background App Store screenshot using the supplied property-detail screen. Exact size: 1260×2736 pixels."
