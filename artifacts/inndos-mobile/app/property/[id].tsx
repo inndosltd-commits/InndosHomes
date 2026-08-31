@@ -38,6 +38,7 @@ import {
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { formatPropertyPrice } from "@/utils/price";
 import { useAuth } from "@/context/AuthContext";
 import { getApiBaseUrl } from "@/utils/api";
 import { Feather } from "@expo/vector-icons";
@@ -138,22 +139,6 @@ function PropertyVideo({
       contentFit="cover"
     />
   );
-}
-
-function getPriceLabel(type: string, price: number, priceUnit?: string | null): string {
-  const formatted = `KES ${price.toLocaleString()}`;
-  const unitLabels: Record<string, string> = {
-    month: "/mo",
-    week: "/wk",
-    night: "/night",
-    semester: "/semester",
-    year: "/yr",
-    sqft: "/sq ft",
-  };
-  if (priceUnit && unitLabels[priceUnit]) return `${formatted}${unitLabels[priceUnit]}`;
-  if (type === "rent") return `${formatted}/mo`;
-  if (type === "bnb" || type === "hotel" || type === "hostel") return `${formatted}/night`;
-  return formatted;
 }
 
 function getLandMeasurements(details: Record<string, unknown> | undefined): { acres?: string; plotSize?: string } {
@@ -730,7 +715,9 @@ export default function PropertyDetailScreen() {
 
           {/* Price + type chip */}
           <View style={styles.heroPriceRow}>
-            <Text style={styles.heroPriceText}>{getPriceLabel(property.type, property.price, property.priceUnit)}</Text>
+            <Text style={styles.heroPriceText}>
+              {formatPropertyPrice(property.type, property.price, property.priceUnit)}
+            </Text>
             <View style={[styles.typeChip, { backgroundColor: colors.primary }]}>
               <Text style={[styles.typeChipText, { color: colors.primaryForeground }]}>
                 {propertyTypeLabel(property.type)}
@@ -965,7 +952,7 @@ export default function PropertyDetailScreen() {
               Listed price
             </Text>
             <Text style={[styles.bookingTotalPrice, { color: colors.foreground }]}>
-              {getPriceLabel(property.type, property.price, property.priceUnit)}
+              {formatPropertyPrice(property.type, property.price, property.priceUnit)}
             </Text>
           </View>
           <View style={styles.bookBtnWrapper}>

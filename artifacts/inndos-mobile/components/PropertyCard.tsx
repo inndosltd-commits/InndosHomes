@@ -25,6 +25,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { propertyTypeLabel } from "@workspace/property-categories";
+import { formatPropertyPrice } from "@/utils/price";
 
 interface PropertyCardProps {
   property: Property;
@@ -32,13 +33,6 @@ interface PropertyCardProps {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
-
-function getPriceLabel(property: Property): string {
-  const price = `KES ${property.price.toLocaleString()}`;
-  if (property.type === "rent") return `${price}/mo`;
-  if (property.type === "bnb" || property.type === "hotel" || property.type === "hostel") return `${price}/night`;
-  return price;
-}
 
 function getLandMeasurements(property: Property): { acres?: string; plotSize?: string } {
   const details = property.details;
@@ -149,7 +143,9 @@ export function PropertyCard({ property }: PropertyCardProps) {
           )}
         </Pressable>
         <View style={styles.priceOverlay}>
-          <Text style={styles.priceText}>{getPriceLabel(property)}</Text>
+          <Text style={styles.priceText}>
+            {formatPropertyPrice(property.type, property.price, property.priceUnit)}
+          </Text>
         </View>
       </View>
 

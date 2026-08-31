@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { getImageUrl } from "@/utils/imageUrl";
 import { getApiBaseUrl } from "@/utils/api";
+import { formatPropertyPrice } from "@/utils/price";
 
 function getTypeLabel(type: string): string {
   switch (type) {
@@ -40,18 +41,6 @@ function getTypeLabel(type: string): string {
     default:
       return type;
   }
-}
-
-function getPriceLabel(property: Property): string {
-  const price = `KES ${property.price.toLocaleString()}`;
-  if (property.type === "rent") return `${price}/mo`;
-  if (
-    property.type === "bnb" ||
-    property.type === "hotel" ||
-    property.type === "hostel"
-  )
-    return `${price}/night`;
-  return price;
 }
 
 function ListingCard({
@@ -136,7 +125,9 @@ function ListingCard({
           )}
         </View>
         <View style={styles.priceOverlay}>
-          <Text style={styles.priceText}>{getPriceLabel(property)}</Text>
+          <Text style={styles.priceText}>
+            {formatPropertyPrice(property.type, property.price, property.priceUnit)}
+          </Text>
         </View>
       </View>
 

@@ -17,6 +17,7 @@ import Constants from "expo-constants";
 import { useColors } from "@/hooks/useColors";
 import { getImageUrl } from "@/utils/imageUrl";
 import { Feather } from "@expo/vector-icons";
+import { formatPropertyPrice } from "@/utils/price";
 
 export interface MapBBox {
   minLat: number;
@@ -33,18 +34,6 @@ interface PropertyMapViewProps {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const PROPERTY_PIN_ICON = require("@/assets/images/map-pin.png");
-
-function getPriceLabel(property: Property): string {
-  const price = `KES ${property.price.toLocaleString()}`;
-  if (property.type === "rent") return `${price}/mo`;
-  if (
-    property.type === "bnb" ||
-    property.type === "hotel" ||
-    property.type === "hostel"
-  )
-    return `${price}/night`;
-  return price;
-}
 
 const DEFAULT_REGION: Region = {
   latitude: -1.2921,
@@ -322,7 +311,11 @@ export function PropertyMapView({ properties, onSearchArea, focusRegion }: Prope
               {selectedProperty.address}
             </Text>
             <Text style={[styles.calloutPrice, { color: colors.primary }]}>
-              {getPriceLabel(selectedProperty)}
+              {formatPropertyPrice(
+                selectedProperty.type,
+                selectedProperty.price,
+                selectedProperty.priceUnit,
+              )}
             </Text>
           </View>
           <View style={[styles.calloutArrow, { backgroundColor: colors.primary }]}>
