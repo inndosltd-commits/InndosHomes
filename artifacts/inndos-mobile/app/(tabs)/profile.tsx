@@ -1,8 +1,8 @@
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -89,6 +89,18 @@ export default function ProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    if (!user || !token) return;
+    void refetchProfile().then(({ data }) => {
+      if (!data) return;
+      const freshProfile = data as typeof user & { isMarketer?: boolean };
+      const nextIsMarketer = Boolean(freshProfile.isMarketer);
+      if (Boolean(user.isMarketer) !== nextIsMarketer) {
+        void updateUser({ ...user, isMarketer: nextIsMarketer });
+      }
+    });
+  }, [refetchProfile, token, updateUser, user]));
 
   useEffect(() => {
     if (!token || !user || !["owner", "host"].includes(user.role)) {
@@ -294,7 +306,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Marketer menu */}
-        {(role === "marketer" || (role === "guest" && profileFields.isMarketer)) && (
+        {isMarketer && (
           <>
             <SectionTitle label="MARKETING" colors={colors} />
             <View style={[styles.menuGroup, { borderColor: colors.border }]}>

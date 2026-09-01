@@ -12,6 +12,7 @@ export interface User {
   avatar?: string | null;
   phone?: string | null;
   phoneVerified?: boolean;
+  isMarketer?: boolean;
   businessName?: string | null;
   isRegisteredFirm?: boolean;
   firmType?: "business_name" | "registered_company" | null;

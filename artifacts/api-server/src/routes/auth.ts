@@ -270,7 +270,12 @@ router.post("/login", async (req, res) => {
 
   const token = signToken(user.id);
   const { password: _pw, ...safeUser } = user;
-  res.json({ token, user: safeUser });
+  const [marketer] = await db
+    .select({ id: marketers.id })
+    .from(marketers)
+    .where(eq(marketers.userId, user.id))
+    .limit(1);
+  res.json({ token, user: { ...safeUser, isMarketer: Boolean(marketer) } });
 });
 
 router.get("/me", async (req, res) => {
