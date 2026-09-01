@@ -14,6 +14,60 @@ const LIVE_URL = "https://pay.pesapal.com/v3";
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+type RegisteredIpn = {
+  url?: string;
+  ipn_id?: string;
+  ipn_notification_type_description?: string;
+  ipn_status?: number;
+};
+
+function normalizeIpnUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    url.pathname = url.pathname.replace(/\/+$/, "") || "/";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return value.trim().replace(/\/+$/, "");
+  }
+}
+
+async function saveIpnId(ipnId: string): Promise<void> {
+  await db
+    .insert(settings)
+    .values({ key: "pesapal_ipn_id", value: ipnId })
+    .onConflictDoUpdate({ target: settings.key, set: { value: ipnId, updatedAt: new Date() } });
+}
+
+async function findRegisteredIpn(
+  base: string,
+  token: string,
+  callbackUrl: string,
+): Promise<string | null> {
+  const res = await fetch(`${base}/api/URLSetup/GetIpnList`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) return null;
+
+  const data = await res.json() as unknown;
+  if (!Array.isArray(data)) return null;
+
+  const expectedUrl = normalizeIpnUrl(callbackUrl);
+  const match = (data as RegisteredIpn[]).find((entry) =>
+    entry.ipn_id &&
+    entry.url &&
+    normalizeIpnUrl(entry.url) === expectedUrl &&
+    entry.ipn_status !== 0 &&
+    (!entry.ipn_notification_type_description ||
+      entry.ipn_notification_type_description.toUpperCase() === "GET")
+  );
+  return match?.ipn_id ?? null;
+}
+
 export async function getPesapalConfig() {
   const rows = await db.select().from(settings);
 
@@ -83,16 +137,19 @@ export async function registerIPN(callbackUrl: string): Promise<string> {
 
   if (!res.ok) {
     const body = await res.text();
+    if (res.status === 409) {
+      const existingIpnId = await findRegisteredIpn(base, token, callbackUrl);
+      if (existingIpnId) {
+        await saveIpnId(existingIpnId);
+        return existingIpnId;
+      }
+    }
     throw new Error(`PesaPal IPN registration failed: ${res.status} ${body}`);
   }
 
   const data = (await res.json()) as { ipn_id: string };
 
-  // Save ipn_id to settings
-  await db
-    .insert(settings)
-    .values({ key: "pesapal_ipn_id", value: data.ipn_id })
-    .onConflictDoUpdate({ target: settings.key, set: { value: data.ipn_id, updatedAt: new Date() } });
+  await saveIpnId(data.ipn_id);
 
   return data.ipn_id;
 }

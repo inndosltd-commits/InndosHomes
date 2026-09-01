@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -81,6 +82,9 @@ export default function SubscriptionScreen() {
   const paymentPollAttempts = useRef(0);
   const [ownedProperties, setOwnedProperties] = useState<OwnedProperty[]>([]);
   const [featureBusy, setFeatureBusy] = useState<Record<string, boolean>>({});
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | "custom">("monthly");
+  const [customMonths, setCustomMonths] = useState(2);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -170,18 +174,27 @@ export default function SubscriptionScreen() {
     return () => clearInterval(interval);
   }, [activePaymentId, checkPaymentStatus, paymentState]);
 
-  const startCheckout = async (plan: Plan) => {
-    if (!token || plan.name === "free") return;
+  const openCheckout = (plan: Plan) => {
+    if (plan.name === "free") return;
     if (plan.name === "enterprise") {
       Alert.alert("Enterprise plan", "Enterprise pricing is custom. Please contact the INNDOS team to request access.");
       return;
     }
+    setBillingCycle("monthly");
+    setCustomMonths(2);
+    setCheckoutPlan(plan);
+  };
+
+  const startCheckout = async () => {
+    const plan = checkoutPlan;
+    if (!token || !plan) return;
+    const months = billingCycle === "yearly" ? 12 : billingCycle === "custom" ? customMonths : 1;
     setPayingPlan(plan.name);
     try {
       const response = await fetch(`${getApiBaseUrl()}/api/subscriptions/checkout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: plan.name, billingCycle: "monthly", months: 1, returnTarget: "mobile" }),
+        body: JSON.stringify({ plan: plan.name, billingCycle, months, returnTarget: "mobile" }),
       });
       const checkout = await response.json() as { redirectUrl?: string; paymentId?: string; error?: string };
       if (!response.ok || !checkout.redirectUrl || !checkout.paymentId) {
@@ -190,6 +203,7 @@ export default function SubscriptionScreen() {
       setActivePaymentId(checkout.paymentId);
       paymentPollAttempts.current = 0;
       await AsyncStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, checkout.paymentId);
+      setCheckoutPlan(null);
 
       const result = await WebBrowser.openAuthSessionAsync(
         checkout.redirectUrl,
@@ -331,7 +345,7 @@ export default function SubscriptionScreen() {
                   <Pressable
                     style={[styles.planButton, { backgroundColor: isCurrent ? colors.muted : colors.primary, opacity: payingPlan && payingPlan !== plan.name ? 0.55 : 1 }]}
                     disabled={isCurrent || !!payingPlan}
-                    onPress={() => void startCheckout(plan)}
+                    onPress={() => openCheckout(plan)}
                   >
                     {payingPlan === plan.name ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.planButtonText, { color: isCurrent ? colors.mutedForeground : colors.primaryForeground }]}>{isCurrent ? "Active package" : plan.name === "enterprise" ? "Contact us" : "Choose package"}</Text>}
                   </Pressable>
@@ -341,6 +355,115 @@ export default function SubscriptionScreen() {
           </>
         )}
       </ScrollView>
+      <Modal
+        visible={!!checkoutPlan}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!payingPlan) setCheckoutPlan(null); }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.checkoutSheet, { backgroundColor: colors.card, paddingBottom: Math.max(insets.bottom, 18) }]}>
+            <View style={styles.checkoutHeader}>
+              <View>
+                <Text style={[styles.checkoutTitle, { color: colors.foreground }]}>Pay via PesaPal</Text>
+                <Text style={[styles.checkoutSubtitle, { color: colors.mutedForeground }]}>
+                  {checkoutPlan?.displayName} · KES {checkoutPlan?.pricePerMonth.toLocaleString()}/month
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="Close checkout"
+                hitSlop={10}
+                disabled={!!payingPlan}
+                onPress={() => setCheckoutPlan(null)}
+              >
+                <Feather name="x" size={22} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.checkoutLabel, { color: colors.foreground }]}>Billing cycle</Text>
+            <View style={styles.cycleOptions}>
+              {([
+                ["monthly", "Monthly", "Pay one month"],
+                ["yearly", "Yearly", "Save 10%"],
+                ["custom", "Custom", "Choose months"],
+              ] as const).map(([value, label, detail]) => {
+                const selected = billingCycle === value;
+                return (
+                  <Pressable
+                    key={value}
+                    style={[
+                      styles.cycleOption,
+                      {
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.muted : colors.background,
+                      },
+                    ]}
+                    onPress={() => setBillingCycle(value)}
+                  >
+                    <View style={[styles.radio, { borderColor: selected ? colors.primary : colors.mutedForeground }]}>
+                      {selected && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+                    </View>
+                    <View style={styles.cycleCopy}>
+                      <Text style={[styles.cycleTitle, { color: colors.foreground }]}>{label}</Text>
+                      <Text style={[styles.cycleDetail, { color: colors.mutedForeground }]}>{detail}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {billingCycle === "custom" && (
+              <View style={[styles.monthStepper, { borderColor: colors.border }]}>
+                <Text style={[styles.checkoutLabel, { color: colors.foreground }]}>Number of months</Text>
+                <View style={styles.stepperControls}>
+                  <Pressable
+                    style={[styles.stepperButton, { borderColor: colors.border }]}
+                    disabled={customMonths <= 1}
+                    onPress={() => setCustomMonths((current) => Math.max(1, current - 1))}
+                  >
+                    <Feather name="minus" size={18} color={colors.foreground} />
+                  </Pressable>
+                  <Text style={[styles.monthCount, { color: colors.foreground }]}>{customMonths}</Text>
+                  <Pressable
+                    style={[styles.stepperButton, { borderColor: colors.border }]}
+                    disabled={customMonths >= 24}
+                    onPress={() => setCustomMonths((current) => Math.min(24, current + 1))}
+                  >
+                    <Feather name="plus" size={18} color={colors.foreground} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            <View style={[styles.totalRow, { borderColor: colors.border }]}>
+              <Text style={[styles.totalLabel, { color: colors.foreground }]}>Total</Text>
+              <Text style={[styles.totalAmount, { color: colors.foreground }]}>
+                KES {(() => {
+                  const monthly = checkoutPlan?.pricePerMonth ?? 0;
+                  const months = billingCycle === "yearly" ? 12 : billingCycle === "custom" ? customMonths : 1;
+                  const discount = billingCycle === "yearly" ? Math.round(monthly * 0.1 * 12) : 0;
+                  return (monthly * months - discount).toLocaleString();
+                })()}
+              </Text>
+            </View>
+
+            <Pressable
+              style={[styles.payButton, { backgroundColor: colors.primary, opacity: payingPlan ? 0.65 : 1 }]}
+              disabled={!!payingPlan}
+              onPress={() => void startCheckout()}
+            >
+              {payingPlan ? (
+                <ActivityIndicator color={colors.primaryForeground} />
+              ) : (
+                <>
+                  <Feather name="credit-card" size={18} color={colors.primaryForeground} />
+                  <Text style={[styles.payButtonText, { color: colors.primaryForeground }]}>Continue to PesaPal</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -381,4 +504,26 @@ const styles = StyleSheet.create({
   featureList: { gap: 3 },
   planButton: { minHeight: 44, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   planButtonText: { fontFamily: "Outfit_600SemiBold", fontSize: 14 },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)" },
+  checkoutSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 20, paddingHorizontal: 20, gap: 14 },
+  checkoutHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 16 },
+  checkoutTitle: { fontFamily: "Outfit_700Bold", fontSize: 22 },
+  checkoutSubtitle: { fontFamily: "Outfit_400Regular", fontSize: 13, marginTop: 3 },
+  checkoutLabel: { fontFamily: "Outfit_600SemiBold", fontSize: 14 },
+  cycleOptions: { gap: 9 },
+  cycleOption: { minHeight: 58, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  cycleCopy: { flex: 1 },
+  cycleTitle: { fontFamily: "Outfit_600SemiBold", fontSize: 14 },
+  cycleDetail: { fontFamily: "Outfit_400Regular", fontSize: 12, marginTop: 1 },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+  monthStepper: { borderWidth: 1, borderRadius: 12, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  stepperControls: { flexDirection: "row", alignItems: "center", gap: 14 },
+  stepperButton: { width: 36, height: 36, borderWidth: 1, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  monthCount: { minWidth: 24, textAlign: "center", fontFamily: "Outfit_700Bold", fontSize: 18 },
+  totalRow: { borderTopWidth: 1, paddingTop: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  totalLabel: { fontFamily: "Outfit_700Bold", fontSize: 16 },
+  totalAmount: { fontFamily: "Outfit_700Bold", fontSize: 19 },
+  payButton: { minHeight: 50, borderRadius: 11, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  payButtonText: { fontFamily: "Outfit_700Bold", fontSize: 15 },
 });
