@@ -20,3 +20,4 @@
 - [Hidden listing defaults](hidden-listing-defaults.md) — fields hidden by a listing type still need API defaults when the shared database schema requires them.
 - [Expo tab scroll events](expo-tab-scroll-events.md) — use Expo Router navigation with a narrow tabPress type when the mobile package lacks a direct React Navigation dependency.
 - [Phone video compatibility](phone-video-compatibility.md) — probe phone MOV/MP4 files generously and transcode final listing clips to mobile-safe H.264 MP4.
+- [Expo build Metro port](expo-build-metro-port.md) — static Expo builds must select an available Metro port because mockup previews may occupy 8081.
