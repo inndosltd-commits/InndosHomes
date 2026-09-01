@@ -144,3 +144,17 @@ mtime_ms = 1787043974179
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/4cde9a2d-7220-43c7-8f7e-92a8c286c9f7/9e78e466-d05e-4e5c-b216-92464b0a8de4"
 storage_version_token = "1788262106677941"
 content_type = "image/png"
+
+[[outputs]]
+id = "3ASRq_0jHYGlBRZSUx5-3"
+uri = "file://attached_assets/inndos-feature-graphic-1024x500.png"
+type = "image"
+title = "inndos Google Play feature graphic"
+description = "Google Play-ready 1024 × 500 PNG feature graphic using the current inndos branding."
+logical_id = "9978eb24-817b-407b-bb69-1bc1858baf48"
+content_hash = "sha256:8cf08899808591b9b03e5bc4edd0dbdb6bf9b67c4c5b8093921ce6575400cc2d"
+size = 8237
+mtime_ms = 1788262263172
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/9978eb24-817b-407b-bb69-1bc1858baf48/70b11b5f-caaf-4920-b520-2441a4b08775"
+storage_version_token = "1788262272553446"
+content_type = "image/png"
