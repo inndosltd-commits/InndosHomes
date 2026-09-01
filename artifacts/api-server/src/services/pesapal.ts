@@ -38,6 +38,9 @@ export async function getAuthToken(): Promise<string> {
   }
 
   const config = await getPesapalConfig();
+  if (!config.consumerKey || !config.consumerSecret) {
+    throw new Error("PesaPal is not configured. An administrator must save the PesaPal consumer key and secret before checkout.");
+  }
   const base = getBaseUrl(config.mode);
 
   const res = await fetch(`${base}/api/Auth/RequestToken`, {

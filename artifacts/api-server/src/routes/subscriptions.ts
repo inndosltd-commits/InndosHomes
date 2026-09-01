@@ -341,6 +341,12 @@ async function calcAmount(plan: string, cycle: string, months: number): Promise<
   return Math.max(0, pricePerMonth * months - yearlyDiscount);
 }
 
+function getPaymentCallbackOrigin(): string {
+  const configuredOrigin = process.env.PESAPAL_CALLBACK_ORIGIN?.trim();
+  if (configuredOrigin) return configuredOrigin.replace(/\/+$/, "");
+  return getWebsiteUrl("/").replace(/\/+$/, "");
+}
+
 // GET /api/subscriptions/plans  — public endpoint returning plan details
 router.get("/plans", async (_req, res) => {
   try {
@@ -482,6 +488,10 @@ router.post("/checkout", async (req, res) => {
   else if (cycle === "custom" && months && months >= 1) billingMonths = Math.floor(months);
 
   const amount = await calcAmount(plan, cycle, billingMonths);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    res.status(400).json({ error: "This plan is not currently available for online payment.", code: "INVALID_PLAN_PRICE" });
+    return;
+  }
 
   const merchantReference = `INNDOS-${userId.slice(0, 8).toUpperCase()}-${Date.now()}`;
 
@@ -504,10 +514,10 @@ router.post("/checkout", async (req, res) => {
   const firstName = nameParts[0] ?? "User";
   const lastName = nameParts.slice(1).join(" ") || "Customer";
 
-  // Build callback/IPN URLs from the request host
-  const proto = req.headers["x-forwarded-proto"] ?? "https";
-  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
-  const baseUrl = `${proto}://${host}`;
+  // PesaPal must be able to reach these URLs from the public internet. Do not
+  // use the incoming request host: mobile requests and proxied requests can
+  // expose an internal or development host that PesaPal cannot call.
+  const baseUrl = getPaymentCallbackOrigin();
   const callbackUrl = `${baseUrl}/api/subscriptions/callback?paymentId=${payment.id}&plan=${plan}&months=${billingMonths}&cycle=${cycle}${returnTarget === "mobile" ? "&returnTarget=mobile" : ""}`;
   const ipnUrl = `${baseUrl}/api/subscriptions/ipn`;
 
@@ -542,6 +552,10 @@ router.post("/checkout", async (req, res) => {
     res.json({ redirectUrl, paymentId: payment.id });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "PesaPal error";
+    await db
+      .update(payments)
+      .set({ status: "failed", gatewayDescription: msg.slice(0, 500), updatedAt: new Date() })
+      .where(and(eq(payments.id, payment.id), eq(payments.status, "pending")));
     req.log?.error({ err }, "PesaPal checkout failed");
     res.status(502).json({ error: msg });
   }

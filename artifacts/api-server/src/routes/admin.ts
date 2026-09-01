@@ -977,6 +977,11 @@ router.put("/settings", async (req, res) => {
   if (pesapalMode && ["sandbox", "live"].includes(pesapalMode)) {
     await upsert("pesapal_mode", pesapalMode);
   }
+  // IPN registrations are environment-specific. A credential or mode change
+  // must force the next checkout to register a fresh IPN with PesaPal.
+  if (pesapalConsumerKey !== undefined || pesapalConsumerSecret !== undefined || pesapalMode !== undefined) {
+    await db.delete(settings).where(eq(settings.key, "pesapal_ipn_id"));
+  }
 
   // Invalidate cached token so next request uses new credentials
   invalidateTokenCache();
@@ -1041,6 +1046,8 @@ router.post("/plans", async (req, res) => {
       })
       .returning();
     res.status(201).json(created);
+    const { invalidatePlanCache } = await import("./subscriptions");
+    invalidatePlanCache();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("unique") || msg.includes("duplicate")) {

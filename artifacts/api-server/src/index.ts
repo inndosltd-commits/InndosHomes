@@ -121,18 +121,7 @@ async function seedDefaultPlans() {
     await db.execute(
       sql`INSERT INTO subscription_plans (name, display_name, price_per_month, listing_limit, image_limit, video_limit, featured_limit, discovery_enabled, search_boost, phone_support, features, is_active, updated_at)
           VALUES (${plan.name}, ${plan.displayName}, ${plan.pricePerMonth}, ${plan.listingLimit}, ${plan.imageLimit}, ${plan.videoLimit}, ${plan.featuredLimit}, ${plan.discoveryEnabled}, ${plan.searchBoost}, ${plan.phoneSupport}, ${sql.raw(`ARRAY[${plan.features.map(f => `'${f.replace(/'/g, "''")}'`).join(",")}]::text[]`)}, true, now())
-          ON CONFLICT (name) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            price_per_month = EXCLUDED.price_per_month,
-            listing_limit = EXCLUDED.listing_limit,
-            image_limit = EXCLUDED.image_limit,
-            video_limit = EXCLUDED.video_limit,
-            featured_limit = EXCLUDED.featured_limit,
-            discovery_enabled = EXCLUDED.discovery_enabled,
-            search_boost = EXCLUDED.search_boost,
-            phone_support = EXCLUDED.phone_support,
-            features = EXCLUDED.features,
-            updated_at = now()`
+           ON CONFLICT (name) DO NOTHING`
     );
   }
   logger.info("Default subscription plans seeded (Free/Basic/Pro/Enterprise)");
