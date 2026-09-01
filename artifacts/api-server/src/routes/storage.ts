@@ -64,8 +64,9 @@ const MAX_WATERMARK_VIDEO_BYTES = 250 * 1024 * 1024;
 function createWatermarkSvg(width: number, height: number): Buffer {
   const cx = width / 2;
   const cy = height / 2;
-  const textLength = Math.round(width * 0.85);
-  const fontSize = Math.round(Math.min(width, height) * 0.10);
+  const textLength = Math.round(width * 0.92);
+  const fontSize = Math.round(Math.min(width, height) * 0.12);
+  const strokeWidth = Math.max(1, Math.round(fontSize * 0.018));
 
   return Buffer.from(`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -78,7 +79,10 @@ function createWatermarkSvg(width: number, height: number): Buffer {
         font-family="Arial, Helvetica, sans-serif"
         font-size="${fontSize}"
         font-weight="bold"
-        fill="rgba(160,160,160,0.55)"
+        fill="rgba(210,210,210,0.65)"
+        stroke="rgba(0,0,0,0.22)"
+        stroke-width="${strokeWidth}"
+        paint-order="stroke"
         textLength="${textLength}"
         lengthAdjust="spacingAndGlyphs"
       >inndos.com</text>
