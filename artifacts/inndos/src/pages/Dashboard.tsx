@@ -985,6 +985,7 @@ export default function Dashboard() {
 
   // Admin plan management state
   const [adminPlans, setAdminPlans] = useState<any[]>([]);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
   const [planForm, setPlanForm] = useState({ displayName: "", pricePerMonth: 0, listingLimit: 3, imageLimit: 5, videoLimit: 0, featuredLimit: 0, discoveryEnabled: false, phoneSupport: false, features: [] as string[], isActive: true });
   const [newFeature, setNewFeature] = useState("");
@@ -1443,19 +1444,26 @@ export default function Dashboard() {
     if (!user || !token || (user.role !== 'owner' && user.role !== 'host')) return;
     setIsLoadingSubscription(true);
     try {
-      const res = await fetch("/api/subscriptions/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSubscription(data);
-      }
+      const [res, plansRes] = await Promise.all([
+        fetch("/api/subscriptions/me", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/subscriptions/plans"),
+      ]);
+      if (res.ok) setSubscription(await res.json());
+      if (plansRes.ok) setAvailablePlans(await plansRes.json());
     } catch {
       // non-critical, subscription tab will show loading state
     } finally {
       setIsLoadingSubscription(false);
     }
   }, [user, token]);
+
+  // Keep a subscription tab open in sync with plan changes made by an admin
+  // in another session, without requiring a website or mobile release.
+  useEffect(() => {
+    if (activeTab !== "subscription" || !user || !token) return;
+    const refreshTimer = window.setInterval(() => { void fetchSubscription(); }, 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [activeTab, fetchSubscription, token, user]);
 
   const handleDowngradeToFree = async () => {
     if (!token) return;
@@ -1614,6 +1622,15 @@ export default function Dashboard() {
 
     void reconcileReturnedPayment();
   }, [fetchSubscription, token, toast]);
+
+  const planFor = (name: string, fallback: { displayName: string; pricePerMonth: number; listingLimit: number; imageLimit: number }) =>
+    availablePlans.find((plan: any) => plan.name === name) ?? fallback;
+  const freePlan = planFor("free", { displayName: "Free", pricePerMonth: 0, listingLimit: 3, imageLimit: 5 });
+  const basicPlan = planFor("basic", { displayName: "Basic", pricePerMonth: 399, listingLimit: 7, imageLimit: 10 });
+  const proPlan = planFor("pro", { displayName: "Pro", pricePerMonth: 599, listingLimit: 15, imageLimit: 20 });
+  const enterprisePlan = planFor("enterprise", { displayName: "Enterprise", pricePerMonth: 0, listingLimit: 2147483647, imageLimit: 2147483647 });
+  const basicPrice = Number(basicPlan.pricePerMonth);
+  const proPrice = Number(proPlan.pricePerMonth);
 
   // --- PROFILE COMPLETION REMINDER (every 3 days) ---
   useEffect(() => {
@@ -5808,15 +5825,15 @@ export default function Dashboard() {
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Gift className="h-5 w-5 text-zinc-400" />
-                  <CardTitle className="text-base font-bold">Free</CardTitle>
+                  <CardTitle className="text-base font-bold">{freePlan.displayName}</CardTitle>
                   {subscription?.plan === 'free' && <Badge className="ml-auto text-[10px] bg-zinc-800 text-white">Current</Badge>}
                 </div>
-                <CardDescription className="text-2xl font-black text-zinc-900">KES 0<span className="text-gray-400 text-sm font-normal"> / month</span></CardDescription>
+                <CardDescription className="text-2xl font-black text-zinc-900">KES {Number(freePlan.pricePerMonth).toLocaleString()}<span className="text-gray-400 text-sm font-normal"> / month</span></CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 3 active listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>5 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> {freePlan.listingLimit} active listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>{freePlan.imageLimit} photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> 0 featured listings / mo</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No brand-profile search</li>
@@ -5833,18 +5850,18 @@ export default function Dashboard() {
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Zap className="h-5 w-5 text-zinc-500" />
-                  <CardTitle className="text-base font-bold">Basic</CardTitle>
+                  <CardTitle className="text-base font-bold">{basicPlan.displayName}</CardTitle>
                   {subscription?.plan === 'basic' && <Badge className="ml-auto text-[10px] bg-zinc-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 399</span>
+                  <span className="text-2xl font-black text-zinc-900">KES {basicPrice.toLocaleString()}</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 7 listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>10 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> {basicPlan.listingLimit} listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>{basicPlan.imageLimit} photos</strong> per listing</li>
                   <li className="flex items-center gap-2 text-gray-400"><X className="h-4 w-4 shrink-0" /> No video / virtual tour</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 1 featured listing / mo</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Brand-profile search</li>
@@ -5865,19 +5882,19 @@ export default function Dashboard() {
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Crown className="h-5 w-5 text-gray-500" />
-                  <CardTitle className="text-base font-bold">Pro</CardTitle>
+                  <CardTitle className="text-base font-bold">{proPlan.displayName}</CardTitle>
                   <Badge className="text-[10px] bg-gray-100 text-gray-800 border-gray-200">Popular</Badge>
                   {subscription?.plan === 'pro' && <Badge className="ml-auto text-[10px] bg-yellow-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription>
-                  <span className="text-2xl font-black text-zinc-900">KES 599</span>
+                  <span className="text-2xl font-black text-zinc-900">KES {proPrice.toLocaleString()}</span>
                   <span className="text-gray-400 text-sm"> / month</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col flex-1 gap-4">
                 <ul className="space-y-2 text-sm text-gray-600 flex-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 15 listings</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>20 photos</strong> per listing</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> {proPlan.listingLimit} listings</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>{proPlan.imageLimit} photos</strong> per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> <strong>1 video</strong> / virtual tour per listing</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> 3 featured listings / mo</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-gray-500 shrink-0" /> Brand-profile search</li>
@@ -5897,7 +5914,7 @@ export default function Dashboard() {
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Crown className="h-5 w-5 text-gray-500" />
-                  <CardTitle className="text-base font-bold">Enterprise</CardTitle>
+                  <CardTitle className="text-base font-bold">{enterprisePlan.displayName}</CardTitle>
                   {subscription?.plan === 'enterprise' && <Badge className="ml-auto text-[10px] bg-purple-500 text-white">Current</Badge>}
                 </div>
                 <CardDescription className="text-2xl font-black text-zinc-900">Custom<span className="text-gray-400 text-sm font-normal"> pricing</span></CardDescription>
@@ -5955,7 +5972,9 @@ export default function Dashboard() {
               ) : (
               <div className="space-y-5 py-2">
                 <p className="text-sm text-muted-foreground">
-                  {upgradeDialogPlan === 'pro' ? 'KES 599/month · 15 listings · 20 photos · 1 video · 3 featured listings' : 'KES 399/month · 7 listings · 10 photos · 1 featured listing'}
+                  {upgradeDialogPlan === 'pro'
+                    ? `KES ${proPrice.toLocaleString()}/month · ${proPlan.listingLimit} listings · ${proPlan.imageLimit} photos · ${proPlan.videoLimit ?? 0} video · ${proPlan.featuredLimit ?? 0} featured listings`
+                    : `KES ${basicPrice.toLocaleString()}/month · ${basicPlan.listingLimit} listings · ${basicPlan.imageLimit} photos · ${basicPlan.featuredLimit ?? 0} featured listing`}
                 </p>
 
                 {/* Billing cycle selector */}
@@ -5974,7 +5993,7 @@ export default function Dashboard() {
                   </div>
                   {billingCycle === 'yearly' && (
                     <p className="text-xs text-gray-600 font-medium">
-                      Save KES {upgradeDialogPlan === 'pro' ? Math.round(599 * 0.1 * 12) : Math.round(399 * 0.1 * 12)} with yearly billing!
+                       Save KES {upgradeDialogPlan === 'pro' ? Math.round(proPrice * 0.1 * 12) : Math.round(basicPrice * 0.1 * 12)} with yearly billing!
                     </p>
                   )}
                 </div>
@@ -6002,7 +6021,7 @@ export default function Dashboard() {
                 <div className="bg-gray-50 rounded-lg p-4 border space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Rate</span>
-                    <span className="font-medium">KES {upgradeDialogPlan === 'pro' ? 599 : 399}/month</span>
+                       <span className="font-medium">KES {upgradeDialogPlan === 'pro' ? proPrice.toLocaleString() : basicPrice.toLocaleString()}/month</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Duration</span>
@@ -6013,14 +6032,14 @@ export default function Dashboard() {
                   {billingCycle === 'yearly' && (
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Yearly discount (10%)</span>
-                      <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(599 * 0.1 * 12) : Math.round(399 * 0.1 * 12)}</span>
+                       <span>− KES {upgradeDialogPlan === 'pro' ? Math.round(proPrice * 0.1 * 12) : Math.round(basicPrice * 0.1 * 12)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-base pt-1 border-t">
                     <span>Total</span>
                     <span>
                       KES {(() => {
-                        const base = upgradeDialogPlan === 'pro' ? 599 : 399;
+                         const base = upgradeDialogPlan === 'pro' ? proPrice : basicPrice;
                         const months = billingCycle === 'monthly' ? 1 : billingCycle === 'yearly' ? 12 : customMonths;
                         const discount = billingCycle === 'yearly' ? Math.round(base * 0.1 * 12) : 0;
                         return (base * months - discount).toLocaleString();

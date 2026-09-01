@@ -1045,9 +1045,9 @@ router.post("/plans", async (req, res) => {
         updatedAt: new Date(),
       })
       .returning();
-    res.status(201).json(created);
     const { invalidatePlanCache } = await import("./subscriptions");
     invalidatePlanCache();
+    res.status(201).json(created);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "";
     if (msg.includes("unique") || msg.includes("duplicate")) {

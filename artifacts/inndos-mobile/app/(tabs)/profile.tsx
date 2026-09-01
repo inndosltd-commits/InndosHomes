@@ -171,7 +171,9 @@ export default function ProfileScreen() {
     );
   }
 
-  const displayUser = profile ?? user;
+  // The auth context is updated immediately after a role switch, while the
+  // query cache can still contain the previous tenant/guest profile.
+  const displayUser = { ...(profile ?? {}), ...user };
   const initials = displayUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   const joinDate = new Date(displayUser.joinDate).toLocaleDateString("en-KE", { month: "long", year: "numeric" });
   const role = displayUser.role;
