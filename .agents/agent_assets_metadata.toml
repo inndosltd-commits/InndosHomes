@@ -11,18 +11,21 @@ id = "c4eiXaY9qG2HDGW80Tnvo"
 uri = "file://inndos-web-source.zip"
 type = "unspecified"
 title = "INNDOS Website + API Server (source code)"
+logical_id = "7aa07f8a-cf5d-403f-9141-7f3b1e15d90d"
 
 [[outputs]]
 id = "XxCXSlvM1vNQX_HGMB2AS"
 uri = "file://inndos-mobile-source.zip"
 type = "unspecified"
 title = "INNDOS Mobile App — Expo/React Native (source code)"
+logical_id = "32577887-e7bc-4a6c-aa99-7d42a767155a"
 
 [[outputs]]
 id = "1TCSy5dQbxG61m-cFzaMD"
 uri = "file://inndos-mobile.zip"
 type = "unspecified"
 title = "INNDOS Mobile — Fixed Build Package"
+logical_id = "f7dcce53-1cd0-4376-aa4b-9009c8c5d097"
 
 [[outputs]]
 id = "hdkUpyJ8IgoeK96NyHYH9"
@@ -30,6 +33,7 @@ uri = "file://attached_assets/generated_images/inndos_app_store_screenshot_1260x
 type = "image"
 title = "INNDOS App Store Screenshot — 1260×2736"
 description = "Portrait App Store marketing screenshot using the supplied INNDOS property-listing screen. Exact size: 1260×2736 pixels."
+logical_id = "52cb01f8-b1a4-4c60-aea0-1324b39a9323"
 
 [[outputs]]
 id = "HpAh30kFtvbbA3EXQY3J8"
@@ -37,6 +41,7 @@ uri = "file://attached_assets/generated_images/inndos_app_store_screenshot_1260x
 type = "image"
 title = "INNDOS App Store Screenshot — Brand Colors — 1260×2736"
 description = "Final light-theme App Store screenshot using INNDOS mobile colors: white, black, gray, and blue accents. Exact size: 1260×2736 pixels."
+logical_id = "e2a99361-7a7d-4941-a033-6ff21dd783b4"
 
 [[outputs]]
 id = "Q-9QmrXrsuhBJ8C8jz3ZJ"
@@ -44,6 +49,7 @@ uri = "file://attached_assets/generated_images/inndos_property_listings_app_stor
 type = "image"
 title = "INNDOS Property Listings App Store Screenshot — 1260×2736"
 description = "App Store portrait screenshot using the supplied INNDOS property-listing screen and the current INNDOS light-theme colors. Exact size: 1260×2736 pixels."
+logical_id = "a7c2b836-3a43-48ea-ab77-6cf6853e7e30"
 
 [[outputs]]
 id = "GqLiiFUJ8ewEvbL095bNI"
@@ -51,6 +57,7 @@ uri = "file://attached_assets/generated_images/inndos_linkups_app_store_1260x273
 type = "image"
 title = "INNDOS Link-Ups App Store Screenshot — 1260×2736"
 description = "INNDOS App Store portrait screenshot for the Link-Ups screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+logical_id = "5a089d4b-a9c6-4b26-829a-12d982ada918"
 
 [[outputs]]
 id = "j9WD7diWUYuXBIkPDeUw1"
@@ -58,6 +65,7 @@ uri = "file://attached_assets/generated_images/inndos_list_property_app_store_12
 type = "image"
 title = "INNDOS List a Property App Store Screenshot — 1260×2736"
 description = "INNDOS App Store portrait screenshot for the List a Property screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+logical_id = "aa30d213-4864-43f1-a951-3f4fe178e1d8"
 
 [[outputs]]
 id = "ot1jYw4a7Hek0qnbnYXzQ"
@@ -65,6 +73,7 @@ uri = "file://attached_assets/generated_images/inndos_my_listings_app_store_1260
 type = "image"
 title = "INNDOS My Listings App Store Screenshot — 1260×2736"
 description = "INNDOS App Store portrait screenshot for the My Listings screen, using the supplied mobile screenshot and current brand colors. Exact size: 1260×2736 pixels."
+logical_id = "4894ec8d-8f39-41ae-ac06-768f6cf7957d"
 
 [[outputs]]
 id = "23t2rYSCkAb1yBLuzx9iH"
@@ -72,6 +81,7 @@ uri = "file://attached_assets/generated_images/inndos_discover_properties_black_
 type = "image"
 title = "INNDOS Discover Properties — Black Background — 1260×2736"
 description = "Black-background App Store screenshot for the INNDOS Discover Properties screen. Exact size: 1260×2736 pixels."
+logical_id = "bf29fa3e-5896-4bcc-8589-852f1286607e"
 
 [[outputs]]
 id = "9MnGX4uCCYxAAs8NZLfGK"
@@ -79,6 +89,7 @@ uri = "file://attached_assets/generated_images/inndos_property_listings_black_12
 type = "image"
 title = "INNDOS Property Listings — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the INNDOS property-listing screen. Exact size: 1260×2736 pixels."
+logical_id = "eebcd509-cd3e-4bfc-9f4d-6fcb8d41f610"
 
 [[outputs]]
 id = "GwsUEzHwJRzK6CXiokK5M"
@@ -86,6 +97,7 @@ uri = "file://attached_assets/generated_images/inndos_linkups_black_1260x2736.pn
 type = "image"
 title = "INNDOS Link-Ups — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the INNDOS Link-Ups screen. Exact size: 1260×2736 pixels."
+logical_id = "ea1e3930-e551-47bc-b9cc-7142bdc0a91b"
 
 [[outputs]]
 id = "qf5q3LaFPMOcsPIucc8Dd"
@@ -93,6 +105,7 @@ uri = "file://attached_assets/generated_images/inndos_list_property_black_1260x2
 type = "image"
 title = "INNDOS List a Property — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the INNDOS List a Property screen. Exact size: 1260×2736 pixels."
+logical_id = "30112963-b519-4e57-9da2-5e92197e3122"
 
 [[outputs]]
 id = "4J93zR8xKT_MTeYWaGfUx"
@@ -100,6 +113,7 @@ uri = "file://attached_assets/generated_images/inndos_my_listings_black_1260x273
 type = "image"
 title = "INNDOS My Listings — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the INNDOS My Listings screen. Exact size: 1260×2736 pixels."
+logical_id = "0c83f185-d299-4e45-b126-78b1115af535"
 
 [[outputs]]
 id = "62izgGLLw3dTZoBrlWCVX"
@@ -107,6 +121,7 @@ uri = "file://attached_assets/generated_images/inndos_my_account_black_1260x2736
 type = "image"
 title = "INNDOS My Account — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the supplied My Account screen. The visible personal email was replaced with a generic placeholder. Exact size: 1260×2736 pixels."
+logical_id = "bc099aca-8304-4a09-a4f8-61a528294cda"
 
 [[outputs]]
 id = "HdwdfixK3baotcsY-UuA4"
@@ -114,3 +129,18 @@ uri = "file://attached_assets/generated_images/inndos_property_detail_black_1260
 type = "image"
 title = "INNDOS Property Detail — Black Background — 1260×2736"
 description = "Black-background App Store screenshot using the supplied property-detail screen. Exact size: 1260×2736 pixels."
+logical_id = "bb68a1cc-b2e9-4bc9-bb0c-79c1712a91b1"
+
+[[outputs]]
+id = "Sxwv6k4atqPhsLf2NnqSM"
+uri = "file://artifacts/inndos-mobile/assets/images/icon.png"
+type = "image"
+title = "inndos app icon"
+description = "The exact app icon configured for the INNDOS mobile app. Upload this PNG to Google Play Console."
+logical_id = "4cde9a2d-7220-43c7-8f7e-92a8c286c9f7"
+content_hash = "sha256:1693a5db222263f19a8aa250d05b53c2656254ef625c8a9289d1bc1f8b68bb8a"
+size = 18675
+mtime_ms = 1787043974179
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/4cde9a2d-7220-43c7-8f7e-92a8c286c9f7/9e78e466-d05e-4e5c-b216-92464b0a8de4"
+storage_version_token = "1788262106677941"
+content_type = "image/png"
