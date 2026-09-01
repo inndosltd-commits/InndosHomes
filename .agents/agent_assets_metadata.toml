@@ -158,3 +158,73 @@ mtime_ms = 1788262263172
 storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/9978eb24-817b-407b-bb69-1bc1858baf48/70b11b5f-caaf-4920-b520-2441a4b08775"
 storage_version_token = "1788262272553446"
 content_type = "image/png"
+
+[[outputs]]
+id = "VsuBg-ibix0uC1keA6ARB"
+uri = "file://attached_assets/google-play-screenshots/inndos-google-play-01-discover.png"
+type = "image"
+title = "inndos screenshot 1 — Discover"
+description = "Google Play-ready 1260 × 2240 PNG phone screenshot in the required 9:16 ratio."
+logical_id = "526e157a-9614-4028-8af3-91cf9d1c1f66"
+content_hash = "sha256:5ea53a3399c95335732a6c50c714d2caaaaa8ccbe4e4f9e2905a1264049ecafd"
+size = 1209306
+mtime_ms = 1788262413193
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/526e157a-9614-4028-8af3-91cf9d1c1f66/ffa848c5-4ea2-4be9-9043-6c6eb6ad711b"
+storage_version_token = "1788262427375948"
+content_type = "image/png"
+
+[[outputs]]
+id = "2L2-QWlSM44m5vztNyFVS"
+uri = "file://attached_assets/google-play-screenshots/inndos-google-play-02-listings.png"
+type = "image"
+title = "inndos screenshot 2 — Property listings"
+description = "Google Play-ready 1260 × 2240 PNG phone screenshot in the required 9:16 ratio."
+logical_id = "bcace247-bd7e-427c-9e0c-d767d5725b8f"
+content_hash = "sha256:b2530657a6ac01f27e9ee0bad18377aaa16c5d8b091f1b38309574bb95176c54"
+size = 1219806
+mtime_ms = 1788262414747
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/bcace247-bd7e-427c-9e0c-d767d5725b8f/37276632-9f68-427d-85f3-a52faddcc4ad"
+storage_version_token = "1788262428613020"
+content_type = "image/png"
+
+[[outputs]]
+id = "qlFeqPlEeXppX1WEroLwO"
+uri = "file://attached_assets/google-play-screenshots/inndos-google-play-03-linkups.png"
+type = "image"
+title = "inndos screenshot 3 — Link-Ups"
+description = "Google Play-ready 1260 × 2240 PNG phone screenshot in the required 9:16 ratio."
+logical_id = "5b2db404-eca8-4d60-a27c-4130d64ecb56"
+content_hash = "sha256:3fcc62fe38f725268198f3a026eecd4554250e1ffb490a3b78fedf2b25967f41"
+size = 915536
+mtime_ms = 1788262416247
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/5b2db404-eca8-4d60-a27c-4130d64ecb56/a0a8eec0-7a17-4ada-81aa-32617ae6c773"
+storage_version_token = "1788262429764403"
+content_type = "image/png"
+
+[[outputs]]
+id = "twERChL0m_sgRu3q6_K8U"
+uri = "file://attached_assets/google-play-screenshots/inndos-google-play-04-list-property.png"
+type = "image"
+title = "inndos screenshot 4 — List a property"
+description = "Google Play-ready 1260 × 2240 PNG phone screenshot in the required 9:16 ratio."
+logical_id = "3aba1043-9002-4358-867e-870a6daa2c2a"
+content_hash = "sha256:0b6c512ce7e8eb3605d072f27364334237951c3a034963aa40722dc4d6149e74"
+size = 595150
+mtime_ms = 1788262417524
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/3aba1043-9002-4358-867e-870a6daa2c2a/b89ea74a-7ed1-47d8-9173-36540b88d0ab"
+storage_version_token = "1788262430795729"
+content_type = "image/png"
+
+[[outputs]]
+id = "RDWrE1XgsF2ec65CBA6Oi"
+uri = "file://attached_assets/google-play-screenshots/inndos-google-play-05-my-listings.png"
+type = "image"
+title = "inndos screenshot 5 — My listings"
+description = "Google Play-ready 1260 × 2240 PNG phone screenshot in the required 9:16 ratio."
+logical_id = "6bce4d67-254b-4fe4-a415-7bb57a4c5253"
+content_hash = "sha256:4a8e4a55dfd4e7262e3a1de64cc30f5e350cc690fedfce2eab3c64ab1458095c"
+size = 968727
+mtime_ms = 1788262419191
+storage_uri = "gcs://replit-rams-assets-worf/rams/assets/repl:14b22c6c-04e0-4206-89e6-db9a136f81d4/6bce4d67-254b-4fe4-a415-7bb57a4c5253/a7b6a270-2b34-466d-bd22-6acc12461bf8"
+storage_version_token = "1788262432033432"
+content_type = "image/png"
