@@ -402,32 +402,50 @@ router.post("/admin/marketers", async (req, res) => {
         "marketing.marketer_added.sms": `inndos: Hi ${targetUser.name}, you have been added to the marketing team. Your referral code is ${newMarketer.referralCode}. Open your marketing dashboard: ${dashboardUrl}`,
       },
     );
-    await db.insert(notifications).values({
-      userId: targetUser.id,
-      type: "marketer_added",
-      message: templates["marketing.marketer_added.bell"],
-      isRead: false,
-    });
+    try {
+      await db.insert(notifications).values({
+        userId: targetUser.id,
+        type: "marketer_added",
+        message: templates["marketing.marketer_added.bell"],
+        isRead: false,
+      });
+      logger.info({ userId: targetUser.id, channel: "bell" }, "Marketer-added in-app notification created");
+    } catch (error) {
+      logger.error({ error, userId: targetUser.id, channel: "bell" }, "Failed to create marketer-added in-app notification");
+    }
 
+    const deliveryAttempts: Array<{ channel: "sms" | "email"; promise: Promise<void> }> = [];
     if (targetUser.phone) {
       const normalized = normalizePhone(targetUser.phone);
       if (normalized) {
-        sendSms(normalized, templates["marketing.marketer_added.sms"]).catch((error) => {
-          logger.error({ error, userId: targetUser.id }, "Failed to send marketer-added SMS");
+        deliveryAttempts.push({
+          channel: "sms",
+          promise: sendSms(normalized, templates["marketing.marketer_added.sms"]),
         });
       } else {
         logger.warn({ userId: targetUser.id }, "Skipping marketer-added SMS for invalid phone");
       }
     }
 
-    sendMarketerAddedEmail({
-      to: targetUser.email,
-      userName: targetUser.name,
-      marketerCode: newMarketer.marketerCode,
-      referralCode: newMarketer.referralCode,
-      dashboardUrl,
-    }).catch((error) => {
-      logger.error({ error, userId: targetUser.id }, "Failed to send marketer-added email");
+    deliveryAttempts.push({
+      channel: "email",
+      promise: sendMarketerAddedEmail({
+        to: targetUser.email,
+        userName: targetUser.name,
+        marketerCode: newMarketer.marketerCode,
+        referralCode: newMarketer.referralCode,
+        dashboardUrl,
+      }),
+    });
+
+    const deliveryResults = await Promise.allSettled(deliveryAttempts.map((attempt) => attempt.promise));
+    deliveryResults.forEach((result, index) => {
+      const attempt = deliveryAttempts[index];
+      if (result.status === "fulfilled") {
+        logger.info({ userId: targetUser.id, channel: attempt.channel }, "Marketer-added notification delivered to provider");
+      } else {
+        logger.error({ error: result.reason, userId: targetUser.id, channel: attempt.channel }, "Failed to deliver marketer-added notification");
+      }
     });
   } catch (error) {
     logger.error({ error, userId: targetUser.id }, "Failed to create marketer-added notifications");
