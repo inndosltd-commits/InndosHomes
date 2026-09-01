@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { AdminMarketingPanel } from "@/components/AdminMarketingPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { getApiBaseUrl } from "@/utils/api";
@@ -901,82 +902,7 @@ export function AdminOperations() {
   };
 
   const renderMarketing = () => {
-    const overview = (activeData.overview ?? {}) as RecordData;
-    const marketers = wrappedRecords(activeData.marketers);
-    const referrals = wrappedRecords(activeData.referrals);
-    const comparison = wrappedRecords(activeData.comparison);
-    const audit = wrappedRecords(activeData.audit);
-    return (
-      <>
-        <View style={styles.metrics}>
-          <Metric label="Marketers" number={numberValue(overview, "totalMarketers")} icon="users" colors={colors} />
-          <Metric label="Active" number={numberValue(overview, "activeMarketers")} icon="user-check" colors={colors} />
-          <Metric label="Referrals" number={numberValue(overview, "totalReferrals")} icon="share-2" colors={colors} />
-          <Metric label="This month" number={numberValue(overview, "monthReferrals")} icon="calendar" colors={colors} />
-        </View>
-        <View style={styles.toolbar}>
-          <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Marketers</Text>
-          <ActionButton label="Convert user" onPress={() => openForm({
-            title: "Convert user to marketer",
-            submitLabel: "Make marketer",
-            fields: [{ key: "targetUserId", label: "User ID", placeholder: "Paste the user ID" }],
-            onSubmit: async (values) => mutate("/api/marketing/admin/marketers", "POST", values, "User converted to marketer."),
-          })} colors={colors} tone="primary" icon="user-plus" />
-        </View>
-        {marketers.map((marketer) => {
-          const id = value(marketer, "id", "");
-          const marketerUser = marketer.user && typeof marketer.user === "object" ? marketer.user as RecordData : {};
-          const isActive = value(marketer, "status") === "active";
-          return (
-            <Card key={id} colors={colors}>
-              <Text style={[styles.rowTitle, { color: colors.foreground }]}>{value(marketerUser, "name")} · {value(marketer, "marketerCode")}</Text>
-              <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(marketerUser, "email")} · {numberValue(marketer, "totalReferrals")} referrals · {statusLabel(marketer.status)}</Text>
-              <View style={styles.actions}>
-                <ActionButton label="Details" onPress={() => loadMarketerDetail(id)} colors={colors} icon="eye" />
-                <ActionButton label={isActive ? "Deactivate" : "Activate"} onPress={() => mutate(`/api/marketing/admin/marketers/${id}`, "PATCH", { status: isActive ? "inactive" : "active" }, "Marketer status updated.")} colors={colors} icon="power" />
-                <ActionButton label="New referral code" onPress={() => confirm("Regenerate referral code?", "The marketer will receive a new referral code.", () => mutate(`/api/marketing/admin/marketers/${id}`, "PATCH", { regenerateCode: true }, "Referral code regenerated."))} colors={colors} icon="refresh-cw" />
-              </View>
-            </Card>
-          );
-        })}
-        {marketerDetail ? (
-          <Card colors={colors}>
-            <View style={styles.toolbar}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>Marketer details</Text>
-              <Pressable onPress={() => setMarketerDetail(null)}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
-            </View>
-            <Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value((marketerDetail.details.user ?? {}) as RecordData, "name")} · {value((marketerDetail.details.marketer ?? {}) as RecordData, "marketerCode")}</Text>
-            <Text style={[styles.minorText, { color: colors.mutedForeground }]} numberOfLines={1}>{value(marketerDetail.details, "referralLink", "")}</Text>
-            <Text style={[styles.strong, { color: colors.foreground }]}>Referrals ({marketerDetail.referrals.length})</Text>
-            {marketerDetail.referrals.length === 0 ? <Text style={[styles.minorText, { color: colors.mutedForeground }]}>No referrals recorded for this marketer.</Text> : marketerDetail.referrals.slice(0, 12).map((referral) => {
-              const referred = referral.user && typeof referral.user === "object" ? referral.user as RecordData : {};
-              return <Text key={value(referral, "referralId", value(referral, "id", ""))} style={[styles.minorText, { color: colors.mutedForeground }]}>{value(referred, "name")} · {shortDate(referral.createdAt)}</Text>;
-            })}
-          </Card>
-        ) : null}
-        <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Latest referrals</Text>
-        {referrals.slice(0, 12).map((referral) => {
-          const marketerUser = referral.marketerUser && typeof referral.marketerUser === "object" ? referral.marketerUser as RecordData : {};
-          const referred = referral.referredUser && typeof referral.referredUser === "object" ? referral.referredUser as RecordData : {};
-          return <Card key={value(referral, "id", "")} colors={colors}><Text style={[styles.rowTitle, { color: colors.foreground }]}>{value(referred, "name")} ← {value(marketerUser, "name")}</Text><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(referral, "referralCode")} · {shortDate(referral.createdAt)}</Text></Card>;
-        })}
-        <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Performance comparison</Text>
-        {comparison.slice(0, 10).map((item) => <Card key={`${value(item, "marketerCode")}-${value(item, "name")}`} colors={colors}><Text style={[styles.rowTitle, { color: colors.foreground }]}>{value(item, "name")} · {value(item, "marketerCode")}</Text><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{numberValue(item, "totalReferrals")} referrals · {statusLabel(item.status)}</Text></Card>)}
-        <View style={styles.toolbar}>
-          <Text style={[styles.sectionHeading, { color: colors.foreground }]}>Audit log</Text>
-          <ActionButton label="Export referrals" onPress={async () => {
-            try {
-              const csv = await request<string>("/api/marketing/admin/export?type=referrals");
-              await Clipboard.setStringAsync(csv);
-              Alert.alert("Export copied", "The referral CSV has been copied to your clipboard.");
-            } catch (cause) {
-              Alert.alert("Export failed", cause instanceof Error ? cause.message : "Please try again.");
-            }
-          }} colors={colors} icon="download" />
-        </View>
-        {audit.slice(0, 10).map((entry) => <Card key={value(entry, "id", "")} colors={colors}><Text style={[styles.rowTitle, { color: colors.foreground }]}>{statusLabel(entry.action)}</Text><Text style={[styles.bodyText, { color: colors.mutedForeground }]}>{value(entry, "details")} · {shortDate(entry.createdAt)}</Text></Card>)}
-      </>
-    );
+    return <AdminMarketingPanel token={token ?? ""} onChanged={() => { void loadSection("marketing"); }} />;
   };
 
   const renderSettings = () => {

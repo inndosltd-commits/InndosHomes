@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
-  users, marketers, referrals, referralVisits, marketingAuditLog,
+  users, marketers, referrals, referralVisits, marketingAuditLog, notifications,
 } from "@workspace/db";
 import { eq, and, sql, desc, ilike, or, gte, lte, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
 import { logger } from "../lib/logger";
+import { normalizePhone, sendSms } from "../lib/sms";
+import { sendMarketerAddedEmail } from "../lib/email";
+import { resolveTemplates } from "../lib/templateEngine";
+import { getWebsiteUrl } from "../lib/appUrl";
 
 const router = Router();
 
@@ -306,10 +310,12 @@ router.get("/admin/marketers", async (req, res) => {
   const marketerIds = allMarketersList.map(m => m.id);
   const userIds     = allMarketersList.map(m => m.userId);
 
-  const [marketerUsers, allReferralsRaw] = await Promise.all([
-    userIds.length > 0 ? db.select({ id: users.id, name: users.name, email: users.email, phone: users.phone, avatar: users.avatar }).from(users).where(inArray(users.id, userIds)) : Promise.resolve([]),
-    marketerIds.length > 0 ? db.select({ marketerId: referrals.marketerId, createdAt: referrals.createdAt }).from(referrals).where(inArray(referrals.marketerId, marketerIds)) : Promise.resolve([]),
-  ]);
+  const marketerUsers = userIds.length > 0
+    ? await db.select({ id: users.id, name: users.name, email: users.email, phone: users.phone, avatar: users.avatar }).from(users).where(inArray(users.id, userIds))
+    : [];
+  const allReferralsRaw: Array<{ marketerId: string; createdAt: Date }> = marketerIds.length > 0
+    ? await db.select({ marketerId: referrals.marketerId, createdAt: referrals.createdAt }).from(referrals).where(inArray(referrals.marketerId, marketerIds))
+    : [];
 
   const userMap = Object.fromEntries(marketerUsers.map(u => [u.id, u]));
 
@@ -377,6 +383,55 @@ router.post("/admin/marketers", async (req, res) => {
 
   await auditLog(userId, "CONVERT_USER_TO_MARKETER", newMarketer.id, targetUserId,
     `Converted ${targetUser.name} (${targetUser.email}) to marketer ${marketerCode}`, ipFrom(req));
+
+  // Deliver the conversion confirmation independently of the conversion itself.
+  // A mail/SMS provider outage must not undo the marketer record or audit trail.
+  try {
+    const dashboardUrl = `${getWebsiteUrl()}/#/dashboard?tab=my-marketing`;
+    const notificationVars = {
+      userName: targetUser.name,
+      marketerCode: newMarketer.marketerCode,
+      referralCode: newMarketer.referralCode,
+      dashboardUrl,
+    };
+    const templates = await resolveTemplates(
+      ["marketing.marketer_added.bell", "marketing.marketer_added.sms"],
+      notificationVars,
+      {
+        "marketing.marketer_added.bell": "You are now part of the inndos marketing team. Open My Marketing to start sharing.",
+        "marketing.marketer_added.sms": `inndos: Hi ${targetUser.name}, you have been added to the marketing team. Your referral code is ${newMarketer.referralCode}. Open your marketing dashboard: ${dashboardUrl}`,
+      },
+    );
+    await db.insert(notifications).values({
+      userId: targetUser.id,
+      type: "marketer_added",
+      message: templates["marketing.marketer_added.bell"],
+      isRead: false,
+    });
+
+    if (targetUser.phone) {
+      const normalized = normalizePhone(targetUser.phone);
+      if (normalized) {
+        sendSms(normalized, templates["marketing.marketer_added.sms"]).catch((error) => {
+          logger.error({ error, userId: targetUser.id }, "Failed to send marketer-added SMS");
+        });
+      } else {
+        logger.warn({ userId: targetUser.id }, "Skipping marketer-added SMS for invalid phone");
+      }
+    }
+
+    sendMarketerAddedEmail({
+      to: targetUser.email,
+      userName: targetUser.name,
+      marketerCode: newMarketer.marketerCode,
+      referralCode: newMarketer.referralCode,
+      dashboardUrl,
+    }).catch((error) => {
+      logger.error({ error, userId: targetUser.id }, "Failed to send marketer-added email");
+    });
+  } catch (error) {
+    logger.error({ error, userId: targetUser.id }, "Failed to create marketer-added notifications");
+  }
 
   res.status(201).json({ marketer: newMarketer, user: targetUser });
 });

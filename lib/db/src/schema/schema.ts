@@ -111,7 +111,7 @@ export const notifications = pgTable("notifications", {
     .notNull()
     .references(() => users.id),
   type: text("type")
-    .$type<"new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_cancelled_by_guest" | "new_user" | "listing_submitted" | "subscription_reminder" | "transaction_confirmation_prompt" | "transaction_confirmed" | "property_saved" | "new_referral">()
+    .$type<"new_booking" | "booking_confirmed" | "booking_cancelled" | "booking_cancelled_by_guest" | "new_user" | "listing_submitted" | "subscription_reminder" | "subscription_expired" | "transaction_confirmation_prompt" | "transaction_confirmed" | "property_saved" | "new_referral" | "review_received" | "marketer_added">()
     .notNull()
     .default("new_booking"),
   message: text("message").notNull(),

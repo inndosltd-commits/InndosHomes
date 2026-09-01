@@ -1,9 +1,61 @@
 import { Resend } from "resend";
 import { logger } from "./logger";
+import { resolveEmailTemplate } from "./templateEngine";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const EMAIL_FROM = "inndos <notifications@resend.inndos.com>";
+
+export interface MarketerAddedEmailParams {
+  to: string;
+  userName: string;
+  marketerCode: string;
+  referralCode: string;
+  dashboardUrl: string;
+}
+
+export async function sendMarketerAddedEmail(params: MarketerAddedEmailParams): Promise<void> {
+  const template = await resolveEmailTemplate(
+    "marketing.marketer_added.email",
+    {
+      userName: params.userName,
+      marketerCode: params.marketerCode,
+      referralCode: params.referralCode,
+      dashboardUrl: params.dashboardUrl,
+    },
+    {
+      subject: "You are now an inndos marketer",
+      bodyText: "You have been added to the inndos marketing team.",
+      ctaLabel: "Open My Marketing",
+    },
+  );
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: params.to,
+    subject: template.subject,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#111827">
+        <div style="background:#18181b;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;font-size:22px;font-weight:700">inndos</div>
+        <div style="border:1px solid #e5e7eb;border-top:0;border-radius:0 0 12px 12px;padding:28px 24px">
+          <h1 style="font-size:22px;margin:0 0 14px">${template.subject}</h1>
+          <p style="font-size:15px;line-height:1.6;margin:0 0 20px">Hi ${params.userName},</p>
+          <div style="font-size:15px;line-height:1.7">${template.bodyText}</div>
+          <div style="background:#f4f4f5;border-radius:8px;padding:16px;margin:22px 0;font-size:14px;line-height:1.8">
+            <div><strong>Marketer ID:</strong> ${params.marketerCode}</div>
+            <div><strong>Referral code:</strong> ${params.referralCode}</div>
+          </div>
+          <a href="${params.dashboardUrl}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">${template.ctaLabel}</a>
+        </div>
+      </div>
+    `.trim(),
+  });
+
+  if (error) {
+    logger.error({ error, to: params.to }, "Failed to send marketer-added email");
+    throw new Error(`Resend error: ${error.message}`);
+  }
+}
 
 export interface NewBookingEmailParams {
   ownerEmail: string;

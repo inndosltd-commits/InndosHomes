@@ -294,7 +294,12 @@ router.get("/me", async (req, res) => {
   }
 
   const { password: _pw, ...safeUser } = user;
-  res.json(safeUser);
+  const [marketer] = await db
+    .select({ id: marketers.id })
+    .from(marketers)
+    .where(eq(marketers.userId, user.id))
+    .limit(1);
+  res.json({ ...safeUser, isMarketer: Boolean(marketer) });
 });
 
 router.patch("/profile", async (req, res) => {

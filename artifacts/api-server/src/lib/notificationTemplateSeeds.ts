@@ -10,7 +10,7 @@ import { rewritePreviewUrls } from "./appUrl";
 
 export interface TemplateSeed {
   key: string;
-  category: "subscription" | "booking" | "listing" | "auth" | "transaction";
+  category: "subscription" | "booking" | "listing" | "auth" | "transaction" | "marketing";
   channel: "sms" | "bell" | "email";
   label: string;
   subject?: string | null;
@@ -51,7 +51,39 @@ const AUTH_VARS = [
   { name: "userRole",  description: "Role the user registered as (owner/tenant/etc.)" },
 ];
 
+const MARKETING_VARS = [
+  { name: "userName", description: "New marketer's full name" },
+  { name: "marketerCode", description: "Assigned marketer ID" },
+  { name: "referralCode", description: "Assigned referral code" },
+  { name: "dashboardUrl", description: "Link to the marketing dashboard" },
+];
+
 export const TEMPLATE_SEEDS: TemplateSeed[] = [
+  // ── MARKETING — Marketer Added ──────────────────────────────────────────────
+  {
+    key: "marketing.marketer_added.bell",
+    category: "marketing", channel: "bell",
+    label: "Added to Marketing Team (Bell)",
+    body: "You are now part of the inndos marketing team. Your referral code is {{referralCode}}. Open My Marketing to start sharing.",
+    variables: MARKETING_VARS,
+  },
+  {
+    key: "marketing.marketer_added.sms",
+    category: "marketing", channel: "sms",
+    label: "Added to Marketing Team (SMS)",
+    body: "inndos: Hi {{userName}}, you have been added to the marketing team. Your referral code is {{referralCode}}. Open your marketing dashboard: {{dashboardUrl}}",
+    variables: MARKETING_VARS,
+  },
+  {
+    key: "marketing.marketer_added.email",
+    category: "marketing", channel: "email",
+    label: "Added to Marketing Team (Email)",
+    subject: "You are now an inndos marketer",
+    body: "Hi {{userName}},<br><br>You have been added to the inndos marketing team. You can now share your referral link and track the people who join through it.<br><br><strong>Marketer ID:</strong> {{marketerCode}}<br><strong>Referral code:</strong> {{referralCode}}",
+    ctaLabel: "Open My Marketing",
+    variables: MARKETING_VARS,
+  },
+
   // ── SUBSCRIPTION — 7-Day Reminder ──────────────────────────────────────────
   {
     key: "subscription.reminder.7day.sms",

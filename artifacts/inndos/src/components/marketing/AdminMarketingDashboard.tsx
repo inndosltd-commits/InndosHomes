@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,9 +66,11 @@ export function AdminMarketingDashboard({ token }: Props) {
   const [marketersTotal, setMarketersTotal] = useState(0);
   const [marketersPage, setMarketersPage] = useState(1);
   const [marketersSearch, setMarketersSearch] = useState("");
+  const [marketersSearchQuery, setMarketersSearchQuery] = useState("");
   const [marketersStatus, setMarketersStatus] = useState("all");
   const [marketersSortBy, setMarketersSortBy] = useState("createdAt");
   const [loadingMarketers, setLoadingMarketers] = useState(false);
+  const marketersRequestRef = useRef(0);
 
   // convert user modal
   const [showConvert, setShowConvert] = useState(false);
@@ -123,14 +125,16 @@ export function AdminMarketingDashboard({ token }: Props) {
 
   const fetchMarketers = useCallback(async () => {
     setLoadingMarketers(true);
+    const requestId = ++marketersRequestRef.current;
     try {
       const params = new URLSearchParams({ page: String(marketersPage), limit: "20", sortBy: marketersSortBy });
-      if (marketersSearch) params.set("search", marketersSearch);
+      if (marketersSearchQuery) params.set("search", marketersSearchQuery);
       if (marketersStatus !== "all") params.set("status", marketersStatus);
       const r = await fetch(`/api/marketing/admin/marketers?${params}`, { headers: authH });
+      if (requestId !== marketersRequestRef.current) return;
       if (r.ok) { const d = await r.json(); setMarketers(d.data); setMarketersTotal(d.total); }
     } finally { setLoadingMarketers(false); }
-  }, [token, marketersPage, marketersSearch, marketersStatus, marketersSortBy]);
+  }, [token, marketersPage, marketersSearchQuery, marketersStatus, marketersSortBy]);
 
   const fetchChart = useCallback(async () => {
     setLoadingChart(true);
@@ -183,7 +187,14 @@ export function AdminMarketingDashboard({ token }: Props) {
   }, [token]);
 
   useEffect(() => { fetchOverview(); fetchChart(); fetchComparison(); fetchRecentReferrals(); }, []);
-  useEffect(() => { if (tab === "marketers") fetchMarketers(); }, [tab, marketersPage, marketersSearch, marketersStatus, marketersSortBy]);
+  useEffect(() => { if (tab === "marketers") fetchMarketers(); }, [tab, fetchMarketers]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setMarketersSearchQuery(marketersSearch.trim());
+      setMarketersPage(1);
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [marketersSearch]);
   useEffect(() => { if (tab === "analytics") fetchChart(); }, [chartRange, chartMarketerId]);
   useEffect(() => { if (tab === "referrals") fetchAllReferrals(); }, [tab, allReferralsPage, allReferralsSearch]);
   useEffect(() => { if (tab === "audit") fetchAuditLog(); }, [tab, auditPage]);
