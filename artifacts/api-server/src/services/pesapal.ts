@@ -108,6 +108,31 @@ export interface OrderRequest {
   currency?: string;
 }
 
+type PesapalOrderResponse = {
+  order_tracking_id?: string;
+  orderTrackingId?: string;
+  merchant_reference?: string;
+  merchantReference?: string;
+  redirect_url?: string;
+  redirectUrl?: string;
+  status?: string | number;
+  error?: {
+    error_type?: string;
+    code?: string;
+    message?: string;
+  } | string | null;
+  message?: string;
+};
+
+function describeOrderError(data: PesapalOrderResponse): string {
+  const details = typeof data.error === "string"
+    ? data.error
+    : [data.error?.message, data.error?.error_type, data.error?.code]
+        .filter((value): value is string => Boolean(value))
+        .join(" · ");
+  return details || data.message || (data.status ? `status ${data.status}` : "missing checkout details");
+}
+
 export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: string; orderTrackingId: string }> {
   const config = await getPesapalConfig();
   const base = getBaseUrl(config.mode);
@@ -143,20 +168,30 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
     }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`PesaPal order submission failed: ${res.status} ${body}`);
+  const body = await res.text();
+  let data: PesapalOrderResponse = {};
+  try {
+    data = body ? JSON.parse(body) as PesapalOrderResponse : {};
+  } catch {
+    if (!res.ok) {
+      throw new Error(`PesaPal order submission failed: ${res.status} ${body.slice(0, 300)}`);
+    }
+    throw new Error("PesaPal order submission failed: the gateway returned an invalid response.");
   }
 
-  const data = (await res.json()) as {
-    order_tracking_id: string;
-    merchant_reference: string;
-    redirect_url: string;
-  };
+  if (!res.ok) {
+    throw new Error(`PesaPal order submission failed: ${res.status} ${describeOrderError(data)}`);
+  }
+
+  const redirectUrl = data.redirect_url ?? data.redirectUrl ?? "";
+  const orderTrackingId = data.order_tracking_id ?? data.orderTrackingId ?? "";
+  if (!redirectUrl || !orderTrackingId) {
+    throw new Error(`PesaPal order rejected: ${describeOrderError(data)}`);
+  }
 
   return {
-    redirectUrl: data.redirect_url,
-    orderTrackingId: data.order_tracking_id,
+    redirectUrl,
+    orderTrackingId,
   };
 }
 

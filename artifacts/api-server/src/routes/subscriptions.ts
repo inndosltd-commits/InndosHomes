@@ -532,7 +532,7 @@ router.post("/checkout", async (req, res) => {
   }
 
   try {
-    const { redirectUrl, orderTrackingId } = await submitOrder({
+    const orderRequest = {
       merchantReference,
       amount,
       description: payment.description ?? `${plan} Plan`,
@@ -541,7 +541,18 @@ router.post("/checkout", async (req, res) => {
       userFirstName: firstName,
       userLastName: lastName,
       currency: "KES",
-    });
+    };
+    let order;
+    try {
+      order = await submitOrder(orderRequest);
+    } catch (firstError) {
+      const firstMessage = firstError instanceof Error ? firstError.message : "";
+      if (!/notification|ipn|order rejected/i.test(firstMessage)) throw firstError;
+      req.log?.warn({ paymentId: payment.id }, "Refreshing stale PesaPal IPN registration and retrying checkout");
+      await registerIPN(ipnUrl);
+      order = await submitOrder(orderRequest);
+    }
+    const { redirectUrl, orderTrackingId } = order;
 
     // Save tracking ID
     await db
