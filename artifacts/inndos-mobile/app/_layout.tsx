@@ -8,7 +8,6 @@ import {
 import { setBaseUrl } from "@workspace/api-client-react";
 import { setImageBaseUrl } from "@/utils/imageUrl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import Constants from "expo-constants";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -23,8 +22,8 @@ import { getApiBaseUrl } from "@/utils/api";
 
 // Set the base URL for all API calls. Expo bundles run outside the web proxy
 // and need an absolute URL to reach the backend.
-// Priority: EXPO_PUBLIC_DOMAIN env var (set as EAS secret) → apiDomain baked
-// into app.config.js extra at build time (falls back to REPLIT_DEV_DOMAIN).
+// Development uses EXPO_PUBLIC_DOMAIN; release builds prefer the production
+// apiDomain baked into app.json.
 const _baseUrl = getApiBaseUrl();
 if (_baseUrl) {
   setBaseUrl(_baseUrl);
