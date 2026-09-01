@@ -130,6 +130,10 @@ function describeOrderError(data: PesapalOrderResponse): string {
     : [data.error?.message, data.error?.error_type, data.error?.code]
         .filter((value): value is string => Boolean(value))
         .join(" · ");
+  const normalized = `${details} ${data.message ?? ""}`.toLowerCase();
+  if (normalized.includes("test_transactions_exceeded") || normalized.includes("maximum_amount_limit_exceeded")) {
+    return "PesaPal's sandbox test limit has been reached. No charge was made. An administrator must use PesaPal live credentials in Admin > Payment Settings, or request a sandbox limit reset from PesaPal.";
+  }
   return details || data.message || (data.status ? `status ${data.status}` : "missing checkout details");
 }
 
