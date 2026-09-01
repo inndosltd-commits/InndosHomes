@@ -165,21 +165,48 @@ async function downloadObjectEntityWhenReady(path: string, maxBytes: number): Pr
 }
 
 async function probeVideoDuration(inputPath: string): Promise<number> {
-  const { stdout } = await execFileAsync(
-    "ffprobe",
-    [
-      "-v", "error",
-      "-select_streams", "v:0",
-      "-show_entries", "stream=codec_type,duration:format=duration",
-      "-of", "json",
-      inputPath,
-    ],
-    { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 },
-  );
-  const probe = JSON.parse(stdout) as {
-    streams?: Array<{ codec_type?: string; duration?: string }>;
-    format?: { duration?: string };
+  // Phone cameras can put a large metadata table at the end of a MOV/MP4,
+  // and some Android encoders omit stream duration while still producing a
+  // perfectly decodable video. Give ffprobe enough data to inspect those
+  // files and keep any JSON it emitted even when it exits non-zero because
+  // of a recoverable packet warning.
+  let stdout = "";
+  let stderr = "";
+  try {
+    const result = await execFileAsync(
+      "ffprobe",
+      [
+        "-v", "error",
+        "-probesize", "100M",
+        "-analyzeduration", "100M",
+        "-err_detect", "ignore_err",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=codec_type,duration,start_time:format=duration,start_time",
+        "-of", "json",
+        inputPath,
+      ],
+      { timeout: 90_000, maxBuffer: 2 * 1024 * 1024 },
+    );
+    stdout = result.stdout;
+    stderr = result.stderr;
+  } catch (error) {
+    const probeError = error as { stdout?: string; stderr?: string };
+    stdout = probeError.stdout ?? "";
+    stderr = probeError.stderr ?? "";
+    if (!stdout.trim()) {
+      throw new Error(`ffprobe could not read the video: ${stderr.trim() || "unknown probe error"}`);
+    }
+  }
+
+  let probe: {
+    streams?: Array<{ codec_type?: string; duration?: string; start_time?: string }>;
+    format?: { duration?: string; start_time?: string };
   };
+  try {
+    probe = JSON.parse(stdout);
+  } catch {
+    throw new Error(`ffprobe returned invalid metadata: ${stderr.trim() || "unknown probe error"}`);
+  }
   if (!probe.streams?.some((stream) => stream.codec_type === "video")) return 0;
   const durations = [
     Number(probe.format?.duration),
@@ -892,10 +919,20 @@ router.post("/videos/process", async (req, res) => {
     await execFileAsync(
       "ffmpeg",
       [
-        "-y", "-ss", String(start), "-i", inputPath, "-t", String(duration),
+          "-y",
+          "-probesize", "100M",
+          "-analyzeduration", "100M",
+          "-fflags", "+genpts+discardcorrupt",
+          "-i", inputPath,
+          // Seeking after the input is slower but reliable for phone videos
+          // with long GOPs and non-zero/irregular timestamps.
+          "-ss", String(start),
+          "-t", String(duration),
         "-vf", buildVideoFilter({ cropAspect, caption, captionPosition, captionFile: captionPath }),
         "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-        "-c:a", "aac", "-movflags", "+faststart", "-shortest", outputPath,
+          "-pix_fmt", "yuv420p",
+          "-tag:v", "avc1",
+          "-c:a", "aac", "-movflags", "+faststart", "-shortest", outputPath,
       ],
       { timeout: 180_000, maxBuffer: 2 * 1024 * 1024 },
     );
