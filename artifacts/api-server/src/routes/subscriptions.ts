@@ -547,7 +547,7 @@ router.post("/checkout", async (req, res) => {
       order = await submitOrder(orderRequest);
     } catch (firstError) {
       const firstMessage = firstError instanceof Error ? firstError.message : "";
-      if (!/notification|ipn|order rejected/i.test(firstMessage)) throw firstError;
+      if (!/notification|ipn/i.test(firstMessage)) throw firstError;
       req.log?.warn({ paymentId: payment.id }, "Refreshing stale PesaPal IPN registration and retrying checkout");
       await registerIPN(ipnUrl);
       order = await submitOrder(orderRequest);

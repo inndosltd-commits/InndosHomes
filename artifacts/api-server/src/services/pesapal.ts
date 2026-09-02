@@ -210,7 +210,7 @@ export function describeOrderError(data: PesapalOrderResponse, mode: "sandbox" |
     return "PesaPal's sandbox test limit has been reached. No charge was made. An administrator must use PesaPal live credentials in Admin > Payment Settings, or request a sandbox limit reset from PesaPal.";
   }
   if (mode === "live" && normalized.includes("test_transactions_exceeded")) {
-    return "PesaPal rejected the live merchant account because its transaction limit has been reached. No charge was made. Check the live account status and limits with PesaPal.";
+    return "PesaPal returned TEST_TRANSACTIONS_EXCEEDED for these live credentials. INNDOS is using PesaPal's production endpoint, but PesaPal has classified this merchant account as test-limited. No charge was made. Ask PesaPal to activate or reset the live merchant account, or issue unrestricted production API credentials.";
   }
   if (mode === "live" && normalized.includes("maximum_amount_limit_exceeded")) {
     return "PesaPal rejected this live order because the merchant account's allowed transaction amount or account limit was exceeded. No charge was made. Check the live account limits with PesaPal.";
