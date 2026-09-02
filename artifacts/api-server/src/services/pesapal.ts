@@ -317,12 +317,12 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
       amount: req.amount,
       description: req.description,
       callback_url: req.callbackUrl,
+      redirect_mode: "TOP_WINDOW",
       notification_id: ipnId,
       billing_address: {
         email_address: req.userEmail,
         first_name: req.userFirstName,
         last_name: req.userLastName,
-        phone_number: "",
         country_code: "KE",
       },
     }),
