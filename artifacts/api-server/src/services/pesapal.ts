@@ -334,9 +334,9 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
     data = body ? JSON.parse(body) as PesapalOrderResponse : {};
   } catch {
     if (!res.ok) {
-      throw new Error(`PesaPal order submission failed: ${res.status} ${body.slice(0, 300)}`);
+      throw new Error(`PesaPal order submission failed: ${res.status} ${summarizeGatewayBody(body)}`);
     }
-    throw new Error("PesaPal order submission failed: the gateway returned an invalid response.");
+    throw new Error(`PesaPal order submission failed: ${summarizeGatewayBody(body)}`);
   }
 
   if (!res.ok) {
