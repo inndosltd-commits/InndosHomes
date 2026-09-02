@@ -923,7 +923,7 @@ export function AdminOperations() {
                 { key: "pesapalMode", label: "Mode", options: ["sandbox", "live"] },
               ],
               initial: { pesapalConsumerKey: value(payment, "pesapalConsumerKey", ""), pesapalConsumerSecret: value(payment, "pesapalConsumerSecret", ""), pesapalMode: value(payment, "pesapalMode", "sandbox") },
-              onSubmit: async (values) => mutate("/api/admin/settings", "PUT", values, "Payment settings saved."),
+               onSubmit: async (values) => mutate("/api/admin/settings", "PUT", values, "Payment settings saved."),
             })} colors={colors} icon="edit-3" />
             <ActionButton label="Register IPN" onPress={() => openForm({
               title: "Register PesaPal IPN",

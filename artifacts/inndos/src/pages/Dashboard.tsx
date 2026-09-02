@@ -5182,7 +5182,7 @@ export default function Dashboard() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-zinc-500" /> PesaPal Configuration
                   </CardTitle>
-                  <CardDescription>Update your PesaPal API credentials. Changes take effect immediately.</CardDescription>
+                   <CardDescription>Update your PesaPal API credentials. To switch accounts, enter both the new consumer key and secret together. Saving an unchanged form keeps the current IPN active.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">

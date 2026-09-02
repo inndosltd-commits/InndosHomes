@@ -963,6 +963,32 @@ router.put("/settings", async (req, res) => {
     pesapalMode?: string;
   };
 
+  const existingRows = await db.select().from(settings);
+  const existing = new Map(existingRows.map((row) => [row.key, row.value]));
+  const currentKey = existing.get("pesapal_consumer_key") ?? "";
+  const currentSecret = existing.get("pesapal_consumer_secret") ?? "";
+  const currentMode = existing.get("pesapal_mode") ?? "sandbox";
+
+  const requestedKey = typeof pesapalConsumerKey === "string" ? pesapalConsumerKey.trim() : "";
+  const requestedSecret = typeof pesapalConsumerSecret === "string" ? pesapalConsumerSecret.trim() : "";
+  const hasNewSecret = Boolean(requestedSecret) && !requestedSecret.startsWith("•");
+  const keyChanged = Boolean(requestedKey) && requestedKey !== currentKey;
+  const secretChanged = hasNewSecret && requestedSecret !== currentSecret;
+  const credentialsChanged = keyChanged || secretChanged;
+  const nextMode = pesapalMode && ["sandbox", "live"].includes(pesapalMode) ? pesapalMode : currentMode;
+  const modeChanged = nextMode !== currentMode;
+
+  // A PesaPal account is identified by its key/secret pair. Never persist a
+  // half-switched pair: it can authenticate unpredictably and may still use
+  // the previous account's IPN registration.
+  if (credentialsChanged && (!requestedKey || !hasNewSecret)) {
+    res.status(400).json({
+      error: "To switch PesaPal accounts, enter both the new consumer key and new consumer secret together.",
+      code: "PESAPAL_ACCOUNT_SWITCH_REQUIRES_BOTH_KEYS",
+    });
+    return;
+  }
+
   const upsert = async (key: string, value: string) => {
     await db
       .insert(settings)
@@ -970,23 +996,33 @@ router.put("/settings", async (req, res) => {
       .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
   };
 
-  if (pesapalConsumerKey !== undefined) await upsert("pesapal_consumer_key", pesapalConsumerKey);
-  if (pesapalConsumerSecret !== undefined && !pesapalConsumerSecret.startsWith("•")) {
-    await upsert("pesapal_consumer_secret", pesapalConsumerSecret);
+  if (credentialsChanged) {
+    await upsert("pesapal_consumer_key", requestedKey);
+    await upsert("pesapal_consumer_secret", requestedSecret);
   }
-  if (pesapalMode && ["sandbox", "live"].includes(pesapalMode)) {
-    await upsert("pesapal_mode", pesapalMode);
+  if (modeChanged) {
+    await upsert("pesapal_mode", nextMode);
   }
-  // IPN registrations are environment-specific. A credential or mode change
-  // must force the next checkout to register a fresh IPN with PesaPal.
-  if (pesapalConsumerKey !== undefined || pesapalConsumerSecret !== undefined || pesapalMode !== undefined) {
+
+  // IPN registrations are account- and environment-specific. Only invalidate
+  // it when the effective PesaPal identity actually changes; saving an
+  // unchanged form must not make an otherwise-working account fail checkout.
+  if (credentialsChanged || modeChanged) {
     await db.delete(settings).where(eq(settings.key, "pesapal_ipn_id"));
   }
 
-  // Invalidate cached token so next request uses new credentials
-  invalidateTokenCache();
+  if (credentialsChanged || modeChanged) {
+    invalidateTokenCache();
+  }
 
-  res.json({ success: true, message: "Settings updated" });
+  res.json({
+    success: true,
+    accountChanged: credentialsChanged,
+    ipnReset: credentialsChanged || modeChanged,
+    message: credentialsChanged || modeChanged
+      ? "PesaPal account settings updated. Register a new IPN for this account before checkout."
+      : "PesaPal settings unchanged.",
+  });
 });
 
 // ── Subscription Plan Management ───────────────────────────────────────
