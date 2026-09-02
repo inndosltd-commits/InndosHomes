@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { settings } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import {
   normalizePesapalTransactionStatus,
   type PesapalTransactionStatus,
@@ -12,7 +13,20 @@ export type { PesapalTransactionStatus };
 const SANDBOX_URL = "https://cybqa.pesapal.com/pesapalv3";
 const LIVE_URL = "https://pay.pesapal.com/v3";
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+type PesapalConfig = {
+  consumerKey: string;
+  consumerSecret: string;
+  mode: "sandbox" | "live";
+  ipnId: string;
+};
+
+let cachedToken: { token: string; expiresAt: number; configSignature: string } | null = null;
+
+function configSignature(config: PesapalConfig): string {
+  return createHash("sha256")
+    .update(`${config.mode}\0${config.consumerKey}\0${config.consumerSecret}`)
+    .digest("hex");
+}
 
 type RegisteredIpn = {
   url?: string;
@@ -68,7 +82,7 @@ async function findRegisteredIpn(
   return match?.ipn_id ?? null;
 }
 
-export async function getPesapalConfig() {
+export async function getPesapalConfig(): Promise<PesapalConfig> {
   const rows = await db.select().from(settings);
 
   const map: Record<string, string> = {};
@@ -86,14 +100,18 @@ export function getBaseUrl(mode: "sandbox" | "live") {
   return mode === "live" ? LIVE_URL : SANDBOX_URL;
 }
 
-export async function getAuthToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
-    return cachedToken.token;
-  }
-
-  const config = await getPesapalConfig();
+export async function getAuthToken(configOverride?: PesapalConfig): Promise<string> {
+  const config = configOverride ?? await getPesapalConfig();
   if (!config.consumerKey || !config.consumerSecret) {
     throw new Error("PesaPal is not configured. An administrator must save the PesaPal consumer key and secret before checkout.");
+  }
+  const signature = configSignature(config);
+  if (
+    cachedToken &&
+    cachedToken.configSignature === signature &&
+    Date.now() < cachedToken.expiresAt - 60_000
+  ) {
+    return cachedToken.token;
   }
   const base = getBaseUrl(config.mode);
 
@@ -113,14 +131,14 @@ export async function getAuthToken(): Promise<string> {
 
   const data = (await res.json()) as { token: string; expiryDate: string };
   const expiresAt = new Date(data.expiryDate).getTime();
-  cachedToken = { token: data.token, expiresAt };
+  cachedToken = { token: data.token, expiresAt, configSignature: signature };
   return data.token;
 }
 
-export async function registerIPN(callbackUrl: string): Promise<string> {
-  const config = await getPesapalConfig();
+export async function registerIPN(callbackUrl: string, configOverride?: PesapalConfig): Promise<string> {
+  const config = configOverride ?? await getPesapalConfig();
   const base = getBaseUrl(config.mode);
-  const token = await getAuthToken();
+  const token = await getAuthToken(config);
 
   const res = await fetch(`${base}/api/URLSetup/RegisterIPN`, {
     method: "POST",
@@ -181,15 +199,21 @@ type PesapalOrderResponse = {
   message?: string;
 };
 
-function describeOrderError(data: PesapalOrderResponse): string {
+export function describeOrderError(data: PesapalOrderResponse, mode: "sandbox" | "live"): string {
   const details = typeof data.error === "string"
     ? data.error
     : [data.error?.message, data.error?.error_type, data.error?.code]
         .filter((value): value is string => Boolean(value))
         .join(" · ");
   const normalized = `${details} ${data.message ?? ""}`.toLowerCase();
-  if (normalized.includes("test_transactions_exceeded") || normalized.includes("maximum_amount_limit_exceeded")) {
+  if (mode === "sandbox" && (normalized.includes("test_transactions_exceeded") || normalized.includes("maximum_amount_limit_exceeded"))) {
     return "PesaPal's sandbox test limit has been reached. No charge was made. An administrator must use PesaPal live credentials in Admin > Payment Settings, or request a sandbox limit reset from PesaPal.";
+  }
+  if (mode === "live" && normalized.includes("test_transactions_exceeded")) {
+    return "PesaPal rejected the live merchant account because its transaction limit has been reached. No charge was made. Check the live account status and limits with PesaPal.";
+  }
+  if (mode === "live" && normalized.includes("maximum_amount_limit_exceeded")) {
+    return "PesaPal rejected this live order because the merchant account's allowed transaction amount or account limit was exceeded. No charge was made. Check the live account limits with PesaPal.";
   }
   return details || data.message || (data.status ? `status ${data.status}` : "missing checkout details");
 }
@@ -197,12 +221,12 @@ function describeOrderError(data: PesapalOrderResponse): string {
 export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: string; orderTrackingId: string }> {
   const config = await getPesapalConfig();
   const base = getBaseUrl(config.mode);
-  const token = await getAuthToken();
+  const token = await getAuthToken(config);
 
   let ipnId = config.ipnId;
   if (!ipnId) {
     const ipnUrl = req.callbackUrl.replace(/\/subscriptions.*/, "/subscriptions/ipn");
-    ipnId = await registerIPN(ipnUrl);
+    ipnId = await registerIPN(ipnUrl, config);
   }
 
   const res = await fetch(`${base}/api/Transactions/SubmitOrderRequest`, {
@@ -241,13 +265,13 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
   }
 
   if (!res.ok) {
-    throw new Error(`PesaPal order submission failed: ${res.status} ${describeOrderError(data)}`);
+    throw new Error(`PesaPal order submission failed: ${res.status} ${describeOrderError(data, config.mode)}`);
   }
 
   const redirectUrl = data.redirect_url ?? data.redirectUrl ?? "";
   const orderTrackingId = data.order_tracking_id ?? data.orderTrackingId ?? "";
   if (!redirectUrl || !orderTrackingId) {
-    throw new Error(`PesaPal order rejected: ${describeOrderError(data)}`);
+    throw new Error(`PesaPal order rejected: ${describeOrderError(data, config.mode)}`);
   }
 
   return {
@@ -259,7 +283,7 @@ export async function submitOrder(req: OrderRequest): Promise<{ redirectUrl: str
 export async function getTransactionStatus(orderTrackingId: string): Promise<PesapalTransactionStatus> {
   const config = await getPesapalConfig();
   const base = getBaseUrl(config.mode);
-  const token = await getAuthToken();
+  const token = await getAuthToken(config);
 
   const res = await fetch(
     `${base}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
