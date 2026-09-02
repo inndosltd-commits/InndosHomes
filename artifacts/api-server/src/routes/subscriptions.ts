@@ -521,16 +521,6 @@ router.post("/checkout", async (req, res) => {
   const callbackUrl = `${baseUrl}/api/subscriptions/callback?paymentId=${payment.id}&plan=${plan}&months=${billingMonths}&cycle=${cycle}${returnTarget === "mobile" ? "&returnTarget=mobile" : ""}`;
   const ipnUrl = `${baseUrl}/api/subscriptions/ipn`;
 
-  // Make sure IPN is registered
-  const config = await getPesapalConfig();
-  if (!config.ipnId) {
-    try {
-      await registerIPN(ipnUrl);
-    } catch (err) {
-      req.log?.warn({ err }, "IPN registration failed; proceeding anyway");
-    }
-  }
-
   try {
     const orderRequest = {
       merchantReference,
@@ -547,7 +537,7 @@ router.post("/checkout", async (req, res) => {
       order = await submitOrder(orderRequest);
     } catch (firstError) {
       const firstMessage = firstError instanceof Error ? firstError.message : "";
-      if (!/notification|ipn/i.test(firstMessage)) throw firstError;
+      if (!/notification|ipn/i.test(firstMessage) || /registration failed/i.test(firstMessage)) throw firstError;
       req.log?.warn({ paymentId: payment.id }, "Refreshing stale PesaPal IPN registration and retrying checkout");
       await registerIPN(ipnUrl);
       order = await submitOrder(orderRequest);

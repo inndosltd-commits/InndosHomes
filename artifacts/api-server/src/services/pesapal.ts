@@ -82,6 +82,13 @@ async function findRegisteredIpn(
   return match?.ipn_id ?? null;
 }
 
+function summarizeGatewayBody(body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return "empty response";
+  if (/^<!doctype html|^<html[\s>]/i.test(trimmed)) return "gateway returned an HTML server-error page";
+  return trimmed.replace(/\s+/g, " ").slice(0, 500);
+}
+
 export async function getPesapalConfig(): Promise<PesapalConfig> {
   const rows = await db.select().from(settings);
 
@@ -140,6 +147,12 @@ export async function registerIPN(callbackUrl: string, configOverride?: PesapalC
   const base = getBaseUrl(config.mode);
   const token = await getAuthToken(config);
 
+  const existingIpnId = await findRegisteredIpn(base, token, callbackUrl);
+  if (existingIpnId) {
+    await saveIpnId(existingIpnId);
+    return existingIpnId;
+  }
+
   const res = await fetch(`${base}/api/URLSetup/RegisterIPN`, {
     method: "POST",
     headers: {
@@ -156,13 +169,13 @@ export async function registerIPN(callbackUrl: string, configOverride?: PesapalC
   if (!res.ok) {
     const body = await res.text();
     if (res.status === 409) {
-      const existingIpnId = await findRegisteredIpn(base, token, callbackUrl);
-      if (existingIpnId) {
-        await saveIpnId(existingIpnId);
-        return existingIpnId;
+      const registeredIpnId = await findRegisteredIpn(base, token, callbackUrl);
+      if (registeredIpnId) {
+        await saveIpnId(registeredIpnId);
+        return registeredIpnId;
       }
     }
-    throw new Error(`PesaPal IPN registration failed: ${res.status} ${body}`);
+    throw new Error(`PesaPal IPN registration failed: ${res.status} ${summarizeGatewayBody(body)}`);
   }
 
   const data = (await res.json()) as { ipn_id: string };
@@ -214,6 +227,9 @@ export function describeOrderError(data: PesapalOrderResponse, mode: "sandbox" |
   }
   if (mode === "live" && normalized.includes("maximum_amount_limit_exceeded")) {
     return "PesaPal rejected this live order because the merchant account's allowed transaction amount or account limit was exceeded. No charge was made. Check the live account limits with PesaPal.";
+  }
+  if (mode === "live" && normalized.includes("amount_exceeds_default_limit")) {
+    return "PesaPal rejected this live order because it exceeds the merchant account's default transaction limit. No charge was made. Ask PesaPal to raise the live account limit.";
   }
   return details || data.message || (data.status ? `status ${data.status}` : "missing checkout details");
 }

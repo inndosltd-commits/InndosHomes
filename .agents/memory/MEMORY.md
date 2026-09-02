@@ -7,6 +7,7 @@
 - [Authorization-dependent query caches](authorization-dependent-query-caches.md) — Scope caches by user when an API response changes with caller authorization.
 - [Subscription payment binding](subscription-payment-binding.md) — Activate paid plans only from a completed gateway result bound to the exact pending payment.
 - [PesaPal callback origin](pesapal-callback-origin.md) — payment callbacks and IPNs must use a public canonical origin, and gateway-mode changes require a fresh IPN registration.
+- [PesaPal live account limits](pesapal-live-account-limits.md) — live credentials can still return test-limit or contractual amount-limit errors; distinguish provider account restrictions from endpoint selection.
 - [Deployment media binaries](deployment-media-binaries.md) — FFmpeg-based upload verification requires FFmpeg as an explicit deployment dependency.
 - [Private property management calendars](private-property-management-calendars.md) — calendars are owner-only records and must never influence customer-facing property or Link-Up behavior.
 - [Link-Up participant contacts](linkup-participant-contacts.md) — after creation, both participants see reciprocal contacts; visibility follows participation, not account role.
