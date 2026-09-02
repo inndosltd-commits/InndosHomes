@@ -970,6 +970,7 @@ router.put("/settings", async (req, res) => {
   const currentSecret = existing.get("pesapal_consumer_secret") ?? "";
   const currentMode = existing.get("pesapal_mode") ?? "sandbox";
   const currentIpnId = existing.get("pesapal_ipn_id") ?? "";
+  const currentPesapalMode = currentMode === "live" ? "live" : "sandbox";
 
   const requestedKey = typeof pesapalConsumerKey === "string" ? pesapalConsumerKey.trim() : "";
   const requestedSecret = typeof pesapalConsumerSecret === "string" ? pesapalConsumerSecret.trim() : "";
@@ -1020,8 +1021,18 @@ router.put("/settings", async (req, res) => {
   // IPN registrations are account- and environment-specific. Only invalidate
   // it when the effective PesaPal identity actually changes; saving an
   // unchanged form must not make an otherwise-working account fail checkout.
-  if ((credentialsChanged || modeChanged) && !suppliedIpnId) {
-    await db.delete(settings).where(eq(settings.key, "pesapal_ipn_id"));
+  if (credentialsChanged || modeChanged) {
+    if (currentIpnId && currentKey && currentSecret) {
+      await rememberIpnForConfig({
+        consumerKey: currentKey,
+        consumerSecret: currentSecret,
+        mode: currentPesapalMode,
+        ipnId: currentIpnId,
+      }, currentIpnId);
+    }
+    if (!suppliedIpnId) {
+      await db.delete(settings).where(eq(settings.key, "pesapal_ipn_id"));
+    }
   }
 
   if (credentialsChanged || modeChanged) {
