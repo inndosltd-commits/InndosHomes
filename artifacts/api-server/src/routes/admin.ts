@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { users, properties, bookings, subscriptions, payments, settings, subscriptionPlans, notifications, favorites, propertyTransactions } from "@workspace/db";
 import { eq, count, sum, ne, asc, desc, and, inArray, gte, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/requireAuth";
-import { invalidateTokenCache, registerIPN } from "../services/pesapal";
+import { invalidateTokenCache, registerIPN, rememberIpnForConfig } from "../services/pesapal";
 import {
   sendListingApprovedEmail,
   sendListingRejectedEmail,
@@ -957,10 +957,11 @@ router.put("/settings", async (req, res) => {
   const adminId = await requireAdmin(req, res);
   if (!adminId) return;
 
-  const { pesapalConsumerKey, pesapalConsumerSecret, pesapalMode } = req.body as {
+  const { pesapalConsumerKey, pesapalConsumerSecret, pesapalMode, pesapalIpnId } = req.body as {
     pesapalConsumerKey?: string;
     pesapalConsumerSecret?: string;
     pesapalMode?: string;
+    pesapalIpnId?: string;
   };
 
   const existingRows = await db.select().from(settings);
@@ -968,6 +969,7 @@ router.put("/settings", async (req, res) => {
   const currentKey = existing.get("pesapal_consumer_key") ?? "";
   const currentSecret = existing.get("pesapal_consumer_secret") ?? "";
   const currentMode = existing.get("pesapal_mode") ?? "sandbox";
+  const currentIpnId = existing.get("pesapal_ipn_id") ?? "";
 
   const requestedKey = typeof pesapalConsumerKey === "string" ? pesapalConsumerKey.trim() : "";
   const requestedSecret = typeof pesapalConsumerSecret === "string" ? pesapalConsumerSecret.trim() : "";
@@ -977,6 +979,7 @@ router.put("/settings", async (req, res) => {
   const credentialsChanged = keyChanged || secretChanged;
   const nextMode = pesapalMode && ["sandbox", "live"].includes(pesapalMode) ? pesapalMode : currentMode;
   const modeChanged = nextMode !== currentMode;
+  const suppliedIpnId = typeof pesapalIpnId === "string" ? pesapalIpnId.trim() : "";
 
   // A PesaPal account is identified by its key/secret pair. Never persist a
   // half-switched pair: it can authenticate unpredictably and may still use
@@ -1004,10 +1007,20 @@ router.put("/settings", async (req, res) => {
     await upsert("pesapal_mode", nextMode);
   }
 
+  if (suppliedIpnId) {
+    await upsert("pesapal_ipn_id", suppliedIpnId);
+    await rememberIpnForConfig({
+      consumerKey: credentialsChanged ? requestedKey : currentKey,
+      consumerSecret: credentialsChanged ? requestedSecret : currentSecret,
+      mode: nextMode as "sandbox" | "live",
+      ipnId: suppliedIpnId,
+    }, suppliedIpnId);
+  }
+
   // IPN registrations are account- and environment-specific. Only invalidate
   // it when the effective PesaPal identity actually changes; saving an
   // unchanged form must not make an otherwise-working account fail checkout.
-  if (credentialsChanged || modeChanged) {
+  if ((credentialsChanged || modeChanged) && !suppliedIpnId) {
     await db.delete(settings).where(eq(settings.key, "pesapal_ipn_id"));
   }
 
@@ -1018,7 +1031,7 @@ router.put("/settings", async (req, res) => {
   res.json({
     success: true,
     accountChanged: credentialsChanged,
-    ipnReset: credentialsChanged || modeChanged,
+    ipnReset: (credentialsChanged || modeChanged) && !suppliedIpnId,
     message: credentialsChanged || modeChanged
       ? "PesaPal account settings updated. Register a new IPN for this account before checkout."
       : "PesaPal settings unchanged.",

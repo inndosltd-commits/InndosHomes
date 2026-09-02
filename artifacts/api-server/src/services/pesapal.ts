@@ -13,7 +13,7 @@ export type { PesapalTransactionStatus };
 const SANDBOX_URL = "https://cybqa.pesapal.com/pesapalv3";
 const LIVE_URL = "https://pay.pesapal.com/v3";
 
-type PesapalConfig = {
+export type PesapalConfig = {
   consumerKey: string;
   consumerSecret: string;
   mode: "sandbox" | "live";
@@ -21,6 +21,7 @@ type PesapalConfig = {
 };
 
 let cachedToken: { token: string; expiresAt: number; configSignature: string } | null = null;
+const IPN_CACHE_SETTING = "pesapal_ipn_ids";
 
 function configSignature(config: PesapalConfig): string {
   return createHash("sha256")
@@ -54,6 +55,50 @@ async function saveIpnId(ipnId: string): Promise<void> {
     .onConflictDoUpdate({ target: settings.key, set: { value: ipnId, updatedAt: new Date() } });
 }
 
+async function readIpnCache(): Promise<Record<string, string>> {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, IPN_CACHE_SETTING))
+    .limit(1);
+  if (!row?.value) return {};
+  try {
+    const parsed = JSON.parse(row.value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([key, value]) => typeof key === "string" && typeof value === "string" && value.length > 0,
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export async function rememberIpnForConfig(config: PesapalConfig, ipnId: string): Promise<void> {
+  const cache = await readIpnCache();
+  cache[configSignature(config)] = ipnId;
+  await db
+    .insert(settings)
+    .values({ key: IPN_CACHE_SETTING, value: JSON.stringify(cache) })
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: JSON.stringify(cache), updatedAt: new Date() },
+    });
+}
+
+async function getRememberedIpnId(config: PesapalConfig): Promise<string> {
+  const cache = await readIpnCache();
+  return cache[configSignature(config)] ?? "";
+}
+
+async function saveActiveIpnId(ipnId: string, config: PesapalConfig): Promise<void> {
+  await Promise.all([
+    saveIpnId(ipnId),
+    rememberIpnForConfig(config, ipnId),
+  ]);
+}
+
 async function findRegisteredIpn(
   base: string,
   token: string,
@@ -68,10 +113,18 @@ async function findRegisteredIpn(
   if (!res.ok) return null;
 
   const data = await res.json() as unknown;
-  if (!Array.isArray(data)) return null;
+  const entries: unknown[] = Array.isArray(data)
+    ? data
+    : data && typeof data === "object"
+      ? (() => {
+          const payload = data as Record<string, unknown>;
+          const wrapped = [payload.data, payload.ipns, payload.results].find(Array.isArray);
+          return Array.isArray(wrapped) ? wrapped : [data];
+        })()
+      : [];
 
   const expectedUrl = normalizeIpnUrl(callbackUrl);
-  const match = (data as RegisteredIpn[]).find((entry) =>
+  const match = (entries as RegisteredIpn[]).find((entry) =>
     entry.ipn_id &&
     entry.url &&
     normalizeIpnUrl(entry.url) === expectedUrl &&
@@ -147,9 +200,15 @@ export async function registerIPN(callbackUrl: string, configOverride?: PesapalC
   const base = getBaseUrl(config.mode);
   const token = await getAuthToken(config);
 
+  const rememberedIpnId = await getRememberedIpnId(config);
+  if (rememberedIpnId) {
+    await saveIpnId(rememberedIpnId);
+    return rememberedIpnId;
+  }
+
   const existingIpnId = await findRegisteredIpn(base, token, callbackUrl);
   if (existingIpnId) {
-    await saveIpnId(existingIpnId);
+    await saveActiveIpnId(existingIpnId, config);
     return existingIpnId;
   }
 
@@ -171,7 +230,7 @@ export async function registerIPN(callbackUrl: string, configOverride?: PesapalC
     if (res.status === 409) {
       const registeredIpnId = await findRegisteredIpn(base, token, callbackUrl);
       if (registeredIpnId) {
-        await saveIpnId(registeredIpnId);
+        await saveActiveIpnId(registeredIpnId, config);
         return registeredIpnId;
       }
     }
@@ -180,7 +239,7 @@ export async function registerIPN(callbackUrl: string, configOverride?: PesapalC
 
   const data = (await res.json()) as { ipn_id: string };
 
-  await saveIpnId(data.ipn_id);
+  await saveActiveIpnId(data.ipn_id, config);
 
   return data.ipn_id;
 }

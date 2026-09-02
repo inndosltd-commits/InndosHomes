@@ -1004,6 +1004,7 @@ export default function Dashboard() {
   } | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ pesapalConsumerKey: "", pesapalConsumerSecret: "", pesapalMode: "live" });
+  const [pesapalIpnIdInput, setPesapalIpnIdInput] = useState("");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [smsSettings, setSmsSettings] = useState<{ senderId: string; provider: string; username: string; passwordSet: boolean; apiKeySet: boolean; configured: boolean } | null>(null);
   const [smsForm, setSmsForm] = useState({ provider: "airtouch", senderId: "", username: "", password: "", apiKey: "" });
@@ -1423,6 +1424,7 @@ export default function Dashboard() {
         const data = await res.json();
         setPaymentSettings(data);
         setSettingsForm({ pesapalConsumerKey: data.pesapalConsumerKey, pesapalConsumerSecret: "", pesapalMode: data.pesapalMode });
+        setPesapalIpnIdInput(data.pesapalIpnId ?? "");
       }
     } catch { /* non-critical */ } finally { setIsLoadingSettings(false); }
   }, [user, token]);
@@ -5264,6 +5266,43 @@ export default function Dashboard() {
                       <span>IPN Registered — ID: <span className="font-mono">{paymentSettings.pesapalIpnId}</span></span>
                     </div>
                   )}
+                   <div className="space-y-2">
+                     <label className="text-sm font-semibold">Existing IPN ID (optional)</label>
+                     <div className="flex flex-col sm:flex-row gap-2">
+                       <input
+                         type="text"
+                         value={pesapalIpnIdInput}
+                         onChange={e => setPesapalIpnIdInput(e.target.value)}
+                         className="flex-1 border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-800"
+                         placeholder="Paste the IPN ID from this PesaPal account"
+                       />
+                       <Button
+                         variant="outline"
+                         disabled={isSavingSettings || !pesapalIpnIdInput.trim()}
+                         onClick={async () => {
+                           if (!token) return;
+                           setIsSavingSettings(true);
+                           try {
+                             const r = await fetch("/api/admin/settings", {
+                               method: "PUT",
+                               headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                               body: JSON.stringify({ pesapalIpnId: pesapalIpnIdInput.trim() }),
+                             });
+                             const d = await r.json();
+                             if (r.ok) {
+                               await fetchPaymentSettings();
+                               toast({ title: "IPN ID saved", description: "INNDOS will use this IPN for the active PesaPal account.", className: "bg-gray-50 border-gray-200 text-gray-800" });
+                             } else {
+                               toast({ title: "Could not save IPN ID", description: d.error, variant: "destructive" });
+                             }
+                           } finally { setIsSavingSettings(false); }
+                         }}
+                       >
+                         Save IPN ID
+                       </Button>
+                     </div>
+                     <p className="text-xs text-gray-400">Use this when the PesaPal account already has an IPN but its registration API returns an error.</p>
+                   </div>
                   <Button
                     variant="outline"
                     className="gap-2"
