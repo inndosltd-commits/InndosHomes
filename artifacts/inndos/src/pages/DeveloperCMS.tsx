@@ -1,3 +1,33 @@
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ExternalLink, Eye, FileText, GitCompare, Globe2, GripVertical, LayoutDashboard, LayoutTemplate, ListPlus, Loader2, LogOut, Monitor, PanelBottom, PanelTop, Plus, Save, Send, ShieldCheck, Smartphone, Undo2, UsersRound, type LucideIcon } from "lucide-react";
+import type { CmsDocument, CmsPage, CmsSection } from "@workspace/api-client-react";
+import {
+  getGetCmsPageQueryKey,
+  getGetPublicCmsPageQueryKey,
+  getListCmsPagesQueryKey,
+  useCreateCmsPreview,
+  useGetCmsPage,
+  useListCmsPages,
+  usePublishCmsPage,
+  useRestoreCmsPage,
+  useUnpublishCmsPage,
+  useUpdateCmsPage,
+} from "@workspace/api-client-react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
+import { queryClient } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { CmsSectionEditor } from "@/components/cms/CmsSectionEditor";
+import { CmsPreviewRenderer, compareCmsDocuments } from "@/components/cms/CmsRenderer";
+import { CmsGlobalEditor } from "@/components/cms/CmsGlobalEditor";
+import { BrandWordmark } from "@/components/layout/BrandWordmark";
+
+const panelInput = "border-[#d7d2c7] bg-[#fbfaf6] focus-visible:ring-[#252525]";
+
+function formatDate(value: string | null) {
+  if (!value) return "Not published";
   return new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 

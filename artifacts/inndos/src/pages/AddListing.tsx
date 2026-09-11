@@ -1,4 +1,1286 @@
- priceUnit: listingType === "bnb" ? "night" : (priceUnit || undefined),
+import { Navbar } from "@/components/layout/Navbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import { Upload, Image as ImageIcon, Check, Camera, X, MapPin, Loader2, GripVertical, Video, AlertCircle, Pencil, Save, RotateCcw } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/lib/auth";
+import { useUpload } from "@workspace/object-storage-web";
+import { GoogleMap, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
+import { AdvancedMarker } from "@/components/ui/AdvancedMarker";
+
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+import { GOOGLE_MAPS_LIBRARIES } from "@/lib/maps";
+import { VideoEditModal } from "@/components/VideoEditModal";
+import { CmsDashboardRenderer } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
+const NAIROBI_CENTER = { lat: -1.2921, lng: 36.8219 };
+
+function getImageDisplayUrl(objectPath: string): string {
+  if (objectPath.startsWith("/objects/")) {
+    return `/api/storage${objectPath}`;
+  }
+  if (objectPath.startsWith("http")) {
+    return objectPath;
+  }
+  return `/api${objectPath}`;
+}
+
+const UNIT_AMENITIES = [
+  { id: "instant_shower", label: "Instant shower" },
+  { id: "study_desk", label: "Study desk" },
+  { id: "safe", label: "Safe" },
+  { id: "babycot", label: "Baby court" },
+  { id: "housekeeping", label: "Daily housekeeping" },
+  { id: "private_chef", label: "Private chef (additional)" },
+  { id: "hairdryer", label: "Hair dryer" },
+  { id: "ironbox", label: "Iron box" },
+  { id: "wifi", label: "WiFi" },
+  { id: "laundry", label: "Laundry area" },
+  { id: "balcony", label: "Balcony" },
+  { id: "ac", label: "Air conditioner" },
+  { id: "smoker_alert", label: "Smoker alerts" },
+  { id: "fridge", label: "Fridge" },
+  { id: "microwave", label: "Microwave" },
+  { id: "dishwasher", label: "Dishwasher" },
+  { id: "coffee", label: "Coffee maker/kettle" },
+  { id: "smart_tv", label: "Smart TV" },
+  { id: "smoking_allowed", label: "Smoking allowed" },
+  { id: "no_smoking", label: "Smoking not allowed" },
+  { id: "self_locking", label: "Self locking/keylocker" }
+];
+
+const PREMISE_AMENITIES = [
+  { id: "gym", label: "Gym" },
+  { id: "borewater", label: "Borehole water" },
+  { id: "garden", label: "Garden" },
+  { id: "cctv", label: "CCTV" },
+  { id: "parking", label: "Parking" },
+  { id: "security", label: "24/7 security" },
+  { id: "elevator", label: "Elevator" },
+  { id: "electric_fence", label: "Electric fence" },
+  { id: "solar", label: "Solar water heating" },
+  { id: "pool", label: "Swimming pool" },
+  { id: "smoking_area", label: "Smoking area" },
+  { id: "generator", label: "Backup generator" },
+  { id: "pet_friendly", label: "Pet friendly" },
+  { id: "dsq", label: "DSQ" }
+];
+
+// ── Apartment ────────────────────────────────────────────────────────────────
+const APARTMENT_UNIT_AMENITIES = [
+  { id: "apt_living_room",       label: "Spacious living room" },
+  { id: "apt_fitted_kitchen",    label: "Modern fitted kitchen" },
+  { id: "apt_dining_area",       label: "Dining area" },
+  { id: "apt_ensuite_beds",      label: "En-suite bedrooms" },
+  { id: "apt_wardrobes",         label: "Built-in wardrobes" },
+  { id: "apt_balcony",           label: "Private balcony" },
+  { id: "apt_floor_finishes",    label: "High-quality floor finishes" },
+  { id: "apt_hot_water",         label: "Hot water supply" },
+  { id: "apt_ac_fans",           label: "Air conditioning or ceiling fans" },
+  { id: "apt_laundry",           label: "Laundry area" },
+  { id: "apt_wifi",              label: "High-speed internet / Wi-Fi" },
+  { id: "apt_cable_tv",          label: "Cable TV connection" },
+  { id: "apt_smoke_detectors",   label: "Smoke detectors" },
+  { id: "apt_energy_lighting",   label: "Energy-efficient lighting" },
+  { id: "apt_storage",           label: "Ample storage space" },
+];
+const APARTMENT_PREMISE_AMENITIES = [
+  { id: "apt_prem_secure_parking",   label: "Secure parking" },
+  { id: "apt_prem_security_247",     label: "24-hour security" },
+  { id: "apt_prem_cctv",             label: "CCTV surveillance" },
+  { id: "apt_prem_gate_access",      label: "Controlled gate access" },
+  { id: "apt_prem_generator",        label: "Backup generator" },
+  { id: "apt_prem_borehole",         label: "Borehole and water storage" },
+  { id: "apt_prem_internet",         label: "High-speed internet" },
+  { id: "apt_prem_elevator",         label: "Elevator (lift)" },
+  { id: "apt_prem_pool",             label: "Swimming pool" },
+  { id: "apt_prem_gym",              label: "Gym" },
+  { id: "apt_prem_playground",       label: "Children's playground" },
+  { id: "apt_prem_gardens",          label: "Landscaped gardens" },
+  { id: "apt_prem_rooftop",          label: "Rooftop terrace" },
+  { id: "apt_prem_waste",            label: "Waste management services" },
+  { id: "apt_prem_visitor_parking",  label: "Visitor parking" },
+  { id: "apt_prem_management",       label: "Property management office" },
+];
+
+// ── Home / House ─────────────────────────────────────────────────────────────
+const HOME_UNIT_AMENITIES = [
+  { id: "home_living_room",        label: "Living room" },
+  { id: "home_dining_area",        label: "Dining area" },
+  { id: "home_modern_kitchen",     label: "Modern kitchen" },
+  { id: "home_wardrobes",          label: "Bedrooms with wardrobes" },
+  { id: "home_ensuite_bath",       label: "En-suite bathrooms" },
+  { id: "home_guest_toilet",       label: "Guest toilet" },
+  { id: "home_laundry",            label: "Laundry area" },
+  { id: "home_balcony",            label: "Balcony or veranda" },
+  { id: "home_parking",            label: "Parking space" },
+  { id: "home_garden",             label: "Garden or landscaped yard" },
+  { id: "home_perimeter_wall",     label: "Perimeter wall and gate" },
+  { id: "home_security_247",       label: "24-hour security" },
+  { id: "home_cctv",               label: "CCTV surveillance" },
+  { id: "home_water_supply",       label: "Reliable water supply" },
+  { id: "home_electricity_backup", label: "Electricity backup (generator/inverter)" },
+  { id: "home_wifi",               label: "High-speed Wi-Fi / Internet" },
+  { id: "home_ac_fans",            label: "Air conditioning or ceiling fans" },
+  { id: "home_solar_water",        label: "Solar water heating" },
+  { id: "home_kids_play",          label: "Children's play area" },
+  { id: "home_pool",               label: "Swimming pool (optional)" },
+  { id: "home_gym",                label: "Gym or fitness room (optional)" },
+];
+const HOME_PREMISE_AMENITIES = [
+  { id: "home_prem_perimeter_wall",    label: "Secure perimeter wall / fence" },
+  { id: "home_prem_gated",             label: "Gated entrance" },
+  { id: "home_prem_security_247",      label: "24-hour security" },
+  { id: "home_prem_cctv",              label: "CCTV surveillance" },
+  { id: "home_prem_cabro_paved",       label: "Cabro-paved driveway" },
+  { id: "home_prem_parking",           label: "Ample parking space" },
+  { id: "home_prem_landscaped",        label: "Landscaped gardens / lawn" },
+  { id: "home_prem_outdoor_seating",   label: "Outdoor seating area" },
+  { id: "home_prem_kids_play",         label: "Children's play area" },
+  { id: "home_prem_walking_paths",     label: "Walking paths" },
+  { id: "home_prem_security_lighting", label: "Security lighting" },
+  { id: "home_prem_water_supply",      label: "Reliable water supply" },
+  { id: "home_prem_water_tanks",       label: "Water storage tanks" },
+  { id: "home_prem_borehole",          label: "Borehole (if available)" },
+  { id: "home_prem_drainage",          label: "Drainage system" },
+  { id: "home_prem_waste_collection",  label: "Waste collection area" },
+  { id: "home_prem_outdoor_kitchen",   label: "Outdoor kitchen / barbecue area" },
+  { id: "home_prem_gazebo",            label: "Gazebo or pergola" },
+  { id: "home_prem_pool",              label: "Swimming pool (optional)" },
+  { id: "home_prem_pet_friendly",      label: "Pet-friendly compound" },
+];
+
+// ── Godown ──────────────────────────────────────────────────────────────────
+const GODOWN_PREMISE_AMENITIES = [
+  { id: "godown_cafeteria", label: "Cafeteria" },
+  { id: "godown_loading_docks", label: "Loading docks" },
+  { id: "godown_cctv_biometrics", label: "CCTV and Biometrics" },
+  { id: "godown_waste_mgmt", label: "Waste management" },
+  { id: "godown_entrances_pathways", label: "Entrances & Pathways" },
+  { id: "godown_parking", label: "Parking Spaces" },
+];
+const GODOWN_UNIT_AMENITIES = [
+  { id: "godown_toilets", label: "Toilets" },
+  { id: "godown_sprinkler", label: "Sprinkler systems" },
+  { id: "godown_fire_extinguisher", label: "Fire extinguishers" },
+  { id: "godown_emergency_exits", label: "Emergency exits" },
+  { id: "godown_temp_regulation", label: "Temperature regulation" },
+  { id: "godown_dehumidifiers", label: "Dehumidifiers" },
+  { id: "godown_climate_controlled", label: "Climate-controlled" },
+  { id: "godown_gym", label: "Gym" },
+  { id: "godown_borewater", label: "Borehole water" },
+  { id: "godown_garden", label: "Garden" },
+  { id: "godown_cctv", label: "CCTV" },
+  { id: "godown_parking_unit", label: "Parking" },
+  { id: "godown_security_247", label: "24/7 security" },
+  { id: "godown_elevator", label: "Elevator" },
+  { id: "godown_electric_fence", label: "Electric fence" },
+  { id: "godown_solar", label: "Solar water heating" },
+  { id: "godown_pool", label: "Swimming pool" },
+  { id: "godown_smoking_area", label: "Smoking area" },
+  { id: "godown_generator", label: "Backup generator" },
+];
+
+// ── Business Space ───────────────────────────────────────────────────────────
+const BUSINESS_PREMISE_AMENITIES = [
+  { id: "biz_waste_mgmt", label: "Waste management" },
+  { id: "biz_drainage", label: "Proper drainage" },
+  { id: "biz_conference_rooms", label: "Conference rooms" },
+  { id: "biz_coffee_room", label: "Coffee room / food area" },
+  { id: "biz_rampways", label: "Ramp ways" },
+  { id: "biz_pathways", label: "Pathways" },
+  { id: "biz_parking", label: "Parking Spaces" },
+  { id: "biz_drinking_fountains", label: "Drinking Fountains" },
+  { id: "biz_street_lighting", label: "Street lighting" },
+  { id: "biz_elevator", label: "Elevator" },
+  { id: "biz_generator", label: "Backup generator" },
+];
+const BUSINESS_UNIT_AMENITIES = [
+  { id: "biz_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "biz_emergency_exits", label: "Emergency exits" },
+  { id: "biz_security", label: "Security surveillance" },
+  { id: "biz_clean_water", label: "Clean water" },
+  { id: "biz_workstations", label: "Work stations" },
+  { id: "biz_quiet_space", label: "Quiet space" },
+  { id: "biz_signature_space", label: "Signature space" },
+];
+
+// ── Commercial Space ─────────────────────────────────────────────────────────
+const COMMERCIAL_UNIT_AMENITIES = [
+  { id: "com_quiet_soundproof", label: "Quiet space / soundproofing" },
+  { id: "com_workstation", label: "Work station / desk space" },
+  { id: "com_storage", label: "Storage space" },
+  { id: "com_ac_ventilation", label: "Air conditioning / ventilation" },
+  { id: "com_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "com_glass_window", label: "Glass window display (stalls/shops)" },
+  { id: "com_wheelchair_entry", label: "Wheelchair accessible entry" },
+  { id: "com_ensuite_washroom", label: "Ensuite washroom" },
+  { id: "com_internet_point", label: "Internet/fiber point in-unit" },
+  { id: "com_power_socket", label: "Dedicated power socket / backup point" },
+  { id: "com_partitioning", label: "Partitioning options" },
+  { id: "com_natural_lighting", label: "Natural lighting" },
+  { id: "com_shelving", label: "Shelving / display racks (stalls)" },
+  { id: "com_lockable_door", label: "Lockable door / security grill (stalls)" },
+  { id: "com_ceiling_height", label: "Ceiling height suited to storage/stock" },
+];
+const COMMERCIAL_PREMISE_AMENITIES = [
+  { id: "com_meeting_rooms", label: "Meeting rooms (shared)" },
+  { id: "com_cafeteria", label: "Coffee room & food station / cafeteria" },
+  { id: "com_internet", label: "Internet connectivity" },
+  { id: "com_waste_collection", label: "Waste collection" },
+  { id: "com_loading_bay", label: "Loading bay" },
+  { id: "com_wheelchair_ramps", label: "Wheelchair-accessible ramps & elevators" },
+  { id: "com_parking", label: "Ample parking (customer & staff)" },
+  { id: "com_perimeter_security", label: "Perimeter security" },
+  { id: "com_generator", label: "Standby generator" },
+  { id: "com_borehole_water", label: "Borehole / water tank backup" },
+  { id: "com_elevator", label: "Elevator / lift access" },
+  { id: "com_signage", label: "Signage & branding space" },
+  { id: "com_24hr_access", label: "24-hour access" },
+  { id: "com_fire_assembly", label: "Fire assembly point" },
+  { id: "com_sprinkler", label: "Sprinkler system" },
+  { id: "com_reception", label: "Reception" },
+  { id: "com_atm", label: "ATM or banking hall" },
+  { id: "com_public_restrooms", label: "Public restrooms" },
+  { id: "com_rooftop", label: "Rooftop / terrace common area" },
+];
+
+// ── Hotel ────────────────────────────────────────────────────────────────────
+const HOTEL_PREMISE_AMENITIES = [
+  { id: "hotel_breakfast", label: "Complimentary Breakfast" },
+  { id: "hotel_ramp", label: "Ramp" },
+  { id: "hotel_conference_hall", label: "Conference Hall" },
+  { id: "hotel_reception_24hr", label: "24hrs Reception" },
+  { id: "hotel_housekeeping", label: "House Keeping" },
+  { id: "hotel_restaurant_bar", label: "Restaurant & Bar" },
+  { id: "hotel_pool", label: "Swimming Pool" },
+  { id: "hotel_pool_billiards", label: "Pool Billiards" },
+  { id: "hotel_kids_play", label: "Kids Play Area" },
+  { id: "hotel_recreational", label: "Recreational Facilities" },
+  { id: "hotel_valet", label: "Valet" },
+  { id: "hotel_room_service", label: "Room Service" },
+  { id: "hotel_ballroom", label: "Ballroom" },
+  { id: "hotel_golf", label: "Golf Course" },
+  { id: "hotel_tennis", label: "Tennis Court" },
+  { id: "hotel_smoking_lounge", label: "Smoking Lounge" },
+];
+
+// ── Land checkboxes ──────────────────────────────────────────────────────────
+const LAND_ZONING_OPTIONS = [
+  { id: "zone_residential", label: "Residential" },
+  { id: "zone_commercial", label: "Commercial" },
+  { id: "zone_agricultural", label: "Agricultural" },
+  { id: "zone_mixed_use", label: "Mixed-use" },
+];
+const LAND_UTILITIES = [
+  { id: "land_electricity", label: "Electricity connection" },
+  { id: "land_water_supply", label: "Water supply" },
+  { id: "land_sewer", label: "Sewer" },
+  { id: "land_septic", label: "Septic system" },
+  { id: "land_internet", label: "Internet / fiber access" },
+];
+const LAND_SURROUNDING = [
+  { id: "land_surr_schools", label: "Nearness to schools" },
+  { id: "land_surr_hospitals", label: "Nearness to hospitals / clinics" },
+  { id: "land_surr_shopping", label: "Nearness to shopping centers / markets" },
+  { id: "land_surr_worship", label: "Nearness to places of worship" },
+  { id: "land_road_tarmac", label: "Tarmac road access" },
+  { id: "land_road_murram", label: "Murram road access" },
+  { id: "land_road_distance", label: "Close to main road" },
+  { id: "land_police", label: "Proximity to police station" },
+  { id: "land_security", label: "Security" },
+  { id: "land_recreational", label: "Nearby recreational areas (parks, gyms)" },
+  { id: "land_future_dev", label: "Future development plans in the area" },
+  { id: "land_fencing", label: "Fencing" },
+  { id: "land_gated", label: "Gated" },
+  { id: "land_corner_plot", label: "Corner plot" },
+];
+
+function getAmenityLists(type: string, subtype?: string) {
+  if (type === "rent-godown") return { unit: GODOWN_UNIT_AMENITIES, premise: GODOWN_PREMISE_AMENITIES };
+  if (type === "rent-business") return { unit: BUSINESS_UNIT_AMENITIES, premise: BUSINESS_PREMISE_AMENITIES };
+  if (type === "rent-stall" || type === "rent-shop") return { unit: COMMERCIAL_UNIT_AMENITIES, premise: COMMERCIAL_PREMISE_AMENITIES };
+  if (type === "hotel") return { unit: UNIT_AMENITIES, premise: HOTEL_PREMISE_AMENITIES };
+  if (type === "rent") return { unit: APARTMENT_UNIT_AMENITIES, premise: APARTMENT_PREMISE_AMENITIES };
+  if (type === "sale-home" || (type === "sale" && subtype === "home")) return { unit: HOME_UNIT_AMENITIES, premise: HOME_PREMISE_AMENITIES };
+  if (type === "sale-apartment") return { unit: APARTMENT_UNIT_AMENITIES, premise: APARTMENT_PREMISE_AMENITIES };
+  return { unit: UNIT_AMENITIES, premise: PREMISE_AMENITIES };
+}
+
+type ApiPropertyType = "rent" | "sale" | "bnb" | "hotel" | "hostel";
+
+function toApiType(raw: string): ApiPropertyType {
+  if (raw === "sale" || raw === "land" || raw === "sale-land" || raw === "sale-apartment" || raw === "sale-home") return "sale";
+  if (raw === "bnb") return "bnb";
+  if (raw === "hotel") return "hotel";
+  if (raw === "hostel") return "hostel";
+  return "rent";
+}
+
+const isLandType = (t: string) => t === "land" || t === "sale-land";
+const isSaleVariant = (t: string) => ["sale-land", "sale-apartment", "sale-home"].includes(t);
+const isCommercialVariant = (t: string) =>
+  ["rent-godown", "rent-business", "rent-stall", "rent-shop"].includes(t);
+const hideBedsBaths = (t: string) => isLandType(t) || isCommercialVariant(t);
+const toApiSubtype = (listingType: string, selectedSubtype: string) => {
+  if (isCommercialVariant(listingType)) return listingType.replace("rent-", "");
+  if (isSaleVariant(listingType)) return listingType.replace("sale-", "");
+  if (listingType === "hotel" || listingType === "hostel") return selectedSubtype.trim() || listingType;
+  return selectedSubtype.trim() || undefined;
+};
+const hasStandardAmenities = (t: string) => !isLandType(t);
+
+function getEditId(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  if (searchParams.has("edit")) return searchParams.get("edit");
+  const hashParts = window.location.hash.split("?");
+  if (hashParts.length > 1) {
+    const hp = new URLSearchParams(hashParts[1]);
+    if (hp.has("edit")) return hp.get("edit");
+  }
+  return null;
+}
+
+// ── Draft persistence helpers ─────────────────────────────────────────────────
+interface DraftState {
+  listingType: string;
+  title: string;
+  price: string;
+  address: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  description: string;
+  selectedAmenities: string[];
+  subtype: string;
+  hourlyRate: string;
+  priceUnit: string;
+  totalUnits: string;
+  acres: string;
+  plotSizeFt: string;
+  soilType: string;
+  surveyMaps: string;
+  titleDeed: string;
+  legalRates: string;
+  legalEncumbrances: string;
+  paymentPlan: string;
+  pricePerUnit: string;
+  images: string[];
+  videos: string[];
+  pinPosition: { lat: number; lng: number } | null;
+  savedAddress: string;
+}
+
+function getDraftKey(userId: string) {
+  return `inndos_add_listing_draft_${userId}`;
+}
+
+/** Write DraftState into localStorage (synchronous, offline-safe). */
+function writeDraftLocal(userId: string, d: DraftState) {
+  try { localStorage.setItem(getDraftKey(userId), JSON.stringify(d)); } catch { /* storage full */ }
+}
+
+/** Remove draft from localStorage. */
+function removeDraftLocal(userId: string) {
+  try { localStorage.removeItem(getDraftKey(userId)); } catch { /* ignore */ }
+}
+
+/** PUT draft to server; throws if response is not ok (so callers can catch 401/500). */
+async function putDraftServer(token: string, d: DraftState): Promise<void> {
+  const res = await fetch("/api/listing-drafts/current", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ data: d }),
+  });
+  if (!res.ok) throw new Error(`PUT /api/listing-drafts/current failed: ${res.status}`);
+}
+
+/** DELETE draft on server; throws if response is not ok. */
+async function deleteDraftServer(token: string): Promise<void> {
+  const res = await fetch("/api/listing-drafts/current", {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`DELETE /api/listing-drafts/current failed: ${res.status}`);
+}
+
+/**
+ * Coerce a server draft payload to flat DraftState.
+ * Accepts two shapes:
+ *   - Canonical (new):  the response body IS a DraftState (flat keys at top level inside data).
+ *   - Legacy mobile:    {form:{…}, selectedAmenities:[…], media:{images,videos}}.
+ */
+function normaliseDraftPayload(raw: unknown): DraftState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+
+  // Legacy mobile shape: has a "form" sub-object
+  if (r.form && typeof r.form === "object") {
+    const f = r.form as Record<string, unknown>;
+    const media = (r.media && typeof r.media === "object") ? r.media as Record<string, unknown> : {};
+    return {
+      listingType:        String(f.listingType        ?? ""),
+      title:              String(f.title              ?? ""),
+      price:              String(f.price              ?? ""),
+      address:            String(f.address            ?? ""),
+      beds:               String(f.beds               ?? ""),
+      baths:              String(f.baths              ?? ""),
+      sqft:               String(f.sqft               ?? ""),
+      description:        String(f.description        ?? ""),
+      selectedAmenities:  Array.isArray(r.selectedAmenities) ? (r.selectedAmenities as string[]) : [],
+      subtype:            String(f.subtype            ?? ""),
+      hourlyRate:         String(f.hourlyRate         ?? ""),
+      priceUnit:          String(f.priceUnit          ?? ""),
+      totalUnits:         String(f.totalUnits         ?? "1"),
+      acres:              String(f.acres              ?? ""),
+      plotSizeFt:         String(f.plotSizeFt         ?? ""),
+      soilType:           String(f.soilType           ?? ""),
+      surveyMaps:         String(f.surveyMaps         ?? ""),
+      titleDeed:          String(f.titleDeed          ?? ""),
+      legalRates:         String(f.legalRates         ?? ""),
+      legalEncumbrances:  String(f.legalEncumbrances  ?? ""),
+      paymentPlan:        String(f.paymentPlan        ?? ""),
+      pricePerUnit:       String(f.pricePerUnit       ?? ""),
+      images:             Array.isArray(media.images)  ? (media.images as string[])  : [],
+      videos:             Array.isArray(media.videos)  ? (media.videos as string[])  : [],
+      pinPosition:        (f.pinPosition && typeof f.pinPosition === "object")
+                            ? (f.pinPosition as { lat: number; lng: number })
+                            : null,
+      savedAddress:       String(f.savedAddress ?? f.address ?? ""),
+    } satisfies DraftState;
+  }
+
+  // Canonical flat DraftState shape — use as-is (safe cast; missing keys default gracefully in applyDraft)
+  return r as unknown as DraftState;
+}
+
+/** Fetch server draft; returns normalised DraftState or null. */
+async function fetchDraftServer(token: string): Promise<DraftState | null> {
+  try {
+    const res = await fetch("/api/listing-drafts/current", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as Record<string, unknown>;
+    return normaliseDraftPayload(json?.data);
+  } catch {
+    return null;
+  }
+}
+
+export default function AddListing() {
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const { token, user } = useAuth();
+  const { page: listPropertyCmsPage } = usePublicCmsDocument("dashboard-list-property");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(false);
+  const [loadedEditId, setLoadedEditId] = useState<string | null>(null);
+  const [editLoadError, setEditLoadError] = useState("");
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [images, setImages] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
+  // Only newly selected raw uploads are pending. Videos loaded while editing a
+  // listing were already accepted and must remain editable without re-trimming.
+  const [pendingVideoPaths, setPendingVideoPaths] = useState<Set<string>>(() => new Set());
+  const [videoLimit, setVideoLimit] = useState(0);
+  const [imageLimit, setImageLimit] = useState(0);
+  const [uploadingVideoCount, setUploadingVideoCount] = useState(0);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [editingVideoIdx, setEditingVideoIdx] = useState<number | null>(null);
+  const [editingVideoSrc, setEditingVideoSrc] = useState<string>("");
+  const [isLocationPinned, setIsLocationPinned] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [pinPosition, setPinPosition] = useState<google.maps.LatLngLiteral | null>(null);
+  const [draftPin, setDraftPin] = useState<google.maps.LatLngLiteral | null>(null);
+  const [draftAddress, setDraftAddress] = useState("");
+  const [locationSearchError, setLocationSearchError] = useState("");
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>(NAIROBI_CENTER);
+
+  // Draft state
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [isDraftSyncing, setIsDraftSyncing] = useState(false);
+
+  const { isLoaded: mapsLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_API_KEY, libraries: GOOGLE_MAPS_LIBRARIES });
+
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const applyResolvedLocation = useCallback((
+    pos: google.maps.LatLngLiteral,
+    resolvedAddress?: string
+  ) => {
+    const displayAddress = resolvedAddress?.trim() || `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+    setDraftPin(pos);
+    setPinPosition(pos);
+    setMapCenter(pos);
+    setDraftAddress(displayAddress);
+    setAddress(displayAddress);
+    setSearchQuery(displayAddress);
+    setIsLocationPinned(true);
+    setLocationSearchError("");
+    setFieldErrors(prev => ({ ...prev, location: [] }));
+    mapRef.current?.panTo(pos);
+    mapRef.current?.setZoom(16);
+  }, []);
+
+  const handlePlaceChanged = useCallback(() => {
+    const place = autocompleteRef.current?.getPlace();
+    if (!place || !place.geometry?.location) {
+      setLocationSearchError("Choose a suggested place or drop a pin on the map.");
+      return;
+    }
+    const loc = place.geometry.location;
+    const pos = { lat: loc.lat(), lng: loc.lng() };
+    applyResolvedLocation(pos, place.formatted_address ?? place.name);
+  }, [applyResolvedLocation]);
+
+  // Fallback: geocode whatever is typed when Enter is pressed and no autocomplete selection
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || !window.google) return;
+    e.preventDefault();
+    const query = searchInputRef.current?.value;
+    if (!query) return;
+    setLocationSearchError("");
+    setIsResolvingLocation(true);
+    new google.maps.Geocoder().geocode({ address: query }, (results, status) => {
+      if (status === "OK" && results && results[0]) {
+        const loc = results[0].geometry.location;
+        const pos = { lat: loc.lat(), lng: loc.lng() };
+        applyResolvedLocation(pos, results[0].formatted_address);
+      } else {
+        setLocationSearchError("We could not find that place. Choose a suggestion or drop a pin.");
+      }
+      setIsResolvingLocation(false);
+    });
+  }, [applyResolvedLocation]);
+
+  const reverseGeocodeDraft = useCallback((pos: google.maps.LatLngLiteral) => {
+    if (!window.google) return;
+    // A map pin is immediately usable; reverse geocoding only improves the
+    // address label and must never hold the form hostage.
+    applyResolvedLocation(pos);
+    setIsResolvingLocation(true);
+    new google.maps.Geocoder().geocode({ location: pos }, (results, status) => {
+      if (status === "OK" && results && results[0]) {
+        applyResolvedLocation(pos, results[0].formatted_address);
+      } else {
+        setLocationSearchError("Coordinates saved. You can enter the address manually if needed.");
+      }
+      setIsResolvingLocation(false);
+    });
+  }, [applyResolvedLocation]);
+
+  // On modal open: restore existing pin or geolocate user
+  useEffect(() => {
+    if (!isMapModalOpen) return;
+    setDraftPin(pinPosition);
+    setDraftAddress(address || searchQuery);
+    if (pinPosition) {
+      setMapCenter(pinPosition);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setMapCenter(userPos);
+          // Pan if map already loaded
+          mapRef.current?.panTo(userPos);
+          mapRef.current?.setZoom(14);
+        },
+        () => { /* permission denied – stay on default */ },
+        { timeout: 5000 }
+      );
+    }
+  }, [isMapModalOpen]);
+
+  const [searchQuery, setSearchQuery] = useState("Nairobi, Kenya");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const dragSrcRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const { uploadFile } = useUpload({
+    requestHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+    onError: (err: Error) => {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  // Controlled state for Select fields
+  const [listingType, setListingType] = useState("");
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [address, setAddress] = useState("");
+  const [beds, setBeds] = useState("");
+  const [baths, setBaths] = useState("");
+  const [sqft, setSqft] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [subtype, setSubtype] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [priceUnit, setPriceUnit] = useState("");
+  const [totalUnits, setTotalUnits] = useState("1");
+
+  // Land-specific fields
+  const [acres, setAcres] = useState("");
+  const [plotSizeFt, setPlotSizeFt] = useState("");
+  const [soilType, setSoilType] = useState("");
+  const [surveyMaps, setSurveyMaps] = useState("");
+  const [titleDeed, setTitleDeed] = useState("");
+  const [legalRates, setLegalRates] = useState("");
+  const [legalEncumbrances, setLegalEncumbrances] = useState("");
+  const [paymentPlan, setPaymentPlan] = useState("");
+  const [pricePerUnit, setPricePerUnit] = useState("");
+
+  const toggleAmenity = (id: string) => {
+    setSelectedAmenities(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    );
+  };
+
+  const editId = getEditId();
+  const isEditing = editId !== null;
+
+  // Fetch subscription to determine video + image limit
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/subscriptions/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((data: { videoLimit?: number; imageLimit?: number }) => {
+        setVideoLimit(typeof data.videoLimit === "number" ? data.videoLimit : 0);
+        setImageLimit(typeof data.imageLimit === "number" ? data.imageLimit : 0);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  // ── Draft: check if a saved draft exists (server preferred, local fallback) ──
+  useEffect(() => {
+    if (isEditing || !user?.id || !token) return;
+    // Prefer server draft; fall back to localStorage
+    fetchDraftServer(token).then(serverDraft => {
+      if (serverDraft) {
+        // Server has a draft — also persist locally for offline resilience
+        writeDraftLocal(user.id, serverDraft);
+        setHasSavedDraft(true);
+        return;
+      }
+      // No server draft — check localStorage fallback
+      const raw = localStorage.getItem(getDraftKey(user.id));
+      if (raw) {
+        try {
+          JSON.parse(raw);
+          setHasSavedDraft(true);
+        } catch {
+          removeDraftLocal(user.id);
+        }
+      }
+    }).catch(() => {
+      // Network error — fall back to localStorage check only
+      const raw = localStorage.getItem(getDraftKey(user.id));
+      if (raw) {
+        try { JSON.parse(raw); setHasSavedDraft(true); } catch { removeDraftLocal(user.id); }
+      }
+    });
+  }, [user?.id, token, isEditing]);
+
+  // ── Draft: apply a DraftState object to form fields ─────────────────────────
+  const applyDraft = useCallback((d: DraftState) => {
+    setListingType(d.listingType ?? "");
+    setTitle(d.title ?? "");
+    setPrice(d.price ?? "");
+    setAddress(d.savedAddress ?? d.address ?? "");
+    setBeds(d.beds ?? "");
+    setBaths(d.baths ?? "");
+    setSqft(d.sqft ?? "");
+    setDescription(d.description ?? "");
+    setSelectedAmenities(d.selectedAmenities ?? []);
+    setSubtype(d.subtype ?? "");
+    setHourlyRate(d.hourlyRate ?? "");
+    setPriceUnit(d.priceUnit ?? "");
+    setTotalUnits(d.totalUnits ?? "1");
+    setAcres(d.acres ?? "");
+    setPlotSizeFt(d.plotSizeFt ?? "");
+    setSoilType(d.soilType ?? "");
+    setSurveyMaps(d.surveyMaps ?? "");
+    setTitleDeed(d.titleDeed ?? "");
+    setLegalRates(d.legalRates ?? "");
+    setLegalEncumbrances(d.legalEncumbrances ?? "");
+    setPaymentPlan(d.paymentPlan ?? "");
+    setPricePerUnit(d.pricePerUnit ?? "");
+    setImages(d.images ?? []);
+    setVideos(d.videos ?? []);
+    // A saved draft can contain raw upload paths; retain the mandatory trim
+    // state across restore instead of allowing a raw source to be submitted.
+    setPendingVideoPaths(new Set((d.videos ?? []).filter(path => path.startsWith("/objects/uploads/"))));
+    if (d.pinPosition) {
+      setPinPosition(d.pinPosition);
+      setIsLocationPinned(true);
+    }
+  }, []);
+
+  // ── Draft: restore saved draft (server preferred, local fallback) ─────────────
+  const restoreDraft = useCallback(async () => {
+    if (!user?.id || !token) return;
+    setIsDraftSyncing(true);
+    try {
+      const serverDraft = await fetchDraftServer(token);
+      if (serverDraft) {
+        writeDraftLocal(user.id, serverDraft);
+        applyDraft(serverDraft);
+        setHasSavedDraft(false);
+        toast({ title: "Draft restored", description: "Your saved draft has been loaded from your account." });
+        return;
+      }
+    } catch { /* fall through to local */ } finally {
+      setIsDraftSyncing(false);
+    }
+    // Fallback: local storage
+    const raw = localStorage.getItem(getDraftKey(user.id));
+    if (!raw) return;
+    try {
+      const d: DraftState = JSON.parse(raw);
+      applyDraft(d);
+      setHasSavedDraft(false);
+      toast({ title: "Draft restored", description: "Your saved draft has been loaded (offline copy)." });
+    } catch {
+      removeDraftLocal(user.id);
+    }
+  }, [user?.id, token, applyDraft, toast]);
+
+  // ── Draft: save current form state ──────────────────────────────────────────
+  // Writes localStorage immediately (offline-safe), then syncs to server account.
+  const saveDraft = useCallback(async () => {
+    if (!user?.id || isEditing) return;
+    const d: DraftState = {
+      listingType,
+      title,
+      price,
+      address,
+      beds,
+      baths,
+      sqft,
+      description,
+      selectedAmenities,
+      subtype,
+      hourlyRate,
+      priceUnit,
+      totalUnits,
+      acres,
+      plotSizeFt,
+      soilType,
+      surveyMaps,
+      titleDeed,
+      legalRates,
+      legalEncumbrances,
+      paymentPlan,
+      pricePerUnit,
+      images,
+      videos,
+      pinPosition,
+      savedAddress: address,
+    };
+    // 1. Write locally first — instant, works offline
+    writeDraftLocal(user.id, d);
+    toast({ title: "Draft saved", description: "Saved locally. Syncing to your account…" });
+    // 2. Sync to server (best-effort; don't block UI)
+    if (token) {
+      setIsDraftSyncing(true);
+      putDraftServer(token, d)
+        .then(() => {
+          toast({ title: "Draft synced", description: "Draft saved to your account — accessible on web & mobile." });
+        })
+        .catch(() => {
+          toast({ title: "Sync failed", description: "Draft is saved locally. It will sync when you're back online.", variant: "destructive" });
+        })
+        .finally(() => setIsDraftSyncing(false));
+    }
+  }, [
+    user?.id, token, isEditing, listingType, title, price, address, beds, baths, sqft,
+    description, selectedAmenities, subtype, hourlyRate, priceUnit, totalUnits,
+    acres, plotSizeFt, soilType, surveyMaps, titleDeed, legalRates, legalEncumbrances,
+    paymentPlan, pricePerUnit, images, videos, pinPosition, toast,
+  ]);
+
+  // ── Draft: discard saved draft (both localStorage and server) ───────────────
+  const discardDraft = useCallback(() => {
+    if (!user?.id) return;
+    removeDraftLocal(user.id);
+    setHasSavedDraft(false);
+    setShowDiscardConfirm(false);
+    toast({ title: "Draft discarded", description: "Your saved draft has been deleted." });
+    // Best-effort server delete
+    if (token) deleteDraftServer(token).catch(() => {});
+  }, [user?.id, token, toast]);
+
+  // ── Clear draft on successful submit (both localStorage and server) ──────────
+  const clearDraftAfterSubmit = useCallback(() => {
+    if (!user?.id || isEditing) return;
+    removeDraftLocal(user.id);
+    if (token) deleteDraftServer(token).catch(() => {});
+  }, [user?.id, token, isEditing]);
+
+  // Fetch existing property data when in edit mode
+  useEffect(() => {
+    if (!editId || !token) return;
+    setIsLoadingProperty(true);
+    setLoadedEditId(null);
+    setEditLoadError("");
+    fetch(`/api/properties/${editId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Property not found");
+        return res.json();
+      })
+      .then((prop: {
+        title: string; type: string; price: number; address: string;
+        beds: number; baths: number; sqft: number; totalUnits?: number;
+        lat?: string | number | null; lng?: string | number | null;
+        image?: string; images?: string[]; videos?: string[];
+        description?: string; tags?: string[]; subtype?: string;
+        hourlyRate?: number; priceUnit?: string;
+        details?: { land?: {
+          acres?: number | null; plotSizeFt?: string | null; soilType?: string | null;
+          surveyMaps?: string | null; titleDeed?: string | null;
+          legalRates?: string | null; legalEncumbrances?: string | null;
+          paymentPlan?: string | null; pricePerUnit?: string | null;
+          utilities?: string[]; surrounding?: string[]; zoning?: string[];
+        } };
+      }) => {
+        setImages([]);
+        setVideos([]);
+        setPendingVideoPaths(new Set());
+        setSelectedAmenities([]);
+        setBeds("");
+        setBaths("");
+        setSqft("");
+        setAcres("");
+        setPlotSizeFt("");
+        setSoilType("");
+        setSurveyMaps("");
+        setTitleDeed("");
+        setLegalRates("");
+        setLegalEncumbrances("");
+        setPaymentPlan("");
+        setPricePerUnit("");
+        setHourlyRate("");
+        setPriceUnit("");
+        setPinPosition(null);
+        setDraftPin(null);
+        setIsLocationPinned(false);
+        setTitle(prop.title ?? "");
+        // Reconstruct the exact frontend category from the API type + subtype.
+        let frontendType = prop.type ?? "";
+        if (frontendType === "sale" && prop.subtype) {
+          if (prop.subtype === "apartment") frontendType = "sale-apartment";
+          else if (prop.subtype === "home") frontendType = "sale-home";
+          else if (prop.subtype === "land" || prop.subtype === "plot") frontendType = "sale-land";
+        } else if (frontendType === "rent" && ["business", "office", "godown", "stall", "shop"].includes(prop.subtype ?? "")) {
+          frontendType = `rent-${prop.subtype === "office" ? "business" : prop.subtype}`;
+        }
+        setListingType(frontendType);
+        setPrice(prop.price != null ? String(prop.price) : "");
+        setAddress(prop.address ?? "");
+        setTotalUnits(prop.totalUnits != null ? String(prop.totalUnits) : "1");
+        setDescription(prop.description ?? "");
+        if (prop.images && prop.images.length > 0) {
+          setImages(prop.images);
+        } else if (prop.image) {
+          setImages([prop.image]);
+        }
+        if (prop.videos && prop.videos.length > 0) {
+          setVideos(prop.videos);
+          setPendingVideoPaths(new Set());
+        }
+        if (prop.tags) setSelectedAmenities(prop.tags);
+        if (prop.subtype) setSubtype(prop.subtype);
+        if (prop.hourlyRate != null) setHourlyRate(String(prop.hourlyRate));
+        if (prop.priceUnit) setPriceUnit(prop.priceUnit);
+        const hasCoordinates =
+          prop.lat !== null && prop.lat !== undefined && String(prop.lat).trim() !== "" &&
+          prop.lng !== null && prop.lng !== undefined && String(prop.lng).trim() !== "";
+        const lat = hasCoordinates ? Number(prop.lat) : Number.NaN;
+        const lng = hasCoordinates ? Number(prop.lng) : Number.NaN;
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const position = { lat, lng };
+          setPinPosition(position);
+          setDraftPin(position);
+          setMapCenter(position);
+          setSearchQuery(prop.address ?? `${lat}, ${lng}`);
+          setDraftAddress(prop.address ?? "");
+          setIsLocationPinned(true);
+        } else {
+          setSearchQuery(prop.address ?? "");
+          setDraftAddress(prop.address ?? "");
+        }
+
+        // ── Restore land fields: prefer structured details.land, fall back to legacy beds/sqft ──
+        const isLandProp = (frontendType === "land" || frontendType === "sale-land");
+        if (isLandProp && prop.details?.land) {
+          const ld = prop.details.land;
+          setAcres(ld.acres != null ? String(ld.acres) : "");
+          setPlotSizeFt(ld.plotSizeFt ?? "");
+          setSoilType(ld.soilType ?? "");
+          setSurveyMaps(ld.surveyMaps ?? "");
+          setTitleDeed(ld.titleDeed ?? "");
+          setLegalRates(ld.legalRates ?? "");
+          setLegalEncumbrances(ld.legalEncumbrances ?? "");
+          setPaymentPlan(ld.paymentPlan ?? "");
+          setPricePerUnit(ld.pricePerUnit ?? "");
+          // Merge utility/surrounding/zoning IDs back into selectedAmenities
+          const landTags = [
+            ...(ld.utilities ?? []),
+            ...(ld.surrounding ?? []),
+            ...(ld.zoning ?? []),
+          ];
+          if (landTags.length > 0) {
+            setSelectedAmenities(prev => Array.from(new Set([...prev, ...landTags])));
+          }
+        } else if (isLandProp) {
+          // Legacy fallback: beds field held acres, sqft held plot area
+          setAcres(prop.beds != null ? String(prop.beds) : "");
+          setPlotSizeFt(prop.sqft != null ? String(prop.sqft) : "");
+        } else {
+          // Non-land: restore standard beds/baths/sqft
+          setBeds(prop.beds != null ? String(prop.beds) : "");
+          setBaths(prop.baths != null ? String(prop.baths) : "");
+          setSqft(prop.sqft != null ? String(prop.sqft) : "");
+        }
+        setLoadedEditId(editId);
+      })
+      .catch(() => {
+        setEditLoadError("The property could not be fetched for editing.");
+        toast({ title: "Could not load property", description: "The property could not be fetched for editing.", variant: "destructive" });
+      })
+      .finally(() => setIsLoadingProperty(false));
+  }, [editId, token]);
+
+  const uploadImageFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    // Check image limit
+    if (imageLimit > 0) {
+      const remaining = imageLimit - images.length;
+      if (remaining <= 0) {
+        toast({ title: "Photo limit reached", description: `Your plan allows ${imageLimit} photo${imageLimit === 1 ? "" : "s"} per listing.`, variant: "destructive" });
+        return;
+      }
+      const toUpload = files.slice(0, remaining);
+      if (toUpload.length < files.length) {
+        toast({ title: "Too many photos", description: `Only ${remaining} slot${remaining === 1 ? "" : "s"} remaining. Extra files skipped.`, variant: "destructive" });
+      }
+      files = toUpload;
+    }
+    setUploadingCount(prev => prev + files.length);
+    const results = await Promise.all(
+      files.map(async (file) => {
+        const result = await uploadFile(file);
+        return result?.objectPath ?? null;
+      })
+    );
+    const uploaded = (results as (string | null)[]).filter((p): p is string => p !== null);
+    if (uploaded.length < files.length) {
+      toast({ title: "Some uploads failed", description: "One or more photos could not be uploaded.", variant: "destructive" });
+    }
+    if (uploaded.length > 0) {
+      setImages(prev => [...prev, ...uploaded]);
+    }
+    setUploadingCount(prev => prev - files.length);
+  }, [uploadFile, toast, imageLimit, images.length]);
+
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    e.target.value = "";
+    await uploadImageFiles(fileArray);
+  }, [uploadImageFiles]);
+
+  const handleUploadZoneDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    await uploadImageFiles(files);
+  }, [uploadImageFiles]);
+
+  const moveImage = useCallback((from: number, direction: -1 | 1) => {
+    const to = from + direction;
+    setImages(prev => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  }, []);
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeVideo = (index: number) => {
+    const removed = videos[index];
+    if (removed) setPendingVideoPaths(pending => {
+      const next = new Set(pending);
+      next.delete(removed);
+      return next;
+    });
+    setVideos(prev => {
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const openVideoEditor = (index: number) => {
+    const url = videos[index];
+    const resolved = url.startsWith("/objects/") ? `/api/storage${url}` : url;
+    setEditingVideoIdx(index);
+    setEditingVideoSrc(resolved);
+  };
+
+  const handleVideoEditSave = async ({
+    trimStart, trimEnd, cropAspect, caption, captionPosition,
+  }: {
+    trimStart: number; trimEnd: number; cropAspect: "original" | "16:9" | "4:3" | "1:1" | "9:16";
+    caption: string; captionPosition: "top" | "center" | "bottom";
+  }) => {
+    if (editingVideoIdx === null) return;
+    const idx = editingVideoIdx;
+    const sourcePath = videos[idx];
+    if (!sourcePath) throw new Error("The selected video is no longer available.");
+    setUploadingVideoCount(prev => prev + 1);
+    try {
+      const response = await fetch("/api/properties/videos/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ sourcePath, trimStart, trimEnd, cropAspect, caption, captionPosition }),
+      });
+      const data = await response.json().catch(() => ({})) as { objectPath?: string; error?: string };
+      if (!response.ok || !data.objectPath) throw new Error(data.error ?? "Could not process the video.");
+      setVideos(prev => prev.map((video, i) => i === idx ? data.objectPath! : video));
+      setPendingVideoPaths(pending => {
+        const next = new Set(pending);
+        next.delete(sourcePath);
+        return next;
+      });
+      setEditingVideoIdx(null);
+      setEditingVideoSrc("");
+      toast({ title: "Trim applied", description: "Your final MP4 has been saved." });
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("Could not process the video.");
+    } finally {
+      setUploadingVideoCount(prev => prev - 1);
+    }
+  };
+
+  const handleVideoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    e.target.value = "";
+
+    const remaining = videoLimit - videos.length;
+    if (remaining <= 0) {
+      toast({ title: "Video limit reached", description: `Your plan allows ${videoLimit} video${videoLimit === 1 ? "" : "s"} per listing.`, variant: "destructive" });
+      return;
+    }
+    const toUpload = fileArray.slice(0, remaining);
+    if (toUpload.length < fileArray.length) {
+      toast({ title: "Too many videos", description: `Only ${remaining} slot${remaining === 1 ? "" : "s"} remaining. Extra files skipped.`, variant: "destructive" });
+    }
+
+    // Validate each video is ≤5 minutes
+    const validFiles: File[] = [];
+    for (const file of toUpload) {
+      const duration = await new Promise<number>((resolve) => {
+        const vid = document.createElement("video");
+        vid.preload = "metadata";
+        vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration); };
+        vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(Infinity); };
+        vid.src = URL.createObjectURL(file);
+      });
+      if (duration > 300) {
+        toast({ title: "Video too long", description: `"${file.name}" is longer than 5 minutes and was skipped. Trim it before uploading.`, variant: "destructive" });
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) return;
+    setUploadingVideoCount(prev => prev + validFiles.length);
+    const results = await Promise.all(validFiles.map(f => uploadFile(f).catch(() => null)));
+    const uploaded = results
+      .map(r => (r && typeof r === "object" && "objectPath" in r ? r.objectPath : null))
+      .filter((p): p is string => p !== null);
+    if (uploaded.length < validFiles.length) {
+      toast({ title: "Some uploads failed", description: "One or more videos could not be uploaded.", variant: "destructive" });
+    }
+    if (uploaded.length > 0) {
+      setVideos(prev => [...prev, ...uploaded]);
+      setPendingVideoPaths(prev => new Set([...prev, ...uploaded]));
+      // Open the trim UI for the first newly uploaded source. Additional
+      // sources visibly remain marked "Trim required" until applied.
+      const firstNewIndex = videos.length;
+      const firstSource = uploaded[0];
+      setEditingVideoIdx(firstNewIndex);
+      setEditingVideoSrc(`/api/storage${firstSource}`);
+      toast({ title: "Trim required", description: "Choose a start and end, then apply the trim before submitting." });
+    }
+    setUploadingVideoCount(prev => prev - validFiles.length);
+  }, [uploadFile, toast, videoLimit, videos.length]);
+
+  const handleDragStart = (index: number) => {
+    dragSrcRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const srcIndex = dragSrcRef.current;
+    if (srcIndex === null || srcIndex === dropIndex) {
+      dragSrcRef.current = null;
+      setDragOverIndex(null);
+      return;
+    }
+    setImages(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(srcIndex, 1);
+      next.splice(dropIndex, 0, moved);
+      return next;
+    });
+    dragSrcRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragSrcRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) {
+      toast({ title: "Sign in required", description: "Please sign in to add a listing.", variant: "destructive" });
+      return;
+    }
+    if (uploadingCount > 0) {
+      toast({ title: "Upload in progress", description: "Please wait for all photos to finish uploading.", variant: "destructive" });
+      return;
+    }
+    if (uploadingVideoCount > 0 || pendingVideoPaths.size > 0) {
+      const message = uploadingVideoCount > 0
+        ? "Wait for video processing to finish."
+        : "Trim and apply every newly selected video before submitting.";
+      setFieldErrors(prev => ({ ...prev, videos: [message] }));
+      toast({ title: "Video editing required", description: message, variant: "destructive" });
+      return;
+    }
+    const parsedPrice = parseInt(price, 10);
+    const parsedBeds = parseInt(beds, 10);
+    const parsedBaths = parseInt(baths, 10);
+    const parsedSqft = parseInt(sqft, 10);
+    const isLand = isLandType(listingType);
+    const specsAreApplicable = !hideBedsBaths(listingType);
+    const effectiveSubtype = toApiSubtype(listingType, subtype);
+
+    const clientErrors: Record<string, string[]> = {};
+    if (!listingType) clientErrors.type = ["Please select a listing type"];
+    if (!title.trim()) clientErrors.title = ["Title is required"];
+    if (isNaN(parsedPrice) || parsedPrice <= 0) clientErrors.price = ["Price must be greater than 0"];
+    if (!address.trim()) clientErrors.address = ["Address is required"];
+    if (!pinPosition) clientErrors.location = ["Please set an exact location pin"];
+    if (!description.trim()) clientErrors.description = ["Description is required"];
+    if (images.length === 0) clientErrors.images = ["Upload at least one photo"];
+    if (pendingVideoPaths.size > 0) clientErrors.videos = ["Trim and apply every newly selected video before submitting."];
+    if (listingType && !effectiveSubtype) {
+      clientErrors.subtype = ["Please select a property category"];
+    }
+    // B&B listings use the required daily rate as their default "per night"
+    // price, so they do not have a separate price-period field to complete.
+    if ((listingType === "rent" || listingType === "hotel" || listingType === "hostel") && !priceUnit) {
+      clientErrors.priceUnit = ["Please select a price period"];
+    }
+    if (specsAreApplicable && (isNaN(parsedBeds) || parsedBeds < 0)) clientErrors.beds = ["Enter the number of bedrooms"];
+    if (specsAreApplicable && (isNaN(parsedBaths) || parsedBaths < 0)) clientErrors.baths = ["Enter the number of bathrooms"];
+    if (isLand) {
+      const parsedAcres = Number(acres);
+      if (acres.trim() && (!Number.isFinite(parsedAcres) || parsedAcres <= 0)) {
+        clientErrors.acres = ["Acres must be greater than 0"];
+      }
+      if (!acres.trim() && !plotSizeFt.trim()) {
+        clientErrors.plotSizeFt = ["Enter a positive acreage or a plot size"];
+      }
+    }
+
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      const firstInvalidField = Object.keys(clientErrors)[0];
+      requestAnimationFrame(() => {
+        document.getElementById(firstInvalidField)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document.getElementById(firstInvalidField)?.focus();
+      });
+      toast({ title: "Please fix the errors below", variant: "destructive" });
+      return;
+    }
+
+    setFieldErrors({});
+    setIsSubmitting(true);
+    try {
+      const parsedTotalUnits = parseInt(totalUnits, 10);
+
+      // ── For land listings, build a structured details object ─────────────────
+      // Description stays as-is (pure human text); all structured data goes into details.
+      const landDetails = isLand ? {
+        land: {
+          acres: parseFloat(acres) || null,
+          // Keep the owner's human-readable dimensions exactly as entered.
+          plotSizeFt: plotSizeFt === "" ? null : plotSizeFt,
+          soilType: soilType || null,
+          surveyMaps: surveyMaps || null,
+          titleDeed: titleDeed || null,
+          legalRates: legalRates || null,
+          legalEncumbrances: legalEncumbrances || null,
+          paymentPlan: paymentPlan || null,
+          pricePerUnit: pricePerUnit || null,
+          utilities: LAND_UTILITIES.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+          surrounding: LAND_SURROUNDING.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+          zoning: LAND_ZONING_OPTIONS.map(o => o.id).filter(id => selectedAmenities.includes(id)),
+        },
+      } : undefined;
+
+      const body = {
+        title,
+        type: toApiType(listingType),
+        price: parsedPrice,
+        address: address || searchQuery,
+        beds: isLand ? 0 : (isNaN(parsedBeds) ? 0 : parsedBeds),
+        baths: isLand ? 0 : (isNaN(parsedBaths) ? 0 : parsedBaths),
+        // Plot dimensions are descriptive text, not calculated floor area.
+        sqft: isLand ? 0 : (isNaN(parsedSqft) ? 0 : parsedSqft),
+        totalUnits: isNaN(parsedTotalUnits) || parsedTotalUnits < 1 ? 1 : parsedTotalUnits,
+        description: description || null,
+        details: landDetails,
+        images,
+        videos,
+        tags: selectedAmenities,
+        // Persist the category as subtype so Search can filter correctly
+        subtype: effectiveSubtype,
+        hourlyRate: (listingType === "bnb" && hourlyRate) ? parseInt(hourlyRate, 10) : undefined,
+        priceUnit: listingType === "bnb" ? "night" : (priceUnit || undefined),
         lat: pinPosition?.lat != null ? String(pinPosition.lat) : undefined,
         lng: pinPosition?.lng != null ? String(pinPosition.lng) : undefined,
       };

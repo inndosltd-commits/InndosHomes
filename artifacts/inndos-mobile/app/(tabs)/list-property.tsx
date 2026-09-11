@@ -1,4 +1,1202 @@
- in to list a property</Text>
+import {
+  getGetCurrentListingDraftQueryKey,
+  getGetPropertyQueryKey,
+  useCreateProperty,
+  useDeleteCurrentListingDraft,
+  useGetCurrentListingDraft,
+  useGetProperty,
+  useSaveCurrentListingDraft,
+  useUpdateProperty,
+} from "@workspace/api-client-react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  LayoutChangeEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { LocationPicker } from "@/components/LocationPicker";
+import { ListingVideoEditor, type ListingVideoEdit } from "@/components/ListingVideoEditor";
+import { getApiBaseUrl } from "@/utils/api";
+import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
+
+// ── Listing types (matches website) ───────────────────────────────────────────
+const LISTING_TYPES = [
+  { label: "For Rent",            value: "rent"           },
+  { label: "Rent - Office",       value: "rent-business"  },
+  { label: "Rent - Godown",       value: "rent-godown"    },
+  { label: "Rent - Stall",        value: "rent-stall"     },
+  { label: "Rent - Shop",         value: "rent-shop"      },
+  { label: "Sale - Apartment",    value: "sale-apartment" },
+  { label: "Sale - House",        value: "sale-home"      },
+  { label: "Sale - Land",         value: "sale-land"      },
+  { label: "B&B / Short",         value: "bnb"            },
+  { label: "Hotel",               value: "hotel"          },
+  { label: "Hostel",              value: "hostel"         },
+] as const;
+type ListingType = (typeof LISTING_TYPES)[number]["value"];
+
+// Derived helpers
+const isLandType   = (t: string) => t === "sale-land";
+const isSaleVariant= (t: string) => ["sale-land","sale-apartment","sale-home"].includes(t);
+const isCommercial = (t: string) => ["rent-godown","rent-business","rent-stall","rent-shop"].includes(t);
+const hideBedsBaths= (t: string) => isLandType(t) || isCommercial(t);
+const hasStandardAmenities = (t: string) => !isLandType(t);
+
+function toApiType(raw: string): "rent"|"sale"|"bnb"|"hotel"|"hostel" {
+  if (isSaleVariant(raw)) return "sale";
+  if (raw === "bnb")      return "bnb";
+  if (raw === "hotel")    return "hotel";
+  if (raw === "hostel")   return "hostel";
+  return "rent";
+}
+
+function toApiSubtype(raw: string, subtype: string): string | undefined {
+  if (isCommercial(raw)) return raw.replace("rent-", "");
+  if (isSaleVariant(raw)) return raw.replace("sale-", "");
+  if (raw === "hotel" || raw === "hostel") return subtype.trim() || raw;
+  return subtype.trim() || undefined;
+}
+
+function normalizeSubtype(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase().replace(/[_\s]+/g, "-").replace(/-+/g, "-");
+}
+
+function toFormListingType(type: string, subtype: string): ListingType {
+  const normalized = normalizeSubtype(subtype);
+  if (type === "sale") {
+    if (normalized === "apartment") return "sale-apartment";
+    if (normalized === "land" || normalized === "plot") return "sale-land";
+    return "sale-home";
+  }
+  if (type === "rent" && isCommercial(normalized ? `rent-${normalized}` : "")) {
+    return `rent-${normalized}` as ListingType;
+  }
+  return (["rent", "bnb", "hotel", "hostel"].includes(type) ? type : "rent") as ListingType;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function valueAsText(value: unknown): string {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+// ── Sub-types per listing type ────────────────────────────────────────────────
+const SUBTYPES: Record<string, {label:string;value:string}[]> = {
+  rent: [
+    {label:"Studio / Bedsitter", value:"studio"},
+    {label:"1 Bedroom",          value:"1-bedroom"},
+    {label:"2 Bedrooms",         value:"2-bedroom"},
+    {label:"3 Bedrooms",         value:"3-bedroom"},
+    {label:"4+ Bedrooms",        value:"4-bedroom"},
+    {label:"Penthouse",          value:"penthouse"},
+    {label:"Own Compound",       value:"own-compound"},
+    {label:"Condominium",        value:"condominium"},
+  ],
+  bnb: [
+    {label:"Serviced Apartment", value:"serviced-apartment"},
+    {label:"Entire Place",       value:"entire-place"},
+    {label:"Private Room",       value:"private-room"},
+    {label:"Shared Room",        value:"shared-room"},
+    {label:"Unique Stays",       value:"unique-stays"},
+    {label:"Hotel Room",         value:"hotel-room"},
+    {label:"Vacation Home",      value:"vacation-home"},
+    {label:"Nature Stay",        value:"nature-stay"},
+    {label:"Other",              value:"other"},
+  ],
+  hostel: [
+    {label:"Shared Room",   value:"shared-room"},
+    {label:"Private Room",  value:"private-room"},
+    {label:"Dormitory",     value:"dormitory"},
+  ],
+};
+
+// ── Price units per listing type ───────────────────────────────────────────────
+const PRICE_UNITS_BY_TYPE: Record<string,{label:string;value:string}[]> = {
+  rent: [
+    {label:"/month", value:"month"},
+    {label:"/week",  value:"week"},
+    {label:"/year",  value:"year"},
+  ],
+  hostel: [
+    {label:"/night",    value:"night"},
+    {label:"/month",    value:"month"},
+    {label:"/semester", value:"semester"},
+    {label:"/year",     value:"year"},
+  ],
+  hotel: [
+    {label:"/night", value:"night"},
+    {label:"/month", value:"month"},
+  ],
+  "rent-business": [
+    {label:"/month", value:"month"},
+    {label:"/sqft",  value:"sqft"},
+    {label:"/year",  value:"year"},
+  ],
+  "rent-godown": [
+    {label:"/month", value:"month"},
+    {label:"/sqft",  value:"sqft"},
+    {label:"/year",  value:"year"},
+  ],
+  "rent-stall": [
+    {label:"/month", value:"month"},
+    {label:"/sqft",  value:"sqft"},
+    {label:"/year",  value:"year"},
+  ],
+  "rent-shop": [
+    {label:"/month", value:"month"},
+    {label:"/sqft",  value:"sqft"},
+    {label:"/year",  value:"year"},
+  ],
+};
+
+// ── Amenity data sets ─────────────────────────────────────────────────────────
+// Canonical amenity/option constants — kept exactly in sync with the website
+// (artifacts/inndos/src/pages/AddListing.tsx). IDs and labels must match verbatim.
+const UNIT_AMENITIES = [
+  { id: "instant_shower", label: "Instant shower" },
+  { id: "study_desk", label: "Study desk" },
+  { id: "safe", label: "Safe" },
+  { id: "babycot", label: "Baby court" },
+  { id: "housekeeping", label: "Daily housekeeping" },
+  { id: "private_chef", label: "Private chef (additional)" },
+  { id: "hairdryer", label: "Hair dryer" },
+  { id: "ironbox", label: "Iron box" },
+  { id: "wifi", label: "WiFi" },
+  { id: "laundry", label: "Laundry area" },
+  { id: "balcony", label: "Balcony" },
+  { id: "ac", label: "Air conditioner" },
+  { id: "smoker_alert", label: "Smoker alerts" },
+  { id: "fridge", label: "Fridge" },
+  { id: "microwave", label: "Microwave" },
+  { id: "dishwasher", label: "Dishwasher" },
+  { id: "coffee", label: "Coffee maker/kettle" },
+  { id: "smart_tv", label: "Smart TV" },
+  { id: "smoking_allowed", label: "Smoking allowed" },
+  { id: "no_smoking", label: "Smoking not allowed" },
+  { id: "self_locking", label: "Self locking/keylocker" }
+];
+
+const PREMISE_AMENITIES = [
+  { id: "gym", label: "Gym" },
+  { id: "borewater", label: "Borehole water" },
+  { id: "garden", label: "Garden" },
+  { id: "cctv", label: "CCTV" },
+  { id: "parking", label: "Parking" },
+  { id: "security", label: "24/7 security" },
+  { id: "elevator", label: "Elevator" },
+  { id: "electric_fence", label: "Electric fence" },
+  { id: "solar", label: "Solar water heating" },
+  { id: "pool", label: "Swimming pool" },
+  { id: "smoking_area", label: "Smoking area" },
+  { id: "generator", label: "Backup generator" },
+  { id: "pet_friendly", label: "Pet friendly" },
+  { id: "dsq", label: "DSQ" }
+];
+
+// ── Apartment ────────────────────────────────────────────────────────────────
+const APARTMENT_UNIT = [
+  { id: "apt_living_room",       label: "Spacious living room" },
+  { id: "apt_fitted_kitchen",    label: "Modern fitted kitchen" },
+  { id: "apt_dining_area",       label: "Dining area" },
+  { id: "apt_ensuite_beds",      label: "En-suite bedrooms" },
+  { id: "apt_wardrobes",         label: "Built-in wardrobes" },
+  { id: "apt_balcony",           label: "Private balcony" },
+  { id: "apt_floor_finishes",    label: "High-quality floor finishes" },
+  { id: "apt_hot_water",         label: "Hot water supply" },
+  { id: "apt_ac_fans",           label: "Air conditioning or ceiling fans" },
+  { id: "apt_laundry",           label: "Laundry area" },
+  { id: "apt_wifi",              label: "High-speed internet / Wi-Fi" },
+  { id: "apt_cable_tv",          label: "Cable TV connection" },
+  { id: "apt_smoke_detectors",   label: "Smoke detectors" },
+  { id: "apt_energy_lighting",   label: "Energy-efficient lighting" },
+  { id: "apt_storage",           label: "Ample storage space" },
+];
+const APARTMENT_PREMISE = [
+  { id: "apt_prem_secure_parking",   label: "Secure parking" },
+  { id: "apt_prem_security_247",     label: "24-hour security" },
+  { id: "apt_prem_cctv",             label: "CCTV surveillance" },
+  { id: "apt_prem_gate_access",      label: "Controlled gate access" },
+  { id: "apt_prem_generator",        label: "Backup generator" },
+  { id: "apt_prem_borehole",         label: "Borehole and water storage" },
+  { id: "apt_prem_internet",         label: "High-speed internet" },
+  { id: "apt_prem_elevator",         label: "Elevator (lift)" },
+  { id: "apt_prem_pool",             label: "Swimming pool" },
+  { id: "apt_prem_gym",              label: "Gym" },
+  { id: "apt_prem_playground",       label: "Children's playground" },
+  { id: "apt_prem_gardens",          label: "Landscaped gardens" },
+  { id: "apt_prem_rooftop",          label: "Rooftop terrace" },
+  { id: "apt_prem_waste",            label: "Waste management services" },
+  { id: "apt_prem_visitor_parking",  label: "Visitor parking" },
+  { id: "apt_prem_management",       label: "Property management office" },
+];
+
+// ── Home / House ─────────────────────────────────────────────────────────────
+const HOME_UNIT = [
+  { id: "home_living_room",        label: "Living room" },
+  { id: "home_dining_area",        label: "Dining area" },
+  { id: "home_modern_kitchen",     label: "Modern kitchen" },
+  { id: "home_wardrobes",          label: "Bedrooms with wardrobes" },
+  { id: "home_ensuite_bath",       label: "En-suite bathrooms" },
+  { id: "home_guest_toilet",       label: "Guest toilet" },
+  { id: "home_laundry",            label: "Laundry area" },
+  { id: "home_balcony",            label: "Balcony or veranda" },
+  { id: "home_parking",            label: "Parking space" },
+  { id: "home_garden",             label: "Garden or landscaped yard" },
+  { id: "home_perimeter_wall",     label: "Perimeter wall and gate" },
+  { id: "home_security_247",       label: "24-hour security" },
+  { id: "home_cctv",               label: "CCTV surveillance" },
+  { id: "home_water_supply",       label: "Reliable water supply" },
+  { id: "home_electricity_backup", label: "Electricity backup (generator/inverter)" },
+  { id: "home_wifi",               label: "High-speed Wi-Fi / Internet" },
+  { id: "home_ac_fans",            label: "Air conditioning or ceiling fans" },
+  { id: "home_solar_water",        label: "Solar water heating" },
+  { id: "home_kids_play",          label: "Children's play area" },
+  { id: "home_pool",               label: "Swimming pool (optional)" },
+  { id: "home_gym",                label: "Gym or fitness room (optional)" },
+];
+const HOME_PREMISE = [
+  { id: "home_prem_perimeter_wall",    label: "Secure perimeter wall / fence" },
+  { id: "home_prem_gated",             label: "Gated entrance" },
+  { id: "home_prem_security_247",      label: "24-hour security" },
+  { id: "home_prem_cctv",              label: "CCTV surveillance" },
+  { id: "home_prem_cabro_paved",       label: "Cabro-paved driveway" },
+  { id: "home_prem_parking",           label: "Ample parking space" },
+  { id: "home_prem_landscaped",        label: "Landscaped gardens / lawn" },
+  { id: "home_prem_outdoor_seating",   label: "Outdoor seating area" },
+  { id: "home_prem_kids_play",         label: "Children's play area" },
+  { id: "home_prem_walking_paths",     label: "Walking paths" },
+  { id: "home_prem_security_lighting", label: "Security lighting" },
+  { id: "home_prem_water_supply",      label: "Reliable water supply" },
+  { id: "home_prem_water_tanks",       label: "Water storage tanks" },
+  { id: "home_prem_borehole",          label: "Borehole (if available)" },
+  { id: "home_prem_drainage",          label: "Drainage system" },
+  { id: "home_prem_waste_collection",  label: "Waste collection area" },
+  { id: "home_prem_outdoor_kitchen",   label: "Outdoor kitchen / barbecue area" },
+  { id: "home_prem_gazebo",            label: "Gazebo or pergola" },
+  { id: "home_prem_pool",              label: "Swimming pool (optional)" },
+  { id: "home_prem_pet_friendly",      label: "Pet-friendly compound" },
+];
+
+// ── Godown ──────────────────────────────────────────────────────────────────
+const GODOWN_PREMISE = [
+  { id: "godown_cafeteria", label: "Cafeteria" },
+  { id: "godown_loading_docks", label: "Loading docks" },
+  { id: "godown_cctv_biometrics", label: "CCTV and Biometrics" },
+  { id: "godown_waste_mgmt", label: "Waste management" },
+  { id: "godown_entrances_pathways", label: "Entrances & Pathways" },
+  { id: "godown_parking", label: "Parking Spaces" },
+];
+const GODOWN_UNIT = [
+  { id: "godown_toilets", label: "Toilets" },
+  { id: "godown_sprinkler", label: "Sprinkler systems" },
+  { id: "godown_fire_extinguisher", label: "Fire extinguishers" },
+  { id: "godown_emergency_exits", label: "Emergency exits" },
+  { id: "godown_temp_regulation", label: "Temperature regulation" },
+  { id: "godown_dehumidifiers", label: "Dehumidifiers" },
+  { id: "godown_climate_controlled", label: "Climate-controlled" },
+  { id: "godown_gym", label: "Gym" },
+  { id: "godown_borewater", label: "Borehole water" },
+  { id: "godown_garden", label: "Garden" },
+  { id: "godown_cctv", label: "CCTV" },
+  { id: "godown_parking_unit", label: "Parking" },
+  { id: "godown_security_247", label: "24/7 security" },
+  { id: "godown_elevator", label: "Elevator" },
+  { id: "godown_electric_fence", label: "Electric fence" },
+  { id: "godown_solar", label: "Solar water heating" },
+  { id: "godown_pool", label: "Swimming pool" },
+  { id: "godown_smoking_area", label: "Smoking area" },
+  { id: "godown_generator", label: "Backup generator" },
+];
+
+// ── Business Space ───────────────────────────────────────────────────────────
+const BUSINESS_PREMISE = [
+  { id: "biz_waste_mgmt", label: "Waste management" },
+  { id: "biz_drainage", label: "Proper drainage" },
+  { id: "biz_conference_rooms", label: "Conference rooms" },
+  { id: "biz_coffee_room", label: "Coffee room / food area" },
+  { id: "biz_rampways", label: "Ramp ways" },
+  { id: "biz_pathways", label: "Pathways" },
+  { id: "biz_parking", label: "Parking Spaces" },
+  { id: "biz_drinking_fountains", label: "Drinking Fountains" },
+  { id: "biz_street_lighting", label: "Street lighting" },
+  { id: "biz_elevator", label: "Elevator" },
+  { id: "biz_generator", label: "Backup generator" },
+];
+const BUSINESS_UNIT = [
+  { id: "biz_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "biz_emergency_exits", label: "Emergency exits" },
+  { id: "biz_security", label: "Security surveillance" },
+  { id: "biz_clean_water", label: "Clean water" },
+  { id: "biz_workstations", label: "Work stations" },
+  { id: "biz_quiet_space", label: "Quiet space" },
+  { id: "biz_signature_space", label: "Signature space" },
+];
+
+// ── Commercial Space ─────────────────────────────────────────────────────────
+const COMMERCIAL_UNIT = [
+  { id: "com_quiet_soundproof", label: "Quiet space / soundproofing" },
+  { id: "com_workstation", label: "Work station / desk space" },
+  { id: "com_storage", label: "Storage space" },
+  { id: "com_ac_ventilation", label: "Air conditioning / ventilation" },
+  { id: "com_fire_extinguisher", label: "Fire extinguisher" },
+  { id: "com_glass_window", label: "Glass window display (stalls/shops)" },
+  { id: "com_wheelchair_entry", label: "Wheelchair accessible entry" },
+  { id: "com_ensuite_washroom", label: "Ensuite washroom" },
+  { id: "com_internet_point", label: "Internet/fiber point in-unit" },
+  { id: "com_power_socket", label: "Dedicated power socket / backup point" },
+  { id: "com_partitioning", label: "Partitioning options" },
+  { id: "com_natural_lighting", label: "Natural lighting" },
+  { id: "com_shelving", label: "Shelving / display racks (stalls)" },
+  { id: "com_lockable_door", label: "Lockable door / security grill (stalls)" },
+  { id: "com_ceiling_height", label: "Ceiling height suited to storage/stock" },
+];
+const COMMERCIAL_PREMISE = [
+  { id: "com_meeting_rooms", label: "Meeting rooms (shared)" },
+  { id: "com_cafeteria", label: "Coffee room & food station / cafeteria" },
+  { id: "com_internet", label: "Internet connectivity" },
+  { id: "com_waste_collection", label: "Waste collection" },
+  { id: "com_loading_bay", label: "Loading bay" },
+  { id: "com_wheelchair_ramps", label: "Wheelchair-accessible ramps & elevators" },
+  { id: "com_parking", label: "Ample parking (customer & staff)" },
+  { id: "com_perimeter_security", label: "Perimeter security" },
+  { id: "com_generator", label: "Standby generator" },
+  { id: "com_borehole_water", label: "Borehole / water tank backup" },
+  { id: "com_elevator", label: "Elevator / lift access" },
+  { id: "com_signage", label: "Signage & branding space" },
+  { id: "com_24hr_access", label: "24-hour access" },
+  { id: "com_fire_assembly", label: "Fire assembly point" },
+  { id: "com_sprinkler", label: "Sprinkler system" },
+  { id: "com_reception", label: "Reception" },
+  { id: "com_atm", label: "ATM or banking hall" },
+  { id: "com_public_restrooms", label: "Public restrooms" },
+  { id: "com_rooftop", label: "Rooftop / terrace common area" },
+];
+
+// ── Hotel ────────────────────────────────────────────────────────────────────
+const HOTEL_PREMISE = [
+  { id: "hotel_breakfast", label: "Complimentary Breakfast" },
+  { id: "hotel_ramp", label: "Ramp" },
+  { id: "hotel_conference_hall", label: "Conference Hall" },
+  { id: "hotel_reception_24hr", label: "24hrs Reception" },
+  { id: "hotel_housekeeping", label: "House Keeping" },
+  { id: "hotel_restaurant_bar", label: "Restaurant & Bar" },
+  { id: "hotel_pool", label: "Swimming Pool" },
+  { id: "hotel_pool_billiards", label: "Pool Billiards" },
+  { id: "hotel_kids_play", label: "Kids Play Area" },
+  { id: "hotel_recreational", label: "Recreational Facilities" },
+  { id: "hotel_valet", label: "Valet" },
+  { id: "hotel_room_service", label: "Room Service" },
+  { id: "hotel_ballroom", label: "Ballroom" },
+  { id: "hotel_golf", label: "Golf Course" },
+  { id: "hotel_tennis", label: "Tennis Court" },
+  { id: "hotel_smoking_lounge", label: "Smoking Lounge" },
+];
+
+// ── Land checkboxes ──────────────────────────────────────────────────────────
+const LAND_ZONING = [
+  { id: "zone_residential", label: "Residential" },
+  { id: "zone_commercial", label: "Commercial" },
+  { id: "zone_agricultural", label: "Agricultural" },
+  { id: "zone_mixed_use", label: "Mixed-use" },
+];
+const LAND_UTILITIES = [
+  { id: "land_electricity", label: "Electricity connection" },
+  { id: "land_water_supply", label: "Water supply" },
+  { id: "land_sewer", label: "Sewer" },
+  { id: "land_septic", label: "Septic system" },
+  { id: "land_internet", label: "Internet / fiber access" },
+];
+const LAND_SURROUNDING = [
+  { id: "land_surr_schools", label: "Nearness to schools" },
+  { id: "land_surr_hospitals", label: "Nearness to hospitals / clinics" },
+  { id: "land_surr_shopping", label: "Nearness to shopping centers / markets" },
+  { id: "land_surr_worship", label: "Nearness to places of worship" },
+  { id: "land_road_tarmac", label: "Tarmac road access" },
+  { id: "land_road_murram", label: "Murram road access" },
+  { id: "land_road_distance", label: "Close to main road" },
+  { id: "land_police", label: "Proximity to police station" },
+  { id: "land_security", label: "Security" },
+  { id: "land_recreational", label: "Nearby recreational areas (parks, gyms)" },
+  { id: "land_future_dev", label: "Future development plans in the area" },
+  { id: "land_fencing", label: "Fencing" },
+  { id: "land_gated", label: "Gated" },
+  { id: "land_corner_plot", label: "Corner plot" },
+];
+
+function getAmenityLists(type: string): {unit:{id:string;label:string}[];premise:{id:string;label:string}[]} {
+  if (type === "rent-godown")                        return {unit:GODOWN_UNIT,   premise:GODOWN_PREMISE};
+  if (type === "rent-business")                      return {unit:BUSINESS_UNIT, premise:BUSINESS_PREMISE};
+  if (type === "rent-stall" || type === "rent-shop") return {unit:COMMERCIAL_UNIT, premise:COMMERCIAL_PREMISE};
+  if (type === "hotel")                              return {unit:UNIT_AMENITIES, premise:HOTEL_PREMISE};
+  if (type === "sale-home")                          return {unit:HOME_UNIT, premise:HOME_PREMISE};
+  if (type === "sale-apartment")                     return {unit:APARTMENT_UNIT, premise:APARTMENT_PREMISE};
+  if (type === "rent")                               return {unit:APARTMENT_UNIT, premise:APARTMENT_PREMISE};
+  return {unit:UNIT_AMENITIES, premise:PREMISE_AMENITIES};
+}
+
+// ── Form state ─────────────────────────────────────────────────────────────────
+interface MediaItem {
+  uri: string;
+  uploaded: string | null;
+  isVideo: boolean;
+  mimeType: string;
+  fileName: string;
+  durationSeconds?: number;
+  requiresTrim?: boolean;
+}
+
+const VIDEO_MAX_DURATION_MS = 300000; // 5 minutes
+const FINAL_VIDEO_MAX_DURATION_SECONDS = 60;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 250 * 1024 * 1024;
+
+function ListingVideoPreview({ source }: { source: string }) {
+  const player = useVideoPlayer({ uri: source, contentType: "progressive" }, (videoPlayer) => {
+    videoPlayer.loop = false;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={mediaPreviewS.video}
+      nativeControls
+      allowsFullscreen
+      allowsPictureInPicture={false}
+      contentFit="cover"
+      surfaceType="textureView"
+    />
+  );
+}
+
+const mediaPreviewS = StyleSheet.create({
+  video: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#000000",
+    borderRadius: 8,
+  },
+});
+
+interface FormState {
+  title: string;
+  listingType: ListingType;
+  subtype: string;
+  price: string;
+  priceUnit: string;
+  hourlyRate: string;
+  address: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  guests: string;
+  totalUnits: string;
+  description: string;
+  lat: string;
+  lng: string;
+  // Land fields
+  acres: string;
+  plotSizeFt: string;
+  soilType: string;
+  surveyMaps: string;
+  titleDeed: string;
+  legalRates: string;
+  legalEncumbrances: string;
+  paymentPlan: string;
+  pricePerUnit: string;
+}
+type ErrorField = keyof FormState | "imageUrl" | "video" | "location";
+
+const EMPTY_FORM: FormState = {
+  title:"", listingType:"rent", subtype:"", price:"", priceUnit:"", hourlyRate:"",
+  address:"", beds:"", baths:"", sqft:"", guests:"", totalUnits:"1",
+  description:"", lat:"", lng:"",
+  acres:"", plotSizeFt:"", soilType:"", surveyMaps:"", titleDeed:"",
+  legalRates:"", legalEncumbrances:"", paymentPlan:"", pricePerUnit:"",
+};
+
+function draftKey(userId: string) { return `inndos_draft_listing_${userId}`; }
+
+// ── Cross-platform flat draft shape (must match web DraftState exactly) ────────
+// The server stores this via PUT /api/listing-drafts/current { data: ServerDraftState }.
+// The local (AsyncStorage) format is the old nested { form, selectedAmenities, media }
+// kept for offline compatibility; only the server payload is normalised here.
+interface ServerDraftState {
+  listingType: string;
+  title: string;
+  price: string;
+  address: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  description: string;
+  selectedAmenities: string[];
+  subtype: string;
+  hourlyRate: string;
+  priceUnit: string;
+  totalUnits: string;
+  acres: string;
+  plotSizeFt: string;
+  soilType: string;
+  surveyMaps: string;
+  titleDeed: string;
+  legalRates: string;
+  legalEncumbrances: string;
+  paymentPlan: string;
+  pricePerUnit: string;
+  images: string[];     // uploaded objectPaths
+  videos: string[];     // uploaded objectPaths
+  pinPosition: { lat: number; lng: number } | null;
+  savedAddress: string;
+}
+
+/** Serialise current mobile state to the flat web-compatible server draft. */
+function toServerDraft(
+  form: FormState,
+  selectedAmenities: string[],
+  media: MediaItem[],
+): ServerDraftState {
+  return {
+    listingType:      form.listingType,
+    title:            form.title,
+    price:            form.price,
+    address:          form.address,
+    beds:             form.beds,
+    baths:            form.baths,
+    sqft:             form.sqft,
+    description:      form.description,
+    selectedAmenities,
+    subtype:          form.subtype,
+    hourlyRate:       form.hourlyRate,
+    priceUnit:        form.priceUnit,
+    totalUnits:       form.totalUnits,
+    acres:            form.acres,
+    plotSizeFt:       form.plotSizeFt,
+    soilType:         form.soilType,
+    surveyMaps:       form.surveyMaps,
+    titleDeed:        form.titleDeed,
+    legalRates:       form.legalRates,
+    legalEncumbrances:form.legalEncumbrances,
+    paymentPlan:      form.paymentPlan,
+    pricePerUnit:     form.pricePerUnit,
+    images: media.filter(m=>!m.isVideo).map(m=>m.uploaded).filter((p):p is string=>p!==null),
+    videos: media.filter(m=>m.isVideo).map(m=>m.uploaded).filter((p):p is string=>p!==null),
+    pinPosition: (form.lat && form.lng)
+      ? { lat: parseFloat(form.lat), lng: parseFloat(form.lng) }
+      : null,
+    savedAddress: form.address,
+  };
+}
+
+/**
+ * Build a preview URI for an objectPath stored on the server.
+ * e.g. "uploads/abc.jpg" → "https://api.host/api/storage/uploads/abc.jpg"
+ */
+function objectPathToUri(objectPath: string, apiBase: string): string {
+  const clean = objectPath.startsWith("/") ? objectPath.slice(1) : objectPath;
+  return `${apiBase}/api/storage/${clean}`;
+}
+
+/**
+ * Deserialise a flat ServerDraftState (from server or from the old nested
+ * local shape) into FormState + MediaItem[].  Defensive: accepts either shape.
+ */
+function fromServerDraft(
+  raw: Record<string, unknown>,
+  apiBase: string,
+): { form: FormState; selectedAmenities: string[]; media: MediaItem[] } {
+  // Detect old nested mobile shape: { form, selectedAmenities, media }
+  if (raw.form && typeof raw.form === "object" && !Array.isArray(raw.form)) {
+    const nested = raw as {
+      form: FormState;
+      selectedAmenities?: string[];
+      media?: MediaItem[];
+    };
+    return {
+      form: { ...EMPTY_FORM, ...nested.form },
+      selectedAmenities: nested.selectedAmenities ?? [],
+      media: nested.media ?? [],
+    };
+  }
+
+  // Flat web DraftState shape.
+  const s = raw as Partial<ServerDraftState>;
+  const str = (v: unknown, fallback = "") =>
+    typeof v === "string" ? v : fallback;
+  const arr = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as string[]) : [];
+
+  const pin = s.pinPosition;
+  const lat = pin ? String(pin.lat) : "";
+  const lng = pin ? String(pin.lng) : "";
+
+  const form: FormState = {
+    ...EMPTY_FORM,
+    listingType: (str(s.listingType) || "rent") as ListingType,
+    title:        str(s.title),
+    price:        str(s.price),
+    address:      str(s.savedAddress) || str(s.address),
+    beds:         str(s.beds),
+    baths:        str(s.baths),
+    sqft:         str(s.sqft),
+    description:  str(s.description),
+    subtype:      str(s.subtype),
+    hourlyRate:   str(s.hourlyRate),
+    priceUnit:    str(s.priceUnit),
+    totalUnits:   str(s.totalUnits) || "1",
+    acres:        str(s.acres),
+    plotSizeFt:   str(s.plotSizeFt),
+    soilType:     str(s.soilType),
+    surveyMaps:   str(s.surveyMaps),
+    titleDeed:    str(s.titleDeed),
+    legalRates:   str(s.legalRates),
+    legalEncumbrances: str(s.legalEncumbrances),
+    paymentPlan:  str(s.paymentPlan),
+    pricePerUnit: str(s.pricePerUnit),
+    lat,
+    lng,
+  };
+
+  // Rebuild MediaItem[] from objectPaths; preview URI points to storage.
+  const toMediaItems = (paths: string[], isVideo: boolean): MediaItem[] =>
+    paths.map((p) => {
+      const fileName = p.split("/").pop() ?? (isVideo ? "video.mp4" : "image.jpg");
+      const ext = fileName.split(".").pop()?.toLowerCase() ?? "jpg";
+      const mimeType = isVideo
+        ? `video/${ext === "mov" ? "quicktime" : ext}`
+        : `image/${ext === "jpg" ? "jpeg" : ext}`;
+      return {
+        uri:      objectPathToUri(p, apiBase),
+        uploaded: p,
+        isVideo,
+        mimeType,
+        fileName,
+        requiresTrim: isVideo && p.startsWith("/objects/uploads/"),
+      };
+    });
+
+  const media: MediaItem[] = [
+    ...toMediaItems(arr(s.images), false),
+    ...toMediaItems(arr(s.videos), true),
+  ];
+
+  return { form, selectedAmenities: arr(s.selectedAmenities), media };
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+function SectionLabel({text, colors}: {text:string; colors:ReturnType<typeof useColors>}) {
+  return <Text style={[secS.label,{color:colors.mutedForeground}]}>{text}</Text>;
+}
+const secS = StyleSheet.create({
+  label:{fontSize:11, fontFamily:"Outfit_600SemiBold", letterSpacing:0.8, textTransform:"uppercase", marginBottom:2, marginTop:4},
+});
+
+function Field({label, error, colors, hint, children, onLayout}: {label:string; error?:string; colors:ReturnType<typeof useColors>; hint?:string; children:React.ReactNode; onLayout?:(event:LayoutChangeEvent)=>void}) {
+  const highlightError = Boolean(error);
+  return (
+    <View
+      style={[
+        fieldS.wrapper,
+        highlightError ? fieldS.errorWrapper : undefined,
+        highlightError ? {borderColor:colors.destructive} : undefined,
+      ]}
+      onLayout={onLayout}
+    >
+      <Text style={[fieldS.label,{color:highlightError?colors.destructive:colors.foreground}]}>{label}</Text>
+      {children}
+      {hint ? <Text style={[fieldS.hint,{color:colors.mutedForeground}]}>{hint}</Text> : null}
+      {error ? <Text style={[fieldS.error,{color:colors.destructive}]}>{error}</Text> : null}
+    </View>
+  );
+}
+const fieldS = StyleSheet.create({
+  wrapper:{gap:6},
+  errorWrapper:{borderWidth:2,borderRadius:10,padding:8},
+  label:{fontSize:13, fontFamily:"Outfit_500Medium"},
+  hint:{fontSize:11, fontFamily:"Outfit_400Regular"},
+  error:{fontSize:12, fontFamily:"Outfit_400Regular"},
+});
+
+function ChipSelector({options, value, onChange, colors, small, error}: {
+  options:{label:string;value:string}[];
+  value:string;
+  onChange:(v:string)=>void;
+  colors:ReturnType<typeof useColors>;
+  small?:boolean;
+  error?: string;
+}) {
+  return (
+    <View style={{flexDirection:"row", flexWrap:"wrap", gap:small?6:8, borderWidth:1, borderColor:error?colors.destructive:"transparent", borderRadius:8, padding:error?6:0}}>
+      {options.map(o=>(
+        <Pressable
+          key={o.value}
+          style={[chipS.chip,{borderColor:value===o.value?colors.primary:colors.border,backgroundColor:value===o.value?colors.primary:colors.card,paddingHorizontal:small?10:14,paddingVertical:small?6:8}]}
+          onPress={()=>{Haptics.selectionAsync();onChange(o.value);}}
+        >
+          <Text style={[chipS.text,{color:value===o.value?colors.primaryForeground:colors.foreground,fontSize:small?11:13}]}>{o.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+const chipS = StyleSheet.create({
+  chip:{borderWidth:1,paddingHorizontal:14,paddingVertical:8,borderRadius:8},
+  text:{fontSize:13, fontFamily:"Outfit_500Medium"},
+});
+
+function AmenityChip({label, selected, onToggle, colors}: {label:string;selected:boolean;onToggle:()=>void;colors:ReturnType<typeof useColors>}) {
+  return (
+    <Pressable
+      style={[amenS.chip,{borderColor:selected?colors.primary:colors.border,backgroundColor:selected?colors.primary+"18":colors.card}]}
+      onPress={()=>{Haptics.selectionAsync();onToggle();}}
+    >
+      {selected && <Feather name="check" size={11} color={colors.primary}/>}
+      <Text style={[amenS.text,{color:selected?colors.primary:colors.foreground}]}>{label}</Text>
+    </Pressable>
+  );
+}
+const amenS = StyleSheet.create({
+  chip:{flexDirection:"row",alignItems:"center",gap:4,borderWidth:1,paddingHorizontal:10,paddingVertical:6,borderRadius:20},
+  text:{fontSize:12, fontFamily:"Outfit_500Medium"},
+});
+
+function YesNoSelector({value, onChange, colors}: {value:string;onChange:(v:string)=>void;colors:ReturnType<typeof useColors>}) {
+  return (
+    <View style={{flexDirection:"row",gap:8}}>
+      {["yes","no"].map(v=>(
+        <Pressable
+          key={v}
+          style={[chipS.chip,{borderColor:value===v?colors.primary:colors.border,backgroundColor:value===v?colors.primary:colors.card,paddingHorizontal:20,paddingVertical:8}]}
+          onPress={()=>{Haptics.selectionAsync();onChange(value===v?"":v);}}
+        >
+          <Text style={[chipS.text,{color:value===v?colors.primaryForeground:colors.foreground}]}>{v==="yes"?"Yes":"No"}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
+export default function ListPropertyScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const {user, token} = useAuth();
+  const params = useLocalSearchParams<{editId?: string | string[]}>();
+  const editId = Array.isArray(params.editId) ? params.editId[0] : params.editId;
+  const isEditing = Boolean(editId);
+  const isWeb = Platform.OS === "web";
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Partial<Record<ErrorField,string>>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [imageLimit, setImageLimit] = useState(0);
+  const [videoLimit, setVideoLimit] = useState(0);
+  const [mediaLimitsLoaded, setMediaLimitsLoaded] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [loadedEditId, setLoadedEditId] = useState<string | null>(null);
+  // "server" = draft is saved on account, "local" = device-only, null = none
+  const [draftSource, setDraftSource] = useState<"server"|"local"|null>(null);
+  const pickerAddressRef = useRef<string|null>(null);
+  const formScrollRef = useRef<ScrollView>(null);
+  const fieldPositions = useRef<Partial<Record<ErrorField, number>>>({});
+
+  const registerFieldPosition = (field: ErrorField) =>
+    (event: LayoutChangeEvent) => {
+      fieldPositions.current[field] = event.nativeEvent.layout.y;
+    };
+
+  const registerFieldsPosition = (...fields: ErrorField[]) => (event: LayoutChangeEvent) => {
+    fields.forEach((field) => { fieldPositions.current[field] = event.nativeEvent.layout.y; });
+  };
+
+  const scrollToFirstError = useCallback((fieldErrors: Partial<Record<ErrorField, string>>) => {
+    const target = (Object.keys(fieldErrors) as ErrorField[])
+      .map((field) => field === "lat" || field === "lng" ? "location" : field)
+      .find((field) => fieldPositions.current[field] !== undefined);
+    if (!target) return;
+    const y = fieldPositions.current[target];
+    if (y !== undefined) {
+      requestAnimationFrame(() => formScrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }));
+    }
+  }, []);
+
+  const {
+    data: propertyToEdit,
+    isLoading: isLoadingProperty,
+    error: editPropertyError,
+  } = useGetProperty(editId ?? "", {
+    query: {
+      enabled: Boolean(user && editId),
+      queryKey: [...getGetPropertyQueryKey(editId ?? ""), user?.id ?? "signed-out"],
+      refetchOnMount: "always",
+    },
+  });
+
+  useEffect(() => {
+    if (!editId || !propertyToEdit) return;
+    const subtype = normalizeSubtype(propertyToEdit.subtype);
+    const listingType = toFormListingType(propertyToEdit.type, subtype);
+    const land = asRecord(asRecord(propertyToEdit.details).land);
+    const landAmenities = [
+      ...(Array.isArray(land.utilities) ? land.utilities : []),
+      ...(Array.isArray(land.surrounding) ? land.surrounding : []),
+      ...(Array.isArray(land.zoning) ? land.zoning : []),
+    ].filter((item): item is string => typeof item === "string");
+    const imagePaths = (propertyToEdit.images?.length
+      ? propertyToEdit.images
+      : typeof propertyToEdit.image === "string" && propertyToEdit.image.length > 0
+        ? [propertyToEdit.image]
+        : []
+    ).filter((path): path is string => typeof path === "string" && path.length > 0);
+    const videoPaths = (propertyToEdit.videos ?? []).filter(
+      (path): path is string => typeof path === "string" && path.length > 0,
+    );
+    const base = getApiBaseUrl();
+
+    setForm({
+      ...EMPTY_FORM,
+      listingType,
+      title: valueAsText(propertyToEdit.title),
+      subtype: subtype,
+      price: valueAsText(propertyToEdit.price),
+      priceUnit: valueAsText(propertyToEdit.priceUnit),
+      hourlyRate: valueAsText(propertyToEdit.hourlyRate),
+      address: valueAsText(propertyToEdit.address),
+      beds: valueAsText(propertyToEdit.beds),
+      baths: valueAsText(propertyToEdit.baths),
+      sqft: valueAsText(propertyToEdit.sqft),
+      guests: valueAsText(propertyToEdit.guests),
+      totalUnits: valueAsText(propertyToEdit.totalUnits || 1),
+      description: valueAsText(propertyToEdit.description),
+      lat: valueAsText(propertyToEdit.lat),
+      lng: valueAsText(propertyToEdit.lng),
+      acres: valueAsText(land.acres),
+      plotSizeFt: valueAsText(land.plotSizeFt),
+      soilType: valueAsText(land.soilType),
+      surveyMaps: valueAsText(land.surveyMaps),
+      titleDeed: valueAsText(land.titleDeed),
+      legalRates: valueAsText(land.legalRates),
+      legalEncumbrances: valueAsText(land.legalEncumbrances),
+      paymentPlan: valueAsText(land.paymentPlan),
+      pricePerUnit: valueAsText(land.pricePerUnit),
+    });
+    setSelectedAmenities(Array.from(new Set([...(propertyToEdit.tags ?? []), ...landAmenities])));
+    setMedia([
+      ...imagePaths.map((path) => ({
+        uri: path.startsWith("http") ? path : path.startsWith("/objects/")
+          ? `${base}/api/storage${path}`
+          : path,
+        uploaded: path,
+        isVideo: false,
+        mimeType: "image/jpeg",
+        fileName: path.split("/").pop() ?? "image.jpg",
+      })),
+      ...videoPaths.map((path) => ({
+        uri: path.startsWith("http") ? path : path.startsWith("/objects/")
+          ? `${base}/api/storage${path}`
+          : path,
+        uploaded: path,
+        isVideo: true,
+        mimeType: "video/mp4",
+        fileName: path.split("/").pop() ?? "video.mp4",
+        requiresTrim: false,
+      })),
+    ]);
+    setErrors({});
+    setLoadedEditId(editId);
+  }, [editId, propertyToEdit]);
+
+  // Load plan limits
+  useEffect(()=>{
+    if(!token){
+      setMediaLimitsLoaded(false);
+      return;
+    }
+    setMediaLimitsLoaded(false);
+    const base = getApiBaseUrl();
+    fetch(`${base}/api/subscriptions/me`,{headers:{Authorization:"Bearer "+token}})
+      .then(r=>r.json())
+      .then((d:unknown)=>{
+        const data = d as {imageLimit?:number;videoLimit?:number};
+        setImageLimit(typeof data.imageLimit==="number" ? Math.max(0,data.imageLimit) : 0);
+        setVideoLimit(typeof data.videoLimit==="number" ? Math.max(0,data.videoLimit) : 0);
+        setMediaLimitsLoaded(true);
+      })
+      .catch(()=>{
+        setImageLimit(0);
+        setVideoLimit(0);
+        setMediaLimitsLoaded(true);
+      });
+  },[token]);
+
+  // ── Server draft hooks ────────────────────────────────────────────────────
+  const { mutateAsync: saveServerDraft } = useSaveCurrentListingDraft();
+  const { mutateAsync: deleteServerDraft } = useDeleteCurrentListingDraft();
+  // Lazily fetch only when the user is logged in; don't auto-fetch on mount
+  // (we do a one-shot check in the effect below via refetch).
+  const {
+    refetch: fetchServerDraft,
+  } = useGetCurrentListingDraft({ query: { enabled: false, queryKey: getGetCurrentListingDraftQueryKey() } });
+
+  // ── On mount: check server draft first, fall back to local ────────────────
+  useEffect(()=>{
+    if(!user || isEditing) return;
+    let cancelled = false;
+    (async()=>{
+      // 1. Try server draft
+      try{
+        const res = await fetchServerDraft();
+        if(!cancelled && res.data){
+          setDraftSource("server");
+          return;
+        }
+      } catch{ /* server error — fall through to local check */ }
+      // 2. Fall back to local draft
+      try{
+        const raw = await AsyncStorage.getItem(draftKey(user.id));
+        if(!cancelled && raw) setDraftSource("local");
+      } catch{ /* ignore */ }
+    })();
+    return ()=>{ cancelled=true; };
+  },[user, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Save draft: local first (offline safety), then server ────────────────
+  const saveDraft = useCallback(async ()=>{
+    if(!user) return;
+    // Local (AsyncStorage) keeps the nested mobile shape — convenient for offline restore.
+    const localPayload = {form, selectedAmenities, media: media.map(m=>({...m}))};
+    await AsyncStorage.setItem(draftKey(user.id), JSON.stringify(localPayload));
+    let savedToServer = false;
+    try{
+      // Server receives the flat web-compatible shape so web and mobile share one draft.
+      const serverPayload = toServerDraft(form, selectedAmenities, media);
+      // Mutation variable: { data: SaveListingDraftInput }
+      // SaveListingDraftInput: { data: SaveListingDraftInputData }
+      await saveServerDraft({ data: { data: serverPayload as unknown as Record<string,unknown> } });
+      savedToServer = true;
+      setDraftSource("server");
+    } catch{
+      // Server unavailable — still safe locally.
+      setDraftSource("local");
+    }
+    Alert.alert(
+      "Draft saved",
+      savedToServer
+        ? "Your draft has been saved to your account (also backed up locally)."
+        : "Your draft has been saved on this device only (offline — will sync next time you save).",
+    );
+  },[user, form, selectedAmenities, media, saveServerDraft]);
+
+  // ── Restore draft: prefer server data, fall back to local ─────────────────
+  const restoreDraft = useCallback(async ()=>{
+    if(!user) return;
+    const base = getApiBaseUrl();
+    let restored: {form:FormState;selectedAmenities:string[];media:MediaItem[]}|null = null;
+    let fromServer = false;
+
+    // 1. Try server draft — may be flat (web) or old nested (mobile) shape.
+    try{
+      const res = await fetchServerDraft();
+      if(res.data?.data && typeof res.data.data==="object" && !Array.isArray(res.data.data)){
+        restored = fromServerDraft(res.data.data as Record<string,unknown>, base);
+        fromServer = true;
+      }
+    } catch{ /* fall through */ }
+
+    // 2. Fall back to local AsyncStorage — always the old nested mobile shape.
+    if(!restored){
+      try{
+        const raw = await AsyncStorage.getItem(draftKey(user.id));
+        if(raw){
+          const parsed = JSON.parse(raw) as Record<string,unknown>;
+          restored = fromServerDraft(parsed, base);
+        }
+      } catch{ /* ignore */ }
+    }
+
+    if(!restored){ Alert.alert("No draft","No draft data found."); return; }
+    setForm(restored.form);
+    setSelectedAmenities(restored.selectedAmenities);
+    setMedia(restored.media);
+    setDraftSource(null);
+    Alert.alert(
+      "Draft restored",
+      fromServer
+        ? "Draft restored from your account."
+        : "Draft restored from this device.",
+    );
+  },[user, fetchServerDraft]);
+
+  // ── Discard: remove from both server and local ────────────────────────────
+  const discardDraft = useCallback(()=>{
+    if(!user) return;
+    Alert.alert("Discard draft","Are you sure you want to delete the saved draft?",[
+      {text:"Cancel",style:"cancel"},
+      {text:"Discard",style:"destructive",onPress:async()=>{
+        await AsyncStorage.removeItem(draftKey(user.id)).catch(()=>{});
+        deleteServerDraft().catch(()=>{});
+        setDraftSource(null);
+      }},
+    ]);
+  },[user, deleteServerDraft]);
+
+  // ── Clear after successful submit: both server and local ──────────────────
+  const clearDraftOnSuccess = useCallback(async()=>{
+    if(!user) return;
+    await AsyncStorage.removeItem(draftKey(user.id)).catch(()=>{});
+    deleteServerDraft().catch(()=>{});
+    setDraftSource(null);
+  },[user, deleteServerDraft]);
+
+  const handleMutationError = useCallback((error: unknown, fallback: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    const errorData =
+      typeof error === "object" && error !== null
+        ? (
+            (error as { response?: { data?: unknown } }).response?.data
+            ?? (error as { data?: unknown }).data
+            ?? (error as { body?: unknown }).body
+          )
+        : undefined;
+    const errorRecord = asRecord(errorData);
+    const rootErrorRecord = asRecord(error);
+    const responseError = errorRecord.error ?? rootErrorRecord.message;
+    const rawFieldErrors =
+      asRecord(errorRecord.details).fieldErrors
+      ?? errorRecord.fieldErrors
+      ?? asRecord(rootErrorRecord.details).fieldErrors;
+    const fieldErrors = asRecord(rawFieldErrors);
+    const fieldErrorEntries = Object.entries(fieldErrors);
+    let hasMappedErrors = false;
+    let mappedErrorsForScroll: Partial<Record<ErrorField, string>> = {};
+    if (fieldErrorEntries.length > 0) {
+      const mappedErrors: Partial<Record<ErrorField, string>> = {};
+      fieldErrorEntries.forEach(([field, messages]) => {
+        const normalizedField = field
+          .replace(/\[([^\]]+)\]/g, ".$1")
+          .replace(/^details\./, "");
+        const leafField = normalizedField.split(".").filter(Boolean).at(-1) ?? normalizedField;
+        const target =
+          ["image", "images", "photos", "imageUrl"].includes(leafField) ? "imageUrl" :
+          ["video", "videos"].includes(leafField) ? "video" :
+          leafField === "type" ? "listingType" :
+          ["location", "latitude", "longitude"].includes(leafField) ? "location" :
+          ["plotSize", "plotSizeFt"].includes(leafField) ? "plotSizeFt" :
+          leafField === "acres" ? "acres" :
+          leafField;
+        if (target in EMPTY_FORM || target === "imageUrl" || target === "video" || target === "location") {
+          const message = Array.isArray(messages)
+            ? String(messages[0] ?? "Please correct this field")
+            : typeof messages === "string"
+              ? messages
+              : "Please correct this field";
+          mappedErrors[target as ErrorField] = message;
+        }
+      });
+      hasMappedErrors = Object.keys(mappedErrors).length > 0;
+      if (hasMappedErrors) {
+        mappedErrorsForScroll = mappedErrors;
+        setErrors(mappedErrors);
+      }
+    }
+    const message =
+      typeof responseError === "string"
+        ? responseError
+        : error instanceof Error && error.message
+          ? error.message
+          : fallback;
+    Alert.alert(
+      hasMappedErrors ? "Please fix the highlighted fields" : "Could not save listing",
+      hasMappedErrors ? `${message}\n\nThe affected field is outlined in red.` : message,
+      [{
+        text: "OK",
+        onPress: hasMappedErrors
+          ? () => scrollToFirstError(mappedErrorsForScroll)
+          : undefined,
+      }],
+    );
+  }, [scrollToFirstError]);
+
+  const handleCreateSuccess = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    clearDraftOnSuccess();
+    setSubmitted(true);
+    setForm(EMPTY_FORM);
+    setErrors({});
+    setMedia([]);
+    setSelectedAmenities([]);
+  }, [clearDraftOnSuccess]);
+
+  const handleUpdateSuccess = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    void queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+    Alert.alert(
+      "Listing updated",
+      "Your changes have been saved.",
+      [{ text: "OK", onPress: () => router.replace("/(tabs)/my-listings" as never) }],
+    );
+  }, [queryClient, router]);
+
+  const {mutate:createProperty, isPending: isCreating} = useCreateProperty({
+    mutation:{
+      onSuccess: handleCreateSuccess,
+      onError: (error: unknown) => handleMutationError(error, "Failed to submit your listing. Please try again."),
+    },
+  });
+  const {mutate:updateProperty, isPending: isUpdating} = useUpdateProperty({
+    mutation: {
+      onSuccess: handleUpdateSuccess,
+      onError: (error: unknown) => handleMutationError(error, "Failed to update your listing. Please try again."),
+    },
+  });
+
+  const topPadding = isWeb ? 67 : insets.top;
+  const styles = getStyles(colors);
+
+  const ALLOWED_ROLES = ["owner","host","admin"];
+  const canList = user && ALLOWED_ROLES.includes(user.role);
+
+  if(!user) {
+    return (
+      <View style={[styles.container,{backgroundColor:colors.background}]}>
+        <View style={[styles.header,{paddingTop:topPadding+16}]}>
+          <Text style={[styles.title,{color:colors.foreground}]}>List a Property</Text>
+        </View>
+        <View style={styles.guestContainer}>
+          <View style={[styles.iconCircle,{backgroundColor:colors.muted,borderColor:colors.border}]}>
+            <Feather name="home" size={40} color={colors.mutedForeground}/>
+          </View>
+          <Text style={[styles.guestTitle,{color:colors.foreground}]}>Sign in to list a property</Text>
           <Text style={[styles.guestSubtitle,{color:colors.mutedForeground}]}>Only authenticated owners and hosts can add property listings</Text>
           <Pressable style={[styles.primaryBtn,{backgroundColor:colors.primary}]} onPress={()=>router.push("/(auth)/login")}>
             <Text style={[styles.primaryBtnText,{color:colors.primaryForeground}]}>Sign In</Text>
