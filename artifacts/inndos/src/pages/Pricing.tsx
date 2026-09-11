@@ -5,8 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Gift, Zap, Crown } from "lucide-react";
 import { Link } from "wouter";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 export default function Pricing() {
+  const { page: cmsPage } = usePublicCmsDocument("pricing");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />

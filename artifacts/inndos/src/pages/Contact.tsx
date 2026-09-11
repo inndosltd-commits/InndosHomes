@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Mail, Phone, MapPin, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 const SUBJECTS = [
   "General Inquiry",
@@ -15,6 +17,9 @@ const SUBJECTS = [
 ];
 
 export default function Contact() {
+  const { page: cmsPage } = usePublicCmsDocument("contact");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -24,6 +29,8 @@ export default function Contact() {
   });
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));

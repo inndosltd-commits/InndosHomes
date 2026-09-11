@@ -4,7 +4,6 @@
     "slug": "inndos-mobile",
     "owner": "web-expert-solutions-team",
     "version": "1.0.0",
-    "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "inndos-mobile",
     "userInterfaceStyle": "automatic",
@@ -32,13 +31,22 @@
       },
       "icon": "./assets/images/icon.png",
       "package": "com.inndos.app",
-      "versionCode": 21
+      "versionCode": 25,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "./plugins/with-google-maps-api-key",
+      "./plugins/with-flexible-android-orientation",
       [
         "expo-router",
         {
@@ -52,13 +60,6 @@
         {
           "photosPermission": "Allow INNDOS to access your photos to upload property images.",
           "cameraPermission": "Allow INNDOS to use your camera to take property photos."
-        }
-      ],
-      [
-        "expo-media-library",
-        {
-          "photosPermission": "Allow INNDOS to save watermarked listing photos and videos to your photo library.",
-          "savePhotosPermission": "Allow INNDOS to save watermarked listing photos and videos to your photo library."
         }
       ],
       [

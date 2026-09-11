@@ -1,7 +1,13 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 export default function Terms() {
+  const { page: cmsPage } = usePublicCmsDocument("terms");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />

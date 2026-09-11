@@ -343,6 +343,29 @@ async function runMigrations() {
       created_at TIMESTAMP NOT NULL DEFAULT now()
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS cms_pages (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug VARCHAR(120) NOT NULL UNIQUE,
+      label TEXT NOT NULL,
+      draft JSONB NOT NULL DEFAULT '{}'::jsonb,
+      published JSONB,
+      published_backup JSONB,
+      updated_by VARCHAR REFERENCES users(id),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      published_at TIMESTAMPTZ,
+      published_backup_at TIMESTAMPTZ,
+      previewed_by VARCHAR,
+      previewed_draft_hash VARCHAR(128),
+      previewed_at TIMESTAMPTZ
+    )
+  `);
+  await db.execute(sql`ALTER TABLE cms_pages ADD COLUMN IF NOT EXISTS previewed_by VARCHAR`);
+  await db.execute(sql`ALTER TABLE cms_pages ADD COLUMN IF NOT EXISTS previewed_draft_hash VARCHAR(128)`);
+  await db.execute(sql`ALTER TABLE cms_pages ADD COLUMN IF NOT EXISTS previewed_at TIMESTAMPTZ`);
+  await db.execute(sql`ALTER TABLE cms_pages ADD COLUMN IF NOT EXISTS published_backup JSONB`);
+  await db.execute(sql`ALTER TABLE cms_pages ADD COLUMN IF NOT EXISTS published_backup_at TIMESTAMPTZ`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS cms_pages_slug_idx ON cms_pages(slug)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referrals_marketer_id ON referrals(marketer_id)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referrals_created_at ON referrals(created_at)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_referral_visits_marketer_id ON referral_visits(marketer_id)`);

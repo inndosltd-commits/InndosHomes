@@ -1,8 +1,14 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 export default function Legal() {
+  const { page: cmsPage } = usePublicCmsDocument("privacy");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />

@@ -15,4 +15,5 @@ export const UserProfileRole = {
   admin: "admin",
   host: "host",
   guest: "guest",
+  developer: "developer",
 } as const;

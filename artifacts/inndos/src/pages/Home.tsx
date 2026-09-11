@@ -19,6 +19,8 @@ import {
   useListFeaturedProperties,
   useListProperties,
 } from "@workspace/api-client-react";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 interface PlacePrediction {
   placeId: string;
@@ -34,6 +36,9 @@ const sortLatestFirst = (properties: ApiProperty[]) =>
   );
 
 export default function Home() {
+  const { page: cmsPage } = usePublicCmsDocument("home");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
   const [featuredProperties, setFeaturedProperties] = useState<ApiProperty[]>([]);
   const [listerResults, setListerResults] = useState<Array<{ id: string; name: string; businessName?: string | null; propertyCount: number }>>([]);
@@ -298,6 +303,8 @@ export default function Home() {
   const visibleRentalProperties = rentalProperties.filter((property) => filteredPropertyIds.has(property.id));
   const visibleSaleProperties = saleProperties.filter((property) => filteredPropertyIds.has(property.id));
   const visibleBnbHotelProperties = bnbHotelProperties.filter((property) => filteredPropertyIds.has(property.id));
+
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
 
   const showDropdown = isSearchFocused && searchQuery.length > 0 && (matchedProperties.length > 0 || placePredictions.length > 0 || listerResults.length > 0);
 

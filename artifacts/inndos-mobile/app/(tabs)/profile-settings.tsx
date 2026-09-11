@@ -167,11 +167,8 @@ export default function ProfileSettingsScreen() {
     currentArray?: string[],
     arrayMode?: "append" | number,
   ) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permission.status !== "granted") {
-      Alert.alert("Permission needed", "Allow photo access to upload a clear photo or scan of this document.");
-      return;
-    }
+    // launchImageLibraryAsync opens the system Photo Picker on Android.
+    // Do not request broad READ_MEDIA_* permissions for document uploads.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,

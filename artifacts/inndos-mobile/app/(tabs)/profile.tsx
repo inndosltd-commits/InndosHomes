@@ -122,8 +122,8 @@ export default function ProfileScreen() {
   };
 
   const handleAvatarPress = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") { Alert.alert("Permission needed", "Please allow photo library access."); return; }
+    // launchImageLibraryAsync opens the system Photo Picker on Android.
+    // Requesting broad media-library access would violate Google Play policy.
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];

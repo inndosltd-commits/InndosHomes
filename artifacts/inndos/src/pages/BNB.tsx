@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { SlidersHorizontal, Search } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { CmsPublicRenderer, useLegacyPageMetadata } from "@/components/cms/CmsRenderer";
+import { isPublishedCmsPage, usePublicCmsDocument } from "@/components/cms/usePublicCmsPage";
 
 interface Category {
   label: string;
@@ -30,6 +32,9 @@ const CATEGORIES: Category[] = [
 const MAX_PRICE = 50000;
 
 export default function BNB() {
+  const { page: cmsPage } = usePublicCmsDocument("bnb");
+  const hasPublishedCmsPage = isPublishedCmsPage(cmsPage);
+  useLegacyPageMetadata(!hasPublishedCmsPage);
   const [selectedCategory, setSelectedCategory] = useState<Category>(CATEGORIES[0]);
   const [allProperties, setAllProperties] = useState<ApiProperty[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +84,8 @@ export default function BNB() {
   }, [selectedCategory, allProperties, priceRange, bnbSearch]);
 
   const activeCat = selectedCategory;
+
+  if (hasPublishedCmsPage) return <CmsPublicRenderer page={cmsPage} />;
 
   return (
     <div className="min-h-screen bg-white">

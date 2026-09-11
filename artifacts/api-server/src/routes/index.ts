@@ -17,6 +17,7 @@ import reviewsRouter from "./reviews";
 import marketingRouter from "./marketing";
 import mapsRouter from "./maps";
 import listingDraftsRouter from "./listingDrafts";
+import cmsRouter from "./cms";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use("/reviews", reviewsRouter);
 router.use("/marketing", marketingRouter);
 router.use("/maps", mapsRouter);
 router.use("/listing-drafts", listingDraftsRouter);
+router.use(cmsRouter);
 
 export default router;

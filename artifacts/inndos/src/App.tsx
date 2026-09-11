@@ -21,6 +21,8 @@ import Terms from "@/pages/Terms";
 import AdminAnalytics from "@/pages/AdminAnalytics";
 import AdminNotifications from "@/pages/AdminNotifications";
 import ListerProfile from "@/pages/ListerProfile";
+import DeveloperCMS from "@/pages/DeveloperCMS";
+import DeveloperCMSPreview from "@/pages/DeveloperCMSPreview";
 import { AuthProvider } from "./lib/auth";
 import { CurrencyProvider } from "./lib/currency";
 import { LanguageProvider } from "./lib/language";
@@ -29,8 +31,10 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 function useHashLocationWithQuery(): [string, (to: string) => void] {
   const getPath = () => {
-    const hash = window.location.hash.replace(/^#/, "") || "/";
-    return hash.split("?")[0] || "/";
+    const hashPath = window.location.hash.replace(/^#/, "");
+    const browserPath = window.location.pathname;
+    const routePath = hashPath || browserPath || "/";
+    return routePath.split("?")[0] || "/";
   };
 
   const [path, setPath] = useState(getPath);
@@ -73,6 +77,8 @@ function Router() {
       <Route path="/properties/:id">{(params) => { window.location.hash = `/property/${params.id}`; return null; }}</Route>
       <Route path="/admin/analytics" component={AdminAnalytics}/>
       <Route path="/admin/notifications" component={AdminNotifications}/>
+      <Route path="/developer/cms" component={DeveloperCMS}/>
+      <Route path="/developer/cms/preview/:slug" component={DeveloperCMSPreview}/>
       <Route component={NotFound} />
     </Switch>
   );

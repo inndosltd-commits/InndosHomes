@@ -3,6 +3,7 @@
 - [Expo Launch Maps key](expo-launch-maps-key.md) — Expo Launch native prebuild needs the Maps key under an EXPO_PUBLIC-prefixed Replit secret.
 - [Expo project ownership](expo-launch-auth.md) — Trust EAS project lookup for the owner; the CLI user needs project access and may be a member under a different username.
 - [Native Google Maps attribution](native-google-maps-attribution.md) — Keep the provider-rendered watermark untouched; its text, color, and placement are not app styling controls.
+- [Android system media picker](android-photo-picker-policy.md) — Android uploads must use the system Photo Picker without broad READ_MEDIA or external-storage permissions.
 - [Presigned listing media trust](presigned-listing-media-trust.md) — Treat upload-grant metadata as untrusted; verify owner and stored bytes before attaching media.
 - [Authorization-dependent query caches](authorization-dependent-query-caches.md) — Scope caches by user when an API response changes with caller authorization.
 - [Subscription payment binding](subscription-payment-binding.md) — Activate paid plans only from a completed gateway result bound to the exact pending payment.
@@ -23,3 +24,15 @@
 - [Phone video compatibility](phone-video-compatibility.md) — probe phone MOV/MP4 files generously and transcode final listing clips to mobile-safe H.264 MP4.
 - [Expo build Metro port](expo-build-metro-port.md) — static Expo builds must select an available Metro port because mockup previews may occupy 8081.
 - [Mobile release API origin](mobile-release-api-origin.md) — release binaries must use the canonical production API origin; workspace hosts are development-only.
+- [CMS source test runner](cms-source-test-runner.md) — source API integration tests need the workspace TypeScript resolver and ESM-safe path handling.
+- [CMS template migrations](cms-template-migrations.md) — only migrate untouched generic seed drafts; never replace a developer-authored document just because it lacks a newer marker.
+- [CMS preview fingerprints](cms-preview-fingerprints.md) — canonicalize draft JSON before hashing because PostgreSQL JSONB key order can differ after persistence.
+- [CMS Home runtime composition](cms-home-runtime.md) — Home blocks share live search-filtered data; component-specific copy and limits stay editable.
+- [CMS editor pane resizing](cms-editor-pane-resizing.md) — desktop CMS layout uses bounded draggable and keyboard-accessible splitters; mobile remains stacked.
+- [CMS publish restore snapshots](cms-publish-restore.md) — publishing keeps one reversible prior version; restore swaps the current version into that snapshot slot.
+- [CMS specialized runtime blocks](cms-specialized-runtime.md) — resolve page-specific behavior from stable settings keys or ID prefixes so added presets retain live functionality.
+- [CMS styling boundary](cms-style-scope.md) — CMS control-room typography must stay scoped to CMS surfaces; preserve the original public header typography.
+- [Hash-router links](hash-router-links.md) — internal CMS references must keep destinations and dashboard queries inside the URL hash.
+- [CMS global client auth](cms-global-client-auth.md) — direct Header/Footer editor requests must explicitly include the developer bearer token.
+- [Auth-gated hook order](auth-gated-hook-order.md) — keep every hook above loading and role-based early returns to avoid React error #310.
+- [Dashboard panel CMS overlays](dashboard-panel-cms-overlays.md) — published panel copy sits above role-gated dashboard tools without replacing their live behavior.

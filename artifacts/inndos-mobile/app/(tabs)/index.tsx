@@ -1,323 +1,4 @@
-import {
-  getListFeaturedPropertiesQueryKey,
-  getListPropertiesQueryKey,
-  useListProperties,
-  useListFeaturedProperties,
-} from "@workspace/api-client-react";
-import type { ListPropertiesParams, Property } from "@workspace/api-client-react";
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import * as Location from "expo-location";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  Image,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColors } from "@/hooks/useColors";
-import { PropertyCard } from "@/components/PropertyCard";
-import { PropertyMapView, type MapBBox } from "@/components/PropertyMapView";
-import { BrandLogo } from "@/components/BrandLogo";
-import { Feather } from "@expo/vector-icons";
-import { useAuth } from "@/context/AuthContext";
-import { getApiBaseUrl } from "@/utils/api";
-import { AccountUpgradeModal } from "@/components/AccountUpgradeModal";
-import { PriceRangeSlider } from "@/components/PriceRangeSlider";
-import { normalizePropertySubtype } from "@workspace/property-categories";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const MAP_HEIGHT = Math.round(SCREEN_HEIGHT * 0.36);
-
-// ── Filter types ────────────────────────────────────────────────────────────
-type FilterItem = {
-  label: string;
-  value: ListPropertiesParams["type"];
-  hasDropdown: boolean;
-};
-
-const FILTER_TYPES: FilterItem[] = [
-  { label: "All",    value: undefined,  hasDropdown: false },
-  { label: "B&B",    value: "bnb",      hasDropdown: false },
-  { label: "Rent",   value: "rent",     hasDropdown: true  },
-  { label: "Hostel", value: "hostel",   hasDropdown: false },
-  { label: "Hotel",  value: "hotel",    hasDropdown: false },
-  { label: "Buy",    value: "sale",     hasDropdown: true  },
-];
-
-const RENT_SUBS = [
-  { section: "Apartments",  items: ["All Rentals", "Studio / Bedsitter", "By Bedrooms", "Penthouse", "Own Compound", "Condominiums"] },
-  { section: "Commercial",  items: ["Office Space", "Godowns", "Stalls", "Shops"] },
-];
-
-const BUY_SUBS = [
-  { section: null, items: ["All For Sale", "Apartments", "Homes", "Lands"] },
-];
-
-const BNB_SUBS = [
-  { label: "All", subtype: null },
-  { label: "Serviced Apartments", subtype: "serviced-apartment" },
-  { label: "Entire Place", subtype: "entire-place" },
-  { label: "Private Room", subtype: "private-room" },
-  { label: "Shared Room", subtype: "shared-room" },
-  { label: "Unique Stays", subtype: "unique-stays" },
-  { label: "Hotel & Boutique", subtype: "hotel-room" },
-  { label: "Vacation Homes", subtype: "vacation-home" },
-  { label: "Nature-Focused", subtype: "nature-stay" },
-  { label: "Others", subtype: "other" },
-] as const;
-
-const AMENITY_FILTER_SETS: Record<string, { id: string; label: string }[]> = {
-  rent: [
-    { id: "apt_prem_secure_parking", label: "Secure Parking" },
-    { id: "apt_prem_security_247", label: "24-Hour Security" },
-    { id: "apt_prem_cctv", label: "CCTV Surveillance" },
-    { id: "apt_prem_elevator", label: "Elevator / Lift" },
-    { id: "apt_prem_pool", label: "Swimming Pool" },
-    { id: "apt_prem_gym", label: "Gym" },
-    { id: "apt_prem_generator", label: "Backup Generator" },
-    { id: "apt_prem_borehole", label: "Borehole Water" },
-    { id: "apt_prem_playground", label: "Children's Playground" },
-    { id: "apt_prem_rooftop", label: "Rooftop Terrace" },
-    { id: "apt_balcony", label: "Private Balcony" },
-    { id: "apt_ensuite_beds", label: "En-suite Bedrooms" },
-    { id: "apt_ac_fans", label: "Air Conditioning" },
-    { id: "apt_wifi", label: "High-Speed Wi-Fi" },
-    { id: "apt_fitted_kitchen", label: "Fitted Kitchen" },
-  ],
-  sale: [
-    { id: "home_garden", label: "Garden / Landscaped Yard" },
-    { id: "home_pool", label: "Swimming Pool" },
-    { id: "home_gym", label: "Gym / Fitness Room" },
-    { id: "home_parking", label: "Parking Space" },
-    { id: "home_security_247", label: "24-Hour Security" },
-    { id: "home_cctv", label: "CCTV Surveillance" },
-    { id: "home_perimeter_wall", label: "Perimeter Wall & Gate" },
-    { id: "home_electricity_backup", label: "Electricity Backup" },
-    { id: "home_solar_water", label: "Solar Water Heating" },
-    { id: "home_prem_borehole", label: "Borehole Water" },
-    { id: "home_kids_play", label: "Children's Play Area" },
-    { id: "home_wifi", label: "High-Speed Wi-Fi" },
-    { id: "home_ac_fans", label: "Air Conditioning" },
-    { id: "home_ensuite_bath", label: "En-suite Bathrooms" },
-    { id: "home_prem_pet_friendly", label: "Pet-Friendly Compound" },
-  ],
-  hotel: [
-    { id: "hotel_breakfast", label: "Complimentary Breakfast" },
-    { id: "hotel_pool", label: "Swimming Pool" },
-    { id: "hotel_gym", label: "Gym" },
-    { id: "hotel_room_service", label: "Room Service" },
-    { id: "hotel_restaurant_bar", label: "Restaurant & Bar" },
-    { id: "hotel_conference_hall", label: "Conference Hall" },
-    { id: "hotel_valet", label: "Valet" },
-    { id: "hotel_reception_24hr", label: "24hrs Reception" },
-    { id: "hotel_ballroom", label: "Ballroom" },
-    { id: "hotel_tennis", label: "Tennis Court" },
-  ],
-  default: [
-    { id: "parking", label: "Parking" },
-    { id: "pool", label: "Swimming Pool" },
-    { id: "gym", label: "Gym" },
-    { id: "wifi", label: "WiFi" },
-    { id: "security", label: "24/7 Security" },
-    { id: "cctv", label: "CCTV" },
-    { id: "generator", label: "Backup Generator" },
-    { id: "borewater", label: "Borehole Water" },
-  ],
-};
-
-const AMENITY_LEGACY_ALIASES: Record<string, string[]> = {
-  apt_prem_secure_parking: ["parking"],
-  apt_prem_security_247: ["security"],
-  apt_prem_cctv: ["cctv"],
-  apt_prem_elevator: ["elevator"],
-  apt_prem_pool: ["pool"],
-  apt_prem_gym: ["gym"],
-  apt_prem_generator: ["generator"],
-  apt_prem_borehole: ["borewater"],
-  apt_balcony: ["balcony"],
-  apt_ac_fans: ["ac"],
-  apt_wifi: ["wifi"],
-  home_garden: ["garden"],
-  home_pool: ["pool"],
-  home_gym: ["gym"],
-  home_parking: ["parking"],
-  home_security_247: ["security"],
-  home_cctv: ["cctv"],
-  home_perimeter_wall: ["electric_fence"],
-  home_electricity_backup: ["generator"],
-  home_prem_borehole: ["borewater"],
-  home_wifi: ["wifi"],
-  home_ac_fans: ["ac"],
-  home_solar_water: ["solar"],
-  home_prem_pet_friendly: ["pet_friendly"],
-  hotel_pool: ["pool"],
-  hotel_gym: ["gym"],
-};
-
-function getAmenityFilters(type: ListPropertiesParams["type"]) {
-  if (type === "rent") return AMENITY_FILTER_SETS.rent;
-  if (type === "sale") return AMENITY_FILTER_SETS.sale;
-  if (type === "hotel") return AMENITY_FILTER_SETS.hotel;
-  return AMENITY_FILTER_SETS.default;
-}
-
-function propertyMatchesAmenity(tags: string[], amenityId: string): boolean {
-  const normalizedTags = tags.map((tag) => tag.toLowerCase());
-  return normalizedTags.includes(amenityId) ||
-    (AMENITY_LEGACY_ALIASES[amenityId] ?? []).some((alias) => normalizedTags.includes(alias));
-}
-
-function getMaxPrice(type: ListPropertiesParams["type"]): number {
-  return type === "bnb" ? 50_000 : type === "rent" ? 500_000 : 200_000_000;
-}
-
-function parseBrowseType(value: string | string[] | undefined): ListPropertiesParams["type"] {
-  const type = Array.isArray(value) ? value[0] : value;
-  return ["bnb", "rent", "hostel", "hotel", "sale"].includes(type ?? "")
-    ? type as ListPropertiesParams["type"]
-    : undefined;
-}
-
-type SortOption = "price-asc" | "price-desc" | "newest" | "distance";
-
-const SORT_OPTIONS: { label: string; value: SortOption; icon: string }[] = [
-  { label: "Price ↑", value: "price-asc",  icon: "trending-up"   },
-  { label: "Price ↓", value: "price-desc", icon: "trending-down"  },
-  { label: "Newest",  value: "newest",     icon: "clock"          },
-  { label: "Nearest", value: "distance",   icon: "navigation"     },
-];
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function matchesSubCategory(property: Property, category: string | null): boolean {
-  if (!category) return true;
-  const subtype = normalizePropertySubtype(property.subtype) ?? "";
-  const is = (...values: string[]) => values.includes(subtype);
-
-  switch (category) {
-    case "Serviced Apartments":
-    case "Entire Place":
-    case "Private Room":
-    case "Shared Room":
-    case "Unique Stays":
-    case "Hotel & Boutique":
-    case "Vacation Homes":
-    case "Nature-Focused":
-    case "Others": {
-      const bnbCategory = BNB_SUBS.find((item) => item.label === category);
-      return bnbCategory?.subtype === null || normalizePropertySubtype(property.subtype) === bnbCategory?.subtype;
-    }
-    case "Studio / Bedsitter": return is("studio", "bedsitter");
-    case "By Bedrooms": return (property.beds ?? 0) >= 1;
-    case "Penthouse": return is("penthouse");
-    case "Own Compound": return is("own-compound", "bungalow", "villa", "maisonette");
-    case "Condominiums": return is("condominium", "condo");
-    case "Office Space": return is("business", "office");
-    case "Godowns": return is("godown");
-    case "Stalls": return is("stall");
-    case "Shops": return is("shop");
-    case "Apartments": return is("apartment", "condominium", "condo");
-    case "Homes": return is("home", "bungalow", "villa", "maisonette", "townhouse");
-    case "Lands": return is("land");
-    default: return true;
-  }
-}
-
-function matchesPropertySearch(property: Property, search: string): boolean {
-  const query = search.trim().toLowerCase();
-  if (!query) return true;
-  return [
-    property.title,
-    property.ownerName,
-    property.ownerBusinessName,
-    property.address,
-  ].some((value) => value?.toLowerCase().includes(query));
-}
-
-function isWithinMapBounds(property: Property, bounds: MapBBox | null): boolean {
-  if (!bounds) return true;
-  const latitude = Number(property.lat);
-  const longitude = Number(property.lng);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
-  return (
-    latitude >= bounds.minLat &&
-    latitude <= bounds.maxLat &&
-    longitude >= bounds.minLng &&
-    longitude <= bounds.maxLng
-  );
-}
-
-// ── Section Block ────────────────────────────────────────────────────────────
-function SectionBlock({
-  title,
-  properties,
-  total,
-  onExploreMore,
-  colors,
-}: {
-  title: string;
-  properties: Property[];
-  total: number;
-  onExploreMore?: () => void;
-  colors: ReturnType<typeof useColors>;
-}) {
-  if (properties.length === 0) return null;
-  // Pair items for 2-column layout
-  const rows: Property[][] = [];
-  for (let i = 0; i < properties.length; i += 2) {
-    rows.push(properties.slice(i, i + 2));
-  }
-
-  return (
-    <View style={secStyles.wrapper}>
-      <View style={secStyles.sectionHeader}>
-        <Text style={[secStyles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
-        {total > 10 && onExploreMore && (
-          <Pressable onPress={onExploreMore}>
-            <Text style={[secStyles.viewAll, { color: colors.primary }]}>View all ({total})</Text>
-          </Pressable>
-        )}
-      </View>
-      {rows.map((row, idx) => (
-        <View key={idx} style={secStyles.row}>
-          {row.map((p) => <PropertyCard key={p.id} property={p} />)}
-          {row.length === 1 && <View style={{ width: (SCREEN_WIDTH - 48) / 2 }} />}
-        </View>
-      ))}
-      {total > 10 && onExploreMore && (
-        <Pressable
-          style={[secStyles.exploreBtn, { borderColor: colors.border, backgroundColor: colors.muted }]}
-          onPress={onExploreMore}
-        >
-          <Feather name="arrow-right-circle" size={16} color={colors.primary} />
-          <Text style={[secStyles.exploreBtnText, { color: colors.foreground }]}>
-            Explore {total - 10}+ more
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-const secStyles = StyleSheet.create({
-  wrapper: { paddingHorizontal: 16, paddingTop: 20 },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
-  sectionTitle: { fontSize: 18, fontFamily: "Outfit_700Bold" },
+tFamily: "Outfit_700Bold" },
   viewAll: { fontSize: 13, fontFamily: "Outfit_500Medium" },
   row: { flexDirection: "row", gap: 16, marginBottom: 16 },
   exploreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderWidth: 1, borderRadius: 10, marginTop: 4, marginBottom: 8 },
@@ -571,6 +252,7 @@ const filterS = StyleSheet.create({
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function BrowseScreen() {
   const colors = useColors();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
@@ -1022,7 +704,7 @@ export default function BrowseScreen() {
 
   const isWeb = Platform.OS === "web";
   const topPadding = isWeb ? 67 : insets.top;
-  const styles = getStyles(colors, topPadding);
+  const styles = getStyles(colors, topPadding, width, height);
 
   const hasAnySections = bnbHotelProperties.length > 0 || rentProperties.length > 0 || saleProperties.length > 0;
   const activeFilterCount = [
@@ -1447,13 +1129,14 @@ export default function BrowseScreen() {
   );
 }
 
-function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
+function getStyles(colors: ReturnType<typeof useColors>, topPadding: number, width: number, height: number) {
   const hPad = 12;
   const chipGap = 6;
   const filterCount = FILTER_TYPES.length;
   const sortCount = SORT_OPTIONS.length;
-  const filterChipW = Math.floor((SCREEN_WIDTH - hPad * 2 - chipGap * (filterCount - 1)) / filterCount);
-  const sortChipW   = Math.floor((SCREEN_WIDTH - hPad * 2 - chipGap * (sortCount - 1)) / sortCount);
+  const filterChipW = Math.floor((width - hPad * 2 - chipGap * (filterCount - 1)) / filterCount);
+  const sortChipW   = Math.floor((width - hPad * 2 - chipGap * (sortCount - 1)) / sortCount);
+  const mapHeight = Math.round(height * 0.36);
 
   return StyleSheet.create({
     container: { flex: 1 },
@@ -1509,10 +1192,10 @@ function getStyles(colors: ReturnType<typeof useColors>, topPadding: number) {
     viewToggle: { flexDirection: "row", borderWidth: 1, borderRadius: 7, overflow: "hidden" },
     viewToggleButton: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 8 },
     viewToggleText: { fontSize: 11, fontFamily: "Outfit_600SemiBold" },
-    mapWrapper: { height: MAP_HEIGHT, marginTop: 4 },
+    mapWrapper: { height: mapHeight, marginTop: 4 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 40 },
-    loadingState: { minHeight: MAP_HEIGHT },
-    emptyState: { minHeight: MAP_HEIGHT * 0.5 },
+    loadingState: { minHeight: mapHeight },
+    emptyState: { minHeight: mapHeight * 0.5 },
     emptyText: { fontSize: 14, fontFamily: "Outfit_400Regular", textAlign: "center" },
     retryBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, marginTop: 8 },
     retryText: { fontSize: 14, fontFamily: "Outfit_600SemiBold" },

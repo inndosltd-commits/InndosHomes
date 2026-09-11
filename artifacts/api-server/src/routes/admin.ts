@@ -402,9 +402,9 @@ router.post("/users", async (req, res) => {
     return;
   }
 
-  const VALID_ROLES = ["owner", "host", "tenant", "admin"];
+  const VALID_ROLES = ["owner", "host", "tenant", "admin", "developer"];
   if (!VALID_ROLES.includes(role)) {
-    res.status(400).json({ error: "Invalid role. Must be one of: owner, host, tenant, admin" });
+    res.status(400).json({ error: "Invalid role. Must be one of: owner, host, tenant, admin, developer" });
     return;
   }
 
@@ -417,7 +417,7 @@ router.post("/users", async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
   const [newUser] = await db
     .insert(users)
-    .values({ name: name.trim(), email: email.toLowerCase().trim(), password: hashed, role: role as "owner" | "host" | "tenant" | "admin", status: "active" })
+    .values({ name: name.trim(), email: email.toLowerCase().trim(), password: hashed, role: role as "owner" | "host" | "tenant" | "admin" | "developer", status: "active" })
     .returning();
 
   const { password: _pw, ...safeUser } = newUser;

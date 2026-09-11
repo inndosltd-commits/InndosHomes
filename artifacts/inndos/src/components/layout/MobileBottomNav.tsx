@@ -7,11 +7,18 @@ export function MobileBottomNav() {
   const [location] = useLocation();
   const { user } = useAuth();
   const [navHash, setNavHash] = useState(window.location.hash);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handler = () => setNavHash(window.location.hash);
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => setMenuOpen(Boolean((event as CustomEvent<boolean>).detail));
+    window.addEventListener("nav-menu-change", handler);
+    return () => window.removeEventListener("nav-menu-change", handler);
   }, []);
 
   const onDashboard = location === "/dashboard";
@@ -25,7 +32,7 @@ export function MobileBottomNav() {
   const isMyAccount = onDashboard && !isMessages && !isBookings && !isSaved;
 
   const hidden = location === "/login";
-  if (hidden) return null;
+  if (hidden || menuOpen) return null;
 
   const navTo = (path: string) => {
     if (!user) {

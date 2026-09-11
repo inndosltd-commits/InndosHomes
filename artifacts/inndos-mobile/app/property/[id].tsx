@@ -14,13 +14,11 @@ import { getImageUrl } from "@/utils/imageUrl";
 import { resolveAmenityLabel } from "@/utils/amenities";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
   Image,
   Linking,
@@ -34,6 +32,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,7 +46,6 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { PropertyLocationMap } from "@/components/PropertyLocationMap";
 import { propertySubtypeLabelForType, propertyTypeLabel } from "@workspace/property-categories";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const videoPlayerStyles = StyleSheet.create({
   error: {
     width: "100%",
@@ -57,9 +55,6 @@ const videoPlayerStyles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 24,
     backgroundColor: "#111111",
-  },
-  errorExpanded: {
-    height: Math.min(Dimensions.get("window").height * 0.72, 680),
   },
   errorTitle: {
     color: "#ffffff",
@@ -83,6 +78,7 @@ function PropertyVideo({
   expanded?: boolean;
   onPlaybackError?: (message: string) => void;
 }) {
+  const { height: windowHeight } = useWindowDimensions();
   const [playbackError, setPlaybackError] = useState("");
   const player = useVideoPlayer({ uri: source, contentType: "progressive" }, (videoPlayer) => {
     videoPlayer.loop = false;
@@ -117,7 +113,7 @@ function PropertyVideo({
 
   if (playbackError) {
     return (
-      <View style={[videoPlayerStyles.error, expanded && videoPlayerStyles.errorExpanded]}>
+      <View style={[videoPlayerStyles.error, expanded && { height: Math.min(windowHeight * 0.72, 680) }]}>
         <Feather name="alert-circle" size={30} color="#fff" />
         <Text style={videoPlayerStyles.errorTitle}>Video unavailable</Text>
         <Text style={videoPlayerStyles.errorText}>Please close the player and try again.</Text>
@@ -130,7 +126,7 @@ function PropertyVideo({
       player={player}
       style={{
         width: "100%",
-        height: expanded ? Math.min(Dimensions.get("window").height * 0.72, 680) : 220,
+        height: expanded ? Math.min(windowHeight * 0.72, 680) : 220,
         backgroundColor: "#000000",
       }}
       nativeControls
@@ -180,6 +176,7 @@ function getWatermarkDownloadUrl(
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
+  const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
@@ -277,15 +274,6 @@ export default function PropertyDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     let localUri: string | null = null;
     try {
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Photos permission needed",
-          "Allow INNDOS to access your photo library so the watermarked file can be saved.",
-        );
-        return;
-      }
-
       const cacheDirectory = FileSystem.cacheDirectory;
       if (!cacheDirectory) throw new Error("Device cache is unavailable");
       const extension = kind === "video" ? "mp4" : "jpg";
@@ -293,12 +281,14 @@ export default function PropertyDetailScreen() {
       const result = await FileSystem.downloadAsync(downloadUrl, localUri);
       if (result.status !== 200) throw new Error(`Download failed with status ${result.status}`);
 
-      await MediaLibrary.createAssetAsync(result.uri);
+      // Use the native share sheet instead of requesting photo-library access.
+      // Users can choose Files, Photos, or another installed destination.
+      await Share.share({
+        message: `Watermarked ${kind} from INNDOS`,
+        title: `Save watermarked ${kind}`,
+        url: result.uri,
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Downloaded",
-        `Watermarked ${kind} saved to your photo library.`,
-      );
     } catch {
       Alert.alert(
         "Download failed",
@@ -392,7 +382,7 @@ export default function PropertyDetailScreen() {
   const styles = getStyles(colors);
 
   const handleCarouselScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const idx = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
     setActivePhotoIndex(idx);
   };
 
@@ -416,7 +406,7 @@ export default function PropertyDetailScreen() {
       try {
         lightboxRef.current?.scrollToIndex({ index: safeIndex, animated: false });
       } catch {
-        lightboxRef.current?.scrollToOffset({ offset: safeIndex * SCREEN_WIDTH, animated: false });
+        lightboxRef.current?.scrollToOffset({ offset: safeIndex * windowWidth, animated: false });
       }
     }, 50);
   };
@@ -561,20 +551,20 @@ export default function PropertyDetailScreen() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={lightboxIndex}
-            getItemLayout={(_, index) => ({ length: SCREEN_WIDTH, offset: SCREEN_WIDTH * index, index })}
+            getItemLayout={(_, index) => ({ length: windowWidth, offset: windowWidth * index, index })}
             onScrollToIndexFailed={({ index }) => {
-              lightboxRef.current?.scrollToOffset({ offset: index * SCREEN_WIDTH, animated: false });
+              lightboxRef.current?.scrollToOffset({ offset: index * windowWidth, animated: false });
             }}
             onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              const idx = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
               setLightboxIndex(idx);
             }}
             keyExtractor={(_, i) => String(i)}
             renderItem={({ item }) => (
-              <View style={{ width: SCREEN_WIDTH, justifyContent: "center", alignItems: "center" }}>
+              <View style={{ width: windowWidth, justifyContent: "center", alignItems: "center" }}>
                 <Image
                   source={{ uri: getImageUrl(item) }}
-                  style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
+                  style={{ width: windowWidth, height: windowWidth }}
                   resizeMode="contain"
                 />
               </View>
@@ -595,7 +585,7 @@ export default function PropertyDetailScreen() {
                     try {
                       lightboxRef.current?.scrollToIndex({ index: idx, animated: true });
                     } catch {
-                      lightboxRef.current?.scrollToOffset({ offset: idx * SCREEN_WIDTH, animated: true });
+                      lightboxRef.current?.scrollToOffset({ offset: idx * windowWidth, animated: true });
                     }
                   }}
                   style={[
@@ -632,7 +622,7 @@ export default function PropertyDetailScreen() {
               keyExtractor={(_, i) => String(i)}
               renderItem={({ item }) => (
                 <Pressable
-                  style={{ width: SCREEN_WIDTH, height: 320 }}
+                  style={{ width: windowWidth, height: 320 }}
                   onPress={() => {
                     if (item.type === "photo") {
                       openLightbox(item.photoIndex);
@@ -675,7 +665,7 @@ export default function PropertyDetailScreen() {
               )}
             />
           ) : (
-            <View style={{ width: SCREEN_WIDTH, height: 320, alignItems: "center", justifyContent: "center", backgroundColor: colors.muted }}>
+            <View style={{ width: windowWidth, height: 320, alignItems: "center", justifyContent: "center", backgroundColor: colors.muted }}>
               <Feather name="home" size={42} color={colors.mutedForeground} />
             </View>
           )}

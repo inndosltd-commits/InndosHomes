@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
@@ -39,8 +38,6 @@ interface PlaceDetails {
   latitude: number;
   longitude: number;
 }
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const geocodeCache = new Map<string, string | null>();
 

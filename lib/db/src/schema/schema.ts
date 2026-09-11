@@ -19,7 +19,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role")
-    .$type<"owner" | "tenant" | "admin" | "host" | "guest">()
+    .$type<"owner" | "tenant" | "admin" | "host" | "guest" | "developer">()
     .notNull()
     .default("tenant"),
   status: text("status")

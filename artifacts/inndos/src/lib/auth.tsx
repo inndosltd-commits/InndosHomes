@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 type UserRole = "tenant" | "owner" | "admin" | "host" | "guest" | null;
 
@@ -7,7 +8,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "owner" | "tenant" | "admin" | "host" | "guest";
+  role: "owner" | "tenant" | "admin" | "host" | "guest" | "developer";
   status: "active" | "pending" | "suspended";
   joinDate: string;
   avatar?: string | null;
@@ -62,6 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    setAuthTokenGetter(() => token);
+    return () => setAuthTokenGetter(null);
+  }, [token]);
+
+  useEffect(() => {
     const storedToken = localStorage.getItem("inndos_token");
     if (storedToken) {
       setToken(storedToken);
@@ -95,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(preexistingToken);
       setUser(newUser);
       localStorage.setItem("inndos_token", preexistingToken);
-      setLocation("/dashboard");
+      setLocation(newUser.role === "developer" ? "/developer/cms" : "/dashboard");
       return;
     }
     const res = await apiFetch("/auth/login", {
@@ -110,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem("inndos_token", newToken);
-    setLocation("/dashboard");
+    setLocation(newUser.role === "developer" ? "/developer/cms" : "/dashboard");
   };
 
   const signup = async (role: UserRole, name: string, email: string, password?: string, phoneToken?: string, extra?: { isRegisteredFirm?: boolean; firmType?: string; referralCode?: string }) => {

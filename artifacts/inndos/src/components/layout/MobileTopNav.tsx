@@ -103,12 +103,12 @@ export function MobileTopNav() {
 
   const pill = (active: boolean) =>
     `flex items-center justify-center gap-0.5 whitespace-nowrap px-1 py-1.5 rounded-full text-xs font-medium border transition-all select-none w-full ${
-      active ? "bg-black text-white border-black" : "bg-white text-gray-700 border-gray-200"
+      active ? "bg-black text-white border-black" : "bg-white text-gray-700 border-gray-300"
     }`;
 
   return (
     <>
-      <div className="lg:hidden sticky top-[80px] z-40 bg-white border-b border-gray-100 shadow-sm">
+      <div className="lg:hidden sticky top-[64px] z-40 bg-[#f8f7f2] border-b border-[#d7d2c7]">
         <div className="grid grid-cols-5 gap-1.5 px-2 py-2">
           <Link href="/bnb" className="contents">
             <button className={pill(isBnbActive)}>B&amp;B</button>

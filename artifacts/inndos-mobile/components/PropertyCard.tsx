@@ -11,13 +11,13 @@ import { getImageUrl } from "@/utils/imageUrl";
 import { useAuth } from "@/context/AuthContext";
 import React from "react";
 import {
-  Dimensions,
   Image,
   Pressable,
   StyleSheet,
   Text,
   View,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { resolveAmenityLabel } from "@/utils/amenities";
@@ -30,9 +30,6 @@ import { formatPropertyPrice } from "@/utils/price";
 interface PropertyCardProps {
   property: Property;
 }
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
 function getLandMeasurements(property: Property): { acres?: string; plotSize?: string } {
   const details = property.details;
@@ -50,6 +47,7 @@ function getLandMeasurements(property: Property): { acres?: string; plotSize?: s
 
 export function PropertyCard({ property }: PropertyCardProps) {
   const colors = useColors();
+  const { width } = useWindowDimensions();
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -62,6 +60,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const isFavoriteLoading = isAdding || isRemoving;
   const previewImage = property.images?.[0] ?? property.videoPosters?.[0] ?? property.image;
   const previewImageUrl = getImageUrl(previewImage);
+  const cardWidth = (width - 48) / 2;
 
   const handleFavoriteToggle = (e: { stopPropagation?: () => void }) => {
     if (!user) {
@@ -96,7 +95,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1, width: cardWidth },
       ]}
       onPress={() => router.push({ pathname: "/property/[id]", params: { id: property.id } })}
     >
@@ -209,7 +208,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     overflow: "hidden",
-    width: CARD_WIDTH,
   },
   imageContainer: {
     width: "100%",

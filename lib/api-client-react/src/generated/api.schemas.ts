@@ -113,6 +113,7 @@ export const UserProfileRole = {
   admin: "admin",
   host: "host",
   guest: "guest",
+  developer: "developer",
 } as const;
 
 export type UserProfileStatus =
@@ -462,6 +463,213 @@ export interface SubscriptionPayment {
   plan: string;
   amount: number;
   updatedAt?: string;
+}
+
+export type CmsItemIconKey =
+  (typeof CmsItemIconKey)[keyof typeof CmsItemIconKey];
+
+export const CmsItemIconKey = {
+  search: "search",
+  "clipboard-list": "clipboard-list",
+  link: "link",
+  home: "home",
+  star: "star",
+  bed: "bed",
+} as const;
+
+export interface CmsItem {
+  title: string;
+  body: string;
+  href?: string;
+  imageSrc?: string;
+  imageAlt?: string;
+  iconKey?: CmsItemIconKey;
+  number?: string;
+}
+
+export type CmsActionPlacement =
+  (typeof CmsActionPlacement)[keyof typeof CmsActionPlacement];
+
+export const CmsActionPlacement = {
+  header: "header",
+  footer: "footer",
+} as const;
+
+export type CmsActionVariant =
+  (typeof CmsActionVariant)[keyof typeof CmsActionVariant];
+
+export const CmsActionVariant = {
+  ghost: "ghost",
+  primary: "primary",
+  outline: "outline",
+} as const;
+
+export interface CmsAction {
+  id: string;
+  label: string;
+  href: string;
+  placement: CmsActionPlacement;
+  variant: CmsActionVariant;
+}
+
+export type CmsSectionSettingsComponentKey =
+  (typeof CmsSectionSettingsComponentKey)[keyof typeof CmsSectionSettingsComponentKey];
+
+export const CmsSectionSettingsComponentKey = {
+  "home-map-search": "home-map-search",
+  "home-process": "home-process",
+  "home-property-collection": "home-property-collection",
+  "home-bnb-hotels": "home-bnb-hotels",
+} as const;
+
+export type CmsSectionSettingsCollectionType =
+  (typeof CmsSectionSettingsCollectionType)[keyof typeof CmsSectionSettingsCollectionType];
+
+export const CmsSectionSettingsCollectionType = {
+  featured: "featured",
+  all: "all",
+  rent: "rent",
+  sale: "sale",
+  "bnb-hotels": "bnb-hotels",
+} as const;
+
+export interface CmsSectionSettings {
+  componentKey?: CmsSectionSettingsComponentKey;
+  collectionType?: CmsSectionSettingsCollectionType;
+  /**
+   * @minimum 1
+   * @maximum 24
+   */
+  limit?: number;
+  emptyStateText?: string;
+  searchPlaceholder?: string;
+  resultCountLabel?: string;
+  showLocateButton?: boolean;
+  /**
+   * @minimum 320
+   * @maximum 900
+   */
+  mapHeight?: number;
+  /** @maxItems 20 */
+  formSubjects?: string[];
+  successTitle?: string;
+  successText?: string;
+  /**
+   * @minimum 1
+   * @maximum 1000000
+   */
+  maxPrice?: number;
+  actions?: CmsAction[];
+}
+
+export type CmsSectionType =
+  (typeof CmsSectionType)[keyof typeof CmsSectionType];
+
+export const CmsSectionType = {
+  hero: "hero",
+  content: "content",
+  feature: "feature",
+  cta: "cta",
+} as const;
+
+export type CmsSectionComponentKey =
+  (typeof CmsSectionComponentKey)[keyof typeof CmsSectionComponentKey];
+
+export const CmsSectionComponentKey = {
+  "home-map-search": "home-map-search",
+  "home-process": "home-process",
+  "home-property-collection": "home-property-collection",
+  "home-bnb-hotels": "home-bnb-hotels",
+} as const;
+
+export interface CmsSection {
+  id: string;
+  type: CmsSectionType;
+  label: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  buttonText: string;
+  buttonHref: string;
+  backgroundColor: string;
+  textColor: string;
+  accentColor: string;
+  componentKey?: CmsSectionComponentKey;
+  settings?: CmsSectionSettings;
+  items: CmsItem[];
+  visible: boolean;
+}
+
+export type CmsDocumentTemplateKey =
+  (typeof CmsDocumentTemplateKey)[keyof typeof CmsDocumentTemplateKey];
+
+export const CmsDocumentTemplateKey = {
+  home: "home",
+  about: "about",
+  contact: "contact",
+  pricing: "pricing",
+  bnb: "bnb",
+  terms: "terms",
+  privacy: "privacy",
+  dashboard: "dashboard",
+} as const;
+
+export interface CmsDocument {
+  templateKey?: CmsDocumentTemplateKey;
+  contentVersion?: number;
+  pageTitle: string;
+  metaDescription: string;
+  backgroundColor: string;
+  textColor: string;
+  accentColor: string;
+  sections: CmsSection[];
+}
+
+export interface CmsPage {
+  slug: string;
+  label: string;
+  draft: CmsDocument;
+  published: CmsDocument | null;
+  publishedBackup: CmsDocument | null;
+  publishedAt: string | null;
+  publishedBackupAt: string | null;
+  updatedAt: string;
+}
+
+export interface CmsPublicPage {
+  slug: string;
+  label: string;
+  published: CmsDocument;
+  publishedAt: string;
+}
+
+export interface CmsPreviewPage {
+  slug: string;
+  label: string;
+  draft: CmsDocument;
+  published: CmsDocument | null;
+  updatedAt: string;
+}
+
+export interface UpdateCmsPageInput {
+  draft: CmsDocument;
+}
+
+export interface CmsPreviewInput {
+  draft: CmsDocument;
+}
+
+export type CmsPreviewRequiredErrorCode =
+  (typeof CmsPreviewRequiredErrorCode)[keyof typeof CmsPreviewRequiredErrorCode];
+
+export const CmsPreviewRequiredErrorCode = {
+  CMS_PREVIEW_REQUIRED: "CMS_PREVIEW_REQUIRED",
+} as const;
+
+export interface CmsPreviewRequiredError {
+  error: string;
+  code: CmsPreviewRequiredErrorCode;
+  message: string;
 }
 
 export type GetDirectionsParams = {

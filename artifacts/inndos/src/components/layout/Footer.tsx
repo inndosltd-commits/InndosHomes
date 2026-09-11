@@ -19,60 +19,52 @@ const ThreadsIcon = ({ className }: { className?: string }) => (
 
 import { useLanguage } from "@/lib/language";
 import { BrandWordmark } from "./BrandWordmark";
+import { usePublicCmsGlobal } from "@/lib/cms-global";
 
 export function Footer() {
   const { t } = useLanguage();
+  const { footer } = usePublicCmsGlobal();
+  const visibleSocialLinks = footer.socialLinks.filter((link) => link.visible);
+  const socialIcon = (id: string) => {
+    if (id === "instagram") return <Instagram className="h-5 w-5" />;
+    if (id === "facebook") return <Facebook className="h-5 w-5" />;
+    if (id === "linkedin") return <Linkedin className="h-5 w-5" />;
+    if (id === "tiktok") return <TikTokIcon className="h-5 w-5" />;
+    return <ThreadsIcon className="h-5 w-5" />;
+  };
   return (
-    <footer className="bg-primary text-white py-12">
+    <footer className="py-12" style={{ backgroundColor: footer.backgroundColor, color: footer.textColor }}>
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
            <div className="mb-4"><BrandWordmark inverse /></div>
-           <p className="text-gray-300 text-sm">A unified platform connecting Owners, Landlords, Rental Agencies & Property Sellers with Tenants & Buyers.</p>
+           <p className="text-sm whitespace-pre-line" style={{ color: footer.mutedTextColor }}>{footer.brandDescription}</p>
         </div>
+        {footer.columns.filter((column) => column.visible).map((column) => (
+          <div key={column.id}>
+            <h4 className="font-bold mb-4" style={{ color: footer.textColor }}>{column.title}</h4>
+            <ul className="space-y-2 text-sm">
+              {column.links.filter((link) => link.visible).map((link) => (
+                <li key={link.id}>
+                  <Link href={link.href} className="cursor-pointer transition-colors" style={{ color: footer.mutedTextColor }}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
         <div>
-          <h4 className="font-bold mb-4">{t("footer.platform")}</h4>
-          <ul className="space-y-2 text-sm text-gray-300">
-            <li><Link href="/search?type=rent" className="hover:text-white cursor-pointer">{t("nav.rent")}</Link></li>
-            <li><Link href="/search?type=sale" className="hover:text-white cursor-pointer">{t("nav.buy")}</Link></li>
-            <li><Link href="/dashboard" className="hover:text-white cursor-pointer">{t("nav.list_property")}</Link></li>
-            <li><Link href="/pricing" className="hover:text-white cursor-pointer">{t("footer.pricing")}</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-bold mb-4">{t("footer.support")}</h4>
-          <ul className="space-y-2 text-sm text-gray-300">
-            <li><Link href="/about" className="hover:text-white cursor-pointer">{t("footer.about")}</Link></li>
-            <li><Link href="/help" className="hover:text-white cursor-pointer">{t("footer.help")}</Link></li>
-            <li><Link href="/terms" className="hover:text-white cursor-pointer">{t("footer.terms")}</Link></li>
-            <li><Link href="/privacy" className="hover:text-white cursor-pointer">{t("footer.privacy")}</Link></li>
-            <li><Link href="/contact" className="hover:text-white cursor-pointer">{t("footer.contact")}</Link></li>
-          </ul>
-        </div>
-         <div>
-          <h4 className="font-bold mb-4">{t("footer.follow")}</h4>
-          <p className="text-sm text-gray-300 mb-4">Nairobi, Kenya<br/>support@inndos.com<br/>+254 143 361799</p>
-          
+          <h4 className="font-bold mb-4" style={{ color: footer.textColor }}>{t("footer.follow")}</h4>
+          <p className="text-sm whitespace-pre-line mb-4" style={{ color: footer.mutedTextColor }}>{footer.contactText}</p>
           <div className="flex items-center gap-4 mt-4">
-            <a href="https://www.instagram.com/inndos_global?igsh=OThzbHkydmh5ZHYw&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
-              <Instagram className="h-5 w-5" />
-            </a>
-            <a href="https://www.tiktok.com/@inndos_global?_r=1&_t=ZS-95srzxOYY6y" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
-              <TikTokIcon className="h-5 w-5" />
-            </a>
-            <a href="https://www.facebook.com/share/v/17WV993g7G/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
-              <Facebook className="h-5 w-5" />
-            </a>
-            <a href="https://www.threads.com/@inndos_global?igshid=NTc4MTIwNjQ2YQ==" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
-              <ThreadsIcon className="h-5 w-5" />
-            </a>
-            <a href="https://www.linkedin.com/in/inndos-ltd-5a0833400" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors bg-white/10 p-2 rounded-full">
-              <Linkedin className="h-5 w-5" />
-            </a>
+            {visibleSocialLinks.map((link) => (
+              <a key={link.id} href={link.href} target="_blank" rel="noopener noreferrer" aria-label={link.label} className="p-2 rounded-full transition-colors" style={{ color: footer.mutedTextColor, backgroundColor: `${footer.textColor}1a` }}>
+                {socialIcon(link.id)}
+              </a>
+            ))}
           </div>
         </div>
       </div>
-      <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-gray-400">
-        © 2026 inndos. All rights reserved.
+      <div className="container mx-auto px-4 mt-12 pt-8 border-t text-center text-sm" style={{ borderColor: `${footer.textColor}1a`, color: footer.mutedTextColor }}>
+        {footer.copyrightText}
       </div>
     </footer>
   );

@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Image,
   Platform,
   Pressable,
@@ -32,7 +31,6 @@ interface PropertyMapViewProps {
   focusRegion?: Region | null;
 }
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const PROPERTY_PIN_ICON = require("@/assets/images/map-pin.png");
 
 const DEFAULT_REGION: Region = {
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   map: {
-    width: SCREEN_WIDTH,
+    width: "100%",
     height: "100%",
   },
   propertyPin: {

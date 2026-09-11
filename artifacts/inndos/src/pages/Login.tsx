@@ -128,7 +128,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      setLocation("/dashboard");
+      setLocation(user.role === "developer" ? "/developer/cms" : "/dashboard");
     }
   }, [user, setLocation]);
 
@@ -464,7 +464,7 @@ export default function Login() {
   const linkedinConfigured = Boolean(LINKEDIN_CLIENT_ID && LINKEDIN_CLIENT_ID !== "placeholder");
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50">
       <Navbar />
       <div className="container mx-auto flex items-center justify-center px-4 py-16">
         <Card className="w-full max-w-md shadow-xl">
@@ -681,7 +681,7 @@ export default function Login() {
 
                       <div className="space-y-2">
                         <Label htmlFor={`email-${role}`}>Email</Label>
-                        <Input
+                          <Input
                           id={`email-${role}`}
                           type="email"
                           placeholder="Enter your email"
@@ -693,7 +693,7 @@ export default function Login() {
                           <Input
                             id={`password-${role}`}
                             type={showPasswords[`pw-${role}`] ? "text" : "password"}
-                            className="pr-10"
+                             className="pr-10"
                           />
                           <button
                             type="button"
@@ -705,8 +705,8 @@ export default function Login() {
                           </button>
                         </div>
                       </div>
-                      <Button
-                        className="w-full"
+                       <Button
+                         className="w-full"
                         onClick={() => isSignUp ? handleSignUp(role) : handleLogin(role)}
                         disabled={isLoading}
                       >
@@ -725,7 +725,7 @@ export default function Login() {
                               <span className="w-full border-t" />
                             </div>
                             <div className="relative flex justify-center text-xs uppercase">
-                              <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+                               <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
                             </div>
                           </div>
 
