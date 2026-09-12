@@ -1,8 +1,0 @@
-uploads = []
-outputs = []
-
-[[generated]]
-id = "_u-4DTJ4SObVHdC1yyUQP"
-uri = "file://public/favicon.png"
-type = "image"
-title = "simple black house icon"
